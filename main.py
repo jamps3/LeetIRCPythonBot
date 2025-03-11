@@ -45,7 +45,7 @@ import urllib.parse  # Lisätään URL-koodausta varten
 from dotenv import load_dotenv # Load api-keys from .env file
 
 # Initialize conversation history
-conversation_history = [{"role": "system", "content": "You are a helpful assistant."}]
+conversation_history = [{"role": "system", "content": "Olet nerokas irkkikanavan botti."}]
 
 # Aseta API-avaimet
 load_dotenv()  # Lataa .env-tiedoston muuttujat
