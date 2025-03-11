@@ -87,6 +87,7 @@ def login(irc, writer):
 
     log(f"Weather API Key: {WEATHER_API_KEY}", "DEBUG")
     log(f"Electricity API Key: {ELECTRICITY_API_KEY}", "DEBUG")
+    log(f"OpenAI API Key: {api_key}", "DEBUG")
 
     writer.sendall(f"NICK {nick}\r\n".encode("utf-8"))
     writer.sendall(f"USER {login} 0 * :{nick}\r\n".encode("utf-8"))
