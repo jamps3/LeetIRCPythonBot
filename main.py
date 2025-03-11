@@ -44,25 +44,23 @@ import xml.dom.minidom
 import urllib.parse  # Lisätään URL-koodausta varten
 from dotenv import load_dotenv # Load api-keys from .env file
 
-# Set your OpenAI API key
-openai.api_key = ""
-
 # Initialize conversation history
 conversation_history = [{"role": "system", "content": "You are a helpful assistant."}]
 
 # Aseta API-avaimet
+load_dotenv()  # Lataa .env-tiedoston muuttujat
 WEATHER_API_KEY = os.getenv("weatherApiKey")
 ELECTRICITY_API_KEY = os.getenv("electricityApiKey")
-load_dotenv()  # Lataa .env-tiedoston muuttujat
 api_key = os.getenv("OPENAI_API_KEY")
 
-bot_name = "jL3b"
-channel = "#joensuu"
+bot_name = "jL3b2"
+channel = "#joensuutest"
 data_file = "values.bin"
 kraks = 0
 leets = 0
 last_ping = time.time()
-client = openai.OpenAI()  # Create a client instance
+# Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
+client = openai.OpenAI(api_key=api_key)
 
 def save():
     global kraks, leets
@@ -401,9 +399,6 @@ def fetch_title(irc, channel, text):
             # send_message(irc, channel, f"Otsikon haku epäonnistui URL-osoitteelle: {url}")
 
 # Funktio, joka ottaa keskustelun syötteen ja palauttaa GPT-4:n vastauksen
-# Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
-client = openai.OpenAI(api_key=api_key)
-
 # Käytä OpenAI APIa keskusteluun
 def keskustele(prompt, model="gpt-3.5-turbo", max_tokens=150):
     response = client.chat.completions.create(
