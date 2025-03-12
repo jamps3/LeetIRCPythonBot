@@ -43,6 +43,7 @@ import openai
 import xml.dom.minidom
 import urllib.parse  # Lisätään URL-koodausta varten
 from dotenv import load_dotenv # Load api-keys from .env file
+from collections import Counter
 
 # Initialize conversation history
 conversation_history = [{"role": "system", "content": "Olet nerokas irkkikanavan botti. Perustiedot: krak=alkoholijuoman avaus"}]
@@ -164,39 +165,7 @@ def process_message(irc, message):
             save(kraks)  # Save updates immediately
         
         # Handle bot commands
-        if text.startswith("!aika"):
-            send_message(irc, channel, f"Nykyinen aika: {datetime.now().strftime('%H:%M:%S')}")
-        
-        elif text.startswith("!leet"):
-            match = re.search(r"!leet (\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d+)", text)
-            if match:
-                hour, minute, second, microsecond = map(int, match.groups())
-                send_scheduled_message(irc, channel, "leet!", hour, minute, second, microsecond)
-                log(f"Viesti ajastettu klo {hour}:{minute}:{second}.{microsecond}")
-            else:
-                log("Virheellinen aikaformaatti! Käytä muotoa: !leet HH:MM:SS.mmmmmm", "ERROR")
-        
-        elif text.startswith("!kaiku"):
-            send_message(irc, channel, f"{sender}: {text[7:]}")
-        
-        elif text.startswith("!saa"):
-            parts = text.split(" ", 1)
-            location = parts[1].strip() if len(parts) > 1 else "Joensuu"
-            send_weather(irc, channel, location)
-        
-        elif text.startswith("!sahko"):
-            parts = text.split(" ", 1)
-            send_electricity_price(irc, channel, parts)
-        
-        elif "http" in text:
-            fetch_title(irc, channel, text)
-        
-        elif re.search(rf"\b{re.escape(bot_name)}\b", text, re.IGNORECASE) or text.startswith("!bot"):
-            response = chat_with_gpt_4o_mini(text)
-            send_message(irc, channel, f"{sender}: {response}")
-        
-        # New command: Check word usage
-        elif text.startswith("!sana "):
+        if text.startswith("!sana "):
             parts = text.split(" ", 1)
             if len(parts) > 1:
                 search_word = parts[1].strip().lower()  # Normalize case
@@ -215,6 +184,50 @@ def process_message(irc, message):
                     send_message(irc, channel, f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
             else:
                 send_message(irc, channel, "Käytä komentoa: !sana <sana>")
+
+        elif text.startswith("!topwords"):
+            parts = text.split(" ", 1)
+            kraks = load()
+
+            if len(parts) > 1:  # Specific nick provided
+                nick = parts[1].strip()
+                if nick in kraks:
+                    top_words = Counter(kraks[nick]).most_common(5)
+                    word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
+                    send_message(irc, channel, f"{nick}: {word_list}")
+                else:
+                    send_message(irc, channel, f"Käyttäjää '{nick}' ei löydy.")
+            else:  # Show top words for all users
+                overall_counts = Counter()
+                for words in kraks.values():
+                    overall_counts.update(words)
+
+                top_words = overall_counts.most_common(5)
+                word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
+                send_message(irc, channel, f"Käytetyimmät sanat: {word_list}")
+
+        elif text.startswith("!kraks"):
+            kraks = load()
+            total_kraks = 0
+            word_counts = {"krak": 0, "kr1k": 0, "kr0k": 0}
+            top_users = {"krak": None, "kr1k": None, "kr0k": None}
+
+            # Count occurrences and track top users
+            for nick, words in kraks.items():
+                for word in word_counts.keys():
+                    count = words.get(word, 0)
+                    word_counts[word] += count
+                    total_kraks += count
+
+                    if count > 0 and (top_users[word] is None or count > kraks[top_users[word]].get(word, 0)):
+                        top_users[word] = nick
+
+            total_message = f"Krakit yhteensä: {total_kraks}"
+            details = ", ".join(
+                f"{word}: {count} [{top_users[word]}]" for word, count in word_counts.items() if count > 0
+            )
+
+            send_message(irc, channel, f"{total_message}, {details}")
 
 def send_scheduled_message(irc, channel, message, target_hour=13, target_minute=37, target_second=13, target_microsecond=371337):
     """
