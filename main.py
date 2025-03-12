@@ -162,6 +162,7 @@ def process_message(irc, message):
     
     if match:
         sender, _, target, text = match.groups()
+        log("text: " + text)
         
         # Check if the message is a private message (not a channel)
         if target.lower() == bot_name.lower():  # Private message detected
@@ -212,11 +213,11 @@ def process_message(irc, message):
 
                 if word_counts:
                     results = ", ".join(f"{nick}: {count}" for nick, count in word_counts.items())
-                    send_message(irc, sender, f"Sana '{search_word}' on sanottu: {results}")
+                    send_message(irc, target, f"Sana '{search_word}' on sanottu: {results}")
                 else:
-                    send_message(irc, sender, f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
+                    send_message(irc, target, f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
             else:
-                send_message(irc, sender, "Käytä komentoa: !sana <sana>")
+                send_message(irc, target, "Käytä komentoa: !sana <sana>")
 
         # !topwords - Käytetyimmät sanat
         elif text.startswith("!topwords"):
@@ -238,7 +239,7 @@ def process_message(irc, message):
 
                 top_words = overall_counts.most_common(5)
                 word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
-                send_message(irc, sender, f"Käytetyimmät sanat: {word_list}")
+                send_message(irc, target, f"Käytetyimmät sanat: {word_list}")
         
         # !leaderboard - Aktiivisimmat käyttäjät
         elif text.startswith("!leaderboard"):
@@ -248,9 +249,9 @@ def process_message(irc, message):
 
             if top_users:
                 leaderboard_msg = ", ".join(f"{nick}: {count}" for nick, count in top_users)
-                send_message(irc, sender, f"Aktiivisimmat käyttäjät: {leaderboard_msg}")
+                send_message(irc, target, f"Aktiivisimmat käyttäjät: {leaderboard_msg}")
             else:
-                send_message(irc, sender, "Ei vielä tarpeeksi dataa leaderboardille.")
+                send_message(irc, target, "Ei vielä tarpeeksi dataa leaderboardille.")
         
         # !kraks - Krakkaukset
         elif text.startswith("!kraks"):
@@ -309,8 +310,8 @@ def process_message(irc, message):
                         if rate.attrib.get("name") == "12 month (act/360)":
                             euribor_12m = rate.find("./ns:intr", namespaces=ns)
                             if euribor_12m is not None:
-                                print(f"Yesterday's 12-month Euribor rate: {euribor_12m.attrib['value']}%")
-                                send_message(irc, sender, f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%")
+                                print(f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%")
+                                send_message(irc, target, f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%")
                             else:
                                 print("Interest rate value not found.")
                             break
