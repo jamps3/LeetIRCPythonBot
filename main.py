@@ -171,6 +171,24 @@ def process_message(irc, message):
         
         else:  # Normal channel message
             log(f"Channel message in {target} from {sender}: {text}")
+        
+        # ✅ Estetään botin vastaaminen itselleen
+        if sender.lower() == bot_name.lower():
+            log("🔄 Ignoring bot's own message to prevent loops.")
+            # Bot received the latency test message back
+            # Handle the bot's own LatencyCheck response
+            #elif re.search(rf"PRIVMSG {re.escape(bot_name)} :!LatencyCheck", text):
+            if "!LatencyCheck" in text:
+                if 'latency_start' in globals():
+                    latency = time.time() - latency_start
+                    latency_ns = int((time.time() - latency_start) * 1_000_000_000)  # Convert to ns
+                    global half_latency_ns
+                    half_latency_ns = latency_ns // 2  # Divide by 2 and store globally
+                    log(f"✅ Recognized LatencyCheck response! Latency: {latency:.3f} seconds")
+                    irc.sendall(f"PRIVMSG {bot_name} :Latency is {latency_ns} ns\r\n".encode("utf-8"))
+                else:
+                    log("⚠️ Warning: Received LatencyCheck response, but no latency_start timestamp exists.")
+            return  # Älä käsittele tätä viestiä
 
         # Track words only if it's not a bot command
         if not text.startswith(("!", "http")):
@@ -309,26 +327,14 @@ def process_message(irc, message):
             log("Received !latencycheck command, measuring latency...")
             measure_latency(irc, bot_name)
 
-        # Bot received the latency test message back
-        # Handle the bot's own LatencyCheck response
-        #elif re.search(rf"PRIVMSG {re.escape(bot_name)} :!LatencyCheck", text):
-        elif "!LatencyCheck" in text:
-            if 'latency_start' in globals():
-                latency = time.time() - latency_start
-                latency_ns = int((time.time() - latency_start) * 1_000_000_000)  # Convert to ns
-                global half_latency_ns
-                half_latency_ns = latency_ns // 2  # Divide by 2 and store globally
-                log(f"✅ Recognized LatencyCheck response! Latency: {latency:.3f} seconds")
-                irc.sendall(f"PRIVMSG {bot_name} :Latency is {latency_ns} ns\r\n".encode("utf-8"))
-            else:
-                log("⚠️ Warning: Received LatencyCheck response, but no latency_start timestamp exists.")
-
         else:
             # ✅ Handle regular chat messages (send to GPT)
-            gpt_response = chat_with_gpt_4o_mini(text)
-            reply_target = sender if is_private else target  # Send private replies to sender
-            irc.sendall(f"PRIVMSG {reply_target} :{gpt_response}\r\n".encode("utf-8"))
-            log(f"💬 Sent response to {reply_target}: {gpt_response}")
+            # ✅ Vain yksityisviesteihin tai viesteihin, joissa mainitaan botin nimi, vastataan
+            if is_private or text.lower().startswith(f"{bot_name.lower()}"):
+                gpt_response = chat_with_gpt_4o_mini(text)
+                reply_target = sender if is_private else target  # Send private replies to sender
+                irc.sendall(f"PRIVMSG {reply_target} :{gpt_response}\r\n".encode("utf-8"))
+                log(f"💬 Sent response to {reply_target}: {gpt_response}")
 
 def measure_latency(irc, nickname):
     """Sends a latency test message to self and starts the timer."""
