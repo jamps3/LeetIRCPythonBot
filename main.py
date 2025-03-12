@@ -56,30 +56,63 @@ api_key = os.getenv("OPENAI_API_KEY")
 bot_name = "jL3b2"
 channel = "#joensuutest"
 data_file = "values.bin"
-kraks = 0
-leets = 0
 last_ping = time.time()
 # Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
 client = openai.OpenAI(api_key=api_key)
 
-def save():
-    global kraks, leets
+data_file = "kraks_data.pkl"
+
+def save(kraks, file_path=data_file):
+    """
+    Saves kraks (IRC nick word stats) to a file using pickle.
+
+    # Example Usage:
+    kraks = load()  # Load existing stats or create a new one
+
+    # Simulating message tracking
+    update_kraks(kraks, "Alice", ["hello", "world", "hello"])
+    update_kraks(kraks, "Bob", ["python", "hello"])
+
+    # Save the updated data
+    save(kraks)
+
+    # Print to verify
+    print(kraks)  
+    # Example Output: {'Alice': {'hello': 2, 'world': 1}, 'Bob': {'python': 1, 'hello': 1}}
+    """
     try:
-        with open(data_file, "wb") as f:
-            pickle.dump((kraks, leets), f)
+        with open(file_path, "wb") as f:
+            pickle.dump(kraks, f)
     except Exception as e:
         log(f"Error saving data: {e}", "ERROR")
 
-def load():
-    global kraks, leets
-    if not os.path.exists(data_file):
-        save()
+def load(file_path=data_file):
+    """Loads kraks (IRC nick word stats) from a file using pickle, with error handling."""
+    if not os.path.exists(file_path):
+        log("Data file not found, creating a new one.", "WARNING")
+        return {}
+
     try:
-        with open(data_file, "rb") as f:
-            kraks, leets = pickle.load(f)
-        log(f"Kraks: {kraks}, Leets: {leets}")
+        with open(file_path, "rb") as f:
+            return pickle.load(f)
+    except (pickle.UnpicklingError, EOFError) as e:
+        log(f"Corrupted data file: {e}", "ERROR")
+        return {}
     except Exception as e:
         log(f"Error loading data: {e}", "ERROR")
+        return {}
+
+def update_kraks(kraks, nick, words):
+    """
+    Updates the word stats for a given IRC nick.
+    - `nick`: The IRC nickname.
+    - `words`: A list of words the nick has used.
+    """
+    if nick not in kraks:
+        kraks[nick] = {}
+
+    for word in words:
+        kraks[nick][word] = kraks[nick].get(word, 0) + 1
 
 def login(irc, writer):
     nick = bot_name
@@ -117,36 +150,47 @@ def keepalive_ping(irc):
             last_ping = time.time()
 
 def process_message(irc, message):
+    """Processes incoming IRC messages and tracks word statistics."""
     match = re.search(r":(\S+)!(\S+) PRIVMSG (#+\S+) :(.+)", message)
+    
     if match:
         sender, _, channel, text = match.groups()
+
+        # Track words only if it's not a bot command
+        if not text.startswith(("!", "http")):
+            words = re.findall(r"\b\w+\b", text.lower())  # Extract words, ignore case
+            kraks = load()
+            update_kraks(kraks, sender, words)
+            save(kraks)  # Save updates immediately
+        
+        # Handle bot commands
         if text.startswith("!aika"):
-            send_message(irc, channel, f"Nykyinen aika: {datetime.now().strftime('%H:%M:%S')}")
+            send_message(irc, channel, f"Nykyinen aika: {datetime.now()}")
+        
         elif text.startswith("!leet"):
             match = re.search(r"!leet (\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d+)", text)
-
             if match:
-                hour = int(match.group(1))
-                minute = int(match.group(2))
-                second = int(match.group(3))
-                microsecond = int(match.group(4))
-
+                hour, minute, second, microsecond = map(int, match.groups())
                 send_scheduled_message(irc, channel, "leet!", hour, minute, second, microsecond)
                 log(f"Viesti ajastettu klo {hour}:{minute}:{second}.{microsecond}")
             else:
                 log("Virheellinen aikaformaatti! Käytä muotoa: !leet HH:MM:SS.mmmmmm", "ERROR")
+        
         elif text.startswith("!kaiku"):
             send_message(irc, channel, f"{sender}: {text[7:]}")
+        
         elif text.startswith("!saa"):
             parts = text.split(" ", 1)
             location = parts[1].strip() if len(parts) > 1 else "Joensuu"
             send_weather(irc, channel, location)
+        
         elif text.startswith("!sahko"):
             parts = text.split(" ", 1)
             send_electricity_price(irc, channel, parts)
+        
         elif "http" in text:
             fetch_title(irc, channel, text)
-        # Ohjaa suoraan botille kirjoitetut viestit keskustele-funktiolle
+        
         elif re.search(rf"\b{re.escape(bot_name)}\b", text, re.IGNORECASE) or text.startswith("!bot"):
             response = chat_with_gpt_4o_mini(text)
             send_message(irc, channel, f"{sender}: {response}")
