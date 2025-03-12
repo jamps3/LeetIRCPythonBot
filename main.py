@@ -47,13 +47,16 @@ from dotenv import load_dotenv # Load api-keys from .env file
 from collections import Counter
 import json
 
-# Initialize conversation history
-conversation_history = [{"role": "system", "content": "Olet nerokas irkkikanavan botti. Perustiedot: krak=alkoholijuoman avaus"}]
+# File to store conversation history
+HISTORY_FILE = "conversation_history.json"
+
+# Default history with system prompt
+DEFAULT_HISTORY = [{"role": "system", "content": "Olet nerokas irkkikanavan botti. Perustiedot: krak=alkoholijuoman avaus"}]
 
 # Aseta API-avaimet
 load_dotenv()  # Lataa .env-tiedoston muuttujat
-WEATHER_API_KEY = os.getenv("weatherApiKey")
-ELECTRICITY_API_KEY = os.getenv("electricityApiKey")
+WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
+ELECTRICITY_API_KEY = os.getenv("ELECTRICITY_API_KEY")
 api_key = os.getenv("OPENAI_API_KEY")
 
 bot_name = "jL3b2"
@@ -71,6 +74,18 @@ voitot = {
     "viimeinen": {},
     "multileet": {}
 }
+
+def load_conversation_history():
+    """Loads the conversation history from a file or initializes a new one."""
+    if os.path.exists(HISTORY_FILE):
+        with open(HISTORY_FILE, "r", encoding="utf-8") as file:
+            return json.load(file)
+    return DEFAULT_HISTORY.copy()
+
+def save_conversation_history(history):
+    """Saves the conversation history to a file."""
+    with open(HISTORY_FILE, "w", encoding="utf-8") as file:
+        json.dump(history, file, indent=4, ensure_ascii=False)
 
 def tallenna_voittaja(tyyppi, nimi):
     if nimi in voitot[tyyppi]:
@@ -163,7 +178,7 @@ def read(irc):
         response = irc.recv(4096).decode("utf-8", errors="ignore")
         if response:
             for line in response.strip().split("\n"):  # Split into separate lines
-                log(line.strip())  # Log each line separately
+                log(line.strip(), "SERVER")  # Log each line separately
             # Handle PING messages (keep connection alive)
             if response.startswith("PING"):
                 last_ping = time.time()
@@ -186,7 +201,6 @@ def process_message(irc, message):
     global latency_start
     is_private = False
     match = re.search(r":(\S+)!(\S+) PRIVMSG (\S+) :(.+)", message)
-    log(f"Raw IRC message received: {message}", "DEBUG")
     
     if match:
         sender, _, target, text = match.groups()
@@ -198,7 +212,7 @@ def process_message(irc, message):
             is_private = target.lower() == bot_name.lower()  # Private message check
         
         else:  # Normal channel message
-            log(f"Channel message in {target} from {sender}: {text}")
+            log(f"Channel message in {target} from {sender}: {text}", "MSG")
         
         # ✅ Estetään botin vastaaminen itselleen
         if sender.lower() == bot_name.lower():
@@ -245,12 +259,6 @@ def process_message(irc, message):
         # !kaiku - Kaiuta teksti
         elif text.startswith("!kaiku"):
             send_message(irc, channel, f"{sender}: {text[len(sender)+2:]}")
-            
-        # !s - Kerro sää
-        elif text.startswith("!s"):
-            parts = text.split(" ", 1)
-            location = parts[1].strip() if len(parts) > 1 else "Joensuu"
-            send_weather(irc, channel, location)
             
         # !sahko - Kerro pörssisähkön hintatiedot tänään ja huomenna, jos saatavilla
         elif text.startswith("!sahko"):
@@ -402,8 +410,14 @@ def process_message(irc, message):
             save_leet_winners(leet_winners)
             log(f"Updated leet winners: {leet_winners}")
         
+        # !s - Kerro sää
+        elif text.startswith("!s"):
+            parts = text.split(" ", 1)
+            location = parts[1].strip() if len(parts) > 1 else "Joensuu"
+            send_weather(irc, channel, location)
+        
         # Handle !leetwinners command
-        if text.strip() == "!leetwinners":
+        elif text.strip() == "!leetwinners":
             leet_winners = load_leet_winners()
 
             # Dictionary to store only one winner per category
@@ -701,11 +715,19 @@ def keskustele(prompt, model="gpt-3.5-turbo", max_tokens=150):
     )
     return response.choices[0].message.content.strip()
 
-# Example of using the function
-#user_input = "What is the weather like today?"
-#print(chat_with_gpt_4o_mini(user_input))
 def chat_with_gpt_4o_mini(user_input):
-    # Add user message to conversation history
+    """
+    Simulates a chat with GPT-4o Mini and updates the conversation history.
+
+    Args:
+        user_input (str): The user's input message.
+
+    Returns:
+        str: The assistant's response.
+    """
+    conversation_history = load_conversation_history()
+
+    # Append user's message
     conversation_history.append({"role": "user", "content": user_input})
 
     # Get response from GPT-4o mini
@@ -714,15 +736,18 @@ def chat_with_gpt_4o_mini(user_input):
         messages=conversation_history,  # Provide the conversation history as the prompt
         max_tokens=150  # Adjust the token count as needed
     )
-    
+
     # Correct way to access the response
     assistant_reply = response.choices[0].message.content.strip()
 
-    # Add assistant's response to conversation history
+    # Append assistant's response
     conversation_history.append({"role": "assistant", "content": assistant_reply})
 
     # Muutetaan rivinvaihdot yhdeksi välilyönniksi, jotta viesti ei katkea
     assistant_reply = assistant_reply.replace("\n", " ")
+
+    # Save updated conversation history
+    save_conversation_history(conversation_history)
 
     return assistant_reply
 
