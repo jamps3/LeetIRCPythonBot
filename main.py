@@ -134,7 +134,8 @@ def read(irc):
     while True:
         response = irc.recv(4096).decode("utf-8", errors="ignore")
         if response:
-            log(response.strip())
+            for line in response.strip().split("\n"):  # Split into separate lines
+                log(line.strip())  # Log each line separately
             if response.startswith("PING"):
                 last_ping = time.time()
                 ping_value = response.split(":", 1)[1].strip()
