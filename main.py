@@ -243,7 +243,7 @@ def process_message(irc, message):
                 
         # !kaiku - Kaiuta teksti
         elif text.startswith("!kaiku"):
-            send_message(irc, channel, f"{sender}: {text[7:]}")
+            send_message(irc, channel, f"{sender}: {text[len(sender)+2:]}")
             
         # !s - Kerro sää
         elif text.startswith("!s"):
@@ -404,11 +404,22 @@ def process_message(irc, message):
         # Handle !leetwinners command
         if text.strip() == "!leetwinners":
             leet_winners = load_leet_winners()
+
+            # Dictionary to store only one winner per category
+            filtered_winners = {}
+
+            for winner, categories in leet_winners.items():
+                for cat, count in categories.items():
+                    # Ensure only one winner per category
+                    if cat not in filtered_winners or count > filtered_winners[cat][1]:
+                        filtered_winners[cat] = (winner, count)
+
+            # Format the output
             winners_text = ", ".join(
                 f"{cat}: {winner} [{count}]"
-                for winner, categories in leet_winners.items()
-                for cat, count in categories.items()
+                for cat, (winner, count) in filtered_winners.items()
             )
+
             response = f"Leet winners: {winners_text}" if winners_text else "No leet winners recorded yet."
             send_message(irc, target, response)
             log(f"Sent leet winners: {response}")
