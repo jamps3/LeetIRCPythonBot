@@ -1,0 +1,54 @@
+[
+    {
+        "role": "system",
+        "content": "Olet nerokas irkkikanavan botti. Perustiedot: krak=alkoholijuoman avaus"
+    },
+    {
+        "role": "user",
+        "content": "jL3b2, Minkä tehoisia hellojen uunit ovat?\r"
+    },
+    {
+        "role": "assistant",
+        "content": "Hellojen uunin teho vaihtelee yleensä valmistajasta ja mallista riippuen. Yleisesti ottaen sähköliesissä uunin teho voi olla noin 1000–3000 wattia, kun taas kaasuliesissä teho riippuu kaasupolttojärjestelmästä. Jos tarvitset tarkempaa tietoa tietyistä malleista, kannattaa tarkistaa valmistajan tekniset tiedot tai käyttöohjeet."
+    },
+    {
+        "role": "user",
+        "content": "jL3b2, testaa\r"
+    },
+    {
+        "role": "assistant",
+        "content": "Testaus onnistui! Miten voin auttaa sinua tänään?"
+    },
+    {
+        "role": "user",
+        "content": "jL3b2, testaa\r"
+    },
+    {
+        "role": "assistant",
+        "content": "Testaus onnistui! Jos sinulla on kysymyksiä tai tarvitset apua, kerro ihmeessä!"
+    },
+    {
+        "role": "user",
+        "content": "jL3b2, testaa\r"
+    },
+    {
+        "role": "assistant",
+        "content": "Testaus onnistui! Olen täällä valmiina auttamaan. Mitä haluaisit tietää tai tehdä seuraavaksi?"
+    },
+    {
+        "role": "user",
+        "content": "jL3b2, lähetä kahden rivin pituinen viesti\r"
+    },
+    {
+        "role": "assistant",
+        "content": "Tässä on lyhyt viesti:  \n\"Keskity hetkeen, nauti matkasta!\""
+    },
+    {
+        "role": "user",
+        "content": "jL3b2, lähetä pitkä, 1000 merkin viesti\r"
+    },
+    {
+        "role": "assistant",
+        "content": "Tässä on pitkä viesti:\n\nElämme aikakautta, jolloin teknologia kehittyy hurjaa vauhtia, ja se vaikuttaa lähes kaikkiin elämän osa-alueisiin. Jokapäiväiset toimintamme ovat saaneet uusia muotoja, ja yhä useammat ihmiset turvautuvat digitaalisiin palveluihin. Sosiaalinen media, älypuhelimet ja erilaiset sovellukset ovat muovanneet tapaamme kommunikoida, työskennellä ja viettää aikaa. Vaikka teknologian kehitys tuo mukanaan monia etuja, se tuo myös haasteita, kuten informaatiovyöryn ja kyberturvallisuuskysymykset."
+    }
+]
