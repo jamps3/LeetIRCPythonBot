@@ -156,11 +156,21 @@ def keepalive_ping(irc):
 def process_message(irc, message):
     """Processes incoming IRC messages and tracks word statistics."""
     global latency_start
+    is_private = False
     match = re.search(r":(\S+)!(\S+) PRIVMSG (\S+) :(.+)", message)
-    log(f"Raw IRC message received: {message}")
+    log(f"Raw IRC message received: {message}", "DEBUG")
     
     if match:
-        sender, _, channel, text = match.groups()
+        sender, _, target, text = match.groups()
+        
+        # Check if the message is a private message (not a channel)
+        if target.lower() == bot_name.lower():  # Private message detected
+            log(f"Private message from {sender}: {text}")
+            # irc.sendall(f"PRIVMSG {sender} :Hello! You said: {text}\r\n".encode("utf-8"))
+            is_private = target.lower() == bot_name.lower()  # Private message check
+        
+        else:  # Normal channel message
+            log(f"Channel message in {target} from {sender}: {text}")
 
         # Track words only if it's not a bot command
         if not text.startswith(("!", "http")):
@@ -184,11 +194,11 @@ def process_message(irc, message):
 
                 if word_counts:
                     results = ", ".join(f"{nick}: {count}" for nick, count in word_counts.items())
-                    send_message(irc, channel, f"Sana '{search_word}' on sanottu: {results}")
+                    send_message(irc, sender, f"Sana '{search_word}' on sanottu: {results}")
                 else:
-                    send_message(irc, channel, f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
+                    send_message(irc, sender, f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
             else:
-                send_message(irc, channel, "Käytä komentoa: !sana <sana>")
+                send_message(irc, sender, "Käytä komentoa: !sana <sana>")
 
         # !topwords - Käytetyimmät sanat
         elif text.startswith("!topwords"):
@@ -200,9 +210,9 @@ def process_message(irc, message):
                 if nick in kraks:
                     top_words = Counter(kraks[nick]).most_common(5)
                     word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
-                    send_message(irc, channel, f"{nick}: {word_list}")
+                    send_message(irc, target, f"{nick}: {word_list}")
                 else:
-                    send_message(irc, channel, f"Käyttäjää '{nick}' ei löydy.")
+                    send_message(irc, target, f"Käyttäjää '{nick}' ei löydy.")
             else:  # Show top words for all users
                 overall_counts = Counter()
                 for words in kraks.values():
@@ -210,7 +220,7 @@ def process_message(irc, message):
 
                 top_words = overall_counts.most_common(5)
                 word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
-                send_message(irc, channel, f"Käytetyimmät sanat: {word_list}")
+                send_message(irc, sender, f"Käytetyimmät sanat: {word_list}")
         
         # !leaderboard - Aktiivisimmat käyttäjät
         elif text.startswith("!leaderboard"):
@@ -220,9 +230,9 @@ def process_message(irc, message):
 
             if top_users:
                 leaderboard_msg = ", ".join(f"{nick}: {count}" for nick, count in top_users)
-                send_message(irc, channel, f"Aktiivisimmat käyttäjät: {leaderboard_msg}")
+                send_message(irc, sender, f"Aktiivisimmat käyttäjät: {leaderboard_msg}")
             else:
-                send_message(irc, channel, "Ei vielä tarpeeksi dataa leaderboardille.")
+                send_message(irc, sender, "Ei vielä tarpeeksi dataa leaderboardille.")
         
         # !kraks - Krakkaukset
         elif text.startswith("!kraks"):
@@ -246,7 +256,7 @@ def process_message(irc, message):
                 f"{word}: {count} [{top_users[word]}]" for word, count in word_counts.items() if count > 0
             )
 
-            send_message(irc, channel, f"{total_message}, {details}")
+            send_message(irc, sender, f"{total_message}, {details}")
         
         # !euribor - Uusin 12kk euribor
         elif text.startswith("!euribor"):
@@ -282,7 +292,7 @@ def process_message(irc, message):
                             euribor_12m = rate.find("./ns:intr", namespaces=ns)
                             if euribor_12m is not None:
                                 print(f"Yesterday's 12-month Euribor rate: {euribor_12m.attrib['value']}%")
-                                send_message(irc, channel, f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%")
+                                send_message(irc, sender, f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%")
                             else:
                                 print("Interest rate value not found.")
                             break
@@ -312,6 +322,13 @@ def process_message(irc, message):
                 irc.sendall(f"PRIVMSG {bot_name} :Latency is {latency_ns} ns\r\n".encode("utf-8"))
             else:
                 log("⚠️ Warning: Received LatencyCheck response, but no latency_start timestamp exists.")
+
+        else:
+            # ✅ Handle regular chat messages (send to GPT)
+            gpt_response = chat_with_gpt_4o_mini(text)
+            reply_target = sender if is_private else target  # Send private replies to sender
+            irc.sendall(f"PRIVMSG {reply_target} :{gpt_response}\r\n".encode("utf-8"))
+            log(f"💬 Sent response to {reply_target}: {gpt_response}")
 
 def measure_latency(irc, nickname):
     """Sends a latency test message to self and starts the timer."""
