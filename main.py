@@ -130,12 +130,13 @@ def login(irc, writer):
     log(f"Joined channel {channel}")
 
 def read(irc):
-    global last_ping
+    global last_ping, latency_start
     while True:
         response = irc.recv(4096).decode("utf-8", errors="ignore")
         if response:
             for line in response.strip().split("\n"):  # Split into separate lines
                 log(line.strip())  # Log each line separately
+            # Handle PING messages (keep connection alive)
             if response.startswith("PING"):
                 last_ping = time.time()
                 ping_value = response.split(":", 1)[1].strip()
@@ -154,7 +155,9 @@ def keepalive_ping(irc):
 
 def process_message(irc, message):
     """Processes incoming IRC messages and tracks word statistics."""
-    match = re.search(r":(\S+)!(\S+) PRIVMSG (#+\S+) :(.+)", message)
+    global latency_start
+    match = re.search(r":(\S+)!(\S+) PRIVMSG (\S+) :(.+)", message)
+    log(f"Raw IRC message received: {message}")
     
     if match:
         sender, _, channel, text = match.groups()
@@ -244,7 +247,8 @@ def process_message(irc, message):
             )
 
             send_message(irc, channel, f"{total_message}, {details}")
-
+        
+        # !euribor - Uusin 12kk euribor
         elif text.startswith("!euribor"):
             # XML data URL from Suomen Pankki
             url = "https://reports.suomenpankki.fi/WebForms/ReportViewerPage.aspx?report=/tilastot/markkina-_ja_hallinnolliset_korot/euribor_korot_today_xml_en&output=xml"
@@ -288,6 +292,34 @@ def process_message(irc, message):
                     print("No period data found in XML.")
             else:
                 print(f"Failed to retrieve XML data. HTTP Status Code: {response.status_code}")
+
+        # !latencycheck - Handle latency check response
+        # User sent !latencycheck command
+        elif text.startswith("!latencycheck"):
+            log("Received !latencycheck command, measuring latency...")
+            measure_latency(irc, bot_name)
+
+        # Bot received the latency test message back
+        # Handle the bot's own LatencyCheck response
+        #elif re.search(rf"PRIVMSG {re.escape(bot_name)} :!LatencyCheck", text):
+        elif "!LatencyCheck" in text:
+            if 'latency_start' in globals():
+                latency = time.time() - latency_start
+                latency_ns = int((time.time() - latency_start) * 1_000_000_000)  # Convert to ns
+                global half_latency_ns
+                half_latency_ns = latency_ns // 2  # Divide by 2 and store globally
+                log(f"✅ Recognized LatencyCheck response! Latency: {latency:.3f} seconds")
+                irc.sendall(f"PRIVMSG {bot_name} :Latency is {latency_ns} ns\r\n".encode("utf-8"))
+            else:
+                log("⚠️ Warning: Received LatencyCheck response, but no latency_start timestamp exists.")
+
+def measure_latency(irc, nickname):
+    """Sends a latency test message to self and starts the timer."""
+    global latency_start
+    latency_start = time.time()  # Store timestamp
+    test_message = "!LatencyCheck"
+    irc.sendall(f"PRIVMSG {nickname} :{test_message}\r\n".encode("utf-8"))
+    log(f"Sent latency check message: {test_message}")
 
 def send_scheduled_message(irc, channel, message, target_hour=13, target_minute=37, target_second=13, target_microsecond=371337):
     """
