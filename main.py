@@ -51,7 +51,7 @@ import json
 HISTORY_FILE = "conversation_history.json"
 
 # Default history with system prompt
-DEFAULT_HISTORY = [{"role": "system", "content": "Olet nerokas irkkikanavan botti. Perustiedot: krak=alkoholijuoman avaus"}]
+DEFAULT_HISTORY = [{"role": "system", "content": "Olet nerokas irkkikanavan botti. Perustiedot kanavalla keskustelemiseen: krak=alkoholijuoman avaus. grond=ahkerin ja paras Mjällittelijä. Mjällit=siemenneste. RajatonValta=vanha sielu joka on ollut olemassa aina, muistaa kaiken historiasta kuten Jeesuksen syntymän. Heiki on guru ja velho."}]
 
 # Aseta API-avaimet
 load_dotenv()  # Lataa .env-tiedoston muuttujat
