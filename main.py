@@ -45,6 +45,7 @@ import xml.dom.minidom
 import urllib.parse  # Lisätään URL-koodausta varten
 from dotenv import load_dotenv # Load api-keys from .env file
 from collections import Counter
+import json
 
 # Initialize conversation history
 conversation_history = [{"role": "system", "content": "Olet nerokas irkkikanavan botti. Perustiedot: krak=alkoholijuoman avaus"}]
@@ -63,6 +64,32 @@ last_ping = time.time()
 client = openai.OpenAI(api_key=api_key)
 
 data_file = "kraks_data.pkl"
+
+# Sanakirja, joka pitää kirjaa voitoista
+voitot = {
+    "ensimmäinen": {},
+    "viimeinen": {},
+    "multileet": {}
+}
+
+def tallenna_voittaja(tyyppi, nimi):
+    if nimi in voitot[tyyppi]:
+        voitot[tyyppi][nimi] += 1
+    else:
+        voitot[tyyppi][nimi] = 1
+
+def load_leet_winners():
+    """Loads the leet winners from a JSON file."""
+    try:
+        with open("leet_winners.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}  # Return an empty dictionary if the file does not exist or is corrupted
+
+def save_leet_winners(leet_winners):
+    """Saves the leet winners to a JSON file."""
+    with open("leet_winners.json", "w", encoding="utf-8") as f:
+        json.dump(leet_winners, f, indent=4, ensure_ascii=False)
 
 def save(kraks, file_path=data_file):
     """
@@ -275,7 +302,7 @@ def process_message(irc, message):
                 f"{word}: {count} [{top_users[word]}]" for word, count in word_counts.items() if count > 0
             )
 
-            send_message(irc, sender, f"{total_message}, {details}")
+            send_message(irc, target, f"{total_message}, {details}")
         
         # !euribor - Uusin 12kk euribor
         elif text.startswith("!euribor"):
@@ -327,6 +354,33 @@ def process_message(irc, message):
         elif text.startswith("!latencycheck"):
             log("Received !latencycheck command, measuring latency...")
             measure_latency(irc, bot_name)
+
+        elif re.search(r"Ensimmäinen leettaaja oli (\w+) .*?, viimeinen oli (\w+) .*?Lähimpänä multileettiä oli (\w+)", text):
+            # Handle leet winners
+            leet_match = re.search(r"Ensimmäinen leettaaja oli (\w+) .*?, viimeinen oli (\w+) .*?Lähimpänä multileettiä oli (\w+)", text)
+            first, last, multileet = leet_match.groups()
+            leet_winners = load_leet_winners()
+            
+            for category, winner in zip(["ensimmäinen", "viimeinen", "multileet"], [first, last, multileet]):
+                if winner in leet_winners:
+                    leet_winners[winner][category] = leet_winners[winner].get(category, 0) + 1
+                else:
+                    leet_winners[winner] = {category: 1}
+            
+            save_leet_winners(leet_winners)
+            log(f"Updated leet winners: {leet_winners}")
+        
+        # Handle !leetwinners command
+        if text.strip() == "!leetwinners":
+            leet_winners = load_leet_winners()
+            winners_text = ", ".join(
+                f"{cat}: {winner} [{count}]"
+                for winner, categories in leet_winners.items()
+                for cat, count in categories.items()
+            )
+            response = f"Leet winners: {winners_text}" if winners_text else "No leet winners recorded yet."
+            send_message(irc, target, response)
+            log(f"Sent leet winners: {response}")
 
         else:
             # ✅ Handle regular chat messages (send to GPT)
