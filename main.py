@@ -164,7 +164,7 @@ def process_message(irc, message):
             update_kraks(kraks, sender, words)
             save(kraks)  # Save updates immediately
         
-        # Handle bot commands
+        # !sana - Sanalaskuri
         if text.startswith("!sana "):
             parts = text.split(" ", 1)
             if len(parts) > 1:
@@ -185,6 +185,7 @@ def process_message(irc, message):
             else:
                 send_message(irc, channel, "Käytä komentoa: !sana <sana>")
 
+        # !topwords - Käytetyimmät sanat
         elif text.startswith("!topwords"):
             parts = text.split(" ", 1)
             kraks = load()
@@ -205,7 +206,20 @@ def process_message(irc, message):
                 top_words = overall_counts.most_common(5)
                 word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
                 send_message(irc, channel, f"Käytetyimmät sanat: {word_list}")
+        
+        # !leaderboard - Aktiivisimmat käyttäjät
+        elif text.startswith("!leaderboard"):
+            kraks = load()
+            user_word_counts = {nick: sum(words.values()) for nick, words in kraks.items()}
+            top_users = sorted(user_word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
 
+            if top_users:
+                leaderboard_msg = ", ".join(f"{nick}: {count}" for nick, count in top_users)
+                send_message(irc, channel, f"Aktiivisimmat käyttäjät: {leaderboard_msg}")
+            else:
+                send_message(irc, channel, "Ei vielä tarpeeksi dataa leaderboardille.")
+        
+        # !kraks - Krakkaukset
         elif text.startswith("!kraks"):
             kraks = load()
             total_kraks = 0
