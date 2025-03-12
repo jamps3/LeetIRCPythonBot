@@ -45,7 +45,7 @@ import urllib.parse  # Lisätään URL-koodausta varten
 from dotenv import load_dotenv # Load api-keys from .env file
 
 # Initialize conversation history
-conversation_history = [{"role": "system", "content": "Olet nerokas irkkikanavan botti."}]
+conversation_history = [{"role": "system", "content": "Olet nerokas irkkikanavan botti. Perustiedot: krak=alkoholijuoman avaus"}]
 
 # Aseta API-avaimet
 load_dotenv()  # Lataa .env-tiedoston muuttujat
@@ -165,7 +165,7 @@ def process_message(irc, message):
         
         # Handle bot commands
         if text.startswith("!aika"):
-            send_message(irc, channel, f"Nykyinen aika: {datetime.now()}")
+            send_message(irc, channel, f"Nykyinen aika: {datetime.now().strftime('%H:%M:%S')}")
         
         elif text.startswith("!leet"):
             match = re.search(r"!leet (\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d+)", text)
@@ -194,6 +194,27 @@ def process_message(irc, message):
         elif re.search(rf"\b{re.escape(bot_name)}\b", text, re.IGNORECASE) or text.startswith("!bot"):
             response = chat_with_gpt_4o_mini(text)
             send_message(irc, channel, f"{sender}: {response}")
+        
+        # New command: Check word usage
+        elif text.startswith("!sana "):
+            parts = text.split(" ", 1)
+            if len(parts) > 1:
+                search_word = parts[1].strip().lower()  # Normalize case
+                kraks = load()  # Reload word data
+
+                word_counts = {
+                    nick: stats[search_word]
+                    for nick, stats in kraks.items()
+                    if search_word in stats
+                }
+
+                if word_counts:
+                    results = ", ".join(f"{nick}: {count}" for nick, count in word_counts.items())
+                    send_message(irc, channel, f"Sana '{search_word}' on sanottu: {results}")
+                else:
+                    send_message(irc, channel, f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
+            else:
+                send_message(irc, channel, "Käytä komentoa: !sana <sana>")
 
 def send_scheduled_message(irc, channel, message, target_hour=13, target_minute=37, target_second=13, target_microsecond=371337):
     """
