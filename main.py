@@ -189,7 +189,6 @@ def process_message(irc, message):
     
     if match:
         sender, _, target, text = match.groups()
-        log("text: " + text)
         
         # Check if the message is a private message (not a channel)
         if target.lower() == bot_name.lower():  # Private message detected
@@ -225,8 +224,40 @@ def process_message(irc, message):
             update_kraks(kraks, sender, words)
             save(kraks)  # Save updates immediately
         
+        # !aika - Kerro nykyinen aika
+        if text.startswith("!aika"):
+            send_message(irc, target, f"Nykyinen aika: {datetime.now()}")
+        elif text.startswith("!leet"):
+            match = re.search(r"!leet (\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d+)", text)
+
+            if match:
+                hour = int(match.group(1))
+                minute = int(match.group(2))
+                second = int(match.group(3))
+                microsecond = int(match.group(4))
+
+                send_scheduled_message(irc, "#joensuu", "leet!", hour, minute, second, microsecond)
+                log(f"Viesti ajastettu klo {hour}:{minute}:{second}.{microsecond}")
+            else:
+                log("Virheellinen aikaformaatti! Käytä muotoa: !leet HH:MM:SS.mmmmmm", "ERROR")
+                
+        # !kaiku - Kaiuta teksti
+        elif text.startswith("!kaiku"):
+            send_message(irc, channel, f"{sender}: {text[7:]}")
+            
+        # !s - Kerro sää
+        elif text.startswith("!s"):
+            parts = text.split(" ", 1)
+            location = parts[1].strip() if len(parts) > 1 else "Joensuu"
+            send_weather(irc, channel, location)
+            
+        # !sahko - Kerro pörssisähkön hintatiedot tänään ja huomenna, jos saatavilla
+        elif text.startswith("!sahko"):
+            parts = text.split(" ", 1)
+            send_electricity_price(irc, channel, parts)
+        
         # !sana - Sanalaskuri
-        if text.startswith("!sana "):
+        elif text.startswith("!sana "):
             parts = text.split(" ", 1)
             if len(parts) > 1:
                 search_word = parts[1].strip().lower()  # Normalize case
