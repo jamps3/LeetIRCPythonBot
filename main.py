@@ -528,6 +528,7 @@ def send_weather(irc, channel, location):
             visibility = data.get("visibility", 0) / 1000  # Näkyvyys, muutetaan metreistä kilometreiksi
             pressure = data["main"]["pressure"]  # Ilmanpaine hPa
             clouds = data["clouds"]["all"]  # Pilvisyys prosentteina
+            country = data["sys"].get("country", "?")  # Get country code, default to "?"
 
             # Tarkistetaan, onko sateen tai lumen tietoja
             rain = data.get("rain", {}).get("1h", 0)  # Sade viimeisen tunnin aikana (mm)
@@ -538,7 +539,7 @@ def send_weather(irc, channel, location):
             sunset = datetime.fromtimestamp(data["sys"]["sunset"]).strftime("%H:%M")
 
             # Rakennetaan viesti
-            weather_info = (f"{location} 🔮: {description}, {temp}°C ({feels_like} ~°C), "
+            weather_info = (f"{location}, {country} 🔮: {description}, {temp}°C ({feels_like} ~°C), "
                             f"💦 {humidity}%, 🍃 {wind_speed} m/s, 👁  {visibility:.1f} km, "
                             f"{pressure} hPa, pilvisyys {clouds}%. "
                             f"Aurinko {sunrise} - {sunset}.")
