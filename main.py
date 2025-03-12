@@ -445,7 +445,18 @@ def process_message(irc, message):
             if is_private or text.lower().startswith(f"{bot_name.lower()}"):
                 gpt_response = chat_with_gpt_4o_mini(text)
                 reply_target = sender if is_private else target  # Send private replies to sender
-                irc.sendall(f"PRIVMSG {reply_target} :{gpt_response}\r\n".encode("utf-8"))
+                IRC_MESSAGE_LIMIT = 400  # Safe limit to avoid truncation issues
+                # irc.sendall(f"PRIVMSG {reply_target} :{gpt_response}\r\n".encode("utf-8"))
+                """ for part in gpt_response: # Send each response part separately
+                    message = f"PRIVMSG {reply_target} :{part}\r\n"
+                    irc.sendall(f"PRIVMSG {reply_target} :{part}\r\n".encode("utf-8")) """
+                # Split response into parts within the IRC message limit
+                response_parts = [gpt_response[i:i + IRC_MESSAGE_LIMIT] for i in range(0, len(gpt_response), IRC_MESSAGE_LIMIT)]
+                
+                # Send each response part separately as full messages
+                for part in response_parts:
+                    message = f"PRIVMSG {reply_target} :{part}\r\n"
+                    irc.sendall(message.encode("utf-8"))
                 log(f"💬 Sent response to {reply_target}: {gpt_response}")
 
 def measure_latency(irc, nickname):
@@ -704,18 +715,6 @@ def fetch_title(irc, channel, text):
             log(f"Virhe URL:n {url} haussa: {e}")
             # send_message(irc, channel, f"Otsikon haku epäonnistui URL-osoitteelle: {url}")
 
-# Funktio, joka ottaa keskustelun syötteen ja palauttaa GPT-4:n vastauksen
-# Käytä OpenAI APIa keskusteluun
-def keskustele(prompt, model="gpt-3.5-turbo", max_tokens=150):
-    response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=max_tokens,
-        temperature=0.7,
-        n=1
-    )
-    return response.choices[0].message.content.strip()
-
 def chat_with_gpt_4o_mini(user_input):
     """
     Simulates a chat with GPT-4o Mini and updates the conversation history.
@@ -726,10 +725,9 @@ def chat_with_gpt_4o_mini(user_input):
     Returns:
         str: The assistant's response.
     """
-    conversation_history = load_conversation_history()
-
-    # Append user's message
-    conversation_history.append({"role": "user", "content": user_input})
+    IRC_MESSAGE_LIMIT = 400  # Safe limit to avoid truncation issues
+    conversation_history = load_conversation_history() # Load conversation history
+    conversation_history.append({"role": "user", "content": user_input}) # Append user's message
 
     # Get response from GPT-4o mini
     response = client.chat.completions.create(  # Use the new syntax
