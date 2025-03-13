@@ -242,19 +242,6 @@ def process_message(irc, message):
         # !aika - Kerro nykyinen aika
         if text.startswith("!aika"):
             send_message(irc, target, f"Nykyinen aika: {datetime.now()}")
-        elif text.startswith("!leet"):
-            match = re.search(r"!leet (\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d+)", text)
-
-            if match:
-                hour = int(match.group(1))
-                minute = int(match.group(2))
-                second = int(match.group(3))
-                microsecond = int(match.group(4))
-
-                send_scheduled_message(irc, "#joensuu", "leet!", hour, minute, second, microsecond)
-                log(f"Viesti ajastettu klo {hour}:{minute}:{second}.{microsecond}")
-            else:
-                log("Virheellinen aikaformaatti! Käytä muotoa: !leet HH:MM:SS.mmmmmm", "ERROR")
                 
         # !kaiku - Kaiuta teksti
         elif text.startswith("!kaiku"):
@@ -438,6 +425,21 @@ def process_message(irc, message):
             response = f"Leet winners: {winners_text}" if winners_text else "No leet winners recorded yet."
             send_message(irc, target, response)
             log(f"Sent leet winners: {response}")
+        
+        # !leet - Ajasta viestin lähetys
+        elif text.startswith("!leet"):
+            match = re.search(r"!leet (\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d+)", text)
+
+            if match:
+                hour = int(match.group(1))
+                minute = int(match.group(2))
+                second = int(match.group(3))
+                microsecond = int(match.group(4))
+
+                send_scheduled_message(irc, "#joensuu", "leet!", hour, minute, second, microsecond)
+                log(f"Viesti ajastettu klo {hour}:{minute}:{second}.{microsecond}")
+            else:
+                log("Virheellinen aikaformaatti! Käytä muotoa: !leet HH:MM:SS.mmmmmm", "ERROR")
 
         else:
             # ✅ Handle regular chat messages (send to GPT)
@@ -470,57 +472,27 @@ def measure_latency(irc, nickname):
 def send_scheduled_message(irc, channel, message, target_hour=13, target_minute=37, target_second=13, target_microsecond=371337):
     """
     Lähettää viestin tarkalleen tiettynä kellonaikana nanosekunnin tarkkuudella.
-
-    :param irc: IRC-yhteysolio
-    :param channel: IRC-kanava, johon viesti lähetetään
-    :param message: Lähetettävä viesti
-    :param target_hour: Kellotunti (0-23), jolloin viesti lähetetään
-    :param target_minute: Minuutti (0-59), jolloin viesti lähetetään (oletus 37)
-    :param target_second: Sekunti (0-59), jolloin viesti lähetetään (oletus 13)
-    :param target_microsecond: Mikrosekunti (0-999999), jolloin viesti lähetetään (oletus 371337)
     """
-    while True:
-        now = datetime.now()
-        log(now)
-        target_time = now.replace(hour=target_hour, minute=target_minute, second=target_second, microsecond=target_microsecond)
+    now = datetime.now()
+    target_time = now.replace(hour=target_hour, minute=target_minute, second=target_second, microsecond=min(target_microsecond, 999999))
 
-        log(f"Kohdeaika: {target_time}")
+    # Siirretään huomiseen, jos aika on jo mennyt
+    if now >= target_time:
+        target_time += timedelta(days=1)
 
-        # Jos aika on jo mennyt tänään, siirretään se huomiseen
-        if now >= target_time:
-            target_time += timedelta(days=1)
+    time_to_wait = (target_time - now).total_seconds()
+    log("time_to_wait: " + str(time_to_wait))
 
-        time_to_wait = (target_time - now).total_seconds()
+    if time_to_wait > 0.01:
+        time.sleep(time_to_wait - 0.001)  # Jätetään pieni bufferi
 
-        log(f"Odotusaika: {time_to_wait}")
+    # Hienosäätö: Odotetaan aktiivisesti viimeiset millisekunnit
+    while datetime.now() < target_time:
+        pass  # Aktiivinen odotus ilman turhia print-komentoja
 
-        # Nukutaan suurin osa ajasta, 10 millisekuntia aktiiviseen odotukseen
-        if time_to_wait > 0.01:
-            log(f"Odotetaan {time_to_wait:.6f} sekuntia ({target_hour:02d}:{target_minute:02d}:{target_second:02d}.{target_microsecond:06d}) asti...")
-            time.sleep(time_to_wait - 0.01)
-            log(f"[{datetime.now()}] Hienosäätö alkaa...")
-
-        # Hienosäätö: käytetään time.perf_counter_ns() laskemaan tarkka viive nanosekunneissa
-        start_ns = time.perf_counter_ns()
-        wait_ns = int(time_to_wait * 1_000_000_000)  # Muutetaan odotettava aika nanosekunneiksi
-        target_ns = start_ns + wait_ns  # Määritetään tarkka kohdeaika nanosekunteina
-
-        log("Aktiivinen odotus viimeisille mikrosekunneille...")
-        # Asetetaan kohde-aika 2 sekuntia nykyhetkeä pidemmälle
-        # target_ns = time.perf_counter_ns() + int(2e9)  # 2 sekuntia = 2 * 10^9 nanosekuntia
-        target_ns = time.perf_counter_ns() + int(10e6)  # 10ms = 10 * 10^6 nanosekuntia
-
-        # Odotetaan kunnes nykyinen aika ylittää target_ns
-        while time.perf_counter_ns() < target_ns:
-            print(f"Nykyinen ns: {time.perf_counter_ns()}, Tavoite ns: {target_ns}")
-            #time.sleep(0.001)  # Lyhyt tauko CPU-kuorman vähentämiseksi
-
-        # Lähetetään viesti
-        send_message(irc, channel, message)
-        log(f"Viesti lähetetty: {message} @ ({target_hour}:{target_minute}:{target_second}.{target_microsecond})")
-
-        # Odotetaan seuraavaan päivään
-        # time.sleep(86400)  # 24 tuntia
+    # Lähetetään viesti
+    send_message(irc, channel, message)
+    print(f"Viesti lähetetty: {message} @ {target_hour}:{target_minute}:{target_second}.{target_microsecond}")
 
 def send_weather(irc, channel, location):
     location = location.strip().title()  # Ensimmäinen kirjain isolla
