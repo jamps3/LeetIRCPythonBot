@@ -815,28 +815,75 @@ def euribor():
 def main():
     server = "irc.atw-inter.net"
     port = 6667
-    while True:
-        try:
-            load()
-            irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            irc.connect((server, port))
-            writer = irc
-            login(irc, writer)
-            # Start Keepalive PING
-            threading.Thread(target=keepalive_ping, args=(irc,), daemon=True).start()
-            # Start input listener in a separate thread (daemon=True for clean shutdown)
-            input_thread = threading.Thread(target=listen_for_commands, args=(stop_event,), daemon=True)
-            input_thread.start()
-            read(irc, server, port)
-        except (socket.error, ConnectionError) as e:
-            log(f"Server error: {e}", "ERROR")
-        finally:
+    stop_event = threading.Event()
+    irc = None
+    threads = []
+    
+    # Setup signal handler for graceful shutdown
+    def signal_handler(sig, frame):
+        log("Keyboard interrupt detected, shutting down...", "INFO")
+        stop_event.set()
+        raise KeyboardInterrupt
+    
+    # Register SIGINT handler
+    import signal
+    signal.signal(signal.SIGINT, signal_handler)
+    
+    try:
+        while not stop_event.is_set():
             try:
-                save()
+                load()
+                irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                irc.connect((server, port))
+                writer = irc
+                login(irc, writer)
+                
+                # Start Keepalive PING
+                keepalive_thread = threading.Thread(target=keepalive_ping, args=(irc,), daemon=True)
+                keepalive_thread.start()
+                threads.append(keepalive_thread)
+                
+                # Start input listener in a separate thread
+                input_thread = threading.Thread(target=listen_for_commands, args=(stop_event,), daemon=True)
+                input_thread.start()
+                threads.append(input_thread)
+                
+                # Main read loop - this will block until disconnect or interrupt
+                read(irc, server, port)
+                
+            except (socket.error, ConnectionError) as e:
+                log(f"Server error: {e}", "ERROR")
+                # Wait before reconnecting
+                time.sleep(5)
+                
+            except KeyboardInterrupt:
+                log("Keyboard interrupt detected inside connection loop", "INFO")
+                break
+    
+    except KeyboardInterrupt:
+        log("Keyboard interrupt detected outside connection loop", "INFO")
+    
+    finally:
+        # Clean shutdown procedures
+        stop_event.set()  # Signal all threads to terminate
+        
+        # Wait for threads to finish (with timeout)
+        for thread in threads:
+            if thread.is_alive():
+                thread.join(timeout=1.0)
+        
+        # Save data and close socket
+        try:
+            save()
+            if irc:
+                try:
+                    irc.shutdown(socket.SHUT_RDWR)
+                except:
+                    pass
                 irc.close()
-                log("Bot exited successfully.")
-            except Exception:
-                pass
+            log("Bot exited gracefully. Goodbye!", "INFO")
+        except Exception as e:
+            log(f"Error during cleanup: {e}", "ERROR")
 
 if __name__ == "__main__":
     main()
