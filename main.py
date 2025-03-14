@@ -28,6 +28,7 @@ Functions:
     - log(message, level): Logs a message with a timestamp and specified log level.
     - main(): Main function to start the bot, connect to the IRC server, and handle reconnections.
 """
+import sys
 import platform # For checking where are we running for correct datetime formatting
 import socket
 import os
@@ -75,6 +76,9 @@ voitot = {
     "multileet": {}
 }
 
+# Create a stop event to handle clean shutdown
+stop_event = threading.Event()
+
 def load_conversation_history():
     """Loads the conversation history from a file or initializes a new one."""
     if os.path.exists(HISTORY_FILE):
@@ -119,10 +123,6 @@ def save(kraks, file_path=data_file):
 
     # Save the updated data
     save(kraks)
-
-    # Print to verify
-    print(kraks)  
-    # Example Output: {'Alice': {'hello': 2, 'world': 1}, 'Bob': {'python': 1, 'hello': 1}}
     """
     try:
         with open(file_path, "wb") as f:
@@ -172,20 +172,53 @@ def login(irc, writer):
     writer.sendall(f"JOIN {channel}\r\n".encode("utf-8"))
     log(f"Joined channel {channel}")
 
-def read(irc):
+# Main loop to read messages from IRC
+def read(irc, server, port, reconnect_delay=5, stop_event=None):
     global last_ping, latency_start
-    while True:
-        response = irc.recv(4096).decode("utf-8", errors="ignore")
-        if response:
-            for line in response.strip().split("\n"):  # Split into separate lines
-                log(line.strip(), "SERVER")  # Log each line separately
-            # Handle PING messages (keep connection alive)
-            if response.startswith("PING"):
-                last_ping = time.time()
-                ping_value = response.split(":", 1)[1].strip()
-                irc.sendall(f"PONG :{ping_value}\r\n".encode("utf-8"))
-                log(f"Sent PONG response to {ping_value}")
-            process_message(irc, response)
+    
+    try:
+        while not stop_event.is_set():  # Check if shutdown is requested
+            response = irc.recv(4096).decode("utf-8", errors="ignore")
+            if not response:
+                continue  # If no response, keep listening
+
+            for line in response.strip().split("\r\n"):  # Handle multiple messages
+                log(line.strip(), "SERVER")
+                
+                if line.startswith("PING"):  # Handle PING more efficiently
+                    last_ping = time.time()
+                    ping_value = line.split(":", 1)[1].strip()
+                    irc.sendall(f"PONG :{ping_value}\r\n".encode("utf-8"))
+                    log(f"Sent PONG response to {ping_value}")
+                
+                process_message(irc, line)  # Process each message separately
+    
+    except KeyboardInterrupt:
+        log("KeyboardInterrupt detected. Shutting down...", "INFO")
+        stop_event.set()  # Notify all threads to stop
+    
+    finally:
+        try:
+            irc.shutdown(socket.SHUT_RDWR)
+            irc.close()
+        except Exception as e:
+            log(f"Error while closing IRC connection: {e}", "ERROR")
+        sys.exit(0)
+
+def listen_for_commands(stop_event):
+    """Listen for user input from the terminal and send to IRC."""
+    try:
+        while not stop_event.is_set():
+            command = input("")  # Read command from terminal
+            if command:
+                if command.lower() == "quit":
+                    log("Exiting bot...", "INFO")
+                    stop_event.set()  # Notify all threads to stop
+                    sys.exit(0)
+    except (EOFError, KeyboardInterrupt):
+        log("Shutting down...", "INFO")
+        stop_event.set()
+        sys.exit(0)
 
 def keepalive_ping(irc):
     global last_ping
@@ -789,8 +822,12 @@ def main():
             irc.connect((server, port))
             writer = irc
             login(irc, writer)
+            # Start Keepalive PING
             threading.Thread(target=keepalive_ping, args=(irc,), daemon=True).start()
-            read(irc)
+            # Start input listener in a separate thread (daemon=True for clean shutdown)
+            input_thread = threading.Thread(target=listen_for_commands, args=(stop_event,), daemon=True)
+            input_thread.start()
+            read(irc, server, port)
         except (socket.error, ConnectionError) as e:
             log(f"Server error: {e}", "ERROR")
         finally:
