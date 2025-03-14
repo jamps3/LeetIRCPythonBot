@@ -171,3 +171,5 @@ cython_debug/
 .pypirc
 # Saved data
 values.bin
+conversation_history.json
+kraks_data.pkl
