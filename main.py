@@ -223,23 +223,173 @@ def listen_for_commands(stop_event):
                 stop_event.set()  # Notify all threads to stop
                 break
             elif user_input.startswith("!"):
+                # Parse command
+                command_parts = user_input.split(" ", 1)
+                command = command_parts[0].lower()
+                args = command_parts[1] if len(command_parts) > 1 else ""
+                log(f"Processing command {command} with args: {args}", "INFO")
+                
                 # Handle commands similar to IRC commands
-                if user_input.startswith("!s "):
-                    parts = user_input.split(" ", 1)
-                    location = parts[1].strip() if len(parts) > 1 else "Joensuu"
+                if command == "!s" or command == "!sää":
+                    location = args.strip() if args else "Joensuu"
                     log(f"Getting weather for {location} from console", "INFO")
-                    # You can either print the result locally or pass to a function
-                    # that handles the logic without sending to IRC
-                    print(f"Getting weather for {location}...")
-                    # For demonstration; in a real implementation, you would reuse the 
-                    # send_weather logic but modify it to print instead of sending to IRC
-                elif user_input.startswith("!sahko"):
-                    parts = user_input.split(" ", 1)
-                    log(f"Getting electricity price info from console: {parts}", "INFO")
-                    print("Getting electricity prices...")
-                    # Similar approach for other commands
+                    send_weather(None, None, location)  # Pass None for IRC and channel
+                
+                elif command == "!sahko":
+                    send_electricity_price(None, None, command_parts)
+                
+                elif command == "!aika":
+                    output_message(f"Nykyinen aika: {datetime.now()}")
+                
+                elif command == "!kaiku":
+                    output_message(f"Console: {args}")
+                
+                elif command == "!sana":
+                    if args:
+                        search_word = args.strip().lower()
+                        kraks = load()
+                        
+                        word_counts = {
+                            nick: stats[search_word]
+                            for nick, stats in kraks.items()
+                            if search_word in stats
+                        }
+                        
+                        if word_counts:
+                            results = ", ".join(f"{nick}: {count}" for nick, count in word_counts.items())
+                            output_message(f"Sana '{search_word}' on sanottu: {results}")
+                        else:
+                            output_message(f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
+                    else:
+                        output_message("Käytä komentoa: !sana <sana>")
+                
+                elif command == "!topwords":
+                    kraks = load()
+                    
+                    if args:  # Specific nick provided
+                        nick = args.strip()
+                        if nick in kraks:
+                            top_words = Counter(kraks[nick]).most_common(5)
+                            word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
+                            output_message(f"{nick}: {word_list}")
+                        else:
+                            output_message(f"Käyttäjää '{nick}' ei löydy.")
+                    else:  # Show top words for all users
+                        overall_counts = Counter()
+                        for words in kraks.values():
+                            overall_counts.update(words)
+                        
+                        top_words = overall_counts.most_common(5)
+                        word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
+                        output_message(f"Käytetyimmät sanat: {word_list}")
+                
+                elif command == "!leaderboard":
+                    kraks = load()
+                    user_word_counts = {nick: sum(words.values()) for nick, words in kraks.items()}
+                    top_users = sorted(user_word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+                    
+                    if top_users:
+                        leaderboard_msg = ", ".join(f"{nick}: {count}" for nick, count in top_users)
+                        output_message(f"Aktiivisimmat käyttäjät: {leaderboard_msg}")
+                    else:
+                        output_message("Ei vielä tarpeeksi dataa leaderboardille.")
+                
+                elif command == "!kraks":
+                    kraks = load()
+                    total_kraks = 0
+                    word_counts = {"krak": 0, "kr1k": 0, "kr0k": 0}
+                    top_users = {"krak": None, "kr1k": None, "kr0k": None}
+                    
+                    # Count occurrences and track top users
+                    for nick, words in kraks.items():
+                        for word in word_counts.keys():
+                            count = words.get(word, 0)
+                            word_counts[word] += count
+                            total_kraks += count
+                            
+                            if count > 0 and (top_users[word] is None or count > kraks[top_users[word]].get(word, 0)):
+                                top_users[word] = nick
+                    
+                    total_message = f"Krakit yhteensä: {total_kraks}"
+                    details = ", ".join(
+                        f"{word}: {count} [{top_users[word]}]" for word, count in word_counts.items() if count > 0
+                    )
+                    
+                    output_message(f"{total_message}, {details}")
+                
+                elif command == "!euribor":
+                    # XML data URL from Suomen Pankki
+                    url = "https://reports.suomenpankki.fi/WebForms/ReportViewerPage.aspx?report=/tilastot/markkina-_ja_hallinnolliset_korot/euribor_korot_today_xml_en&output=xml"
+                    
+                    # Fetch the XML data
+                    response = requests.get(url)
+                    
+                    if response.status_code == 200:
+                        # Parse the XML content
+                        root = ElementTree.fromstring(response.content)
+                        
+                        # Namespace handling (because the XML uses a default namespace)
+                        ns = {"ns": "euribor_korot_today_xml_en"}  # Update with correct namespace if needed
+                        
+                        # Find the correct period (yesterday's date)
+                        period = root.find(".//ns:period", namespaces=ns)
+                        if period is not None:
+                            # Extract the date from the XML attribute
+                            date_str = period.attrib.get("value")  # Muoto YYYY-MM-DD
+                            date_obj = datetime.strptime(date_str, "%Y-%m-%d")  # Muunnetaan datetime-objektiksi
+                            
+                            # Käytetään oikeaa muotoilua riippuen käyttöjärjestelmästä
+                            if platform.system() == "Windows":
+                                formatted_date = date_obj.strftime("%#d.%#m.%y")  # Windows
+                            else:
+                                formatted_date = date_obj.strftime("%-d.%-m.%y")  # Linux & macOS
+                            rates = period.findall(".//ns:rate", namespaces=ns)
+                            
+                            for rate in rates:
+                                if rate.attrib.get("name") == "12 month (act/360)":
+                                    euribor_12m = rate.find("./ns:intr", namespaces=ns)
+                                    if euribor_12m is not None:
+                                        output_message(f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%")
+                                    else:
+                                        output_message("Interest rate value not found.")
+                                    break
+                            else:
+                                output_message("12-month Euribor rate not found.")
+                        else:
+                            output_message("No period data found in XML.")
+                    else:
+                        output_message(f"Failed to retrieve XML data. HTTP Status Code: {response.status_code}")
+                
+                elif command == "!leetwinners":
+                    leet_winners = load_leet_winners()
+                    
+                    # Dictionary to store only one winner per category
+                    filtered_winners = {}
+                    
+                    for winner, categories in leet_winners.items():
+                        for cat, count in categories.items():
+                            # Ensure only one winner per category
+                            if cat not in filtered_winners or count > filtered_winners[cat][1]:
+                                filtered_winners[cat] = (winner, count)
+                    
+                    # Format the output
+                    winners_text = ", ".join(
+                        f"{cat}: {winner} [{count}]"
+                        for cat, (winner, count) in filtered_winners.items()
+                    )
+                    
+                    response = f"Leet winners: {winners_text}" if winners_text else "No leet winners recorded yet."
+                    output_message(response)
+                
+                elif command.startswith("!url") or command == "!title":
+                    # Handle URL title fetching
+                    if args:
+                        fetch_title(None, None, args)
+                    else:
+                        output_message("Käytä komentoa: !url <url>")
+                
                 else:
-                    print(f"Command '{user_input}' not recognized or not implemented for console use")
+                    output_message(f"Command '{command}' not recognized or not implemented for console use")
             else:
                 # Any text not starting with ! is sent to OpenAI
                 log(f"Sending text to OpenAI: {user_input}", "INFO")
@@ -306,11 +456,11 @@ def process_message(irc, message):
         
         # !aika - Kerro nykyinen aika
         if text.startswith("!aika"):
-            send_message(irc, target, f"Nykyinen aika: {datetime.now()}")
+            output_message(f"Nykyinen aika: {datetime.now()}", irc, target)
                 
         # !kaiku - Kaiuta teksti
         elif text.startswith("!kaiku"):
-            send_message(irc, channel, f"{sender}: {text[len(sender)+2:]}")
+            output_message(f"{sender}: {text[len(sender)+2:]}", irc, channel)
             
         # !sahko - Kerro pörssisähkön hintatiedot tänään ja huomenna, jos saatavilla
         elif text.startswith("!sahko"):
@@ -332,11 +482,11 @@ def process_message(irc, message):
 
                 if word_counts:
                     results = ", ".join(f"{nick}: {count}" for nick, count in word_counts.items())
-                    send_message(irc, target, f"Sana '{search_word}' on sanottu: {results}")
+                    output_message(f"Sana '{search_word}' on sanottu: {results}", irc, target)
                 else:
-                    send_message(irc, target, f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
+                    output_message(f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.", irc, target)
             else:
-                send_message(irc, target, "Käytä komentoa: !sana <sana>")
+                output_message("Käytä komentoa: !sana <sana>", irc, target)
 
         # !topwords - Käytetyimmät sanat
         elif text.startswith("!topwords"):
@@ -348,9 +498,9 @@ def process_message(irc, message):
                 if nick in kraks:
                     top_words = Counter(kraks[nick]).most_common(5)
                     word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
-                    send_message(irc, target, f"{nick}: {word_list}")
+                    output_message(f"{nick}: {word_list}", irc, target)
                 else:
-                    send_message(irc, target, f"Käyttäjää '{nick}' ei löydy.")
+                    output_message(f"Käyttäjää '{nick}' ei löydy.", irc, target)
             else:  # Show top words for all users
                 overall_counts = Counter()
                 for words in kraks.values():
@@ -358,7 +508,7 @@ def process_message(irc, message):
 
                 top_words = overall_counts.most_common(5)
                 word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
-                send_message(irc, target, f"Käytetyimmät sanat: {word_list}")
+                output_message(f"Käytetyimmät sanat: {word_list}", irc, target)
         
         # !leaderboard - Aktiivisimmat käyttäjät
         elif text.startswith("!leaderboard"):
@@ -368,9 +518,9 @@ def process_message(irc, message):
 
             if top_users:
                 leaderboard_msg = ", ".join(f"{nick}: {count}" for nick, count in top_users)
-                send_message(irc, target, f"Aktiivisimmat käyttäjät: {leaderboard_msg}")
+                output_message(f"Aktiivisimmat käyttäjät: {leaderboard_msg}", irc, target)
             else:
-                send_message(irc, target, "Ei vielä tarpeeksi dataa leaderboardille.")
+                output_message("Ei vielä tarpeeksi dataa leaderboardille.", irc, target)
         
         # !kraks - Krakkaukset
         elif text.startswith("!kraks"):
@@ -553,7 +703,7 @@ def send_scheduled_message(irc, channel, message, target_hour=13, target_minute=
     send_message(irc, channel, message)
     print(f"Viesti lähetetty: {message} @ {target_hour}:{target_minute}:{target_second}.{target_microsecond}")
 
-def send_weather(irc, channel, location):
+def send_weather(irc=None, channel=None, location="Joensuu"):
     location = location.strip().title()  # Ensimmäinen kirjain isolla
     encoded_location = urllib.parse.quote(location)  # Muutetaan sijainti URL-muotoon
     weather_url = f"http://api.openweathermap.org/data/2.5/weather?q={encoded_location}&appid={WEATHER_API_KEY}&units=metric&lang=fi"
@@ -597,9 +747,9 @@ def send_weather(irc, channel, location):
     except Exception as e:
         weather_info = f"Sään haku epäonnistui: {str(e)}"
 
-    send_message(irc, channel, weather_info)
+    output_message(weather_info, irc, channel)
 
-def send_electricity_price(irc, channel, text):
+def send_electricity_price(irc=None, channel=None, text=None):
     log(f"Syöte: {text}")  # Tulostetaan koko syöte
     log(f"Syötteen pituus: {len(text)}")  # Tulostetaan syötteen pituus
 
@@ -708,10 +858,10 @@ def send_electricity_price(irc, channel, text):
     log(f"\n{electricity_info_tomorrow}", "DEBUG")
 
     # Lähetetään viesti IRC-kanavalle
-    send_message(irc, channel, electricity_info_today + ", " + electricity_info_tomorrow)
-    # send_message(irc, channel, electricity_info_tomorrow)
+    output_message(electricity_info_today + ", " + electricity_info_tomorrow, irc, channel)
+    # output_message(electricity_info_tomorrow, irc, channel)
 
-def fetch_title(irc, channel, text):
+def fetch_title(irc=None, channel=None, text=""):
     log(f"Syöte: {text}")  # Logataan koko syöte
 
     # Päivitetty regex, joka löytää myös "www.youtube.com"
@@ -721,7 +871,7 @@ def fetch_title(irc, channel, text):
     log(f"Löydetyt URL-osoitteet: {urls}")  # Logataan löydetyt URL-osoitteet
 
     if not urls:
-        send_message(irc, channel, "Ei löydetty kelvollisia URL-osoitteita.")
+        output_message("Ei löydetty kelvollisia URL-osoitteita.", irc, channel)
         return
 
     for url in urls:
@@ -740,7 +890,7 @@ def fetch_title(irc, channel, text):
             title = soup.title.string.strip() if soup.title else "(ei otsikkoa)"
             
             log(f"Haettu otsikko: {title}")  # Debug: tulostetaan otsikko
-            send_message(irc, channel, f"Otsikko: {title}")
+            output_message(f"Otsikko: {title}", irc, channel)
         
         except requests.RequestException as e:
             log(f"Virhe URL:n {url} haussa: {e}")
@@ -848,8 +998,26 @@ def chat_with_gpt(user_input):
     
     return response_parts
 
+def output_message(message, irc=None, channel=None):
+    """
+    Utility function that handles output to both IRC and console.
+    
+    Args:
+        message (str): The message to output
+        irc (socket, optional): IRC socket object. If None, prints to console
+        channel (str, optional): IRC channel to send to. Required if irc is provided
+    """
+    if irc and channel:
+        # Send to IRC
+        irc.sendall(f"NOTICE {channel} :{message}\r\n".encode("utf-8"))
+        log(f"Message sent to {channel}: {message}")
+    else:
+        # Print to console
+        print(f"Bot: {message}")
+
 def send_message(irc, channel, message):
-    irc.sendall(f"NOTICE {channel} :{message}\r\n".encode("utf-8"))
+    """Legacy function maintained for compatibility"""
+    output_message(message, irc, channel)
 
 def log(message, level="INFO"):
     """Tulostaa viestin konsoliin aikaleiman ja tason kanssa.
