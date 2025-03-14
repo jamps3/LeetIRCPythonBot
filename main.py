@@ -68,6 +68,7 @@ api_key = os.getenv("OPENAI_API_KEY")
 
 bot_name = "jL3b"
 channels = [("#53", ""), ("#joensuu", ""), ("#west", "")]
+QUIT_MESSAGE = "Nähdään!"
 data_file = "values.bin"
 last_ping = time.time()
 # Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
@@ -1192,6 +1193,8 @@ def main():
             save(kraks)  # Pass the loaded kraks data to save()
             if irc:
                 try:
+                    writer.sendall(f"QUIT :{QUIT_MESSAGE}\r\n".encode("utf-8"))
+                    time.sleep(1)  # Allow time for the message to send
                     irc.shutdown(socket.SHUT_RDWR)
                 except:
                     pass
