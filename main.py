@@ -73,7 +73,7 @@ else:
     bot_name = "jL3b"
     channels = [("#53", ""), ("#joensuu", ""), ("#west", "")]
 QUIT_MESSAGE = "Nähdään!"
-data_file = "values.bin"
+
 last_ping = time.time()
 # Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
 client = openai.OpenAI(api_key=api_key)
@@ -479,6 +479,8 @@ def process_message(irc, message):
         
         else:  # Normal channel message
             log(f"Channel message in {target} from {sender}: {text}", "MSG")
+            # Fetch titles of URLs
+            fetch_title(irc, target, text)
         
         # ✅ Estetään botin vastaaminen itselleen
         if sender.lower() == bot_name.lower():
@@ -912,11 +914,15 @@ def send_electricity_price(irc=None, channel=None, text=None):
     output_message(electricity_info_today + ", " + electricity_info_tomorrow, irc, channel)
     # output_message(electricity_info_tomorrow, irc, channel)
 
+import re
+import requests
+from bs4 import BeautifulSoup
+
 def fetch_title(irc=None, channel=None, text=""):
     log(f"Syöte: {text}")  # Logataan koko syöte
 
-    # Päivitetty regex, joka löytää myös "www.youtube.com"
-    pattern = r"(https:\/\/?[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"
+    # Regex to find URLs
+    pattern = r"(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}(?:\/[^\s]*)?)"
     urls = re.findall(pattern, text)
 
     log(f"Löydetyt URL-osoitteet: {urls}")  # Logataan löydetyt URL-osoitteet
@@ -924,6 +930,8 @@ def fetch_title(irc=None, channel=None, text=""):
     if not urls:
         output_message("Ei löydetty kelvollisia URL-osoitteita.", irc, channel)
         return
+
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"}
 
     for url in urls:
         try:
@@ -934,18 +942,30 @@ def fetch_title(irc=None, channel=None, text=""):
                 url = "https://" + url
                 log(f"Korjattu URL: {url}")  # Debug: tulostetaan korjattu URL
             
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, headers=headers, timeout=5)
             response.raise_for_status()  # Tarkistetaan, ettei tullut HTTP-virhettä
             
             soup = BeautifulSoup(response.text, "html.parser")
-            title = soup.title.string.strip() if soup.title else "(ei otsikkoa)"
+            title = soup.title.string.strip() if soup.title else None
+
+            # Jos title puuttuu, haetaan meta description
+            if not title:
+                meta_desc = soup.find("meta", attrs={"name": "description"}) or soup.find("meta", attrs={"property": "og:description"})
+                title = meta_desc["content"].strip() if meta_desc and "content" in meta_desc.attrs else "(ei otsikkoa)"
             
             log(f"Haettu otsikko: {title}")  # Debug: tulostetaan otsikko
-            output_message(f"Otsikko: {title}", irc, channel)
+            if irc:
+                output_message(f"'{title}'", irc, channel)
+            else:
+                log(f"Otsikko: {title}")
         
         except requests.RequestException as e:
             log(f"Virhe URL:n {url} haussa: {e}")
-            # send_message(irc, channel, f"Otsikon haku epäonnistui URL-osoitteelle: {url}")
+            if irc:
+                # output_message(f"Otsikon haku epäonnistui: {url}", irc, channel)
+                log(f"Otsikon haku epäonnistui: {url}")
+            else:
+                log(f"Otsikon haku epäonnistui: {url}")
 
 def split_message_intelligently(message, limit=350):
     """
