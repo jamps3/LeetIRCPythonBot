@@ -164,47 +164,54 @@ def update_kraks(kraks, nick, words):
     for word in words:
         kraks[nick][word] = kraks[nick].get(word, 0) + 1
 
+RECONNECT_DELAY = 5  # Time in seconds before retrying connection
+
 def login(irc, writer, show_api_keys=False):
     """
-    Logs into the IRC server, waits for the MOTD to finish, and then joins the channel.
+    Logs into the IRC server, waits for the MOTD to finish, and joins the channel.
+    Implements automatic reconnection in case of disconnection.
 
     Args:
         irc: The IRC connection object (socket).
         writer: The socket writer used to send messages.
         show_api_keys (bool): Whether to display API keys in logs.
     """
-    nick = bot_name
-    login = bot_name
+    while True:  # Infinite loop for automatic reconnection
+        try:
+            nick = bot_name
+            login = bot_name
 
-    # Log API keys if requested
-    if show_api_keys:
-        log(f"Weather API Key: {WEATHER_API_KEY}", "DEBUG")
-        log(f"Electricity API Key: {ELECTRICITY_API_KEY}", "DEBUG")
-        log(f"OpenAI API Key: {api_key}", "DEBUG")
-    else:
-        log("API keys loaded (use -api flag to show values)", "DEBUG")
+            # Log API keys if requested
+            if show_api_keys:
+                log(f"Weather API Key: {WEATHER_API_KEY}", "DEBUG")
+                log(f"Electricity API Key: {ELECTRICITY_API_KEY}", "DEBUG")
+                log(f"OpenAI API Key: {api_key}", "DEBUG")
+            else:
+                log("API keys loaded (use -api flag to show values)", "DEBUG")
 
-    try:
-        writer.sendall(f"NICK {nick}\r\n".encode("utf-8"))
-        writer.sendall(f"USER {login} 0 * :{nick}\r\n".encode("utf-8"))
+            writer.sendall(f"NICK {nick}\r\n".encode("utf-8"))
+            writer.sendall(f"USER {login} 0 * :{nick}\r\n".encode("utf-8"))
 
-        # Wait for MOTD completion
-        while True:
-            response = irc.recv(2048).decode("utf-8", errors="ignore")
-            for line in response.split("\r\n"):
-                if line:
-                    log(f"SERVER: {line}", "DEBUG")
+            # Wait for MOTD completion
+            while True:
+                response = irc.recv(2048).decode("utf-8", errors="ignore")
+                for line in response.split("\r\n"):
+                    if line:
+                        log(f"SERVER: {line}", "DEBUG")
 
-                if " 376 " in line or " 422 " in line:  # End of MOTD or No MOTD
-                    log("MOTD complete, joining channel...", "INFO")
-                    writer.sendall(f"JOIN {channel}\r\n".encode("utf-8"))
-                    log(f"Joined channel {channel}", "INFO")
-                    return  # Exit after joining
+                    if " 376 " in line or " 422 " in line:  # End of MOTD or No MOTD
+                        log("MOTD complete, joining channel...", "INFO")
+                        writer.sendall(f"JOIN {channel}\r\n".encode("utf-8"))
+                        log(f"Joined channel {channel}", "INFO")
+                        return  # Successfully joined, exit function
 
-    except socket.error as e:
-        log(f"Socket error: {e}", "ERROR")
-    except Exception as e:
-        log(f"Unexpected error: {e}", "ERROR")
+        except (socket.error, ConnectionResetError, BrokenPipeError) as e:
+            log(f"Connection lost: {e}. Reconnecting in {RECONNECT_DELAY} seconds...", "ERROR")
+            time.sleep(RECONNECT_DELAY)
+
+        except Exception as e:
+            log(f"Unexpected error: {e}. Reconnecting in {RECONNECT_DELAY} seconds...", "ERROR")
+            time.sleep(RECONNECT_DELAY)
 
 # Main loop to read messages from IRC
 def read(irc, server, port, stop_event, reconnect_delay=5):
