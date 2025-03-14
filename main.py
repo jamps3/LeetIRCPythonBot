@@ -47,6 +47,7 @@ import urllib.parse  # Lisätään URL-koodausta varten
 from dotenv import load_dotenv # Load api-keys from .env file
 from collections import Counter
 import json
+import argparse # Command line argument parsing
 
 # File to store conversation history
 HISTORY_FILE = "conversation_history.json"
@@ -158,14 +159,17 @@ def update_kraks(kraks, nick, words):
     for word in words:
         kraks[nick][word] = kraks[nick].get(word, 0) + 1
 
-def login(irc, writer):
+def login(irc, writer, show_api_keys=False):
     nick = bot_name
     login = bot_name
 
-    log(f"Weather API Key: {WEATHER_API_KEY}", "DEBUG")
-    log(f"Electricity API Key: {ELECTRICITY_API_KEY}", "DEBUG")
-    log(f"OpenAI API Key: {api_key}", "DEBUG")
-
+    # Only show API keys if -api flag is present
+    if show_api_keys:
+        log(f"Weather API Key: {WEATHER_API_KEY}", "DEBUG")
+        log(f"Electricity API Key: {ELECTRICITY_API_KEY}", "DEBUG")
+        log(f"OpenAI API Key: {api_key}", "DEBUG")
+    else:
+        log("API keys loaded (use -api flag to show values)", "DEBUG")
     writer.sendall(f"NICK {nick}\r\n".encode("utf-8"))
     writer.sendall(f"USER {login} 0 * :{nick}\r\n".encode("utf-8"))
     time.sleep(2)
@@ -173,14 +177,17 @@ def login(irc, writer):
     log(f"Joined channel {channel}")
 
 # Main loop to read messages from IRC
-def read(irc, server, port, reconnect_delay=5, stop_event=None):
+def read(irc, server, port, stop_event, reconnect_delay=5):
     global last_ping, latency_start
     
     try:
         while not stop_event.is_set():  # Check if shutdown is requested
-            response = irc.recv(4096).decode("utf-8", errors="ignore")
-            if not response:
-                continue  # If no response, keep listening
+            try:
+                response = irc.recv(4096).decode("utf-8", errors="ignore")
+                if not response:
+                    continue  # If no response, keep listening
+            except socket.timeout:
+                continue  # Socket timeout occurred, just continue the loop
 
             for line in response.strip().split("\r\n"):  # Handle multiple messages
                 log(line.strip(), "SERVER")
@@ -194,8 +201,7 @@ def read(irc, server, port, reconnect_delay=5, stop_event=None):
                 process_message(irc, line)  # Process each message separately
     
     except KeyboardInterrupt:
-        log("KeyboardInterrupt detected. Shutting down...", "INFO")
-        stop_event.set()  # Notify all threads to stop
+        stop_event.set()  # Notify all threads to stop without logging
     
     finally:
         try:
@@ -203,7 +209,6 @@ def read(irc, server, port, reconnect_delay=5, stop_event=None):
             irc.close()
         except Exception as e:
             log(f"Error while closing IRC connection: {e}", "ERROR")
-        sys.exit(0)
 
 def listen_for_commands(stop_event):
     """Listen for user input from the terminal and send to IRC."""
@@ -214,16 +219,17 @@ def listen_for_commands(stop_event):
                 if command.lower() == "quit":
                     log("Exiting bot...", "INFO")
                     stop_event.set()  # Notify all threads to stop
-                    sys.exit(0)
+                    break
     except (EOFError, KeyboardInterrupt):
-        log("Shutting down...", "INFO")
         stop_event.set()
-        sys.exit(0)
 
-def keepalive_ping(irc):
+def keepalive_ping(irc, stop_event):
     global last_ping
-    while True:
-        time.sleep(120)
+    while not stop_event.is_set():
+        time.sleep(2)  # Check more frequently for stop event
+        if stop_event.is_set():
+            break
+            
         if time.time() - last_ping > 120:
             irc.sendall("PING :keepalive\r\n".encode("utf-8"))
             log("Sent keepalive PING")
@@ -813,6 +819,13 @@ def euribor():
         print(f"Failed to retrieve XML data. HTTP Status Code: {response.status_code}")
 
 def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='IRC Bot with API key handling')
+    parser.add_argument('-api', action='store_true', help='Show API key values in logs')
+    args = parser.parse_args()
+    
+    # API visibility preference will be passed to login()
+    
     server = "irc.atw-inter.net"
     port = 6667
     stop_event = threading.Event()
@@ -821,7 +834,6 @@ def main():
     
     # Setup signal handler for graceful shutdown
     def signal_handler(sig, frame):
-        log("Keyboard interrupt detected, shutting down...", "INFO")
         stop_event.set()
         raise KeyboardInterrupt
     
@@ -835,11 +847,12 @@ def main():
                 load()
                 irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 irc.connect((server, port))
+                irc.settimeout(1.0)  # Add a timeout so Ctrl+C is handled promptly
                 writer = irc
-                login(irc, writer)
+                login(irc, writer, show_api_keys=args.api)
                 
                 # Start Keepalive PING
-                keepalive_thread = threading.Thread(target=keepalive_ping, args=(irc,), daemon=True)
+                keepalive_thread = threading.Thread(target=keepalive_ping, args=(irc, stop_event), daemon=True)
                 keepalive_thread.start()
                 threads.append(keepalive_thread)
                 
@@ -849,7 +862,7 @@ def main():
                 threads.append(input_thread)
                 
                 # Main read loop - this will block until disconnect or interrupt
-                read(irc, server, port)
+                read(irc, server, port, stop_event, reconnect_delay=5)
                 
             except (socket.error, ConnectionError) as e:
                 log(f"Server error: {e}", "ERROR")
@@ -857,14 +870,14 @@ def main():
                 time.sleep(5)
                 
             except KeyboardInterrupt:
-                log("Keyboard interrupt detected inside connection loop", "INFO")
                 break
     
     except KeyboardInterrupt:
-        log("Keyboard interrupt detected outside connection loop", "INFO")
+        pass  # Shutdown message will be handled in finally block
     
     finally:
         # Clean shutdown procedures
+        log("Shutting down...", "INFO")  # Centralized shutdown message
         stop_event.set()  # Signal all threads to terminate
         
         # Wait for threads to finish (with timeout)
@@ -874,7 +887,8 @@ def main():
         
         # Save data and close socket
         try:
-            save()
+            kraks = load()  # Load kraks data before saving
+            save(kraks)  # Pass the loaded kraks data to save()
             if irc:
                 try:
                     irc.shutdown(socket.SHUT_RDWR)
