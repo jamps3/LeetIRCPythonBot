@@ -66,8 +66,8 @@ WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
 ELECTRICITY_API_KEY = os.getenv("ELECTRICITY_API_KEY")
 api_key = os.getenv("OPENAI_API_KEY")
 
-bot_name = "jL3b2"
-channel = "#joensuutest"
+bot_name = "jL3b"
+channels = [("#53", ""), ("#joensuu", ""), ("#west", "")]
 data_file = "values.bin"
 last_ping = time.time()
 # Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
@@ -166,14 +166,15 @@ def update_kraks(kraks, nick, words):
 
 RECONNECT_DELAY = 5  # Time in seconds before retrying connection
 
-def login(irc, writer, show_api_keys=False):
+def login(irc, writer, channels, show_api_keys=False):
     """
-    Logs into the IRC server, waits for the MOTD to finish, and joins the channel.
+    Logs into the IRC server, waits for the MOTD to finish, and joins multiple channels.
     Implements automatic reconnection in case of disconnection.
 
     Args:
         irc: The IRC connection object (socket).
         writer: The socket writer used to send messages.
+        channels (list): List of channels to join.
         show_api_keys (bool): Whether to display API keys in logs.
     """
     while True:  # Infinite loop for automatic reconnection
@@ -200,9 +201,17 @@ def login(irc, writer, show_api_keys=False):
                         log(f"SERVER: {line}", "DEBUG")
 
                     if " 376 " in line or " 422 " in line:  # End of MOTD or No MOTD
-                        log("MOTD complete, joining channel...", "INFO")
-                        writer.sendall(f"JOIN {channel}\r\n".encode("utf-8"))
-                        log(f"Joined channel {channel}", "INFO")
+                        log("MOTD complete, joining channels...", "INFO")
+
+                        # Join all specified channels with or without keys
+                        for channel, key in channels:
+                            if key:
+                                writer.sendall(f"JOIN {channel} {key}\r\n".encode("utf-8"))
+                                log(f"Joined channel {channel} with key", "INFO")
+                            else:
+                                writer.sendall(f"JOIN {channel}\r\n".encode("utf-8"))
+                                log(f"Joined channel {channel} (no key)", "INFO")
+
                         return  # Successfully joined, exit function
 
         except (socket.error, ConnectionResetError, BrokenPipeError) as e:
@@ -497,12 +506,12 @@ def process_message(irc, message):
                 
         # !kaiku - Kaiuta teksti
         elif text.startswith("!kaiku"):
-            output_message(f"{sender}: {text[len(sender)+2:]}", irc, channel)
+            output_message(f"{sender}: {text[len(sender)+2:]}", irc, target)
             
         # !sahko - Kerro pörssisähkön hintatiedot tänään ja huomenna, jos saatavilla
         elif text.startswith("!sahko"):
             parts = text.split(" ", 1)
-            send_electricity_price(irc, channel, parts)
+            send_electricity_price(irc, target, parts)
         
         # !sana - Sanalaskuri
         elif text.startswith("!sana "):
@@ -653,7 +662,7 @@ def process_message(irc, message):
         elif text.startswith("!s"):
             parts = text.split(" ", 1)
             location = parts[1].strip() if len(parts) > 1 else "Joensuu"
-            send_weather(irc, channel, location)
+            send_weather(irc, target, location)
         
         # Handle !leetwinners command
         elif text.strip() == "!leetwinners":
@@ -1141,7 +1150,7 @@ def main():
                 irc.connect((server, port))
                 irc.settimeout(1.0)  # Add a timeout so Ctrl+C is handled promptly
                 writer = irc
-                login(irc, writer, show_api_keys=args.api)
+                login(irc, writer, channels, show_api_keys=args.api)
                 
                 # Start Keepalive PING
                 keepalive_thread = threading.Thread(target=keepalive_ping, args=(irc, stop_event), daemon=True)
