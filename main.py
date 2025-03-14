@@ -294,7 +294,7 @@ def listen_for_commands(stop_event):
                     send_electricity_price(None, None, command_parts)
                 
                 elif command == "!aika":
-                    output_message(f"Nykyinen aika: {datetime.now()}")
+                    output_message(f"Nykyinen aika: {datetime.now().isoformat(timespec='microseconds') + '000'}")
                 
                 elif command == "!kaiku":
                     output_message(f"Console: {args}")
@@ -486,23 +486,33 @@ def process_message(irc, message):
             # Fetch titles of URLs
             fetch_title(irc, target, text)
         
-        # ✅ Estetään botin vastaaminen itselleen
+        # ✅ Prevent bot from responding to itself
         if sender.lower() == bot_name.lower():
             log("🔄 Ignoring bot's own message to prevent loops.")
-            # Bot received the latency test message back
-            # Handle the bot's own LatencyCheck response
-            #elif re.search(rf"PRIVMSG {re.escape(bot_name)} :!LatencyCheck", text):
+
+            # ❌ Ignore the bot's own latency response completely
+            if text.startswith("Latency is ") and "ns" in text:
+                return  # Stop processing immediately
+
+            # Handle bot's own LatencyCheck response
             if "!LatencyCheck" in text:
                 if 'latency_start' in globals():
-                    latency = time.time() - latency_start
-                    latency_ns = int((time.time() - latency_start) * 1_000_000_000)  # Convert to ns
-                    global half_latency_ns
-                    half_latency_ns = latency_ns // 2  # Divide by 2 and store globally
-                    log(f"✅ Recognized LatencyCheck response! Latency: {latency:.3f} seconds")
-                    irc.sendall(f"PRIVMSG {bot_name} :Latency is {latency_ns} ns\r\n".encode("utf-8"))
+                    elapsed_time = time.time() - latency_start
+                    latency_ns = int(elapsed_time * 1_000_000_000)  # Convert to ns
+                    
+                    # ✅ Estimate one-way latency
+                    half_latency_ns = latency_ns // 2  
+
+                    log(f"✅ Recognized LatencyCheck response! Latency: {elapsed_time:.3f} s ({latency_ns} ns)")
+
+                    # **Before sending, subtract half_latency_ns to improve accuracy**
+                    corrected_latency_ns = latency_ns - half_latency_ns
+                    irc.sendall(f"PRIVMSG {bot_name} :Latency is {corrected_latency_ns} ns\r\n".encode("utf-8"))
+
                 else:
                     log("⚠️ Warning: Received LatencyCheck response, but no latency_start timestamp exists.")
-            return  # Älä käsittele tätä viestiä
+
+            return  # Stop further processing
 
         # Track words only if it's not a bot command
         if not text.startswith(("!", "http")):
@@ -700,18 +710,19 @@ def process_message(irc, message):
         
         # !leet - Ajasta viestin lähetys
         elif text.startswith("!leet"):
-            match = re.search(r"!leet (\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d+)", text)
+            match = re.search(r"!leet (#\S+) (\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d+) (.+)", text)
 
             if match:
-                hour = int(match.group(1))
-                minute = int(match.group(2))
-                second = int(match.group(3))
-                microsecond = int(match.group(4))
+                channel = match.group(1)
+                hour = int(match.group(2))
+                minute = int(match.group(3))
+                second = int(match.group(4))
+                microsecond = int(match.group(5))
+                message = match.group(6)  # Capture the custom message
 
-                send_scheduled_message(irc, "#joensuu", "leet!", hour, minute, second, microsecond)
-                log(f"Viesti ajastettu klo {hour}:{minute}:{second}.{microsecond}")
+                send_scheduled_message(irc, channel, message, hour, minute, second, microsecond)
             else:
-                log("Virheellinen aikaformaatti! Käytä muotoa: !leet HH:MM:SS.mmmmmm", "ERROR")
+                log("Virheellinen komento! Käytä muotoa: !leet #kanava HH:MM:SS.mmmmmm", "ERROR")
 
         else:
             # ✅ Handle regular chat messages (send to GPT)
@@ -735,30 +746,38 @@ def measure_latency(irc, nickname):
     irc.sendall(f"PRIVMSG {nickname} :{test_message}\r\n".encode("utf-8"))
     log(f"Sent latency check message: {test_message}")
 
-def send_scheduled_message(irc, channel, message, target_hour=13, target_minute=37, target_second=13, target_microsecond=371337):
-    """
-    Lähettää viestin tarkalleen tiettynä kellonaikana nanosekunnin tarkkuudella.
-    """
-    now = datetime.now()
-    target_time = now.replace(hour=target_hour, minute=target_minute, second=target_second, microsecond=min(target_microsecond, 999999))
+def send_scheduled_message(irc, channel, message, target_hour=13, target_minute=37, target_second=13, target_nanosecond=371337133):
+    def wait_and_send():
+        now = datetime.now()
+        target_time = now.replace(hour=target_hour, minute=target_minute % 60, second=target_second, microsecond=min(target_nanosecond // 1000, 999999))
 
-    # Siirretään huomiseen, jos aika on jo mennyt
-    if now >= target_time:
-        target_time += timedelta(days=1)
+        if now >= target_time:
+            target_time += timedelta(days=1)
 
-    time_to_wait = (target_time - now).total_seconds()
-    log("time_to_wait: " + str(time_to_wait))
+        # Convert to nanoseconds for precise timing
+        target_ns = time.perf_counter_ns() + int((target_time - now).total_seconds() * 1e9)
+        log(f"[Scheduled] time_to_wait: {(target_ns - time.perf_counter_ns()) / 1e9:.9f} s")
 
-    if time_to_wait > 0.01:
-        time.sleep(time_to_wait - 0.001)  # Jätetään pieni bufferi
+        # 🕒 **Nanosecond-level wait**
+        while time.perf_counter_ns() < target_ns - 2_000_000:  # Wait until last ~2ms
+            time.sleep(0.0005)  # Sleep in small increments
 
-    # Hienosäätö: Odotetaan aktiivisesti viimeiset millisekunnit
-    while datetime.now() < target_time:
-        pass  # Aktiivinen odotus ilman turhia print-komentoja
+        # 🎯 **Final busy wait for nanosecond accuracy**
+        while time.perf_counter_ns() < target_ns:
+            pass  # Active wait loop
 
-    # Lähetetään viesti
-    send_message(irc, channel, message)
-    print(f"Viesti lähetetty: {message} @ {target_hour}:{target_minute}:{target_second}.{target_microsecond}")
+        # 📨 **Send message**
+        send_message(irc, channel, message)
+
+        # 📝 **Log accurate timestamps**
+        scheduled_time_str = f"{target_hour:02}:{target_minute:02}:{target_second:02}.{target_nanosecond:09}"
+        actual_time_str = datetime.now().strftime('%H:%M:%S.%f')[:-3]  # Microsecond-level logging
+
+        log(f"Viesti ajastettu kanavalle {channel} klo {scheduled_time_str}")
+        log(f"Viesti lähetetty: {message} @ {actual_time_str}")
+
+    # Run in a separate thread to avoid blocking execution
+    threading.Thread(target=wait_and_send, daemon=True).start()
 
 def send_weather(irc=None, channel=None, location="Joensuu"):
     location = location.strip().title()  # Ensimmäinen kirjain isolla
