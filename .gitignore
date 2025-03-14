@@ -169,9 +169,5 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-<<<<<<< HEAD
-=======
-
 # Saved data
 values.bin
->>>>>>> e784a8c (Initial commit with main.py run and .gitignore)
