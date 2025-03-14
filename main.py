@@ -66,8 +66,12 @@ WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
 ELECTRICITY_API_KEY = os.getenv("ELECTRICITY_API_KEY")
 api_key = os.getenv("OPENAI_API_KEY")
 
-bot_name = "jL3b"
-channels = [("#53", ""), ("#joensuu", ""), ("#west", "")]
+if sys.gettrace():
+    bot_name = "jL3b2"
+    channels = [("#joensuutest", "")]
+else:
+    bot_name = "jL3b"
+    channels = [("#53", ""), ("#joensuu", ""), ("#west", "")]
 QUIT_MESSAGE = "Nähdään!"
 data_file = "values.bin"
 last_ping = time.time()
@@ -359,7 +363,7 @@ def listen_for_commands(stop_event):
                     
                     total_message = f"Krakit yhteensä: {total_kraks}"
                     details = ", ".join(
-                        f"{word}: {count} [{top_users[word]}]" for word, count in word_counts.items() if count > 0
+                        f"{word}: {count} [{top_users[word]}: {kraks[top_users[word]].get(word, 0)}]" for word, count in word_counts.items() if count > 0
                     )
                     
                     output_message(f"{total_message}, {details}")
