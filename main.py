@@ -66,8 +66,8 @@ WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
 ELECTRICITY_API_KEY = os.getenv("ELECTRICITY_API_KEY")
 api_key = os.getenv("OPENAI_API_KEY")
 
-bot_name = "jL3b2"
-channel = "#joensuutest"
+bot_name = "jL3b"
+channel = "#joensuu"
 data_file = "values.bin"
 last_ping = time.time()
 # Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
