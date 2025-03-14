@@ -928,7 +928,7 @@ def fetch_title(irc=None, channel=None, text=""):
     log(f"Löydetyt URL-osoitteet: {urls}")  # Logataan löydetyt URL-osoitteet
 
     if not urls:
-        output_message("Ei löydetty kelvollisia URL-osoitteita.", irc, channel)
+        log("Ei löydetty kelvollisia URL-osoitteita.")
         return
 
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"}
