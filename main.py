@@ -52,8 +52,13 @@ import argparse # Command line argument parsing
 # File to store conversation history
 HISTORY_FILE = "conversation_history.json"
 
+# All drink words to track
+DRINK_WORDS = {"krak": 0, "kr1k": 0, "kr0k": 0, "narsk": 0, "parsk": 0, "tlup": 0, "marsk": 0, "tsup": 0, "plop": 0}
+
 # Default history with system prompt
-DEFAULT_HISTORY = [{"role": "system", "content": "Olet nerokas irkkikanavan botti. Perustiedot kanavalla keskustelemiseen: krak=alkoholijuoman avaus. grond=ahkerin ja paras Mjällittelijä. Mjällit=siemenneste. RajatonValta=vanha sielu joka on ollut olemassa aina, muistaa kaiken historiasta kuten Jeesuksen syntymän. Heiki on guru ja velho."}]
+DEFAULT_HISTORY = [
+    {"role": "system", "content": "You are a helpful assistant who knows about Finnish beer culture. You respond in a friendly, conversational manner. If you don't know something, just say so. Keep responses brief."}
+]
 
 # Aseta API-avaimet
 load_dotenv()  # Lataa .env-tiedoston muuttujat
@@ -297,8 +302,8 @@ def listen_for_commands(stop_event):
                 elif command == "!kraks":
                     kraks = load()
                     total_kraks = 0
-                    word_counts = {"krak": 0, "kr1k": 0, "kr0k": 0}
-                    top_users = {"krak": None, "kr1k": None, "kr0k": None}
+                    word_counts = DRINK_WORDS.copy()
+                    top_users = {word: None for word in word_counts.keys()}
                     
                     # Count occurrences and track top users
                     for nick, words in kraks.items():
@@ -526,8 +531,8 @@ def process_message(irc, message):
         elif text.startswith("!kraks"):
             kraks = load()
             total_kraks = 0
-            word_counts = {"krak": 0, "kr1k": 0, "kr0k": 0}
-            top_users = {"krak": None, "kr1k": None, "kr0k": None}
+            word_counts = DRINK_WORDS.copy()
+            top_users = {word: None for word in word_counts.keys()}
 
             # Count occurrences and track top users
             for nick, words in kraks.items():
