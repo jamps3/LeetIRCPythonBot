@@ -202,17 +202,25 @@ def login(irc, writer, channels, show_api_keys=False):
             writer.sendall(f"NICK {nick}\r\n".encode("utf-8"))
             writer.sendall(f"USER {login} 0 * :{nick}\r\n".encode("utf-8"))
 
-            # Wait for MOTD completion
+            last_response_time = time.time()  # Track last received message time
             while True:
                 response = irc.recv(2048).decode("utf-8", errors="ignore")
+                if response:
+                    last_response_time = time.time()  # Reset timeout on any message
+
                 for line in response.split("\r\n"):
                     if line:
                         log(f"SERVER: {line}", "DEBUG")
 
-                    if " 376 " in line or " 422 " in line:  # End of MOTD or No MOTD
+                    # If server says "Please wait while we process your connection", don't disconnect yet
+                    if " 020 " in line:
+                        log("Server is processing connection, waiting...", "DEBUG")
+                        continue  # Keep waiting instead of assuming failure
+
+                    # If welcome (001) or MOTD completion (376/422) received, join channels
+                    if " 001 " in line or " 376 " in line or " 422 " in line:
                         log("MOTD complete, joining channels...", "INFO")
 
-                        # Join all specified channels with or without keys
                         for channel, key in channels:
                             if key:
                                 writer.sendall(f"JOIN {channel} {key}\r\n".encode("utf-8"))
@@ -223,7 +231,11 @@ def login(irc, writer, channels, show_api_keys=False):
 
                         return  # Successfully joined, exit function
 
-        except (socket.error, ConnectionResetError, BrokenPipeError) as e:
+                # Timeout handling: If no response received in 30 seconds, assume failure
+                if time.time() - last_response_time > 30:
+                    raise socket.timeout("No response from server for 30 seconds")
+
+        except (socket.error, ConnectionResetError, BrokenPipeError, socket.timeout) as e:
             log(f"Connection lost: {e}. Reconnecting in {RECONNECT_DELAY} seconds...", "ERROR")
             time.sleep(RECONNECT_DELAY)
 
