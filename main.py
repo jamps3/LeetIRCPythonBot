@@ -211,15 +211,41 @@ def read(irc, server, port, stop_event, reconnect_delay=5):
             log(f"Error while closing IRC connection: {e}", "ERROR")
 
 def listen_for_commands(stop_event):
-    """Listen for user input from the terminal and send to IRC."""
+    """Listen for user input from the terminal and send to IRC or process locally."""
     try:
         while not stop_event.is_set():
-            command = input("")  # Read command from terminal
-            if command:
-                if command.lower() == "quit":
-                    log("Exiting bot...", "INFO")
-                    stop_event.set()  # Notify all threads to stop
-                    break
+            user_input = input("")  # Read input from terminal
+            if not user_input:
+                continue
+                
+            if user_input.lower() == "quit":
+                log("Exiting bot...", "INFO")
+                stop_event.set()  # Notify all threads to stop
+                break
+            elif user_input.startswith("!"):
+                # Handle commands similar to IRC commands
+                if user_input.startswith("!s "):
+                    parts = user_input.split(" ", 1)
+                    location = parts[1].strip() if len(parts) > 1 else "Joensuu"
+                    log(f"Getting weather for {location} from console", "INFO")
+                    # You can either print the result locally or pass to a function
+                    # that handles the logic without sending to IRC
+                    print(f"Getting weather for {location}...")
+                    # For demonstration; in a real implementation, you would reuse the 
+                    # send_weather logic but modify it to print instead of sending to IRC
+                elif user_input.startswith("!sahko"):
+                    parts = user_input.split(" ", 1)
+                    log(f"Getting electricity price info from console: {parts}", "INFO")
+                    print("Getting electricity prices...")
+                    # Similar approach for other commands
+                else:
+                    print(f"Command '{user_input}' not recognized or not implemented for console use")
+            else:
+                # Any text not starting with ! is sent to OpenAI
+                log(f"Sending text to OpenAI: {user_input}", "INFO")
+                response_parts = chat_with_gpt(user_input)
+                for part in response_parts:
+                    print(f"Bot: {part}")
     except (EOFError, KeyboardInterrupt):
         stop_event.set()
 
@@ -482,23 +508,17 @@ def process_message(irc, message):
 
         else:
             # ✅ Handle regular chat messages (send to GPT)
-            # ✅ Vain yksityisviesteihin tai viesteihin, joissa mainitaan botin nimi, vastataan
-            if is_private or text.lower().startswith(f"{bot_name.lower()}"):
-                gpt_response = chat_with_gpt_4o_mini(text)
+            # ✅ Only respond to private messages or messages mentioning the bot's name
+            if is_private or bot_name.lower() in text.lower():
+                # Get response from GPT
+                response_parts = chat_with_gpt(text)
                 reply_target = sender if is_private else target  # Send private replies to sender
-                IRC_MESSAGE_LIMIT = 400  # Safe limit to avoid truncation issues
-                # irc.sendall(f"PRIVMSG {reply_target} :{gpt_response}\r\n".encode("utf-8"))
-                """ for part in gpt_response: # Send each response part separately
-                    message = f"PRIVMSG {reply_target} :{part}\r\n"
-                    irc.sendall(f"PRIVMSG {reply_target} :{part}\r\n".encode("utf-8")) """
-                # Split response into parts within the IRC message limit
-                response_parts = [gpt_response[i:i + IRC_MESSAGE_LIMIT] for i in range(0, len(gpt_response), IRC_MESSAGE_LIMIT)]
                 
                 # Send each response part separately as full messages
                 for part in response_parts:
                     message = f"PRIVMSG {reply_target} :{part}\r\n"
                     irc.sendall(message.encode("utf-8"))
-                log(f"💬 Sent response to {reply_target}: {gpt_response}")
+                log(f"\U0001F4AC Sent response to {reply_target}: {response_parts}")
 
 def measure_latency(irc, nickname):
     """Sends a latency test message to self and starts the timer."""
@@ -726,17 +746,81 @@ def fetch_title(irc, channel, text):
             log(f"Virhe URL:n {url} haussa: {e}")
             # send_message(irc, channel, f"Otsikon haku epäonnistui URL-osoitteelle: {url}")
 
-def chat_with_gpt_4o_mini(user_input):
+def split_message_intelligently(message, limit=350):
     """
-    Simulates a chat with GPT-4o Mini and updates the conversation history.
+    Split a message intelligently at natural break points.
+    
+    Args:
+        message (str): Message to be split
+        limit (int): Maximum length of each part
+        
+    Returns:
+        list: List of message parts
+    """
+    if len(message) <= limit:
+        return [message]
+    
+    parts = []
+    current_pos = 0
+    
+    while current_pos < len(message):
+        # If remaining text fits in limit, add it and break
+        if current_pos + limit >= len(message):
+            parts.append(message[current_pos:])
+            break
+        
+        # Try to find sentence boundaries first (., !, ?)
+        end_pos = current_pos + limit
+        sentence_boundary = max(
+            message.rfind('. ', current_pos, end_pos),
+            message.rfind('! ', current_pos, end_pos),
+            message.rfind('? ', current_pos, end_pos)
+        )
+        
+        # If sentence boundary found, use it
+        if sentence_boundary > current_pos:
+            # Include the punctuation with the current part (+2 to include the punctuation and space)
+            parts.append(message[current_pos:sentence_boundary+2])
+            current_pos = sentence_boundary + 2
+            continue
+        
+        # Try to find clause boundaries (,, ;, :)
+        clause_boundary = max(
+            message.rfind(', ', current_pos, end_pos),
+            message.rfind('; ', current_pos, end_pos),
+            message.rfind(': ', current_pos, end_pos)
+        )
+        
+        # If clause boundary found, use it
+        if clause_boundary > current_pos:
+            # Include the punctuation with the current part (+2 to include the punctuation and space)
+            parts.append(message[current_pos:clause_boundary+2])
+            current_pos = clause_boundary + 2
+            continue
+        
+        # Last resort: break at a word boundary
+        word_boundary = message.rfind(' ', current_pos, end_pos)
+        if word_boundary > current_pos:
+            parts.append(message[current_pos:word_boundary])
+            current_pos = word_boundary + 1  # Skip the space
+        else:
+            # If no word boundary found, just cut at the limit
+            parts.append(message[current_pos:end_pos])
+            current_pos = end_pos
+    
+    return parts
+
+def chat_with_gpt(user_input):
+    """
+    Simulates a chat with GPT and updates the conversation history.
 
     Args:
         user_input (str): The user's input message.
 
     Returns:
-        str: The assistant's response.
+        list: List of the assistant's response parts.
     """
-    IRC_MESSAGE_LIMIT = 400  # Safe limit to avoid truncation issues
+    IRC_MESSAGE_LIMIT = 350  # Safer limit considering UTF-8 encoding
     conversation_history = load_conversation_history() # Load conversation history
     conversation_history.append({"role": "user", "content": user_input}) # Append user's message
 
@@ -759,7 +843,10 @@ def chat_with_gpt_4o_mini(user_input):
     # Save updated conversation history
     save_conversation_history(conversation_history)
 
-    return assistant_reply
+    # Split the message intelligently
+    response_parts = split_message_intelligently(assistant_reply, IRC_MESSAGE_LIMIT)
+    
+    return response_parts
 
 def send_message(irc, channel, message):
     irc.sendall(f"NOTICE {channel} :{message}\r\n".encode("utf-8"))
