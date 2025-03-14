@@ -71,7 +71,11 @@ if sys.gettrace():
     channels = [("#joensuutest", "")]
 else:
     bot_name = "jL3b"
-    channels = [("#53", ""), ("#joensuu", ""), ("#west", "")]
+    channels = [
+        ("#53", os.getenv("CHANNEL_KEY_53", "")),
+        ("#joensuu", ""),
+        ("#west", "")
+    ]
 QUIT_MESSAGE = "Nähdään!"
 
 last_ping = time.time()
