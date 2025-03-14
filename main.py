@@ -66,8 +66,8 @@ WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
 ELECTRICITY_API_KEY = os.getenv("ELECTRICITY_API_KEY")
 api_key = os.getenv("OPENAI_API_KEY")
 
-bot_name = "jL3b"
-channel = "#joensuu"
+bot_name = "jL3b2"
+channel = "#joensuutest"
 data_file = "values.bin"
 last_ping = time.time()
 # Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
@@ -165,21 +165,46 @@ def update_kraks(kraks, nick, words):
         kraks[nick][word] = kraks[nick].get(word, 0) + 1
 
 def login(irc, writer, show_api_keys=False):
+    """
+    Logs into the IRC server, waits for the MOTD to finish, and then joins the channel.
+
+    Args:
+        irc: The IRC connection object (socket).
+        writer: The socket writer used to send messages.
+        show_api_keys (bool): Whether to display API keys in logs.
+    """
     nick = bot_name
     login = bot_name
 
-    # Only show API keys if -api flag is present
+    # Log API keys if requested
     if show_api_keys:
         log(f"Weather API Key: {WEATHER_API_KEY}", "DEBUG")
         log(f"Electricity API Key: {ELECTRICITY_API_KEY}", "DEBUG")
         log(f"OpenAI API Key: {api_key}", "DEBUG")
     else:
         log("API keys loaded (use -api flag to show values)", "DEBUG")
-    writer.sendall(f"NICK {nick}\r\n".encode("utf-8"))
-    writer.sendall(f"USER {login} 0 * :{nick}\r\n".encode("utf-8"))
-    time.sleep(2)
-    writer.sendall(f"JOIN {channel}\r\n".encode("utf-8"))
-    log(f"Joined channel {channel}")
+
+    try:
+        writer.sendall(f"NICK {nick}\r\n".encode("utf-8"))
+        writer.sendall(f"USER {login} 0 * :{nick}\r\n".encode("utf-8"))
+
+        # Wait for MOTD completion
+        while True:
+            response = irc.recv(2048).decode("utf-8", errors="ignore")
+            for line in response.split("\r\n"):
+                if line:
+                    log(f"SERVER: {line}", "DEBUG")
+
+                if " 376 " in line or " 422 " in line:  # End of MOTD or No MOTD
+                    log("MOTD complete, joining channel...", "INFO")
+                    writer.sendall(f"JOIN {channel}\r\n".encode("utf-8"))
+                    log(f"Joined channel {channel}", "INFO")
+                    return  # Exit after joining
+
+    except socket.error as e:
+        log(f"Socket error: {e}", "ERROR")
+    except Exception as e:
+        log(f"Unexpected error: {e}", "ERROR")
 
 # Main loop to read messages from IRC
 def read(irc, server, port, stop_event, reconnect_delay=5):
