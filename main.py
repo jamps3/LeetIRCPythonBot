@@ -302,7 +302,7 @@ def listen_for_commands(stop_event):
                     log(f"Getting weather for {location} from console", "INFO")
                     send_weather(None, None, location)  # Pass None for IRC and channel
                 
-                elif command == "!sahko":
+                elif command == "!sahko" or command == "!sähkö":
                     send_electricity_price(None, None, command_parts)
                 
                 elif command == "!aika":
@@ -360,29 +360,6 @@ def listen_for_commands(stop_event):
                         output_message(f"Aktiivisimmat käyttäjät: {leaderboard_msg}")
                     else:
                         output_message("Ei vielä tarpeeksi dataa leaderboardille.")
-                
-                elif command == "!kraks":
-                    kraks = load()
-                    total_kraks = 0
-                    word_counts = DRINK_WORDS.copy()
-                    top_users = {word: None for word in word_counts.keys()}
-                    
-                    # Count occurrences and track top users
-                    for nick, words in kraks.items():
-                        for word in word_counts.keys():
-                            count = words.get(word, 0)
-                            word_counts[word] += count
-                            total_kraks += count
-                            
-                            if count > 0 and (top_users[word] is None or count > kraks[top_users[word]].get(word, 0)):
-                                top_users[word] = nick
-                    
-                    total_message = f"Krakit yhteensä: {total_kraks}"
-                    details = ", ".join(
-                        f"{word}: {count} [{top_users[word]}: {kraks[top_users[word]].get(word, 0)}]" for word, count in word_counts.items() if count > 0
-                    )
-                    
-                    output_message(f"{total_message}, {details}")
                 
                 elif command == "!euribor":
                     # XML data URL from Suomen Pankki
@@ -466,6 +443,21 @@ def listen_for_commands(stop_event):
     except (EOFError, KeyboardInterrupt):
         stop_event.set()
 
+def count_kraks(word, beverage):
+    """
+    Counts the occurrences of a specific word (beverage) in the IRC messages.
+
+    Args:
+        word (str): The word to track (e.g., "krak").
+        beverage (str): The beverage associated with the word (e.g., "karhu").
+    """
+    if word in DRINK_WORDS:
+        DRINK_WORDS[word] += 1
+        log(f"Detected {word} ({beverage}). Total count: {DRINK_WORDS[word]}")
+    else:
+        log(f"Word {word} is not in the tracking list.")
+    
+
 def keepalive_ping(irc, stop_event):
     global last_ping
     while not stop_event.is_set():
@@ -486,6 +478,18 @@ def process_message(irc, message):
     
     if match:
         sender, _, target, text = match.groups()
+
+        # Process each message sent to the channel and detect drinking words.
+        # Regex pattern to find words in the format "word (beverage)"
+        match = re.search(r"(\w+)\s*\(\s*([\w\s]+)\s*\)", text)
+        
+        if match:
+            word = match.group(1).lower() # First captured word (e.g., "krak"). Convert to lowercase for consistent matching
+            beverage = match.group(2).lower() # Second captured word inside parentheses (e.g., "karhu")
+            
+            if word in DRINK_WORDS:  # Check if the first word is in the DRINKING_WORDS list
+                count_kraks(word, beverage)  # Call the function with extracted values
+
         
         # Check if the message is a private message (not a channel)
         if target.lower() == bot_name.lower():  # Private message detected
@@ -746,9 +750,14 @@ def process_message(irc, message):
                 
                 # Send each response part separately as full messages
                 for part in response_parts:
-                    message = f"PRIVMSG {reply_target} :{part}\r\n"
-                    irc.sendall(message.encode("utf-8"))
+                    send_message(irc, reply_target, part)
                 log(f"\U0001F4AC Sent response to {reply_target}: {response_parts}")
+
+def send_message(irc, reply_target, message):
+    encoded_message = message.encode("utf-8")
+    log(f"Sending message ({len(encoded_message)} bytes): {message}", "DEBUG")
+    irc.sendall(f"PRIVMSG {reply_target} :{message}\r\n".encode("utf-8"))
+    time.sleep(0.5)  # Prevent flooding
 
 def measure_latency(irc, nickname):
     """Sends a latency test message to self and starts the timer."""
@@ -1002,68 +1011,36 @@ def fetch_title(irc=None, channel=None, text=""):
             else:
                 log(f"Otsikon haku epäonnistui: {url}")
 
-def split_message_intelligently(message, limit=350):
+def split_message_intelligently(message, limit):
     """
-    Split a message intelligently at natural break points.
-    
+    Splits a message into parts without cutting words, ensuring correct byte-size limits.
+
     Args:
-        message (str): Message to be split
-        limit (int): Maximum length of each part
-        
+        message (str): The full message to split.
+        limit (int): Max length per message.
+
     Returns:
-        list: List of message parts
+        list: List of message parts that fit within the limit.
     """
-    if len(message) <= limit:
-        return [message]
-    
+    words = message.split(" ")
     parts = []
-    current_pos = 0
-    
-    while current_pos < len(message):
-        # If remaining text fits in limit, add it and break
-        if current_pos + limit >= len(message):
-            parts.append(message[current_pos:])
-            break
-        
-        # Try to find sentence boundaries first (., !, ?)
-        end_pos = current_pos + limit
-        sentence_boundary = max(
-            message.rfind('. ', current_pos, end_pos),
-            message.rfind('! ', current_pos, end_pos),
-            message.rfind('? ', current_pos, end_pos)
-        )
-        
-        # If sentence boundary found, use it
-        if sentence_boundary > current_pos:
-            # Include the punctuation with the current part (+2 to include the punctuation and space)
-            parts.append(message[current_pos:sentence_boundary+2])
-            current_pos = sentence_boundary + 2
-            continue
-        
-        # Try to find clause boundaries (,, ;, :)
-        clause_boundary = max(
-            message.rfind(', ', current_pos, end_pos),
-            message.rfind('; ', current_pos, end_pos),
-            message.rfind(': ', current_pos, end_pos)
-        )
-        
-        # If clause boundary found, use it
-        if clause_boundary > current_pos:
-            # Include the punctuation with the current part (+2 to include the punctuation and space)
-            parts.append(message[current_pos:clause_boundary+2])
-            current_pos = clause_boundary + 2
-            continue
-        
-        # Last resort: break at a word boundary
-        word_boundary = message.rfind(' ', current_pos, end_pos)
-        if word_boundary > current_pos:
-            parts.append(message[current_pos:word_boundary])
-            current_pos = word_boundary + 1  # Skip the space
+    current_part = ""
+
+    for word in words:
+        # Calculate encoded byte size
+        encoded_size = len((current_part + " " + word).encode("utf-8")) if current_part else len(word.encode("utf-8"))
+
+        if encoded_size > limit:
+            if current_part:  # Store the current part before starting a new one
+                parts.append(current_part)
+            current_part = word  # Start new part with the long word
         else:
-            # If no word boundary found, just cut at the limit
-            parts.append(message[current_pos:end_pos])
-            current_pos = end_pos
-    
+            current_part += (" " + word) if current_part else word
+
+    if current_part:
+        parts.append(current_part)
+
+    log(f"Final split messages: {parts}", "DEBUG")  # Log split messages
     return parts
 
 def chat_with_gpt(user_input):
@@ -1076,15 +1053,15 @@ def chat_with_gpt(user_input):
     Returns:
         list: List of the assistant's response parts.
     """
-    IRC_MESSAGE_LIMIT = 350  # Safer limit considering UTF-8 encoding
+    IRC_MESSAGE_LIMIT = 435  # Message limit, might not be enough considering UTF-8 encoding
     conversation_history = load_conversation_history() # Load conversation history
     conversation_history.append({"role": "user", "content": user_input}) # Append user's message
 
-    # Get response from GPT-4o mini
+    # Get response from gpt-4o or gpt-4o-mini
     response = client.chat.completions.create(  # Use the new syntax
-        model="gpt-4o-mini",  # Specify the model
+        model="gpt-4o",  # Specify the model
         messages=conversation_history,  # Provide the conversation history as the prompt
-        max_tokens=150  # Adjust the token count as needed
+        max_tokens=500  # Adjust the token count as needed
     )
 
     # Correct way to access the response
@@ -1121,10 +1098,6 @@ def output_message(message, irc=None, channel=None):
         # Print to console
         print(f"Bot: {message}")
 
-def send_message(irc, channel, message):
-    """Legacy function maintained for compatibility"""
-    output_message(message, irc, channel)
-
 def log(message, level="INFO"):
     """Tulostaa viestin konsoliin aikaleiman ja tason kanssa.
 
@@ -1142,7 +1115,7 @@ def log(message, level="INFO"):
     timestamp = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}]"  # Nanosekunnit
     print(f"{timestamp} [{level.upper()}] {message}")
 
-def euribor():
+def euribor(irc, channel):
     #import requests
     #import xml.etree.ElementTree as ET
 
