@@ -470,7 +470,7 @@ def keepalive_ping(irc, stop_event):
             
         if time.time() - last_ping > 120:
             irc.sendall("PING :keepalive\r\n".encode("utf-8"))
-            log("Sent keepalive PING")
+            # log("Sent keepalive PING", "DEBUG")
             last_ping = time.time()
 
 def process_message(irc, message):
@@ -830,6 +830,18 @@ def process_message(irc, message):
             if match:
                 url = match.group(1)
                 log("!link", "DEBUG")
+        
+        elif text.startswith("!eurojackpot"):
+            result = get_eurojackpot_numbers()
+    
+            if isinstance(result, tuple):
+                latest, frequent = result
+                message = (f"Latest Eurojackpot: {', '.join(map(str, latest))} | "
+                   f"Most Frequent Numbers: {', '.join(map(str, frequent))}")
+            else:
+                message = result  # Error message
+
+            output_message(message, irc, target)
 
         else:
             # ✅ Handle regular chat messages (send to GPT)
@@ -866,6 +878,54 @@ def countdown(irc, target):
             output_message(message, irc, target)
 
         time.sleep(60)  # Check every minute
+
+EUROJACKPOT_URL = "https://www.euro-jackpot.net/fi/tilastot/numerotaajuus"
+
+def get_eurojackpot_numbers():
+    url = "https://www.euro-jackpot.net/fi/tilastot/numerotaajuus"
+    response = requests.get(url)
+    response.raise_for_status()
+    
+    soup = BeautifulSoup(response.text, "html.parser")
+    table_rows = soup.select("table tr")  # Adjust the selector based on actual table structure
+    
+    latest_numbers = []
+    most_frequent_numbers = []
+    
+    draw_data = []  # Store tuples of (Arvontaa sitten, Number)
+    
+    for row in table_rows:
+        columns = row.find_all("td")
+        if len(columns) >= 3:
+            draw_order = columns[2].text.strip()  # "Arvontaa sitten"
+            number = columns[1].text.strip()  # The number itself
+            
+            if draw_order.isdigit():
+                draw_data.append((int(draw_order), int(number)))
+    
+    # Sort by "Arvontaa sitten" to get the latest draw (smallest value should be 0)
+    draw_data.sort()
+    
+    # Extract numbers with "Arvontaa sitten" = 0 (latest draw)
+    latest_numbers = [num for order, num in draw_data if order == 0]
+    
+    # Extract most frequent numbers (sort by frequency, needs correct column parsing)
+    frequency_data = []
+    
+    for row in table_rows:
+        columns = row.find_all("td")
+        if len(columns) >= 3:
+            number = columns[1].text.strip()
+            frequency = columns[2].text.strip()
+            
+            if number.isdigit() and frequency.isdigit():
+                frequency_data.append((int(frequency), int(number)))
+    
+    # Sort by frequency in descending order to get most frequent numbers
+    frequency_data.sort(reverse=True, key=lambda x: x[0])
+    most_frequent_numbers = [num for freq, num in frequency_data[:7]]  # Top 7 numbers
+    
+    return latest_numbers, most_frequent_numbers
 
 def send_message(irc, reply_target, message):
     encoded_message = message.encode("utf-8")
@@ -961,8 +1021,8 @@ def send_weather(irc=None, channel=None, location="Joensuu"):
     output_message(weather_info, irc, channel)
 
 def send_electricity_price(irc=None, channel=None, text=None):
-    log(f"Syöte: {text}")  # Tulostetaan koko syöte
-    log(f"Syötteen pituus: {len(text)}")  # Tulostetaan syötteen pituus
+    log(f"Syöte: {text}", "DEBUG")  # Tulostetaan koko syöte
+    log(f"Syötteen pituus: {len(text)}", "DEBUG")  # Tulostetaan syötteen pituus
 
     # Käydään läpi kaikki text-listan osat
     for i, part in enumerate(text):
@@ -1073,7 +1133,7 @@ def send_electricity_price(irc=None, channel=None, text=None):
     # output_message(electricity_info_tomorrow, irc, channel)
 
 def fetch_title(irc=None, channel=None, text=""):
-    log(f"Syöte: {text}")  # Logataan koko syöte
+    # log(f"Syöte: {text}", "DEBUG")  # Logataan koko syöte
 
     # Regex to find URLs
     pattern = r"(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}(?:\/[^\s]*)?)"
