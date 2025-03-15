@@ -51,6 +51,8 @@ import argparse # Command line argument parsing
 
 # File to store conversation history
 HISTORY_FILE = "conversation_history.json"
+# File to store ekavika winners
+EKAVIKA_FILE = "ekavika.json"
 
 # All drink words to track
 DRINK_WORDS = {"krak": 0, "kr1k": 0, "kr0k": 0, "narsk": 0, "parsk": 0, "tlup": 0, "marsk": 0, "tsup": 0, "plop": 0}
@@ -690,9 +692,9 @@ def process_message(irc, message):
         elif text.startswith("!latencycheck"):
             log("Received !latencycheck command, measuring latency...")
             measure_latency(irc, bot_name)
-
+        
+        # Keep track of leet winners
         elif re.search(r"Ensimmäinen leettaaja oli (\w+) .*?, viimeinen oli (\w+) .*?Lähimpänä multileettiä oli (\w+)", text):
-            # Handle leet winners
             leet_match = re.search(r"Ensimmäinen leettaaja oli (\w+) .*?, viimeinen oli (\w+) .*?Lähimpänä multileettiä oli (\w+)", text)
             first, last, multileet = leet_match.groups()
             leet_winners = load_leet_winners()
@@ -705,6 +707,31 @@ def process_message(irc, message):
             
             save_leet_winners(leet_winners)
             log(f"Updated leet winners: {leet_winners}")
+        
+        # Keep track of ekavika winners
+        elif re.search(r"𝙫𝙞𝙠𝙖 oli (\w+) kello .*?, ja 𝖊𝖐𝖆 oli (\w+)", text):
+            match = re.search(r"𝙫𝙞𝙠𝙖 oli (\w+) kello .*?, ja 𝖊𝖐𝖆 oli (\w+)", text)
+            if match:
+                # Load existing data or initialize a new dictionary
+                try:
+                    with open(EKAVIKA_FILE, "r", encoding="utf-8") as f:
+                        ekavika_data = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    ekavika_data = {"eka": {}, "vika": {}}  # Initialize if file doesn't exist or is empty
+
+                vika = match.group(1)
+                eka = match.group(2)
+                log(f"Vika: {vika}, Eka: {eka}")
+
+                # Update win counts
+                ekavika_data["eka"][eka] = ekavika_data["eka"].get(eka, 0) + 1
+                ekavika_data["vika"][vika] = ekavika_data["vika"].get(vika, 0) + 1
+
+                # Save updated data
+                with open(EKAVIKA_FILE, "w", encoding="utf-8") as f:
+                    json.dump(ekavika_data, f, indent=4, ensure_ascii=False)
+            else:
+                log("No match found for eka and vika winners.", "DEBUG")
         
         # !s - Kerro sää
         elif text.startswith("!s"):
