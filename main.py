@@ -733,6 +733,26 @@ def process_message(irc, message):
             else:
                 log("No match found for eka and vika winners.", "DEBUG")
         
+        # Checks if the message contains a crypto request and fetches price.
+        elif re.search(r"!crypto\b", text, re.IGNORECASE):
+            match = re.search(r"!crypto\s+(\w+)", text, re.IGNORECASE)
+            
+            if match:
+                # Fetch specific coin price
+                coin = match.group(1).lower()
+                price = get_crypto_price(coin, "eur")
+                message = f"The current price of {coin.capitalize()} is {price} €."
+            else:
+                # Fetch top 3 most popular cryptocurrencies
+                top_coins = ["bitcoin", "ethereum", "tether"]
+                prices = {coin: get_crypto_price(coin, "eur") for coin in top_coins}
+                message = " | ".join([f"{coin.capitalize()}: {prices[coin]} €" for coin in top_coins])
+            
+            if irc:
+                output_message(message, irc, target)
+            else:
+                print(message)
+
         # Show top eka and vika winners
         elif text.startswith("!ekavika"):
             try:
@@ -823,6 +843,14 @@ def process_message(irc, message):
                 for part in response_parts:
                     send_message(irc, reply_target, part)
                 log(f"\U0001F4AC Sent response to {reply_target}: {response_parts}")
+
+def get_crypto_price(coin="bitcoin", currency="eur"):
+    """
+    Fetches the latest cryptocurrency price from CoinGecko.
+    """
+    url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies={currency}"
+    response = requests.get(url).json()
+    return response.get(coin, {}).get(currency, "Price not available")
 
 def send_message(irc, reply_target, message):
     encoded_message = message.encode("utf-8")
