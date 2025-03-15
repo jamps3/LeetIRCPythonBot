@@ -496,7 +496,7 @@ def process_message(irc, message):
         
         # Check if the message is a private message (not a channel)
         if target.lower() == bot_name.lower():  # Private message detected
-            log(f"Private message from {sender}: {text}")
+            log(f"Private message from {sender}: {text}", "MSG")
             # irc.sendall(f"PRIVMSG {sender} :Hello! You said: {text}\r\n".encode("utf-8"))
             is_private = target.lower() == bot_name.lower()  # Private message check
         
@@ -1294,7 +1294,7 @@ def output_message(message, irc=None, channel=None):
         # Print to console
         print(f"Bot: {message}")
 
-def log(message, level="INFO"):
+def log(message, level="NFO"):
     """Tulostaa viestin konsoliin aikaleiman ja tason kanssa.
 
     Args:
