@@ -751,7 +751,7 @@ def process_message(irc, message):
 
             # Generate response message
             if top_eka and top_vika:
-                response = f"📢 Eniten eka-voittoja: {top_eka} ({eka_count} kertaa), eniten vika-voittoja: {top_vika} ({vika_count} kertaa)"
+                response = f"📢 Eniten 𝖊𝖐𝖆-voittoja: {top_eka} ({eka_count} kertaa), eniten 𝙫𝙞𝙠𝙖-voittoja: {top_vika} ({vika_count} kertaa)"
                 output_message(response)
                 send_message(irc, target, response)
             else:
