@@ -803,6 +803,13 @@ def process_message(irc, message):
                 send_scheduled_message(irc, channel, message, hour, minute, second, microsecond)
             else:
                 log("Virheellinen komento! Käytä muotoa: !leet #kanava HH:MM:SS.mmmmmm", "ERROR")
+        
+        # !link - Lyhennä linkki
+        elif text.startswith("!link"):
+            match = re.search(r"!link\s+(\S+)", text)
+            if match:
+                url = match.group(1)
+                log("!link", "DEBUG")
 
         else:
             # ✅ Handle regular chat messages (send to GPT)
