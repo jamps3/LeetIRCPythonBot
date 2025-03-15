@@ -733,6 +733,32 @@ def process_message(irc, message):
             else:
                 log("No match found for eka and vika winners.", "DEBUG")
         
+        # Show top eka and vika winners
+        elif text.startswith("!ekavika"):
+            try:
+                with open(EKAVIKA_FILE, "r", encoding="utf-8") as f:
+                    ekavika_data = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError):
+                output_message("Ei vielä yhtään eka- tai vika-voittoja tallennettuna.")
+                return
+
+            # Find top winners
+            top_eka = max(ekavika_data["eka"], key=ekavika_data["eka"].get, default=None)
+            top_vika = max(ekavika_data["vika"], key=ekavika_data["vika"].get, default=None)
+
+            eka_count = ekavika_data["eka"].get(top_eka, 0) if top_eka else 0
+            vika_count = ekavika_data["vika"].get(top_vika, 0) if top_vika else 0
+
+            # Generate response message
+            if top_eka and top_vika:
+                response = f"📢 Eniten eka-voittoja: {top_eka} ({eka_count} kertaa), eniten vika-voittoja: {top_vika} ({vika_count} kertaa)"
+                output_message(response)
+                send_message(irc, target, response)
+            else:
+                response = "Ei vielä tarpeeksi dataa eka- ja vika-voittajista."
+                output_message(response)
+                send_message(irc, target, response)
+                
         # !s - Kerro sää
         elif text.startswith("!s"):
             parts = text.split(" ", 1)
