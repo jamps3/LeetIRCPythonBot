@@ -214,7 +214,8 @@ def login(irc, writer, channels, show_api_keys=False):
 
                     # If server says "Please wait while we process your connection", don't disconnect yet
                     if " 020 " in line:
-                        log("Server is processing connection, waiting...", "DEBUG")
+                        log("Server is still processing connection, continuing to wait...", "DEBUG")
+                        last_response_time = time.time()  # Reset timeout so it doesn't assume failure
                         continue  # Keep waiting instead of assuming failure
 
                     # If welcome (001) or MOTD completion (376/422) received, join channels
