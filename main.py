@@ -629,6 +629,16 @@ def process_message(irc, message):
 
             send_message(irc, target, f"{total_message}, {details}")
         
+        elif text.startswith("!clearkraks"):
+            kraks = load()
+            
+            # Reset all tracked words
+            for nick in kraks.keys():
+                kraks[nick] = {}
+
+            save(kraks)  # Save the cleared data
+            log("Kaikki krakit on nollattu!")
+        
         # !euribor - Uusin 12kk euribor
         elif text.startswith("!euribor"):
             # XML data URL from Suomen Pankki
