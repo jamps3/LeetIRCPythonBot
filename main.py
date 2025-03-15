@@ -1036,7 +1036,7 @@ def fetch_title(irc=None, channel=None, text=""):
     log(f"Löydetyt URL-osoitteet: {urls}")  # Logataan löydetyt URL-osoitteet
 
     if not urls:
-        log("Ei löydetty kelvollisia URL-osoitteita.")
+        log("Ei löydetty kelvollisia URL-osoitteita.", "DEBUG")
         return
 
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"}
@@ -1175,9 +1175,13 @@ def log(message, level="INFO"):
         log("Virhe tapahtui!", "ERROR")
         log("Debug-viesti", "DEBUG")
     """
-    #timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S.%f]")[:-3]  # Mikrosekunnit 3 desimaalilla
-    timestamp = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}]"  # Nanosekunnit
-    print(f"{timestamp} [{level.upper()}] {message}")
+    if level == "DEBUG":
+        if sys.gettrace():
+            timestamp = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}]"  # Nanosekunnit
+            print(f"{timestamp} [{level.upper()}] {message}")
+    else:
+        timestamp = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}]"  # Nanosekunnit
+        print(f"{timestamp} [{level.upper()}] {message}")
 
 def euribor(irc, channel):
     #import requests
