@@ -173,7 +173,7 @@ def update_kraks(kraks, nick, words):
     for word in words:
         kraks[nick][word] = kraks[nick].get(word, 0) + 1
 
-RECONNECT_DELAY = 5  # Time in seconds before retrying connection
+RECONNECT_DELAY = 60  # Time in seconds before retrying connection
 
 def login(irc, writer, channels, show_api_keys=False):
     """
