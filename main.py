@@ -852,6 +852,21 @@ def get_crypto_price(coin="bitcoin", currency="eur"):
     response = requests.get(url).json()
     return response.get(coin, {}).get(currency, "Price not available")
 
+def countdown(irc, target):
+    while True:
+        now = datetime.now()
+        current_time = now.strftime("%H:%M")
+
+        if current_time == "12:37":
+            message = "⏳ 1 tunti aikaa leettiin!"
+            output_message(message, irc, target)
+
+        elif current_time == "13:36":
+            message = "⚡ 1 minuutti aikaa leettiin! Brace yourselves!"
+            output_message(message, irc, target)
+
+        time.sleep(60)  # Check every minute
+
 def send_message(irc, reply_target, message):
     encoded_message = message.encode("utf-8")
     log(f"Sending message ({len(encoded_message)} bytes): {message}", "DEBUG")
@@ -1319,6 +1334,9 @@ def main():
                 input_thread = threading.Thread(target=listen_for_commands, args=(stop_event,), daemon=True)
                 input_thread.start()
                 threads.append(input_thread)
+
+                # Start leet countdown timer
+                threading.Thread(target=countdown, args=(irc, "#joensuu"), daemon=True).start()
                 
                 # Main read loop - this will block until disconnect or interrupt
                 read(irc, server, port, stop_event, reconnect_delay=5)
