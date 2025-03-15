@@ -1022,10 +1022,6 @@ def send_electricity_price(irc=None, channel=None, text=None):
     output_message(electricity_info_today + ", " + electricity_info_tomorrow, irc, channel)
     # output_message(electricity_info_tomorrow, irc, channel)
 
-import re
-import requests
-from bs4 import BeautifulSoup
-
 def fetch_title(irc=None, channel=None, text=""):
     log(f"Syöte: {text}")  # Logataan koko syöte
 
@@ -1050,22 +1046,28 @@ def fetch_title(irc=None, channel=None, text=""):
                 url = "https://" + url
                 log(f"Korjattu URL: {url}")  # Debug: tulostetaan korjattu URL
             
-            response = requests.get(url, headers=headers, timeout=5)
-            response.raise_for_status()  # Tarkistetaan, ettei tullut HTTP-virhettä
-            
-            soup = BeautifulSoup(response.text, "html.parser")
-            title = soup.title.string.strip() if soup.title else None
-
-            # Jos title puuttuu, haetaan meta description
-            if not title:
-                meta_desc = soup.find("meta", attrs={"name": "description"}) or soup.find("meta", attrs={"property": "og:description"})
-                title = meta_desc["content"].strip() if meta_desc and "content" in meta_desc.attrs else "(ei otsikkoa)"
-            
-            log(f"Haettu otsikko: {title}")  # Debug: tulostetaan otsikko
-            if irc:
-                output_message(f"'{title}'", irc, channel)
+            # Käsitellään PDF-URL erikseen
+            if url.lower().endswith(".pdf"):
+                title = get_pdf_title(url)
+                title = title if title else "(ei otsikkoa)"
+                log(f"PDF-otsikko: {title}")  # Debug-tulostus
             else:
-                log(f"Otsikko: {title}")
+                response = requests.get(url, headers=headers, timeout=5)
+                response.raise_for_status()  # Tarkistetaan, ettei tullut HTTP-virhettä
+                
+                soup = BeautifulSoup(response.text, "html.parser")
+                title = soup.title.string.strip() if soup.title else None
+
+                # Jos title puuttuu, haetaan meta description
+                if not title:
+                    meta_desc = soup.find("meta", attrs={"name": "description"}) or soup.find("meta", attrs={"property": "og:description"})
+                    title = meta_desc["content"].strip() if meta_desc and "content" in meta_desc.attrs else "(ei otsikkoa)"
+                
+                log(f"Haettu otsikko: {title}")  # Debug: tulostetaan otsikko
+                if irc:
+                    output_message(f"'{title}'", irc, channel)
+                else:
+                    log(f"Otsikko: {title}")
         
         except requests.RequestException as e:
             log(f"Virhe URL:n {url} haussa: {e}")
@@ -1074,6 +1076,26 @@ def fetch_title(irc=None, channel=None, text=""):
                 log(f"Otsikon haku epäonnistui: {url}")
             else:
                 log(f"Otsikon haku epäonnistui: {url}")
+
+def get_pdf_title(url):
+    try:
+        response = requests.get(url, stream=True)
+        response.raise_for_status()  # Raise an error for HTTP issues
+
+        buffer = b""
+        for chunk in response.iter_content(256):  # Read in chunks
+            buffer += chunk
+            if b"</title>" in buffer:  # Stop early if title is found
+                break
+
+        text = buffer.decode(errors="ignore")
+        match = re.search(r"<title>(.*?)</title>", text, re.IGNORECASE)
+
+        return match.group(1) if match else None
+
+    except requests.RequestException as e:
+        print(f"Error fetching PDF: {e}")
+        return None
 
 def split_message_intelligently(message, limit):
     """
