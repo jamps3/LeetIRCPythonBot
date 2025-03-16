@@ -1026,7 +1026,7 @@ def send_electricity_price(irc=None, channel=None, text=None):
 
     # Käydään läpi kaikki text-listan osat
     for i, part in enumerate(text):
-        log(f"text[{i}] = {part}")  # Tulostetaan jokainen osa
+        log(f"text[{i}] = {part}", "DEBUG")  # Tulostetaan jokainen osa
 
     # Oletuksena haetaan nykyinen päivä ja tunti
     date = datetime.now()
@@ -1034,17 +1034,17 @@ def send_electricity_price(irc=None, channel=None, text=None):
 
     # Tarkistetaan käyttäjän syöte
     if len(text) == 1:  # Käyttäjä ei antanut tuntia
-        log(f"Haettu tunti tänään: {hour}")
+        log(f"Haettu tunti tänään: {hour}", "DEBUG")
     elif len(text) == 2:  # Käyttäjä antoi tunnin tai "huomenna" ja tunnin
         parts = text[1].strip().split()
         log(f"parts[0] = {parts[0]}")  # Lisätty debug-tulostus
         if parts[0].lower() == "huomenna" and len(parts) == 2:  # Käyttäjä antoi "huomenna" ja tunnin
             hour = int(parts[1])  # Käyttäjän syöttämä tunti huomenna
             date += timedelta(days=1)  # Lisätään yksi päivä nykyhetkeen
-            log(f"Haettu tunti huomenna: {hour}")
+            log(f"Haettu tunti huomenna: {hour}", "DEBUG")
         elif len(parts) == 1 and parts[0].isdigit():  # Käyttäjä antoi vain tunnin
             hour = int(parts[0])
-            log(f"Haettu tunti tänään: {hour}")
+            log(f"Haettu tunti tänään: {hour}", "DEBUG")
         else:
             error_message = "Virheellinen komento! Käytä: !sahko [huomenna] <tunti>"
             log(error_message)
@@ -1063,8 +1063,8 @@ def send_electricity_price(irc=None, channel=None, text=None):
     date_tomorrow = date_plus_one.strftime("%Y%m%d")
 
     # Tulostetaan nykyinen ja huominen päivä konsoliin
-    log(f"Tänään: {date_str}")
-    log(f"Huominen: {date_tomorrow}")
+    log(f"Tänään: {date_str}", "DEBUG")
+    log(f"Huominen: {date_tomorrow}", "DEBUG")
 
     # Haetaan sähkön hinnat tänään
     electricity_url_today = f"https://web-api.tp.entsoe.eu/api?securityToken={ELECTRICITY_API_KEY}&documentType=A44&in_Domain=10YFI-1--------U&out_Domain=10YFI-1--------U&periodStart={date_str}0000&periodEnd={date_str}2300"
@@ -1296,7 +1296,7 @@ def output_message(message, irc=None, channel=None):
         # Print to console
         print(f"Bot: {message}")
 
-def log(message, level="NFO"):
+def log(message, level="INFO"):
     """Tulostaa viestin konsoliin aikaleiman ja tason kanssa.
 
     Args:
