@@ -297,7 +297,7 @@ def listen_for_commands(stop_event):
                 command_parts = user_input.split(" ", 1)
                 command = command_parts[0].lower()
                 args = command_parts[1] if len(command_parts) > 1 else ""
-                log(f"Processing command {command} with args: {args}", "INFO")
+                log(f"Processing command {command} with args: {args}", "COMMAND")
                 
                 # Handle commands similar to IRC commands
                 if command == "!s" or command == "!sää":
