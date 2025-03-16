@@ -28,7 +28,7 @@ Functions:
     - log(message, level): Logs a message with a timestamp and specified log level.
     - main(): Main function to start the bot, connect to the IRC server, and handle reconnections.
 """
-import sys
+import sys # Check if Debugging
 import platform # For checking where are we running for correct datetime formatting
 import socket
 import os
@@ -42,12 +42,12 @@ from bs4 import BeautifulSoup
 from io import StringIO
 import xml.etree.ElementTree as ElementTree
 import openai
-import xml.dom.minidom
 import urllib.parse  # Lisätään URL-koodausta varten
 from dotenv import load_dotenv # Load api-keys from .env file
 from collections import Counter
-import json
+import json # json support
 import argparse # Command line argument parsing
+from googleapiclient.discovery import build # Youtube API
 
 # File to store conversation history
 HISTORY_FILE = "conversation_history.json"
@@ -69,6 +69,7 @@ load_dotenv()  # Lataa .env-tiedoston muuttujat
 WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
 ELECTRICITY_API_KEY = os.getenv("ELECTRICITY_API_KEY")
 api_key = os.getenv("OPENAI_API_KEY")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
 if sys.gettrace():
     bot_name = "jL3b2"
@@ -83,8 +84,12 @@ else:
 QUIT_MESSAGE = "Nähdään!"
 
 last_ping = time.time()
+
 # Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
 client = openai.OpenAI(api_key=api_key)
+
+# Initialize YouTube API client
+youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
 
 # Sanakirja, joka pitää kirjaa voitoista
 voitot = {
@@ -95,6 +100,30 @@ voitot = {
 
 # Create a stop event to handle clean shutdown
 stop_event = threading.Event()
+
+def search_youtube(query, max_results=1):
+    """
+    Example usage:
+    result = search_youtube("Python tutorial")
+    if result:
+        print(f"First result title: {result['snippet']['title']}")
+        print(f"First result URL: https://www.youtube.com/watch?v={result['id']['videoId']}")
+    """
+    # Search for videos
+    request = youtube.search().list(
+        q=query,
+        part='snippet',
+        maxResults=max_results,
+        type='video'  # This will ensure only videos are returned
+    )
+    response = request.execute()
+
+    # Print results
+    for item in response['items']:
+        video_title = item['snippet']['title']
+        video_url = f"https://www.youtube.com/watch?v={item['id']['videoId']}"
+        return f"Title: {video_title} URL: {video_url}"
+    return "No results found."
 
 def load_conversation_history():
     """Loads the conversation history from a file or initializes a new one."""
@@ -842,6 +871,14 @@ def process_message(irc, message):
                 message = result  # Error message
 
             output_message(message, irc, target)
+        
+        elif text.startswith("!youtube"):
+            match = re.search(r"!youtube\s+(\S+)", text)
+            if match:
+                url = match.group(1)
+                result = search_youtube(url)
+                if result and result != "No results found.":
+                    output_message(result, irc, target)
 
         else:
             # ✅ Handle regular chat messages (send to GPT)
