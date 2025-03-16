@@ -1139,9 +1139,9 @@ def fetch_title(irc=None, channel=None, text=""):
     pattern = r"(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}(?:\/[^\s]*)?)"
     urls = re.findall(pattern, text)
 
-    log(f"Löydetyt URL-osoitteet: {urls}")  # Logataan löydetyt URL-osoitteet
-
-    if not urls:
+    if urls:
+        log(f"Löydetyt URL-osoitteet: {urls}")  # Logataan löydetyt URL-osoitteet
+    else:
         log("Ei löydetty kelvollisia URL-osoitteita.", "DEBUG")
         return
 
