@@ -53,6 +53,8 @@ import argparse # Command line argument parsing
 HISTORY_FILE = "conversation_history.json"
 # File to store ekavika winners
 EKAVIKA_FILE = "ekavika.json"
+# File to store words data
+WORDS_FILE = "kraks_data.pkl"
 
 # All drink words to track
 DRINK_WORDS = {"krak": 0, "kr1k": 0, "kr0k": 0, "narsk": 0, "parsk": 0, "tlup": 0, "marsk": 0, "tsup": 0, "plop": 0}
@@ -83,8 +85,6 @@ QUIT_MESSAGE = "Nähdään!"
 last_ping = time.time()
 # Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
 client = openai.OpenAI(api_key=api_key)
-
-data_file = "kraks_data.pkl"
 
 # Sanakirja, joka pitää kirjaa voitoista
 voitot = {
@@ -127,7 +127,7 @@ def save_leet_winners(leet_winners):
     with open("leet_winners.json", "w", encoding="utf-8") as f:
         json.dump(leet_winners, f, indent=4, ensure_ascii=False)
 
-def save(kraks, file_path=data_file):
+def save(kraks, file_path=WORDS_FILE):
     """
     Saves kraks (IRC nick word stats) to a file using pickle.
 
@@ -147,7 +147,7 @@ def save(kraks, file_path=data_file):
     except Exception as e:
         log(f"Error saving data: {e}", "ERROR")
 
-def load(file_path=data_file):
+def load(file_path=WORDS_FILE):
     """Loads kraks (IRC nick word stats) from a file using pickle, with error handling."""
     if not os.path.exists(file_path):
         log("Data file not found, creating a new one.", "WARNING")
@@ -1173,11 +1173,14 @@ def fetch_title(irc=None, channel=None, text=""):
                     meta_desc = soup.find("meta", attrs={"name": "description"}) or soup.find("meta", attrs={"property": "og:description"})
                     title = meta_desc["content"].strip() if meta_desc and "content" in meta_desc.attrs else "(ei otsikkoa)"
                 
-                log(f"Haettu otsikko: {title}")  # Debug: tulostetaan otsikko
+                log(f"Haettu otsikko: {title}", "DEBUG")  # Debug: tulostetaan otsikko
                 if irc:
+                    banned_titles = ["- YouTube", "403 Forbidden", "404 Not Found"]
+                    if title and title not in banned_titles:
+                        output_message(f"'{title}'", irc, channel)
                     output_message(f"'{title}'", irc, channel)
                 else:
-                    log(f"Otsikko: {title}")
+                    log(f"Sivun otsikko: {title}")
         
         except requests.RequestException as e:
             log(f"Virhe URL:n {url} haussa: {e}")
