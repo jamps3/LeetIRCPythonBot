@@ -120,9 +120,9 @@ def search_youtube(query, max_results=1):
 
     # Print results
     for item in response['items']:
-        video_title = item['snippet']['title']
+        video_title = item['snippet']['title'].replace('"', '').replace("'", "")
         video_url = f"https://www.youtube.com/watch?v={item['id']['videoId']}"
-        return f"Title: {video_title} URL: {video_url}"
+        return f"'{video_title}' URL: {video_url}"
     return "No results found."
 
 def load_conversation_history():
