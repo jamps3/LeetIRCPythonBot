@@ -549,7 +549,7 @@ def process_message(irc, message):
             output_message(f"{sender}: {text[len(sender)+2:]}", irc, target)
             
         # !sahko - Kerro pörssisähkön hintatiedot tänään ja huomenna, jos saatavilla
-        elif text.startswith("!sahko"):
+        elif text.startswith("!sahko") or text.startswith("!sähkö"):
             parts = text.split(" ", 1)
             send_electricity_price(irc, target, parts)
         
@@ -1175,7 +1175,7 @@ def fetch_title(irc=None, channel=None, text=""):
                 
                 log(f"Haettu otsikko: {title}", "DEBUG")  # Debug: tulostetaan otsikko
                 if irc:
-                    banned_titles = ["- YouTube", "403 Forbidden", "404 Not Found"]
+                    banned_titles = ["- YouTube", "403 Forbidden", "404 Not Found", "(ei otsikkoa)"]
                     if title and title not in banned_titles:
                         output_message(f"'{title}'", irc, channel)
                     output_message(f"'{title}'", irc, channel)
