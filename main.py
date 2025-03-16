@@ -48,6 +48,8 @@ from collections import Counter
 import json # json support
 import argparse # Command line argument parsing
 from googleapiclient.discovery import build # Youtube API
+import signal
+import html # Title quote removal
 
 # File to store conversation history
 HISTORY_FILE = "conversation_history.json"
@@ -120,7 +122,7 @@ def search_youtube(query, max_results=1):
 
     # Print results
     for item in response['items']:
-        video_title = item['snippet']['title'].replace('"', '').replace("'", "")
+        video_title = html.unescape(item['snippet']['title'])
         video_url = f"https://www.youtube.com/watch?v={item['id']['videoId']}"
         return f"'{video_title}' URL: {video_url}"
     return "No results found."
@@ -1355,9 +1357,6 @@ def log(message, level="INFO"):
         print(f"{timestamp} [{level.upper()}] {message}")
 
 def euribor(irc, channel):
-    #import requests
-    #import xml.etree.ElementTree as ET
-
     # XML data URL from Suomen Pankki
     url = "https://reports.suomenpankki.fi/WebForms/ReportViewerPage.aspx?report=/tilastot/markkina-_ja_hallinnolliset_korot/euribor_korot_today_xml_en&output=xml"
 
@@ -1411,7 +1410,6 @@ def main():
         raise KeyboardInterrupt
     
     # Register SIGINT handler
-    import signal
     signal.signal(signal.SIGINT, signal_handler)
     
     try:
