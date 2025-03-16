@@ -1257,7 +1257,7 @@ def chat_with_gpt(user_input):
 
     # Get response from gpt-4o or gpt-4o-mini
     response = client.chat.completions.create(  # Use the new syntax
-        model="gpt-4o",  # Specify the model
+        model="gpt-4o-mini",  # Specify the model
         messages=conversation_history,  # Provide the conversation history as the prompt
         max_tokens=500  # Adjust the token count as needed
     )
