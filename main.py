@@ -1178,7 +1178,6 @@ def fetch_title(irc=None, channel=None, text=""):
                     banned_titles = ["- YouTube", "403 Forbidden", "404 Not Found", "(ei otsikkoa)"]
                     if title and title not in banned_titles:
                         output_message(f"'{title}'", irc, channel)
-                    output_message(f"'{title}'", irc, channel)
                 else:
                     log(f"Sivun otsikko: {title}")
         
