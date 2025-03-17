@@ -1214,8 +1214,9 @@ def fetch_title(irc=None, channel=None, text=""):
                 
                 log(f"Haettu otsikko: {title}", "DEBUG")  # Debug: tulostetaan otsikko
                 if irc:
-                    banned_titles = ["- YouTube", "403 Forbidden", "404 Not Found", "(ei otsikkoa)"]
+                    banned_titles = ["- YouTube", "403 Forbidden", "404 Not Found", "(ei otsikkoa)", "Bevor Sie zu YouTube weitergehen"]
                     if title and title not in banned_titles:
+                        title = title.replace("  ", " ") # Remove double spaces
                         output_message(f"'{title}'", irc, channel)
                 else:
                     log(f"Sivun otsikko: {title}")
