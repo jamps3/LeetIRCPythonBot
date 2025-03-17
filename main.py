@@ -1369,7 +1369,7 @@ def output_message(message, irc=None, channel=None):
         log(f"Command '{message}' sent.")
     else:
         # Print to console
-        print(f"Bot: {message}")
+        print(f"OpenAI: {message}")
 
 def log(message, level="INFO"):
     """Tulostaa viestin konsoliin aikaleiman ja tason kanssa.
