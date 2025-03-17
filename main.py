@@ -895,6 +895,13 @@ def process_message(irc, message):
                 key = parts[2]
             if match:
                     output_message(f"JOIN {channel} {key}", irc)
+        
+        elif text.startswith("!opzor"):
+            #Extracts the nick from the given text after the !opzor command.
+            parts = message.split()
+            if len(parts) == 5 and parts[3] == ":!opzor":
+                viesti = f"MODE {parts[2]} +o {parts[4]}"
+                output_message(f"MODE {parts[2]} +o {parts[4]}", irc)
 
         else:
             # ✅ Handle regular chat messages (send to GPT)
@@ -1348,8 +1355,8 @@ def output_message(message, irc=None, channel=None):
         log(f"Message sent to {channel}: {message}")
     elif irc:
         # Send command to IRC
-        irc.sendall(f"{message}".encode("utf-8"))
-        log(f"Command {message} sent.")
+        irc.sendall(f"{message}\r\n".encode("utf-8"))
+        log(f"Command '{message}' sent.")
     else:
         # Print to console
         print(f"Bot: {message}")
