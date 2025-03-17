@@ -1194,7 +1194,7 @@ def send_electricity_price(irc=None, channel=None, text=None):
 
 def fetch_title(irc=None, channel=None, text=""):
     # log(f"Syöte: {text}", "DEBUG")  # Logataan koko syöte
-
+    last_title = ""
     # Regex to find URLs
     pattern = r"(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}(?:\/[^\s]*)?)"
     urls = re.findall(pattern, text)
@@ -1238,6 +1238,10 @@ def fetch_title(irc=None, channel=None, text=""):
                     banned_titles = ["- YouTube", "403 Forbidden", "404 Not Found", "(ei otsikkoa)", "Bevor Sie zu YouTube weitergehen"]
                     if title and title not in banned_titles:
                         title = title.replace("  ", " ") # Remove double spaces
+                        if title == last_title:
+                            log("Skipping duplicate title", "DEBUG")
+                            continue
+                        last_title = title
                         output_message(f"'{title}'", irc, channel)
                 else:
                     log(f"Sivun otsikko: {title}")
