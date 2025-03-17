@@ -86,6 +86,8 @@ else:
 QUIT_MESSAGE = "Nähdään!"
 
 last_ping = time.time()
+global last_title
+last_title = ""
 
 # Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
 client = openai.OpenAI(api_key=api_key)
@@ -1194,7 +1196,7 @@ def send_electricity_price(irc=None, channel=None, text=None):
 
 def fetch_title(irc=None, channel=None, text=""):
     # log(f"Syöte: {text}", "DEBUG")  # Logataan koko syöte
-    last_title = ""
+    global last_title
     # Regex to find URLs
     pattern = r"(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}(?:\/[^\s]*)?)"
     urls = re.findall(pattern, text)
