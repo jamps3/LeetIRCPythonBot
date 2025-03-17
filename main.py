@@ -1316,7 +1316,7 @@ def chat_with_gpt(user_input):
 
     # Split the message intelligently
     response_parts = split_message_intelligently(assistant_reply, IRC_MESSAGE_LIMIT)
-    
+    response_parts = [part.replace("  ", " ") for part in response_parts]  # Remove double spaces
     return response_parts
 
 def output_message(message, irc=None, channel=None):
