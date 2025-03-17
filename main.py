@@ -875,7 +875,7 @@ def process_message(irc, message):
             output_message(message, irc, target)
         
         elif text.startswith("!youtube"):
-            match = re.search(r"!youtube\s+(\S+)", text)
+            match = re.search(r"!youtube\s+(.+)", text)
             if match:
                 url = match.group(1)
                 result = search_youtube(url)
