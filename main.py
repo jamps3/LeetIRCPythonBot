@@ -1299,7 +1299,7 @@ def chat_with_gpt(user_input):
     response = client.chat.completions.create(  # Use the new syntax
         model="gpt-4o-mini",  # Specify the model
         messages=conversation_history,  # Provide the conversation history as the prompt
-        max_tokens=500  # Adjust the token count as needed
+        max_tokens=250  # Adjust the token count as needed
     )
 
     # Correct way to access the response
