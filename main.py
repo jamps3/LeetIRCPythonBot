@@ -882,6 +882,20 @@ def process_message(irc, message):
                 if result and result != "No results found.":
                     output_message(result, irc, target)
 
+        elif text.startswith("!join"):
+            match = re.search(r"!join\s+(.+)", text)
+            #Extracts the channel and key from the given text after the !join command.
+            parts = text.split()
+            channel = ""
+            key = ""
+            if len(parts) >= 2 and parts[0] == "!join":
+                channel = parts[1]
+            elif len(parts) == 3 and parts[0] == "!join":
+                channel = parts[1]
+                key = parts[2]
+            if match:
+                    output_message(f"JOIN {channel} {key}", irc)
+
         else:
             # ✅ Handle regular chat messages (send to GPT)
             # ✅ Only respond to private messages or messages mentioning the bot's name
@@ -1332,6 +1346,10 @@ def output_message(message, irc=None, channel=None):
         # Send to IRC
         irc.sendall(f"NOTICE {channel} :{message}\r\n".encode("utf-8"))
         log(f"Message sent to {channel}: {message}")
+    elif irc:
+        # Send command to IRC
+        irc.sendall(f"{message}".encode("utf-8"))
+        log(f"Command {message} sent.")
     else:
         # Print to console
         print(f"Bot: {message}")
