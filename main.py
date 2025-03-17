@@ -1202,7 +1202,7 @@ def fetch_title(irc=None, channel=None, text=""):
     urls = re.findall(pattern, text)
 
     if urls:
-        log(f"Löydetyt URL-osoitteet: {urls}")  # Logataan löydetyt URL-osoitteet
+        log(f"Löydetyt URL-osoitteet: {urls}", "DEBUG")  # Logataan löydetyt URL-osoitteet
     else:
         log("Ei löydetty kelvollisia URL-osoitteita.", "DEBUG")
         return
@@ -1211,12 +1211,12 @@ def fetch_title(irc=None, channel=None, text=""):
 
     for url in urls:
         try:
-            log(f"Käsitellään URL: {url}")  # Debug-tulostus
+            log(f"Käsitellään URL: {url}", "DEBUG")  # Debug-tulostus
 
             # Lisätään HTTPS, jos URL ei ala sillä
             if not url.startswith(("http://", "https://")):
                 url = "https://" + url
-                log(f"Korjattu URL: {url}")  # Debug: tulostetaan korjattu URL
+                log(f"Korjattu URL: {url}", "DEBUG")  # Debug: tulostetaan korjattu URL
             
             # Käsitellään PDF-URL erikseen
             if url.lower().endswith(".pdf"):
