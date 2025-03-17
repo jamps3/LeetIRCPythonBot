@@ -741,31 +741,6 @@ def process_message(irc, message):
             save_leet_winners(leet_winners)
             log(f"Updated leet winners: {leet_winners}")
         
-        # Keep track of ekavika winners
-        elif re.search(r"𝙫𝙞𝙠𝙖 oli (\w+) kello .*?, ja 𝖊𝖐𝖆 oli (\w+)", text):
-            match = re.search(r"𝙫𝙞𝙠𝙖 oli (\w+) kello .*?, ja 𝖊𝖐𝖆 oli (\w+)", text)
-            if match:
-                # Load existing data or initialize a new dictionary
-                try:
-                    with open(EKAVIKA_FILE, "r", encoding="utf-8") as f:
-                        ekavika_data = json.load(f)
-                except (FileNotFoundError, json.JSONDecodeError):
-                    ekavika_data = {"eka": {}, "vika": {}}  # Initialize if file doesn't exist or is empty
-
-                vika = match.group(1)
-                eka = match.group(2)
-                log(f"Vika: {vika}, Eka: {eka}")
-
-                # Update win counts
-                ekavika_data["eka"][eka] = ekavika_data["eka"].get(eka, 0) + 1
-                ekavika_data["vika"][vika] = ekavika_data["vika"].get(vika, 0) + 1
-
-                # Save updated data
-                with open(EKAVIKA_FILE, "w", encoding="utf-8") as f:
-                    json.dump(ekavika_data, f, indent=4, ensure_ascii=False)
-            else:
-                log("No match found for eka and vika winners.", "DEBUG")
-        
         # Checks if the message contains a crypto request and fetches price.
         elif re.search(r"!crypto\b", text, re.IGNORECASE):
             match = re.search(r"!crypto\s+(\w+)", text, re.IGNORECASE)
@@ -917,6 +892,31 @@ def process_message(irc, message):
                 for part in response_parts:
                     send_message(irc, reply_target, part)
                 log(f"\U0001F4AC Sent response to {reply_target}: {response_parts}")
+    
+    # Keep track of ekavika winners
+    if re.search(r"𝙫𝙞𝙠𝙖 oli (\w+) kello .*?, ja 𝖊𝖐𝖆 oli (\w+)", message):
+        match = re.search(r"𝙫𝙞𝙠𝙖 oli (\w+) kello .*?, ja 𝖊𝖐𝖆 oli (\w+)", message)
+        if match:
+            # Load existing data or initialize a new dictionary
+            try:
+                with open(EKAVIKA_FILE, "r", encoding="utf-8") as f:
+                    ekavika_data = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError):
+                ekavika_data = {"eka": {}, "vika": {}}  # Initialize if file doesn't exist or is empty
+
+            vika = match.group(1)
+            eka = match.group(2)
+            log(f"Vika: {vika}, Eka: {eka}")
+
+            # Update win counts
+            ekavika_data["eka"][eka] = ekavika_data["eka"].get(eka, 0) + 1
+            ekavika_data["vika"][vika] = ekavika_data["vika"].get(vika, 0) + 1
+
+            # Save updated data
+            with open(EKAVIKA_FILE, "w", encoding="utf-8") as f:
+                json.dump(ekavika_data, f, indent=4, ensure_ascii=False)
+        else:
+            log("No match found for eka and vika winners.", "DEBUG")
 
 def get_crypto_price(coin="bitcoin", currency="eur"):
     """
@@ -1210,6 +1210,10 @@ def fetch_title(irc=None, channel=None, text=""):
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"}
 
     for url in urls:
+        banned_urls = ["irc.cc.tut.fi", "irc.swepipe.net", "irc.spadhausen.com"] # Don't fetch !ekavika server titles
+        if any(banned_url in url for banned_url in banned_urls):
+            log(f"Skipping banned URL: {url}", "DEBUG")
+            continue
         try:
             log(f"Käsitellään URL: {url}", "DEBUG")  # Debug-tulostus
 
