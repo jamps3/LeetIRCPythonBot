@@ -502,6 +502,7 @@ def keepalive_ping(irc, stop_event):
             break
             
         if time.time() - last_ping > 120:
+            # Throws error when socket is lost, need to capture it
             irc.sendall("PING :keepalive\r\n".encode("utf-8"))
             # log("Sent keepalive PING", "DEBUG")
             last_ping = time.time()
@@ -1198,7 +1199,7 @@ def fetch_title(irc=None, channel=None, text=""):
     # log(f"Syöte: {text}", "DEBUG")  # Logataan koko syöte
     global last_title
     # Regex to find URLs
-    pattern = r"(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}(?:\/[^\s]*)?)"
+    pattern = r"(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.[a-zA-Z]{2,}(?:\/[^\s]*)?)"
     urls = re.findall(pattern, text)
 
     if urls:
