@@ -1185,7 +1185,7 @@ def send_electricity_price(irc=None, channel=None, text=None):
         price_snt_per_kwh_tomorrow = (price_eur_per_mwh_tomorrow / 10) * 1.255  # Muutetaan sentteihin ja lisätään ALV 25,5%
         electricity_info_tomorrow = f"Huomenna klo {hour}: {price_snt_per_kwh_tomorrow:.2f} snt/kWh (ALV 25,5%)"
     else:
-        electricity_info_tomorrow = f"Sähkön hintatietoa ei saatavilla tunnille {hour} huomenna."
+        electricity_info_tomorrow = f"Sähkön hintatietoa ei saatavilla tunnille {hour} huomenna. https://liukuri.fi/"
 
     # Tulostetaan haettu tuntihinta tänään ja huomenna
     log(f"\n{electricity_info_today}", "DEBUG")
