@@ -1247,6 +1247,7 @@ def fetch_title(irc=None, channel=None, text=""):
                         title = title.replace("  ", " ") # Remove double spaces
                         title = title.replace("Ã¤", "ä") # Fix bad ä characters
                         title = title.replace("Ã¶", "ö") # Fix bad ö characters
+                        title = title.replace("â@S", "-") # Fix bad - characters
                         if title == last_title:
                             log("Skipping duplicate title", "DEBUG")
                             continue
