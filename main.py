@@ -245,7 +245,7 @@ def login(irc, writer, channels, show_api_keys=False):
 
                 for line in response.split("\r\n"):
                     if line:
-                        log(f"SERVER: {line}", "DEBUG")
+                        log(f"MOTD: {line}", "DEBUG")
 
                     # If server says "Please wait while we process your connection", don't disconnect yet
                     if " 020 " in line:
@@ -1245,6 +1245,8 @@ def fetch_title(irc=None, channel=None, text=""):
                     banned_titles = ["- YouTube", "403 Forbidden", "404 Not Found", "(ei otsikkoa)", "Bevor Sie zu YouTube weitergehen"]
                     if title and title not in banned_titles:
                         title = title.replace("  ", " ") # Remove double spaces
+                        title = title.replace("Ã¤", "ä") # Fix bad ä characters
+                        title = title.replace("Ã¶", "ö") # Fix bad ö characters
                         if title == last_title:
                             log("Skipping duplicate title", "DEBUG")
                             continue
