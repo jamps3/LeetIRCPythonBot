@@ -1067,7 +1067,7 @@ def send_weather(irc=None, channel=None, location="Joensuu"):
             # Rakennetaan viesti
             weather_info = (f"{location}, {country} 🔮: {description}, {temp}°C ({feels_like} ~°C), "
                             f"💦 {humidity}%, 🍃 {wind_speed} m/s, 👁  {visibility:.1f} km, "
-                            f"{pressure} hPa, pilvisyys {clouds}%. "
+                            f"P: {pressure} hPa, pilvisyys {clouds}%. "
                             f"🌄{sunrise} - {sunset}🌅.")
 
             if rain > 0:
