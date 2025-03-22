@@ -727,21 +727,6 @@ def process_message(irc, message):
             log("Received !latencycheck command, measuring latency...")
             measure_latency(irc, bot_name)
         
-        # Keep track of leet winners
-        elif re.search(r"Ensimmäinen leettaaja oli (\w+) .*?, viimeinen oli (\w+) .*?Lähimpänä multileettiä oli (\w+)", text):
-            leet_match = re.search(r"Ensimmäinen leettaaja oli (\w+) .*?, viimeinen oli (\w+) .*?Lähimpänä multileettiä oli (\w+)", text)
-            first, last, multileet = leet_match.groups()
-            leet_winners = load_leet_winners()
-            
-            for category, winner in zip(["ensimmäinen", "viimeinen", "multileet"], [first, last, multileet]):
-                if winner in leet_winners:
-                    leet_winners[winner][category] = leet_winners[winner].get(category, 0) + 1
-                else:
-                    leet_winners[winner] = {category: 1}
-            
-            save_leet_winners(leet_winners)
-            log(f"Updated leet winners: {leet_winners}")
-        
         # Checks if the message contains a crypto request and fetches price.
         elif re.search(r"!crypto\b", text, re.IGNORECASE):
             match = re.search(r"!crypto\s+(\w+)", text, re.IGNORECASE)
@@ -893,6 +878,21 @@ def process_message(irc, message):
                 for part in response_parts:
                     send_message(irc, reply_target, part)
                 log(f"\U0001F4AC Sent response to {reply_target}: {response_parts}")
+    
+    # Keep track of leet winners
+    if re.search(r"Ensimmäinen leettaaja oli (\S+) .*?, viimeinen oli (\S+) .*?Lähimpänä multileettiä oli (\S+)", message):
+        leet_match = re.search(r"Ensimmäinen leettaaja oli (\S+) .*?, viimeinen oli (\S+) .*?Lähimpänä multileettiä oli (\S+)", message)
+        first, last, multileet = leet_match.groups()
+        leet_winners = load_leet_winners()
+        
+        for category, winner in zip(["ensimmäinen", "viimeinen", "multileet"], [first, last, multileet]):
+            if winner in leet_winners:
+                leet_winners[winner][category] = leet_winners[winner].get(category, 0) + 1
+            else:
+                leet_winners[winner] = {category: 1}
+        
+        save_leet_winners(leet_winners)
+        log(f"Updated leet winners: {leet_winners}")
     
     # Keep track of ekavika winners
     if re.search(r"𝙫𝙞𝙠𝙖 oli (\w+) kello .*?, ja 𝖊𝖐𝖆 oli (\w+)", message):
