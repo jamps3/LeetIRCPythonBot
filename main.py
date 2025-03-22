@@ -1244,7 +1244,8 @@ def fetch_title(irc=None, channel=None, text=""):
                 if irc:
                     banned_titles = ["- YouTube", "403 Forbidden", "404 Not Found", "(ei otsikkoa)", "Bevor Sie zu YouTube weitergehen"]
                     if title and title not in banned_titles:
-                        title = title.replace("  ", " ") # Remove double spaces
+                        while "  " in title:
+                            title = title.replace("  ", " ") # Remove double spaces
                         title = title.replace("Ã¤", "ä") # Fix bad ä characters
                         title = title.replace("Ã¶", "ö") # Fix bad ö characters
                         title = title.replace("â@S", "-") # Fix bad - characters
