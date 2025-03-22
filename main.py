@@ -813,7 +813,7 @@ def process_message(irc, message):
                 for cat, (winner, count) in filtered_winners.items()
             )
 
-            response = f"Leet winners: {winners_text}" if winners_text else "No leet winners recorded yet."
+            response = f"𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼: {winners_text}" if winners_text else "No 𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼 recorded yet."
             send_message(irc, target, response)
             log(f"Sent leet winners: {response}")
         
