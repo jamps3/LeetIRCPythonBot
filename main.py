@@ -1234,8 +1234,8 @@ def fetch_title(irc=None, channel=None, text=""):
                 
                 try:
                     soup = BeautifulSoup(response.text, "html.parser")
-                except BeautifulSoup.ParserRejectedMarkup as e:
-                    log(f"ParserRejectedMarkup error: {e}", "ERROR")
+                except Exception as e:
+                    log(f"Error while parsing HTML: {e}", "ERROR")
                     continue
                 
                 title = soup.title.string.strip() if soup.title else None
