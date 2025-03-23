@@ -1232,7 +1232,12 @@ def fetch_title(irc=None, channel=None, text=""):
                 response = requests.get(url, headers=headers, timeout=5)
                 response.raise_for_status()  # Tarkistetaan, ettei tullut HTTP-virhettä
                 
-                soup = BeautifulSoup(response.text, "html.parser")
+                try:
+                    soup = BeautifulSoup(response.text, "html.parser")
+                except BeautifulSoup.ParserRejectedMarkup as e:
+                    log(f"ParserRejectedMarkup error: {e}", "ERROR")
+                    continue
+                
                 title = soup.title.string.strip() if soup.title else None
 
                 # Jos title puuttuu, haetaan meta description
