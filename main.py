@@ -30,12 +30,7 @@ import json
 from dotenv import load_dotenv
 
 # Import the modules for the new architecture
-from config import load_server_configs
-from server import Server
-import message_handlers
-
-# Import the new modules
-from config import load_server_configs
+from config import get_server_configs
 from server import Server
 import message_handlers
 

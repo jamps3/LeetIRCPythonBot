@@ -393,5 +393,31 @@ class Server:
             self.stop_event.set()
         
         if self.connected:
-            
-
+            try:
+                self.logger("Stopping server connection...", "INFO")
+                # Send quit message if connected
+                self.quit("Bot shutting down")
+                self.logger("Quit message sent", "DEBUG")
+                
+                # Wait for threads to finish with timeout
+                timeout_per_thread = 5  # seconds
+                for thread in self.threads:
+                    self.logger(f"Waiting for thread {thread.name} to finish...", "DEBUG")
+                    thread.join(timeout=timeout_per_thread)
+                    if thread.is_alive():
+                        self.logger(f"Thread {thread.name} did not finish within timeout", "WARNING")
+                
+                # Ensure socket is closed
+                if self.socket:
+                    try:
+                        self.socket.close()
+                        self.logger("Socket connection closed", "INFO")
+                    except Exception as e:
+                        self.logger(f"Error closing socket: {e}", "ERROR")
+            except Exception as e:
+                self.logger(f"Error during server shutdown: {e}", "ERROR")
+            finally:
+                self.connected = False
+                self.socket = None
+                self.threads = []
+                self.logger("Server resources cleaned up", "INFO")
