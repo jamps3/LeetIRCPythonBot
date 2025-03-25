@@ -1,55 +1,43 @@
 """
-This script is an IRC bot that connects to an IRC server, joins a channel, and responds to various commands.
-It includes functionalities such as fetching weather information, electricity prices, webpage titles and scheduled messages.
-Modules:
-    - socket: Provides low-level networking interface.
-    - os: Provides a way of using operating system dependent functionality.
-    - time: Provides various time-related functions.
-    - threading: Provides higher-level threading interface.
-    - re: Provides regular expression matching operations.
-    - requests: Allows sending HTTP requests.
-    - pickle: Implements binary protocols for serializing and de-serializing a Python object structure.
-    - datetime: Supplies classes for manipulating dates and times.
-    - BeautifulSoup: Parses HTML and XML documents.
-    - ElementTree: Provides a simple and efficient API for parsing and creating XML data.
-    - urllib.parse: Defines functions to manipulate URLs.
+IRC Bot - Core Server Management Module
+
+This module contains the core server management code for the IRC bot.
+It handles server connections, thread management, and main program execution.
+
+Architecture:
+    - ServerManager class: Manages multiple server connections
+    - Server class (from server.py): Handles individual server connections
+    - message_handlers.py: Contains all message processing functionality
+    - config.py: Loads server configurations from environment variables
+
 Functions:
-    - save(): Saves the current state of 'kraks' and 'leets' to a binary file.
-    - load(): Loads the state of 'kraks' and 'leets' from a binary file.
-    - login(irc, writer): Logs the bot into the IRC server and joins a specified channel.
-    - read(irc): Reads messages from the IRC server and processes them.
-    - keepalive_ping(irc): Sends periodic PING messages to keep the connection alive.
-    - process_message(irc, message): Processes incoming IRC messages and responds to commands.
-    - send_leet(irc, channel, message, target_hour, target_minute, target_second, target_microsecond): Sends a message at a specific time.
-    - send_weather(irc, channel, location): Fetches and sends weather information for a specified location.
-    - send_electricity_price(irc, channel, text): Fetches and sends electricity price information for a specified hour.
-    - fetch_title(irc, channel, text): Fetches and sends the title of a webpage from a URL.
-    - send_message(irc, channel, message): Sends a message to a specified IRC channel.
-    - log(message, level): Logs a message with a timestamp and specified log level.
-    - main(): Main function to start the bot, connect to the IRC server, and handle reconnections.
+    - load(): Loads the state of 'kraks' from a binary file
+    - save(): Saves the current state of 'kraks' to a binary file
+    - countdown(): Sends countdown notifications for leet time
+    - listen_for_commands(): Console command interface for interacting with servers
+    - keepalive_ping(): Sends periodic PING messages to keep connections alive
+    - main(): Main function to start the bot and manage server connections
 """
-import sys # Check if Debugging
-import platform # For checking where are we running for correct datetime formatting
-import socket
+import sys
 import os
 import time
 import threading
-import re # Regular expression
-import requests
-import pickle # Tiedostojen tallennukseen
-from datetime import datetime, timedelta
-from bs4 import BeautifulSoup
-from io import StringIO
-import xml.etree.ElementTree as ElementTree
-import openai
-import urllib.parse  # Lisätään URL-koodausta varten
-from dotenv import load_dotenv # Load api-keys from .env file
-from collections import Counter
-import json # json support
-import argparse # Command line argument parsing
-from googleapiclient.discovery import build # Youtube API
+import pickle
+import argparse
 import signal
-import html # Title quote removal
+from datetime import datetime, timedelta
+import json
+from dotenv import load_dotenv
+
+# Import the modules for the new architecture
+from config import load_server_configs
+from server import Server
+import message_handlers
+
+# Import the new modules
+from config import load_server_configs
+from server import Server
+import message_handlers
 
 # File to store conversation history
 HISTORY_FILE = "conversation_history.json"
@@ -73,16 +61,8 @@ ELECTRICITY_API_KEY = os.getenv("ELECTRICITY_API_KEY")
 api_key = os.getenv("OPENAI_API_KEY")
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
-if sys.gettrace():
-    bot_name = "jL3b2"
-    channels = [("#joensuutest", "")]
-else:
-    bot_name = "jL3b"
-    channels = [
-        ("#53", os.getenv("CHANNEL_KEY_53", "")),
-        ("#joensuu", ""),
-        ("#west", "")
-    ]
+# Default bot name based on debugging state
+BOT_NAME = "jL3b2" if sys.gettrace() else "jL3b"
 QUIT_MESSAGE = "Nähdään!"
 
 last_ping = time.time()
@@ -92,8 +72,7 @@ last_title = ""
 # Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
 client = openai.OpenAI(api_key=api_key)
 
-# Initialize YouTube API client
-youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
+# No need for YouTube API client here - moved to message_handlers.py
 
 # Sanakirja, joka pitää kirjaa voitoista
 voitot = {
@@ -105,29 +84,7 @@ voitot = {
 # Create a stop event to handle clean shutdown
 stop_event = threading.Event()
 
-def search_youtube(query, max_results=1):
-    """
-    Example usage:
-    result = search_youtube("Python tutorial")
-    if result:
-        print(f"First result title: {result['snippet']['title']}")
-        print(f"First result URL: https://www.youtube.com/watch?v={result['id']['videoId']}")
-    """
-    # Search for videos
-    request = youtube.search().list(
-        q=query,
-        part='snippet',
-        maxResults=max_results,
-        type='video'  # This will ensure only videos are returned
-    )
-    response = request.execute()
-
-    # Print results
-    for item in response['items']:
-        video_title = html.unescape(item['snippet']['title']).replace("  ", " ")
-        video_url = f"https://www.youtube.com/watch?v={item['id']['videoId']}"
-        return f"'{video_title}' URL: {video_url}"
-    return "No results found."
+# YouTube search functionality moved to message_handlers.py
 
 def load_conversation_history():
     """Loads the conversation history from a file or initializes a new one."""
@@ -208,113 +165,161 @@ def update_kraks(kraks, nick, words):
     for word in words:
         kraks[nick][word] = kraks[nick].get(word, 0) + 1
 
-RECONNECT_DELAY = 60  # Time in seconds before retrying connection
-
-def login(irc, writer, channels, show_api_keys=False):
+# Server manager class to handle multiple servers
+class ServerManager:
     """
-    Logs into the IRC server, waits for the MOTD to finish, and joins multiple channels.
-    Implements automatic reconnection in case of disconnection.
+    Manages multiple IRC server connections.
+    
+    Handles server configuration, initialization, connection, and message processing.
+    Each server runs in its own thread but shares common data structures.
+    """
+    def __init__(self, show_api_keys=False):
+        """
+        Initialize the ServerManager with server configurations from the config module.
+        
+        Args:
+            show_api_keys (bool): Whether to display API keys in logs.
+        """
+        self.bot_name = BOT_NAME
+        self.servers = []
+        self.stop_event = threading.Event()
+        self.show_api_keys = show_api_keys
+        
+        # Log API keys if requested
+        if show_api_keys:
+            log(f"Weather API Key: {WEATHER_API_KEY}", "DEBUG")
+            log(f"Electricity API Key: {ELECTRICITY_API_KEY}", "DEBUG")
+            log(f"OpenAI API Key: {api_key}", "DEBUG")
+        else:
+            log("API keys loaded (use -api flag to show values)", "DEBUG")
+        
+        # Load configurations from the config module
+        self.server_configs = load_server_configs()
+        log(f"Loaded {len(self.server_configs)} server configurations", "INFO")
+    
+    def initialize_servers(self):
+        """Initialize server objects for each server configuration."""
+        for server_config in self.server_configs:
+            server = Server(
+                server_config.host,
+                server_config.port,
+                self.bot_name,
+                server_config.channels,
+                self.stop_event
+            )
+            
+            # Set up message handlers for this server
+            self.setup_handlers(server)
+            
+            self.servers.append(server)
+            log(f"Initialized server {server_config.host}", "INFO")
+    
+    def setup_handlers(self, server):
+        """
+        Set up message handlers for the server.
+        
+        Args:
+            server (Server): The server object to set up handlers for.
+        """
+        # Register command handlers from message_handlers module
+        server.register_handler("!s", message_handlers.handle_weather)
+        server.register_handler("!sää", message_handlers.handle_weather)
+        server.register_handler("!sahko", message_handlers.handle_electricity_price)
+        server.register_handler("!sähkö", message_handlers.handle_electricity_price)
+        server.register_handler("!aika", message_handlers.handle_time)
+        server.register_handler("!kaiku", message_handlers.handle_echo)
+        server.register_handler("!sana", message_handlers.handle_word_count)
+        server.register_handler("!topwords", message_handlers.handle_top_words)
+        server.register_handler("!leaderboard", message_handlers.handle_leaderboard)
+        server.register_handler("!euribor", message_handlers.handle_euribor)
+        server.register_handler("!leetwinners", message_handlers.handle_leet_winners)
+        server.register_handler("!url", message_handlers.handle_url_title)
+        server.register_handler("!title", message_handlers.handle_url_title)
+        server.register_handler("!leet", message_handlers.handle_leet)
+        server.register_handler("!youtube", message_handlers.handle_youtube_search)
+        server.register_handler("!kraks", message_handlers.handle_kraks)
+        server.register_handler("!ekavika", message_handlers.handle_ekavika)
+        server.register_handler("!crypto", message_handlers.handle_crypto)
+        server.register_handler("!eurojackpot", message_handlers.handle_eurojackpot)
+        
+        # Register special message handlers
+        server.register_leet_message_handler(message_handlers.handle_leet_message)
+        server.register_ekavika_message_handler(message_handlers.handle_ekavika_message)
+        server.register_chat_handler(message_handlers.handle_chat_message)
+        
+        # Register URL handler for title fetching
+        server.register_url_handler(message_handlers.handle_url_title)
+        
+        # Register word tracking
+        server.register_word_handler(message_handlers.handle_tracking_words)
+    
+    def start_all(self):
+        """Start all server connections in separate threads."""
+        server_threads = []
+        
+        for server in self.servers:
+            thread = threading.Thread(
+                target=server.connect_and_run,
+                name=f"Server-{server.host}",
+                daemon=True
+            )
+            thread.start()
+            server_threads.append(thread)
+            log(f"Started server thread for {server.host}", "INFO")
+        
+        # Start additional functionality threads
+        self.start_auxiliary_threads()
+        
+        # Wait for threads to finish or shutdown
+        try:
+            while not self.stop_event.is_set():
+                time.sleep(1)
+        except KeyboardInterrupt:
+            log("Keyboard interrupt detected, shutting down...", "INFO")
+            self.stop_event.set()
+        
+        # Wait for all threads to terminate
+        for thread in server_threads:
+            thread.join(timeout=5.0)
+        
+        log("All server threads stopped", "INFO")
+    
+    def start_auxiliary_threads(self):
+        """Start auxiliary threads like command listener and countdown timer."""
+        # Start input listener in a separate thread
+        input_thread = threading.Thread(
+            target=listen_for_commands,
+            args=(self.stop_event,),
+            name="CommandListener",
+            daemon=True
+        )
+        input_thread.start()
+        
+        # Start leet countdown timer for each server's #joensuu channel if it exists
+        for server in self.servers:
+            for channel, _ in server.channels:
+                if channel.lower() == "#joensuu":
+                    threading.Thread(
+                        target=countdown,
+                        args=(server, channel, self.stop_event),
+                        name=f"LeetCountdown-{server.host}-{channel}",
+                        daemon=True
+                    ).start()
+                    log(f"Started countdown thread for {server.host}:{channel}", "INFO")
+                    break
 
+def listen_for_commands(stop_event, server_manager=None):
+    """
+    Listen for user input from the terminal and send to IRC servers or process locally.
+    
+    This function reads commands from the console and either:
+    1. Executes them locally (like weather queries, time display, etc.)
+    2. Sends them to specific or all connected IRC servers
+    
     Args:
-        irc: The IRC connection object (socket).
-        writer: The socket writer used to send messages.
-        channels (list): List of channels to join.
-        show_api_keys (bool): Whether to display API keys in logs.
+        stop_event (threading.Event): Event to signal when the bot should stop
+        server_manager (ServerManager, optional): Reference to the server manager for sending commands to IRC servers
     """
-    while True:  # Infinite loop for automatic reconnection
-        try:
-            nick = bot_name
-            login = bot_name
-
-            # Log API keys if requested
-            if show_api_keys:
-                log(f"Weather API Key: {WEATHER_API_KEY}", "DEBUG")
-                log(f"Electricity API Key: {ELECTRICITY_API_KEY}", "DEBUG")
-                log(f"OpenAI API Key: {api_key}", "DEBUG")
-            else:
-                log("API keys loaded (use -api flag to show values)", "DEBUG")
-
-            writer.sendall(f"NICK {nick}\r\n".encode("utf-8"))
-            writer.sendall(f"USER {login} 0 * :{nick}\r\n".encode("utf-8"))
-
-            last_response_time = time.time()  # Track last received message time
-            while True:
-                response = irc.recv(2048).decode("utf-8", errors="ignore")
-                if response:
-                    last_response_time = time.time()  # Reset timeout on any message
-
-                for line in response.split("\r\n"):
-                    if line:
-                        log(f"MOTD: {line}", "DEBUG")
-
-                    # If server says "Please wait while we process your connection", don't disconnect yet
-                    if " 020 " in line:
-                        log("Server is still processing connection, continuing to wait...", "DEBUG")
-                        last_response_time = time.time()  # Reset timeout so it doesn't assume failure
-                        continue  # Keep waiting instead of assuming failure
-
-                    # If welcome (001) or MOTD completion (376/422) received, join channels
-                    if " 001 " in line or " 376 " in line or " 422 " in line:
-                        log("MOTD complete, joining channels...", "INFO")
-
-                        for channel, key in channels:
-                            if key:
-                                writer.sendall(f"JOIN {channel} {key}\r\n".encode("utf-8"))
-                                log(f"Joined channel {channel} with key", "INFO")
-                            else:
-                                writer.sendall(f"JOIN {channel}\r\n".encode("utf-8"))
-                                log(f"Joined channel {channel} (no key)", "INFO")
-
-                        return  # Successfully joined, exit function
-
-                # Timeout handling: If no response received in 30 seconds, assume failure
-                if time.time() - last_response_time > 30:
-                    raise socket.timeout("No response from server for 30 seconds")
-
-        except (socket.error, ConnectionResetError, BrokenPipeError, socket.timeout) as e:
-            log(f"Connection lost: {e}. Reconnecting in {RECONNECT_DELAY} seconds...", "ERROR")
-            time.sleep(RECONNECT_DELAY)
-
-        except Exception as e:
-            log(f"Unexpected error: {e}. Reconnecting in {RECONNECT_DELAY} seconds...", "ERROR")
-            time.sleep(RECONNECT_DELAY)
-
-# Main loop to read messages from IRC
-def read(irc, server, port, stop_event, reconnect_delay=5):
-    global last_ping, latency_start
-    
-    try:
-        while not stop_event.is_set():  # Check if shutdown is requested
-            try:
-                response = irc.recv(4096).decode("utf-8", errors="ignore")
-                if not response:
-                    continue  # If no response, keep listening
-            except socket.timeout:
-                continue  # Socket timeout occurred, just continue the loop
-
-            for line in response.strip().split("\r\n"):  # Handle multiple messages
-                log(line.strip(), "SERVER")
-                
-                if line.startswith("PING"):  # Handle PING more efficiently
-                    last_ping = time.time()
-                    ping_value = line.split(":", 1)[1].strip()
-                    irc.sendall(f"PONG :{ping_value}\r\n".encode("utf-8"))
-                    log(f"Sent PONG response to {ping_value}")
-                
-                process_message(irc, line)  # Process each message separately
-    
-    except KeyboardInterrupt:
-        stop_event.set()  # Notify all threads to stop without logging
-    
-    finally:
-        try:
-            irc.shutdown(socket.SHUT_RDWR)
-            irc.close()
-        except Exception as e:
-            log(f"Error while closing IRC connection: {e}", "ERROR")
-
-def listen_for_commands(stop_event):
-    """Listen for user input from the terminal and send to IRC or process locally."""
     try:
         while not stop_event.is_set():
             user_input = input("")  # Read input from terminal
@@ -327,172 +332,107 @@ def listen_for_commands(stop_event):
                 break
             elif user_input.startswith("!"):
                 # Parse command
-                command_parts = user_input.split(" ", 1)
+                command_parts = user_input.split(" ", 2)  # Allow for server specification
                 command = command_parts[0].lower()
-                args = command_parts[1] if len(command_parts) > 1 else ""
+                
+                # Check if command targets a specific server
+                target_server = None
+                if len(command_parts) > 1 and command_parts[1].startswith("@"):
+                    server_name = command_parts[1][1:]  # Remove @ prefix
+                    args = command_parts[2] if len(command_parts) > 2 else ""
+                    
+                    # Find the specified server
+                    if server_manager:
+                        for server in server_manager.servers:
+                            if server.host.lower() == server_name.lower():
+                                target_server = server
+                                break
+                    
+                    if not target_server:
+                        log(f"Server '{server_name}' not found", "WARNING")
+                        continue
+                else:
+                    # No specific server, regular command processing
+                    args = command_parts[1] if len(command_parts) > 1 else ""
+                
                 log(f"Processing command {command} with args: {args}", "COMMAND")
                 
+                # Special command for sending a message to a specific channel on a server
+                if command == "!send" and server_manager:
+                    if len(command_parts) >= 2:
+                        parts = args.split(" ", 1)
+                        if len(parts) == 2:
+                            channel = parts[0]
+                            message = parts[1]
+                            
+                            # Send to specific server or all servers
+                            if target_server:
+                                target_server.send_message(channel, message)
+                                log(f"Sent message to {target_server.host} {channel}: {message}", "INFO")
+                            else:
+                                for server in server_manager.servers:
+                                    server.send_message(channel, message)
+                                log(f"Sent message to all servers {channel}: {message}", "INFO")
+                        else:
+                            output_message("Usage: !send #channel message")
+                    else:
+                        output_message("Usage: !send #channel message")
+                
+                # Toggle debug mode for a server
+                elif command == "!debug" and server_manager:
+                    if target_server:
+                        target_server.debug = not target_server.debug
+                        log(f"Debug mode for {target_server.host} set to {target_server.debug}", "INFO")
+                    else:
+                        # Toggle debug for all servers
+                        for server in server_manager.servers:
+                            server.debug = not server.debug
+                        log(f"Debug mode for all servers set to {server_manager.servers[0].debug}", "INFO")
+                
+                # List all connected servers
+                elif command == "!servers" and server_manager:
+                    server_list = "\n".join([
+                        f"{i+1}. {s.host} - Connected: {s.is_connected} - Channels: {', '.join([c for c, _ in s.channels])}"
+                        for i, s in enumerate(server_manager.servers)
+                    ])
+                    output_message(f"Connected servers:\n{server_list}")
+                
                 # Handle commands similar to IRC commands
-                if command == "!s" or command == "!sää":
+                elif command == "!s" or command == "!sää":
                     location = args.strip() if args else "Joensuu"
                     log(f"Getting weather for {location} from console", "INFO")
-                    send_weather(None, None, location)  # Pass None for IRC and channel
+                    
+                    # Get weather and optionally send to server
+                    result = message_handlers.get_weather_info(location)
+                    output_message(result)
+                    
+                    # Send to server if specified
+                    if target_server and server_manager:
+                        for channel, _ in target_server.channels:
+                            target_server.send_message(channel, result)
                 
                 elif command == "!sahko" or command == "!sähkö":
-                    send_electricity_price(None, None, command_parts)
+                    # Use the message handler to get electricity price
+                    result = message_handlers.get_electricity_price(args)
+                    output_message(result)
+                    
+                    # Send to server if specified
+                    if target_server and server_manager:
+                        for channel, _ in target_server.channels:
+                            target_server.send_message(channel, result)
                 
                 elif command == "!aika":
-                    output_message(f"Nykyinen aika: {datetime.now().isoformat(timespec='microseconds') + '000'}")
-                
-                elif command == "!kaiku":
-                    output_message(f"Console: {args}")
-                
-                elif command == "!sana":
-                    if args:
-                        search_word = args.strip().lower()
-                        kraks = load()
-                        
-                        word_counts = {
-                            nick: stats[search_word]
-                            for nick, stats in kraks.items()
-                            if search_word in stats
-                        }
-                        
-                        if word_counts:
-                            results = ", ".join(f"{nick}: {count}" for nick, count in word_counts.items())
-                            output_message(f"Sana '{search_word}' on sanottu: {results}")
-                        else:
-                            output_message(f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
-                    else:
-                        output_message("Käytä komentoa: !sana <sana>")
-                
-                elif command == "!topwords":
-                    kraks = load()
+                    result = f"Nykyinen aika: {datetime.now().isoformat(timespec='microseconds') + '000'}"
+                    output_message(result)
                     
-                    if args:  # Specific nick provided
-                        nick = args.strip()
-                        if nick in kraks:
-                            top_words = Counter(kraks[nick]).most_common(5)
-                            word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
-                            output_message(f"{nick}: {word_list}")
-                        else:
-                            output_message(f"Käyttäjää '{nick}' ei löydy.")
-                    else:  # Show top words for all users
-                        overall_counts = Counter()
-                        for words in kraks.values():
-                            overall_counts.update(words)
-                        
-                        top_words = overall_counts.most_common(5)
-                        word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
-                        output_message(f"Käytetyimmät sanat: {word_list}")
-                
-                elif command == "!leaderboard":
-                    kraks = load()
-                    user_word_counts = {nick: sum(words.values()) for nick, words in kraks.items()}
-                    top_users = sorted(user_word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-                    
-                    if top_users:
-                        leaderboard_msg = ", ".join(f"{nick}: {count}" for nick, count in top_users)
-                        output_message(f"Aktiivisimmat käyttäjät: {leaderboard_msg}")
-                    else:
-                        output_message("Ei vielä tarpeeksi dataa leaderboardille.")
-                
-                elif command == "!euribor":
-                    # XML data URL from Suomen Pankki
-                    url = "https://reports.suomenpankki.fi/WebForms/ReportViewerPage.aspx?report=/tilastot/markkina-_ja_hallinnolliset_korot/euribor_korot_today_xml_en&output=xml"
-                    
-                    # Fetch the XML data
-                    response = requests.get(url)
-                    
-                    if response.status_code == 200:
-                        # Parse the XML content
-                        root = ElementTree.fromstring(response.content)
-                        
-                        # Namespace handling (because the XML uses a default namespace)
-                        ns = {"ns": "euribor_korot_today_xml_en"}  # Update with correct namespace if needed
-                        
-                        # Find the correct period (yesterday's date)
-                        period = root.find(".//ns:period", namespaces=ns)
-                        if period is not None:
-                            # Extract the date from the XML attribute
-                            date_str = period.attrib.get("value")  # Muoto YYYY-MM-DD
-                            date_obj = datetime.strptime(date_str, "%Y-%m-%d")  # Muunnetaan datetime-objektiksi
-                            
-                            # Käytetään oikeaa muotoilua riippuen käyttöjärjestelmästä
-                            if platform.system() == "Windows":
-                                formatted_date = date_obj.strftime("%#d.%#m.%y")  # Windows
-                            else:
-                                formatted_date = date_obj.strftime("%-d.%-m.%y")  # Linux & macOS
-                            rates = period.findall(".//ns:rate", namespaces=ns)
-                            
-                            for rate in rates:
-                                if rate.attrib.get("name") == "12 month (act/360)":
-                                    euribor_12m = rate.find("./ns:intr", namespaces=ns)
-                                    if euribor_12m is not None:
-                                        output_message(f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%")
-                                    else:
-                                        output_message("Interest rate value not found.")
-                                    break
-                            else:
-                                output_message("12-month Euribor rate not found.")
-                        else:
-                            output_message("No period data found in XML.")
-                    else:
-                        output_message(f"Failed to retrieve XML data. HTTP Status Code: {response.status_code}")
-                
-                elif command == "!leetwinners":
-                    leet_winners = load_leet_winners()
-                    
-                    # Dictionary to store only one winner per category
-                    filtered_winners = {}
-                    
-                    for winner, categories in leet_winners.items():
-                        for cat, count in categories.items():
-                            # Ensure only one winner per category
-                            if cat not in filtered_winners or count > filtered_winners[cat][1]:
-                                filtered_winners[cat] = (winner, count)
-                    
-                    # Format the output
-                    winners_text = ", ".join(
-                        f"{cat}: {winner} [{count}]"
-                        for cat, (winner, count) in filtered_winners.items()
-                    )
-                    
-                    response = f"Leet winners: {winners_text}" if winners_text else "No leet winners recorded yet."
-                    output_message(response)
-                
-                elif command.startswith("!url") or command == "!title":
-                    # Handle URL title fetching
-                    if args:
-                        fetch_title(None, None, args)
-                    else:
-                        output_message("Käytä komentoa: !url <url>")
-                
-                else:
-                    output_message(f"Command '{command}' not recognized or not implemented for console use")
-            else:
-                # Any text not starting with ! is sent to OpenAI
-                log(f"Sending text to OpenAI: {user_input}", "INFO")
-                response_parts = chat_with_gpt(user_input)
-                for part in response_parts:
-                    print(f"Bot: {part}")
+                    # Send to server if specified
+                    if target_server and server_manager:
+                        for channel, _ in target_server.channels:
+                            target_server.send_message(channel, result)
     except (EOFError, KeyboardInterrupt):
         stop_event.set()
 
-def count_kraks(word, beverage):
-    """
-    Counts the occurrences of a specific word (beverage) in the IRC messages.
-
-    Args:
-        word (str): The word to track (e.g., "krak").
-        beverage (str): The beverage associated with the word (e.g., "karhu").
-    """
-    if word in DRINK_WORDS:
-        DRINK_WORDS[word] += 1
-        log(f"Detected {word} ({beverage}). Total count: {DRINK_WORDS[word]}")
-    else:
-        log(f"Word {word} is not in the tracking list.")
-    
+# Word tracking functionality moved to message_handlers.py
 
 def keepalive_ping(irc, stop_event):
     global last_ping
@@ -837,13 +777,7 @@ def process_message(irc, message):
 
             output_message(message, irc, target)
         
-        elif text.startswith("!youtube"):
-            match = re.search(r"!youtube\s+(.+)", text)
-            if match:
-                url = match.group(1)
-                result = search_youtube(url)
-                if result and result != "No results found.":
-                    output_message(result, irc, target)
+        # YouTube search functionality moved to message_handlers.py
 
         elif text.startswith("!join"):
             match = re.search(r"!join\s+(.+)", text)
@@ -927,68 +861,35 @@ def get_crypto_price(coin="bitcoin", currency="eur"):
     response = requests.get(url).json()
     return response.get(coin, {}).get(currency, "Price not available")
 
-def countdown(irc, target):
-    while True:
+def countdown(server, target, stop_event):
+    """
+    Sends countdown notifications for leet time (13:37) to a specified channel.
+    
+    Args:
+        server (Server): The Server object to send messages through
+        target (str): The channel to send messages to
+        stop_event (threading.Event): Event to signal when the bot should stop
+    """
+    while not stop_event.is_set():
         now = datetime.now()
         current_time = now.strftime("%H:%M")
 
         if current_time == "12:37":
             message = "⏳ 1 tunti aikaa leettiin!"
-            output_message(message, irc, target)
+            server.send_message(target, message)
+            log(f"Sent 1-hour leet countdown to {server.host}:{target}", "INFO")
 
         elif current_time == "13:36":
             message = "⚡ 1 minuutti aikaa leettiin! Brace yourselves!"
-            output_message(message, irc, target)
+            server.send_message(target, message)
+            log(f"Sent 1-minute leet countdown to {server.host}:{target}", "INFO")
 
-        time.sleep(60)  # Check every minute
+        # Sleep for a short time to check for stop event more frequently
+        for _ in range(60):  # Still check once per minute, but in smaller increments
+            if stop_event.is_set():
+                return
+            time.sleep(1)
 
-EUROJACKPOT_URL = "https://www.euro-jackpot.net/fi/tilastot/numerotaajuus"
-
-def get_eurojackpot_numbers():
-    url = "https://www.euro-jackpot.net/fi/tilastot/numerotaajuus"
-    response = requests.get(url)
-    response.raise_for_status()
-    
-    soup = BeautifulSoup(response.text, "html.parser")
-    table_rows = soup.select("table tr")  # Adjust the selector based on actual table structure
-    
-    latest_numbers = []
-    most_frequent_numbers = []
-    
-    draw_data = []  # Store tuples of (Arvontaa sitten, Number)
-    
-    for row in table_rows:
-        columns = row.find_all("td")
-        if len(columns) >= 3:
-            draw_order = columns[2].text.strip()  # "Arvontaa sitten"
-            number = columns[1].text.strip()  # The number itself
-            
-            if draw_order.isdigit():
-                draw_data.append((int(draw_order), int(number)))
-    
-    # Sort by "Arvontaa sitten" to get the latest draw (smallest value should be 0)
-    draw_data.sort()
-    
-    # Extract numbers with "Arvontaa sitten" = 0 (latest draw)
-    latest_numbers = [num for order, num in draw_data if order == 0]
-    
-    # Extract most frequent numbers (sort by frequency, needs correct column parsing)
-    frequency_data = []
-    
-    for row in table_rows:
-        columns = row.find_all("td")
-        if len(columns) >= 3:
-            number = columns[1].text.strip()
-            frequency = columns[2].text.strip()
-            
-            if number.isdigit() and frequency.isdigit():
-                frequency_data.append((int(frequency), int(number)))
-    
-    # Sort by frequency in descending order to get most frequent numbers
-    frequency_data.sort(reverse=True, key=lambda x: x[0])
-    most_frequent_numbers = [num for freq, num in frequency_data[:7]]  # Top 7 numbers
-    
-    return latest_numbers, most_frequent_numbers
 
 def send_message(irc, reply_target, message):
     encoded_message = message.encode("utf-8")
@@ -1442,84 +1343,44 @@ def main():
     parser.add_argument('-api', action='store_true', help='Show API key values in logs')
     args = parser.parse_args()
     
-    # API visibility preference will be passed to login()
-    
-    server = "irc.atw-inter.net"
-    port = 6667
+    # Create a global stop event
+    global stop_event
     stop_event = threading.Event()
-    irc = None
-    threads = []
     
-    # Setup signal handler for graceful shutdown
+    # Setup signal handlers for graceful shutdown
     def signal_handler(sig, frame):
+        log(f"Received signal {sig}, initiating shutdown...", "INFO")
         stop_event.set()
-        raise KeyboardInterrupt
     
-    # Register SIGINT handler
+    # Register signal handlers
     signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     
     try:
-        while not stop_event.is_set():
-            try:
-                load()
-                irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                irc.connect((server, port))
-                irc.settimeout(1.0)  # Add a timeout so Ctrl+C is handled promptly
-                writer = irc
-                login(irc, writer, channels, show_api_keys=args.api)
-                
-                # Start Keepalive PING
-                keepalive_thread = threading.Thread(target=keepalive_ping, args=(irc, stop_event), daemon=True)
-                keepalive_thread.start()
-                threads.append(keepalive_thread)
-                
-                # Start input listener in a separate thread
-                input_thread = threading.Thread(target=listen_for_commands, args=(stop_event,), daemon=True)
-                input_thread.start()
-                threads.append(input_thread)
-
-                # Start leet countdown timer
-                threading.Thread(target=countdown, args=(irc, "#joensuu"), daemon=True).start()
-                
-                # Main read loop - this will block until disconnect or interrupt
-                read(irc, server, port, stop_event, reconnect_delay=5)
-                
-            except (socket.error, ConnectionError) as e:
-                log(f"Server error: {e}", "ERROR")
-                # Wait before reconnecting
-                time.sleep(5)
-                
-            except KeyboardInterrupt:
-                break
-    
+        # Initialize the server manager
+        server_manager = ServerManager(show_api_keys=args.api)
+        
+        # Initialize and start all servers
+        server_manager.initialize_servers()
+        server_manager.start_all()
+        
     except KeyboardInterrupt:
-        pass  # Shutdown message will be handled in finally block
-    
+        log("Keyboard interrupt detected, shutting down...", "INFO")
+    except Exception as e:
+        log(f"Unexpected error: {e}", "ERROR")
     finally:
-        # Clean shutdown procedures
-        log("Shutting down...", "INFO")  # Centralized shutdown message
-        stop_event.set()  # Signal all threads to terminate
+        # Ensure stop event is set to terminate all threads
+        stop_event.set()
         
-        # Wait for threads to finish (with timeout)
-        for thread in threads:
-            if thread.is_alive():
-                thread.join(timeout=1.0)
-        
-        # Save data and close socket
+        # Save data before exiting
         try:
             kraks = load()  # Load kraks data before saving
             save(kraks)  # Pass the loaded kraks data to save()
-            if irc:
-                try:
-                    writer.sendall(f"QUIT :{QUIT_MESSAGE}\r\n".encode("utf-8"))
-                    time.sleep(1)  # Allow time for the message to send
-                    irc.shutdown(socket.SHUT_RDWR)
-                except:
-                    pass
-                irc.close()
-            log("Bot exited gracefully. Goodbye!", "INFO")
+            log("Data saved successfully", "INFO")
         except Exception as e:
-            log(f"Error during cleanup: {e}", "ERROR")
+            log(f"Error saving data during shutdown: {e}", "ERROR")
+            
+        log("Bot exited gracefully. Goodbye!", "INFO")
 
 if __name__ == "__main__":
     main()
