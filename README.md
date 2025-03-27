@@ -5,7 +5,7 @@ Simple IRC Bot made with Python.
 
 ## Features
 - ✅ Scheduled messages
-- 🚀 OpenAI
+- 🚀 OpenAI - Responds using GPT-4o-mini (or others)
 - 🔥 Weather
 - 🔥 Statistics for words etc.
 
@@ -19,16 +19,32 @@ pip install openai
 pip install dotenv
 ```
 ```bash
-Options to run in:
-sudo apt install screen
-sudo apt install tmux
+.env file:
+# API Keys
+# Replace these placeholders with your actual API keys
+WEATHER_API_KEY = ""
+ELECTRICITY_API_KEY = ""
+OPENAI_API_KEY = ""
+YOUTUBE_API_KEY = ""
+CHANNEL_KEY_53 = ""
+
+# Server Configurations
+# Format: SERVERx_HOST, SERVERx_PORT, SERVERx_CHANNELS, SERVERx_KEYS
+# Where x is a unique identifier for each server
+
+# Server 1
+SERVER1_HOST=irc.server.ip
+SERVER1_PORT=6667
+SERVER1_CHANNELS="#channel1,channel2"
+SERVER1_KEYS="channel1key"
 ```
 
 ## Running simple
 ```bash
-python3 main.py
+Options to run in: Screen, Tmux
 screen python3 main.py
-tmux python3 main.py
+tmux
+python3 main.py
 ```
 
 ## run
