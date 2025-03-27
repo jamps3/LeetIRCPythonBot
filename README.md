@@ -1,15 +1,21 @@
 # LeetIRCPythonBot
 
 ## Description
-Simple IRC Bot made with Python.
+Simple IRC Bot made with Python and as few libraries as possible.
 
 ## Features
-- ✅ Scheduled messages
 - 🚀 OpenAI - Responds using GPT-4o-mini (or others)
 - 🔥 Weather
-- 🔥 Statistics for words etc.
+- ⚡ Electricity prices in Finland for today/tomorrow
+- ✅ Scheduled messages
+- 🔥 Statistics for words and special words
+- ✅ Multiple channels support, multiple servers support in progress
+- 📺 Youtube search
+- 🔥 Keeping track of channel notifications
 
 ## Installation
+Not needed!
+Run file has all this included. But here it is anyway (might get outdated if the libraries update):
 ```bash
 python3 -m venv venv
 source venv/bin/activate
@@ -17,8 +23,10 @@ pip install requests
 pip install bs4
 pip install openai
 pip install dotenv
+pip install google-api-client
 ```
 ## .env file for configuration:
+You need this for all the APIs to work and for the server and channel information.
 ```bash
 # API Keys
 # Replace these placeholders with your actual API keys
@@ -39,18 +47,28 @@ SERVER1_CHANNELS="#channel1,channel2"
 SERVER1_KEYS="channel1key"
 ```
 
-## Running
-# Simple
+# Running
+## Simple
+Options to run in: Screen, Tmux. I now prefer Tmux as it has more capabilities.
 ```bash
-Options to run in: Screen, Tmux
 screen python3 main.py
-tmux
+tmux new-session -d -s bot
 python3 main.py
 ```
 ## using run file for Linux
 ```bash
 ./run
 ```
+What does it do?
+
+✅Creates or activates virtual environment
+
+✅Starts new tmux session with the name "bot"
+
+✅Installs requirements with pip
+
+✅Starts the bot with python3 main.py
+
 ## run:
 ```bash
 #!/bin/bash
