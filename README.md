@@ -39,7 +39,7 @@ SERVER1_CHANNELS="#channel1,channel2"
 SERVER1_KEYS="channel1key"
 ```
 
-## Running simple
+## Running
 ```bash
 Options to run in: Screen, Tmux
 screen python3 main.py
