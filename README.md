@@ -18,8 +18,8 @@ pip install bs4
 pip install openai
 pip install dotenv
 ```
+## .env file for configuration:
 ```bash
-.env file:
 # API Keys
 # Replace these placeholders with your actual API keys
 WEATHER_API_KEY = ""
