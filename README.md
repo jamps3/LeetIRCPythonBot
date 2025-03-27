@@ -40,14 +40,18 @@ SERVER1_KEYS="channel1key"
 ```
 
 ## Running
+# Simple
 ```bash
 Options to run in: Screen, Tmux
 screen python3 main.py
 tmux
 python3 main.py
 ```
-
-## run
+## using run file for Linux
+```bash
+./run
+```
+## run:
 ```bash
 #!/bin/bash
 
