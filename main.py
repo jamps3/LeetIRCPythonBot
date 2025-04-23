@@ -1228,17 +1228,24 @@ def fetch_title(irc=None, channel=None, text=""):
                 title = get_pdf_title(url)
                 title = title if title else "(ei otsikkoa)"
                 log(f"PDF-otsikko: {title}")  # Debug-tulostus
+            elif url.lower().endswith(".iso") or url.lower().endswith(".mp3"):
+                log(".iso tai .mp3 found, skipping!")
             else:
                 response = requests.get(url, headers=headers, timeout=5)
                 response.raise_for_status()  # Tarkistetaan, ettei tullut HTTP-virhettä
-                
+
                 try:
                     soup = BeautifulSoup(response.text, "html.parser")
                 except Exception as e:
                     log(f"Error while parsing HTML: {e}", "ERROR")
                     continue
                 
-                title = soup.title.string.strip() if soup.title else None
+                title = None
+                if soup and soup.title and soup.title.string:
+                    try:
+                        title = soup.title.string.strip()
+                    except Exception as e:
+                        log(f"Error while extracting title: {e}", "ERROR")
 
                 # Jos title puuttuu, haetaan meta description
                 if not title:
