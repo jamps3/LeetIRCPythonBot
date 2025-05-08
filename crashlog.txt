@@ -1,0 +1,69 @@
+[2025-05-08 21:43:42.131470516] [INFO] MOTD complete, joining channels...
+[2025-05-08 21:43:42.131545892] [INFO] Joined channel #joensuutest (no key)
+[2025-05-08 21:43:42.132661926] [SERVER] :- ----------------------------------------------------------
+[2025-05-08 21:43:42.133588642] [SERVER] :irc.atw-inter.net 372 jL3b :- ] We scan for open proxies on connect. If you do not wish
+[2025-05-08 21:43:42.133610491] [SERVER] :irc.atw-inter.net 372 jL3b :-   to be scanned, please do not connect to this server.
+[2025-05-08 21:43:42.133620521] [SERVER] :irc.atw-inter.net 372 jL3b :-
+[2025-05-08 21:43:42.133629500] [SERVER] :irc.atw-inter.net 372 jL3b :- ] IRCnet provides no nick/channel registration services.
+[2025-05-08 21:43:42.133640013] [SERVER] :irc.atw-inter.net 372 jL3b :-
+[2025-05-08 21:43:42.133651253] [SERVER] :irc.atw-inter.net 372 jL3b :- ] This server provides EXPERIMENTAL ip cloaks for users.
+[2025-05-08 21:43:42.133662071] [SERVER] :irc.atw-inter.net 372 jL3b :-   Read more and sign up at https://www.cloak.ircnet.io
+[2025-05-08 21:43:42.133674147] [SERVER] :irc.atw-inter.net 372 jL3b :-
+[2025-05-08 21:43:42.133685610] [SERVER] :irc.atw-inter.net 372 jL3b :- ] To avoid opless channels, you are encouraged to use the
+[2025-05-08 21:43:42.133698046] [SERVER] :irc.atw-inter.net 372 jL3b :-   channel reop mode +R (otherwise unfixable).
+[2025-05-08 21:43:42.133708300] [SERVER] :irc.atw-inter.net 372 jL3b :-
+[2025-05-08 21:43:42.133718852] [SERVER] :irc.atw-inter.net 372 jL3b :- ] Usage of /list for listing all channels is deprecated.
+[2025-05-08 21:43:42.133726245] [SERVER] :irc.atw-inter.net 372 jL3b :-   Please use "/squery alis help" instead. You can also
+[2025-05-08 21:43:42.133733666] [SERVER] :irc.atw-inter.net 372 jL3b :-   use http://www.ircnet.info to list and search channels.
+[2025-05-08 21:43:42.133741479] [SERVER] :irc.atw-inter.net 372 jL3b :-
+[2025-05-08 21:43:42.133748585] [SERVER] :irc.atw-inter.net 372 jL3b :- ] Rules:
+[2025-05-08 21:43:42.133756365] [SERVER] :irc.atw-inter.net 372 jL3b :-   * We reserve the right to deny service to anyone at any
+[2025-05-08 21:43:42.133767572] [SERVER] :irc.atw-inter.net 372 jL3b :-     time and for any reason.
+[2025-05-08 21:43:42.133778667] [SERVER] :irc.atw-inter.net 372 jL3b :-   * Mass advertising/link spam is not allowed.
+[2025-05-08 21:43:42.133790732] [SERVER] :irc.atw-inter.net 372 jL3b :-   * Clients connected for the purpose of stealing nicks
+[2025-05-08 21:43:42.133803992] [SERVER] :irc.atw-inter.net 372 jL3b :-     are not allowed.
+[2025-05-08 21:43:42.133816050] [SERVER] :irc.atw-inter.net 372 jL3b :-   * General limits (request changes via /admin):
+[2025-05-08 21:43:42.133835679] [SERVER] :irc.atw-inter.net 372 jL3b :-       3 clients per host   (without ident)
+[2025-05-08 21:43:42.133848583] [SERVER] :irc.atw-inter.net 372 jL3b :-       3 clients per person (with ident)
+[2025-05-08 21:43:42.133861689] [SERVER] :irc.atw-inter.net 372 jL3b :-      20 clients per /24    (IPv4)
+[2025-05-08 21:43:42.133874170] [SERVER] :irc.atw-inter.net 372 jL3b :-      10 clients per /48    (IPv6)
+[2025-05-08 21:43:42.133886422] [SERVER] :irc.atw-inter.net 372 jL3b :-   * If your IP range offers services to other people
+[2025-05-08 21:43:42.133898663] [SERVER] :irc.atw-inter.net 372 jL3b :-     (e.g., shell providers) you must let us know.
+[2025-05-08 21:43:42.133910988] [SERVER] :irc.atw-inter.net 372 jL3b :-   * Limits and rules for shell providers:
+[2025-05-08 21:43:42.133924468] [SERVER] :irc.atw-inter.net 372 jL3b :-     * 3 clients per person
+[2025-05-08 21:43:42.133936314] [SERVER] :irc.atw-inter.net 372 jL3b :-     * identd is required and no ident spoofing, no
+[2025-05-08 21:43:42.133945484] [SERVER] :irc.atw-inter.net 372 jL3b :-       changing an ident after a ban, and no giving a
+[2025-05-08 21:43:42.133952432] [SERVER] :irc.atw-inter.net 372 jL3b :-       person multiple usernames
+[2025-05-08 21:43:42.133959156] [SERVER] :irc.atw-inter.net 372 jL3b :-   * Breaking these rules will result in a ban from ALL
+[2025-05-08 21:43:42.133966195] [SERVER] :irc.atw-inter.net 372 jL3b :-     open servers.
+[2025-05-08 21:43:42.133977770] [SERVER] :irc.atw-inter.net 372 jL3b :-
+[2025-05-08 21:43:42.133989904] [SERVER] :irc.atw-inter.net 372 jL3b :- ] Links:
+[2025-05-08 21:43:42.134001001] [SERVER] :irc.atw-inter.net 372 jL3b :-   * Server and channel lists: http://www.ircnet.info
+[2025-05-08 21:43:42.134011308] [SERVER] :irc.atw-inter.net 372 jL3b :-   * Random open server (dns round-robins):
+[2025-05-08 21:43:42.134023437] [SERVER] :irc.atw-inter.net 372 jL3b :-     - open.ircnet.io       All open servers
+[2025-05-08 21:43:42.134048972] [SERVER] :irc.atw-inter.net 372 jL3b :-     - ssl.ircnet.io        With SSL/TLS support
+[2025-05-08 21:43:42.134062081] [SERVER] :irc.atw-inter.net 372 jL3b :-     - irc.cloak.ircnet.io  With cloak support
+[2025-05-08 21:43:42.134069999] [SERVER] :irc.atw-inter.net 372 jL3b :-     - ssl.cloak.ircnet.io  With cloak and SSL/TLS support
+[2025-05-08 21:43:42.134076739] [SERVER] :irc.atw-inter.net 372 jL3b :-   * Webchat available at:
+[2025-05-08 21:43:42.134084145] [SERVER] :irc.atw-inter.net 372 jL3b :-     - https://webchat.ircnet.net  qwebirc
+[2025-05-08 21:43:42.134096515] [SERVER] :irc.atw-inter.net 372 jL3b :-     - https://ircnet.chat/        The Lounge
+[2025-05-08 21:43:42.134109912] [SERVER] :irc.atw-inter.net 372 jL3b :-
+[2025-05-08 21:43:42.134118330] [SERVER] :irc.atw-inter.net 372 jL3b :- ] If
+[2025-05-08 21:43:42.165112710] [SERVER] you require any further information, join #ircnet
+[2025-05-08 21:43:42.165201965] [SERVER] :irc.atw-inter.net 372 jL3b :-
+[2025-05-08 21:43:42.165235127] [SERVER] :irc.atw-inter.net 372 jL3b :- ----------------------------------------------------------
+[2025-05-08 21:43:42.165259414] [SERVER] :irc.atw-inter.net 372 jL3b :-              IRC is a privilege, not a right!
+[2025-05-08 21:43:42.165281427] [SERVER] :irc.atw-inter.net 372 jL3b :-        Respect others and enjoy your stay on IRCnet.
+[2025-05-08 21:43:42.165302248] [SERVER] :irc.atw-inter.net 372 jL3b :- ----------------------------------------------------------
+[2025-05-08 21:43:42.165324386] [SERVER] :irc.atw-inter.net 376 jL3b :End of MOTD command.
+[2025-05-08 21:43:42.165344272] [SERVER] :jL3b MODE jL3b :+i
+[2025-05-08 21:43:42.334663873] [SERVER] :jL3b!~jL3b@jamps.enia.net JOIN :#joensuutest
+[2025-05-08 21:43:42.334739678] [SERVER] :irc.atw-inter.net 353 jL3b = #joensuutest :jL3b @jamps
+[2025-05-08 21:43:42.334760621] [SERVER] :irc.atw-inter.net 366 jL3b #joensuutest :End of NAMES list.
+[2025-05-08 21:44:04.863619066] [SERVER] :jamps!~jamps@jamps.enia.net PRIVMSG #joensuutest :!s
+[2025-05-08 21:44:04.865924047] [MSG] Channel message in #joensuutest from jamps: !s
+[2025-05-08 21:44:04.931598565] [MSG] Message sent to #joensuutest: 🍺 Joensuu, FI: Taivas on selkeä, 5.27°C (3.62 🌡️°C), 💦 60%, 🍃 2.06 m/s, 👁  10.0 km, ⚖️ 1017 hPa 🟢, ☁️ 0%. 🌄04:22 - 21:32🌅.
+[2025-05-08 21:44:07.408899156] [SERVER] :jamps!~jamps@jamps.enia.net PRIVMSG #joensuutest :https://www.youtube.com/shorts/DaJJz4aWBRo?feature=share
+[2025-05-08 21:44:07.409122526] [MSG] Channel message in #joensuutest from jamps: https://www.youtube.com/shorts/DaJJz4aWBRo?feature=share
+[2025-05-08 21:44:07.410722598] [INFO] Shutting down...
+[2025-05-08 21:44:07.457638574] [INFO] Bot exited gracefully. Goodbye!

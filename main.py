@@ -53,6 +53,8 @@ from googleapiclient.discovery import build  # Youtube API
 import signal
 import html  # Title quote removal
 
+# Log level
+LOG_LEVEL = "INFO"  # oletus
 # File to store conversation history
 HISTORY_FILE = "conversation_history.json"
 # File to store ekavika winners
@@ -93,10 +95,13 @@ if sys.gettrace():
     channels = [("#joensuutest", "")]
 else:
     bot_name = "jL3b"
-    channels = [
+    """ channels = [
         ("#53", os.getenv("CHANNEL_KEY_53", "")),
         ("#joensuu", ""),
         ("#west", ""),
+    ] """
+    channels = [
+        ("#joensuutest", ""),
     ]
 QUIT_MESSAGE = "Nähdään!"
 
@@ -126,49 +131,82 @@ def search_youtube(query, max_results=1):
     result = search_youtube("dQw4w9WgXcQ")
     print(result)
     """
-    # Tarkistetaan onko query todennäköisesti video-ID
-    is_video_id = re.fullmatch(r"[a-zA-Z0-9_-]{11}", query)
+    try:
+        if query is None:
+            log("Received query is None", "ERROR")
+            return "Error: Received query is None."
 
-    # Tarkistetaan onko query YouTube Shorts -linkki
-    if not is_video_id:
-        short_match = re.match(
-            r"https://www\.youtube\.com/shorts/([a-zA-Z0-9_-]{11})", query
-        )
-        if short_match:
-            query = short_match.group(1)
-            is_video_id = True
+        log(f"Received query: {query}", "DEBUG")
 
-    if is_video_id:  # Hae videon tiedot ID:llä
-        request = youtube.videos().list(id=query, part="snippet")
-        response = request.execute()
+        # Tarkistetaan onko query todennäköisesti video-ID
+        is_video_id = re.fullmatch(r"[a-zA-Z0-9_-]{11}", query)
+        log(f"Is query a valid video ID? {is_video_id}", "DEBUG")
 
-        items = response.get("items")
-        if not items:
-            return "No video found with the given ID."
+        # Tarkistetaan onko query YouTube Shorts -linkki
+        if not is_video_id:
+            short_match = re.match(
+                r"https://www\.youtube\.com/shorts/([a-zA-Z0-9_-]{11})", query
+            )
+            if short_match:
+                query = short_match.group(1)
+                is_video_id = True
+                log(
+                    f"Detected YouTube Shorts link, extracted video ID: {query}",
+                    "DEBUG",
+                )
+            else:
+                log(f"Query is not a valid YouTube Shorts link: {query}", "ERROR")
 
-        item = items[0]
-        video_title = html.unescape(item["snippet"]["title"]).replace("  ", " ")
-        video_url = f"https://www.youtube.com/watch?v={query}"
-        return f"'{video_title}' URL: {video_url}"
-    else:  # Tekstihaku
-        request = youtube.search().list(
-            q=query,
-            part="snippet",
-            maxResults=max_results,
-            type="video",  # This will ensure only videos are returned
-        )
-        response = request.execute()
+        log(f"After processing Shorts link, query is: {query}", "DEBUG")
 
-    items = response.get("items")
-    if not items:
-        return "No results found."
+        if query is None:
+            log("Query is None after Shorts extraction", "ERROR")
+            return "Error: Query is None after Shorts extraction."
 
-    item = items[0]
-    video_title = html.unescape(item["snippet"]["title"]).replace("  ", " ")
-    video_id = item["id"]["videoId"]
-    video_url = f"https://www.youtube.com/watch?v={video_id}"
-    log(f"Found video: {video_title} ({video_url})", "DEBUG")
-    return f"'{video_title}' URL: {video_url}"
+        if is_video_id:  # Hae videon tiedot ID:llä
+            log(f"Searching video by ID: {query}", "DEBUG")
+            request = youtube.videos().list(id=query, part="snippet")
+            response = request.execute()
+
+            log(f"Response received: {response}", "DEBUG")
+
+            items = response.get("items", [])
+            if not items:
+                log(f"No video found with the given ID: {query}", "WARNING")
+                return "No video found with the given ID."
+
+            item = items[0]
+            video_title = html.unescape(item["snippet"]["title"]).replace("  ", " ")
+            video_url = f"https://www.youtube.com/watch?v={query}"
+            log(f"Found video: {video_title} ({video_url})", "DEBUG")
+            return f"'{video_title}' URL: {video_url}"
+        else:  # Tekstihaku
+            log(f"Searching video by query: {query}", "DEBUG")
+            request = youtube.search().list(
+                q=query,
+                part="snippet",
+                maxResults=max_results,
+                type="video",  # This will ensure only videos are returned
+            )
+            response = request.execute()
+
+            log(f"Response received: {response}", "DEBUG")
+
+            items = response.get("items", [])
+            if not items:
+                log(f"No results found for query: {query}", "WARNING")
+                return "No results found."
+
+            item = items[0]
+            video_title = html.unescape(item["snippet"]["title"]).replace("  ", " ")
+            video_id = item["id"]["videoId"]
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+            log(f"Found video: {video_title} ({video_url})", "DEBUG")
+            return f"'{video_title}' URL: {video_url}"
+
+    except Exception as e:
+        log(f"An error occurred while searching for YouTube video: {e}", "ERROR")
+        return f"An error occurred: {e}"
 
 
 def load_conversation_history():
@@ -302,7 +340,7 @@ def login(irc, writer, channels, show_api_keys=False):
 
                 for line in response.split("\r\n"):
                     if line:
-                        log(f"MOTD: {line}", "DEBUG")
+                        log(f"MOTD: {line}", "SERVER")
 
                     # If server says "Please wait while we process your connection", don't disconnect yet
                     if " 020 " in line:
@@ -358,7 +396,8 @@ def login(irc, writer, channels, show_api_keys=False):
 
 
 # Main loop to read messages from IRC
-def read(irc, server, port, stop_event, reconnect_delay=5):
+def read(irc, server, port, stop_event, reconnect_delay=RECONNECT_DELAY):
+    log("Starting read loop...", "DEBUG")
     global last_ping, latency_start
 
     try:
@@ -366,25 +405,38 @@ def read(irc, server, port, stop_event, reconnect_delay=5):
             try:
                 response = irc.recv(4096).decode("utf-8", errors="ignore")
                 if not response:
+                    log(
+                        "Received empty data, server may have closed the connection. Let's still keep listening.",
+                        "ERROR",
+                    )
                     continue  # If no response, keep listening
             except socket.timeout:
+                log("Socket timeout. Let's continue.", "ERROR")
                 continue  # Socket timeout occurred, just continue the loop
 
             for line in response.strip().split("\r\n"):  # Handle multiple messages
                 log(line.strip(), "SERVER")
 
-                if line.startswith("PING"):  # Handle PING more efficiently
+                if line.startswith("PING"):  # Handle PING
                     last_ping = time.time()
                     ping_value = line.split(":", 1)[1].strip()
                     irc.sendall(f"PONG :{ping_value}\r\n".encode("utf-8"))
-                    log(f"Sent PONG response to {ping_value}")
+                    log(f"Sent PONG response to {ping_value}", "DEBUG")
 
-                process_message(irc, line)  # Process each message separately
+                try:
+                    process_message(irc, line)  # Process each message separately
+                except Exception as e:
+                    log(f"Error while processing message: {e}", "ERROR")
 
     except KeyboardInterrupt:
+        log("Keyboard interrupt received. Exiting...", "INFO")
         stop_event.set()  # Notify all threads to stop without logging
 
+    except Exception as e:
+        log(f"Error in read(): {e}", "ERROR")
+
     finally:
+        log("Shutting down IRC connection...", "INFO")
         try:
             irc.shutdown(socket.SHUT_RDWR)
             irc.close()
@@ -1503,12 +1555,6 @@ def send_electricity_price(irc=None, channel=None, text=None):
     # output_message(electricity_info_tomorrow, irc, channel)
 
 
-def extract_youtube_id(url):
-    pattern = r"(?:v=|\/)([0-9A-Za-z_-]{11})(?:\&|\/|$)"
-    match = re.search(pattern, url)
-    return match.group(1) if match else None
-
-
 def fetch_title(irc=None, target=None, text=""):
     # log(f"Syöte: {text}", "DEBUG")  # Logataan koko syöte
     global last_title  # Viimeisin haettu otsikko
@@ -1547,11 +1593,46 @@ def fetch_title(irc=None, target=None, text=""):
             url = "https://" + url
             log(f"Korjattu URL: {url}", "DEBUG")  # Debug: korjattu URL
 
-        if "youtube.com" in url:
-            video_id = extract_youtube_id(url)
-            result = search_youtube(video_id)
+        if "youtube.com" in url or "youtu.be" in url:
+            video_id = None
+
+            # Kokeillaan ensin shorts-linkkiä
+            shorts_match = re.search(r"youtube\.com/shorts/([a-zA-Z0-9_-]{11})", url)
+            if shorts_match:
+                video_id = shorts_match.group(1)
+                log(f"Detected YouTube Shorts URL. Video ID: {video_id}", "DEBUG")
+
+            # Kokeillaan normaalia youtube.com/watch?v=... tai /embed/... ym.
+            if not video_id:
+                standard_match = re.search(
+                    r"(?:v=|\/embed\/|\/watch\/|\/)([a-zA-Z0-9_-]{11})(?:\W|$)", url
+                )
+                if standard_match:
+                    video_id = standard_match.group(1)
+                    log(f"Detected standard YouTube URL. Video ID: {video_id}", "DEBUG")
+
+            # Kokeillaan youtu.be-lyhytlinkkiä
+            if not video_id:
+                short_match = re.search(r"youtu\.be/([a-zA-Z0-9_-]{11})", url)
+                if short_match:
+                    video_id = short_match.group(1)
+                    log(f"Detected youtu.be short link. Video ID: {video_id}", "DEBUG")
+
+            # Käytetään ID:tä, jos löytyi — muuten haetaan tekstillä koko url
+            query = video_id if video_id else url
+            if not query:
+                log(
+                    f"Could not extract video ID or use URL as query from: {url}",
+                    "ERROR",
+                )
+                output_message("Error: Could not parse YouTube link.", irc, target)
+                continue
+
+            result = search_youtube(query)
             if result and result != "No results found.":
                 output_message(result, irc, target)
+            else:
+                output_message("No video found for given link or query.", irc, target)
             continue
 
         if url.lower().endswith((".iso", ".mp3")):
@@ -1759,13 +1840,10 @@ def log(message, level="INFO"):
         log("Virhe tapahtui!", "ERROR")
         log("Debug-viesti", "DEBUG")
     """
-    if level == "DEBUG":
-        if sys.gettrace():
-            timestamp = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}]"  # Nanosekunnit
-            print(f"{timestamp} [{level.upper()}] {message}")
-    else:
-        timestamp = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}]"  # Nanosekunnit
-        print(f"{timestamp} [{level.upper()}] {message}")
+    levels = ["INFO", "SERVER", "MSG", "ERROR", "WARNING", "INFO", "DEBUG"]
+    if levels.index(level) <= levels.index(LOG_LEVEL):
+        timestamp = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}"  # Nanosekunnit
+        print(f"[{timestamp}] [{level}] {message}")
 
 
 def euribor(irc, channel):
@@ -1813,9 +1891,19 @@ def euribor(irc, channel):
 
 def main():
     # Parse command line arguments
+    global LOG_LEVEL
     parser = argparse.ArgumentParser(description="IRC Bot with API key handling")
     parser.add_argument("-api", action="store_true", help="Show API key values in logs")
+    parser.add_argument(
+        "-l",
+        "--loglevel",
+        choices=["ERROR", "WARNING", "INFO", "DEBUG"],
+        default="INFO",
+        help="Set the logging level (default: INFO)",
+    )
     args = parser.parse_args()
+
+    LOG_LEVEL = args.loglevel
 
     # API visibility preference will be passed to login()
 
@@ -1879,27 +1967,29 @@ def main():
         pass  # Shutdown message will be handled in finally block
 
     finally:
-        # Clean shutdown procedures
         log("Shutting down...", "INFO")  # Centralized shutdown message
-        stop_event.set()  # Signal all threads to terminate
-
-        # Wait for threads to finish (with timeout)
-        for thread in threads:
-            if thread.is_alive():
-                thread.join(timeout=1.0)
-
         # Save data and close socket
         try:
             kraks = load()  # Load kraks data before saving
             save(kraks)  # Pass the loaded kraks data to save()
+            log(f"IRC? : {irc}", "DEBUG")
             if irc:
                 try:
+                    # Clean shutdown procedures
+                    log("Saving data...", "DEBUG")  # Debug message
                     writer.sendall(f"QUIT :{QUIT_MESSAGE}\r\n".encode("utf-8"))
                     time.sleep(1)  # Allow time for the message to send
                     irc.shutdown(socket.SHUT_RDWR)
+                    stop_event.set()  # Signal all threads to terminate
+
+                    # Wait for threads to finish (with timeout)
+                    for thread in threads:
+                        if thread.is_alive():
+                            thread.join(timeout=1.0)
                 except:
                     pass
                 irc.close()
+            log("Cleanup complete.", "DEBUG")
             log("Bot exited gracefully. Goodbye!", "INFO")
             sys.exit(0)
         except Exception as e:
