@@ -126,10 +126,7 @@ def search_youtube(query, max_results=1):
     """
     Example usage:
     result = search_youtube("Python tutorial")
-    print(result)
-
     result = search_youtube("dQw4w9WgXcQ")
-    print(result)
     """
     try:
         if query is None:
@@ -651,7 +648,7 @@ def listen_for_commands(stop_event):
                 log(f"Sending text to OpenAI: {user_input}", "INFO")
                 response_parts = chat_with_gpt(user_input)
                 for part in response_parts:
-                    print(f"Bot: {part}")
+                    log(f"Bot: {part}", "MSG")
     except (EOFError, KeyboardInterrupt):
         stop_event.set()
 
@@ -929,24 +926,26 @@ def process_message(irc, message):
                         if rate.attrib.get("name") == "12 month (act/360)":
                             euribor_12m = rate.find("./ns:intr", namespaces=ns)
                             if euribor_12m is not None:
-                                print(
-                                    f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%"
+                                log(
+                                    f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%",
+                                    "DEBUG",
                                 )
-                                send_message(
+                                notice_message(
                                     irc,
                                     target,
                                     f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%",
                                 )
                             else:
-                                print("Interest rate value not found.")
+                                log("Interest rate value not found.", "ERROR")
                             break
                     else:
-                        print("12-month Euribor rate not found.")
+                        log("12-month Euribor rate not found.", "ERROR")
                 else:
-                    print("No period data found in XML.")
+                    log("No period data found in XML.", "ERROR")
             else:
-                print(
-                    f"Failed to retrieve XML data. HTTP Status Code: {response.status_code}"
+                log(
+                    f"Failed to retrieve XML data. HTTP Status Code: {response.status_code}",
+                    "ERROR",
                 )
 
         # !latencycheck - Handle latency check response
@@ -975,7 +974,7 @@ def process_message(irc, message):
             if irc:
                 notice_message(message, irc, target)
             else:
-                print(message)
+                log(message, "MSG")
 
         # Show top eka and vika winners
         elif text.startswith("!ekavika"):
@@ -1724,7 +1723,7 @@ def get_pdf_title(url):
         return match.group(1) if match else None
 
     except requests.RequestException as e:
-        print(f"Error fetching PDF: {e}", "ERROR")
+        log(f"Error fetching PDF: {e}", "ERROR")
         return None
 
 
@@ -1816,7 +1815,7 @@ def notice_message(message, irc=None, target=None):
 
     Args:
         message (str): The message to output
-        irc (socket, optional): IRC socket object. If None, prints to console
+        irc (socket, optional): IRC socket object. If None, outputs to console
         target (str, optional): IRC nick/channel to send to.
     """
     if irc and target:
@@ -1828,7 +1827,7 @@ def notice_message(message, irc=None, target=None):
         irc.sendall(f"{message}\r\n".encode("utf-8"))
         log(f"Command '{message}' sent.")
     else:
-        print(message)  # Print to console
+        log(message, "MSG")  # Output to console
 
 
 def log(message, level="INFO"):
@@ -1850,7 +1849,7 @@ def log(message, level="INFO"):
         print(f"[{timestamp}] [{level}] {message}")
 
 
-def euribor(irc, channel):
+def euribor(irc, target):
     # XML data URL from Suomen Pankki
     url = "https://reports.suomenpankki.fi/WebForms/ReportViewerPage.aspx?report=/tilastot/markkina-_ja_hallinnolliset_korot/euribor_korot_today_xml_en&output=xml"
 
@@ -1874,23 +1873,27 @@ def euribor(irc, channel):
                 if rate.attrib.get("name") == "12 month (act/360)":
                     euribor_12m = rate.find("./ns:intr", namespaces=ns)
                     if euribor_12m is not None:
-                        print(
-                            f"Yesterday's 12-month Euribor rate: {euribor_12m.attrib['value']}%"
+                        log(
+                            f"Yesterday's 12-month Euribor rate: {euribor_12m.attrib['value']}%",
+                            "DEBUG",
                         )
-                        send_message(
+                        notice_message(
                             irc,
-                            channel,
+                            target,
                             f"Yesterday's 12-month Euribor rate: {euribor_12m.attrib['value']}%",
                         )
                     else:
-                        print("Interest rate value not found.")
+                        log("Interest rate value not found.", "ERROR")
                     break
             else:
-                print("12-month Euribor rate not found.")
+                log("12-month Euribor rate not found.", "ERROR")
         else:
-            print("No period data found in XML.")
+            log("No period data found in XML.", "ERROR")
     else:
-        print(f"Failed to retrieve XML data. HTTP Status Code: {response.status_code}")
+        log(
+            f"Failed to retrieve XML data. HTTP Status Code: {response.status_code}",
+            "ERROR",
+        )
 
 
 def main():
