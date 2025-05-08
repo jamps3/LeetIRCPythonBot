@@ -874,8 +874,7 @@ def process_message(irc, message):
                 for word, count in word_counts.items()
                 if count > 0
             )
-
-            send_message(irc, target, f"{total_message}, {details}")
+            notice_message(f"{total_message}, {details}", irc, target)
 
         elif text.startswith("!clearkraks"):
             kraks = load()
@@ -931,9 +930,9 @@ def process_message(irc, message):
                                     "DEBUG",
                                 )
                                 notice_message(
+                                    f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%",
                                     irc,
                                     target,
-                                    f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%",
                                 )
                             else:
                                 log("Interest rate value not found.", "ERROR")
@@ -983,7 +982,9 @@ def process_message(irc, message):
                     ekavika_data = json.load(f)
             except (FileNotFoundError, json.JSONDecodeError):
                 log("Ei vielä yhtään eka- tai vika-voittoja tallennettuna.", "WARNING")
-                notice_message("Ei vielä yhtään eka- tai vika-voittoja tallennettuna.")
+                notice_message(
+                    "Ei vielä yhtään eka- tai vika-voittoja tallennettuna.", irc, target
+                )
                 return
 
             # Find top winners
@@ -1000,12 +1001,10 @@ def process_message(irc, message):
             # Generate response message
             if top_eka and top_vika:
                 response = f"📢 Eniten 𝖊𝖐𝖆-voittoja: {top_eka} ({eka_count} kertaa), eniten 𝙫𝙞𝙠𝙖-voittoja: {top_vika} ({vika_count} kertaa)"
-                notice_message(response)
-                send_message(irc, target, response)
+                notice_message(response, irc, target)
             else:
                 response = "Ei vielä tarpeeksi dataa eka- ja vika-voittajista."
-                notice_message(response)
-                send_message(irc, target, response)
+                notice_message(response, irc, target)
 
         # !s - Kerro sää
         elif text.startswith("!s"):
@@ -1428,7 +1427,7 @@ def send_weather(irc=None, target=None, location="Joensuu"):
         log(weather_info, "ERROR")
 
 
-def send_electricity_price(irc=None, channel=None, text=None):
+def send_electricity_price(irc=None, target=None, text=None):
     log(f"Syöte: {text}", "DEBUG")  # Tulostetaan koko syöte
     log(f"Syötteen pituus: {len(text)}", "DEBUG")  # Tulostetaan syötteen pituus
 
@@ -1458,12 +1457,12 @@ def send_electricity_price(irc=None, channel=None, text=None):
         else:
             error_message = "Virheellinen komento! Käytä: !sahko [huomenna] <tunti>"
             log(error_message, "ERROR")
-            send_message(irc, channel, error_message)
+            send_message(irc, target, error_message)
             return
     else:
         error_message = "Virheellinen komento! Käytä: !sahko [huomenna] <tunti>"
         log(error_message)
-        send_message(irc, channel, error_message)
+        send_message(irc, target, error_message)
         return
 
     # Muodostetaan API-pyyntö oikealle päivälle
@@ -1554,9 +1553,8 @@ def send_electricity_price(irc=None, channel=None, text=None):
 
     # Lähetetään viesti IRC-kanavalle
     notice_message(
-        electricity_info_today + ", " + electricity_info_tomorrow, irc, channel
+        electricity_info_today + ", " + electricity_info_tomorrow, irc, target
     )
-    # notice_message(electricity_info_tomorrow, irc, channel)
 
 
 def fetch_title(irc=None, target=None, text=""):
@@ -1878,9 +1876,9 @@ def euribor(irc, target):
                             "DEBUG",
                         )
                         notice_message(
+                            f"Yesterday's 12-month Euribor rate: {euribor_12m.attrib['value']}%",
                             irc,
                             target,
-                            f"Yesterday's 12-month Euribor rate: {euribor_12m.attrib['value']}%",
                         )
                     else:
                         log("Interest rate value not found.", "ERROR")
