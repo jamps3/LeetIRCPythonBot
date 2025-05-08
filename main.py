@@ -95,14 +95,14 @@ if sys.gettrace():
     channels = [("#joensuutest", "")]
 else:
     bot_name = "jL3b"
-    """ channels = [
+    channels = [
         ("#53", os.getenv("CHANNEL_KEY_53", "")),
         ("#joensuu", ""),
         ("#west", ""),
-    ] """
-    channels = [
-        ("#joensuutest", ""),
     ]
+    """ channels = [
+        ("#joensuutest", ""),
+    ] """
 QUIT_MESSAGE = "Nähdään!"
 
 last_ping = time.time()
@@ -476,9 +476,14 @@ def listen_for_commands(stop_event):
                     send_electricity_price(None, None, command_parts)
 
                 elif command == "!aika":
-                    notice_message(
-                        f"Nykyinen aika: {datetime.now().isoformat(timespec='microseconds') + '000'}"
+                    now_ns = time.time_ns()
+                    dt = datetime.fromtimestamp(now_ns // 1_000_000_000)
+                    nanoseconds = now_ns % 1_000_000_000
+
+                    formatted_time = (
+                        dt.strftime("%Y-%m-%d %H:%M:%S") + f".{nanoseconds:09d}"
                     )
+                    notice_message(f"Nykyinen aika: {formatted_time}")
 
                 elif command == "!kaiku":
                     notice_message(f"Console: {args}")
@@ -631,7 +636,7 @@ def listen_for_commands(stop_event):
                         if winners_text
                         else "No leet winners recorded yet."
                     )
-                    notice_message(response, irc, target)
+                    notice_message(response)
 
                 elif command.startswith("!url"):  # Handle URL title fetching
                     if args:
@@ -721,7 +726,7 @@ def process_message(irc, message):
 
         # ✅ Prevent bot from responding to itself
         if sender.lower() == bot_name.lower():
-            log("🔄 Ignoring bot's own message to prevent loops.")
+            log("🔄 Ignoring bot's own message to prevent loops.", "DEBUG")
 
             # ❌ Ignore the bot's own latency response completely
             if text.startswith("Latency is ") and "ns" in text:
@@ -762,8 +767,16 @@ def process_message(irc, message):
             update_kraks(kraks, sender, words)
             save(kraks)  # Save updates immediately
 
+        # Output all available commands
+        if text.startswith("!help"):
+            notice_message(
+                "Available commands: !s !sää, !sahko !sähkö, !aika, !kaiku, !sana, !topwords, !leaderboard, !euribor, !leetwinners, !url <url>, !kraks",
+                irc,
+                target,
+            )
+
         # !aika - Kerro nykyinen aika
-        if text.startswith("!aika"):
+        elif text.startswith("!aika"):
             notice_message(f"Nykyinen aika: {datetime.now()}", irc, target)
 
         # !kaiku - Kaiuta teksti
@@ -1457,12 +1470,12 @@ def send_electricity_price(irc=None, target=None, text=None):
         else:
             error_message = "Virheellinen komento! Käytä: !sahko [huomenna] <tunti>"
             log(error_message, "ERROR")
-            send_message(irc, target, error_message)
+            notice_message(error_message, irc, target)
             return
     else:
         error_message = "Virheellinen komento! Käytä: !sahko [huomenna] <tunti>"
         log(error_message)
-        send_message(irc, target, error_message)
+        notice_message(error_message, irc, target)
         return
 
     # Muodostetaan API-pyyntö oikealle päivälle
@@ -1496,7 +1509,7 @@ def send_electricity_price(irc=None, target=None, text=None):
             }
             return prices
         except Exception as e:
-            log(f"Virhe sähkön hintojen haussa: {e}")
+            log(f"Virhe sähkön hintojen haussa: {e}", "ERROR")
             return {}
 
     # Hae tänään ja huomenna hinnat
