@@ -1,772 +1,641 @@
 """
-This module contains message handler callbacks for the IRC bot.
-It includes handlers for different command types and state tracking.
+Message handlers for the IRC bot.
 
-Functions:
-    - output_message: Utility function to send messages to IRC or console
-    - send_message: Send a message to a specified IRC channel
-    - process_message: Main message processing function
-    - send_weather: Fetch and send weather information
-    - send_electricity_price: Fetch and send electricity price information
-    - fetch_title: Fetch and send webpage titles
-    - count_kraks: Track occurrences of drink-related words
-    - chat_with_gpt: Process chat messages with OpenAI
-    - split_message_intelligently: Split messages to fit IRC message size limits
+This module contains functions to process incoming IRC messages,
+handle commands, and manage bot responses for multiple servers.
+All message handling is server-aware to support multi-server connections.
 """
+
 import re
-import time
+import json
+import pickle
 import threading
 import requests
+from datetime import datetime
+import time
+from typing import List, Optional
 import urllib.parse
-import html
-import json
 import os
-import platform
-from datetime import datetime, timedelta
-from bs4 import BeautifulSoup
-from collections import Counter
-import xml.etree.ElementTree as ElementTree
-from io import StringIO
+import traceback
+import logging
 import openai
-from dotenv import load_dotenv
-from googleapiclient.discovery import build  # Youtube API
+from bs4 import BeautifulSoup
+from googleapiclient.discovery import build
+from config import get_api_key
 
-# Load environment variables
-load_dotenv()
-WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
-ELECTRICITY_API_KEY = os.getenv("ELECTRICITY_API_KEY")
-api_key = os.getenv("OPENAI_API_KEY")
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-
-# Initialize OpenAI client
-client = openai.OpenAI(api_key=api_key)
-
-# Initialize YouTube API client
-youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
-
-# File paths for persistent data
-HISTORY_FILE = "conversation_history.json"
-EKAVIKA_FILE = "ekavika.json"
-WORDS_FILE = "kraks_data.pkl"
-
-# All drink words to track
-DRINK_WORDS = {"krak": 0, "kr1k": 0, "kr0k": 0, "narsk": 0, "parsk": 0, "tlup": 0, "marsk": 0, "tsup": 0, "plop": 0}
-
-# Default history with system prompt
-DEFAULT_HISTORY = [
-    {"role": "system", "content": "You are a helpful assistant who knows about Finnish beer culture. You respond in a friendly, conversational manner. If you don't know something, just say so. Keep responses brief."}
-]
-
-# Global variables
+# Global variables (shared across servers, protected by locks)
+DRINK_WORDS = {
+    "krak": 0,
+    "kr1k": 0,
+    "kr0k": 0,
+    "narsk": 0,
+    "parsk": 0,
+    "tlup": 0,
+    "marsk": 0,
+    "tsup": 0,
+    "plop": 0,
+}
 last_title = ""
+WORDS_FILE = "kraks_data.pkl"
+HISTORY_FILE = "conversation_history.json"
 
-def log(message, level="INFO"):
-    """Prints a message to the console with a timestamp and level.
+# Threading locks for shared resources
+kraks_lock = threading.Lock()
+drink_words_lock = threading.Lock()
+last_title_lock = threading.Lock()
+leet_winners_lock = threading.Lock()
+conversation_history_lock = threading.Lock()
 
-    Args:
-        message (str): The message to print.
-        level (str, optional): The message level (INFO, WARNING, ERROR, DEBUG). Default: INFO.
-    
-    Examples:
-        log("Program starting...")
-        log("This is a warning!", "WARNING")
-        log("An error occurred!", "ERROR")
-        log("Debug message", "DEBUG")
-    """
-    import sys
-    if level == "DEBUG":
-        if sys.gettrace():
-            timestamp = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}]"  # Nanoseconds
-            print(f"{timestamp} [{level.upper()}] {message}")
-    else:
-        timestamp = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}]"  # Nanoseconds
-        print(f"{timestamp} [{level.upper()}] {message}")
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def output_message(message, irc=None, channel=None):
-    """
-    Utility function that handles output to both IRC and console.
-    
-    Args:
-        message (str): The message to output
-        irc (socket, optional): IRC socket object. If None, prints to console
-        channel (str, optional): IRC channel to send to. Required if irc is provided
-    """
-    if irc and channel:
-        # Send to IRC
-        irc.sendall(f"NOTICE {channel} :{message}\r\n".encode("utf-8"))
-        log(f"Message sent to {channel}: {message}")
-    elif irc:
-        # Send command to IRC
-        irc.sendall(f"{message}\r\n".encode("utf-8"))
-        log(f"Command '{message}' sent.")
-    else:
-        # Print to console
-        print(f"OpenAI: {message}")
 
-def fetch_title(irc, channel, url):
-    """
-    Fetches and sends the title of a webpage when a URL is posted in the channel.
-    
-    This function handles various content types and encodings, with special handling
-    for YouTube URLs to extract video titles.
-    
-    Args:
-        irc (socket): IRC socket object
-        channel (str): IRC channel to send the title to
-        url (str): URL to fetch the title from
-    """
-    global last_title
-    
-    # Skip URLs that are unlikely to have meaningful titles
-    if any(skip_url in url.lower() for skip_url in ['.jpg', '.jpeg', '.png', '.gif', '.mp4', '.webm']):
-        log(f"Skipping image/video URL: {url}", "DEBUG")
-        return
-    
-    try:
-        log(f"Fetching title for URL: {url}", "DEBUG")
-        
-        # Special handling for YouTube URLs to get more information
-        youtube_pattern = re.compile(r'(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?([a-zA-Z0-9_-]{11})')
-        youtube_match = youtube_pattern.search(url)
-        
-        if youtube_match:
-            video_id = youtube_match.group(1)
-            log(f"YouTube video detected, ID: {video_id}", "DEBUG")
-            
-            try:
-                # Use YouTube API to get detailed information
-                video_response = youtube.videos().list(
-                    part="snippet,contentDetails,statistics",
-                    id=video_id
-                ).execute()
-                
-                if video_response.get("items"):
-                    video = video_response["items"][0]
-                    snippet = video["snippet"]
-                    statistics = video["statistics"]
-                    
-                    title = snippet["title"]
-                    channel_name = snippet["channelTitle"]
-                    view_count = int(statistics.get("viewCount", 0))
-                    like_count = int(statistics.get("likeCount", 0))
-                    
-                    # Format view count with commas
-                    view_count_str = f"{view_count:,}".replace(",", " ")
-                    like_count_str = f"{like_count:,}".replace(",", " ")
-                    
-                    # Create formatted message
-                    youtube_info = f"YouTube: \"{title}\" by {channel_name} | Views: {view_count_str} | Likes: {like_count_str}"
-                    
-                    if youtube_info != last_title:
-                        send_message(irc, channel, youtube_info)
-                        last_title = youtube_info
-                    return
-            except Exception as e:
-                log(f"Error fetching YouTube video info: {str(e)}", "WARNING")
-                # Fall back to regular title extraction if YouTube API fails
-        
-        # Regular title extraction for all other URLs
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Cache-Control': 'max-age=0'
-        }
-        
-        # Use a timeout to prevent hanging
-        response = requests.get(url, headers=headers, timeout=10, stream=True)
-        
-        # Check content type before downloading everything
-        content_type = response.headers.get('Content-Type', '').lower()
-        log(f"Content type: {content_type}", "DEBUG")
-        
-        # Skip binary files and large content
-        if 'text/html' not in content_type and 'application/xhtml+xml' not in content_type:
-            log(f"Skipping non-HTML content: {content_type}", "DEBUG")
-            return
-            
-        # Limit content size to prevent memory issues (100 KB should be enough for most titles)
-        content_bytes = b''
-        for chunk in response.iter_content(chunk_size=4096):
-            content_bytes += chunk
-            if len(content_bytes) > 102400:  # 100 KB
-                break
-                
-        # Try to determine the encoding
-        encoding = response.encoding
-        
-        # If the encoding is None or ISO-8859-1 (often default), try to detect it
-        if not encoding or encoding.lower() == 'iso-8859-1':
-            # Check for charset in meta tags
-            charset_match = re.search(br'<meta[^>]*charset=["\']?([\w-]+)', content_bytes, re.IGNORECASE)
-            if charset_match:
-                encoding = charset_match.group(1).decode('ascii', errors='ignore')
-                log(f"Found encoding in meta tag: {encoding}", "DEBUG")
-        
-        # Default to UTF-8 if detection failed
-        if not encoding or encoding.lower() == 'iso-8859-1':
-            encoding = 'utf-8'
-            
-        # Decode content with the detected encoding
+def log(message: str, level: str = "INFO"):
+    """Log a message with timestamp and level."""
+    timestamp = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}]"
+    print(f"{timestamp} [{level.upper()}] {message}")
+
+
+def save(file_path: str = WORDS_FILE):
+    """Save kraks data to a file with thread safety."""
+    with kraks_lock:
         try:
-            content = content_bytes.decode(encoding, errors='replace')
-        except (UnicodeDecodeError, LookupError):
-            log(f"Decoding failed with {encoding}, falling back to utf-8", "WARNING")
-            content = content_bytes.decode('utf-8', errors='replace')
-            
-        # Use BeautifulSoup to extract the title
-        soup = BeautifulSoup(content, 'html.parser')
-        title_tag = soup.find('title')
-        
-        if title_tag and title_tag.string:
-            title = title_tag.string.strip()
-            
-            # Clean the title by removing excessive whitespace
-            title = re.sub(r'\s+', ' ', title)
-            
-            # HTML unescape to handle entities like &amp;
-            title = html.unescape(title)
-            
-            # Prepend "Title:" to distinguish from regular messages
-            formatted_title = f"Title: {title}"
-            
-            # Only send if the title is different from the last one to avoid spam
-            if formatted_title != last_title:
-                send_message(irc, channel, formatted_title)
-                last_title = formatted_title
-                log(f"Sent title: {title}", "DEBUG")
-        else:
-            log(f"No title found for URL: {url}", "DEBUG")
-            
-    except requests.exceptions.Timeout:
-        log(f"Timeout while fetching URL: {url}", "WARNING")
-    except requests.exceptions.TooManyRedirects:
-        log(f"Too many redirects for URL: {url}", "WARNING")
-    except requests.exceptions.RequestException as e:
-        log(f"Request error for URL {url}: {str(e)}", "WARNING")
-    except Exception as e:
-        log(f"Error fetching title for {url}: {str(e)}", "ERROR")
-        # More detailed error logging for debugging
-        import traceback
-        log(traceback.format_exc(), "ERROR")
-
-def send_message(irc, reply_target, message):
-    """
-    Sends a message to a specified IRC channel.
-    
-    Args:
-        irc (socket): IRC socket object
-        reply_target (str): Channel or user to send the message to
-        message (str): The message content
-    """
-    encoded_message = message.encode("utf-8")
-    log(f"Sending message ({len(encoded_message)} bytes): {message}", "DEBUG")
-    irc.sendall(f"PRIVMSG {reply_target} :{message}\r\n".encode("utf-8"))
-    time.sleep(0.5)  # Prevent flooding
-
-def split_message_intelligently(message, limit):
-    """
-    Splits a message into parts without cutting words, ensuring correct byte-size limits.
-
-    Args:
-        message (str): The full message to split.
-        limit (int): Max length per message.
-
-    Returns:
-        list: List of message parts that fit within the limit.
-    """
-    words = message.split(" ")
-    parts = []
-    current_part = ""
-
-    for word in words:
-        # Calculate encoded byte size
-        encoded_size = len((current_part + " " + word).encode("utf-8")) if current_part else len(word.encode("utf-8"))
-
-        if encoded_size > limit:
-            if current_part:  # Store the current part before starting a new one
-                parts.append(current_part)
-            current_part = word  # Start new part with the long word
-        else:
-            current_part += (" " + word) if current_part else word
-
-    if current_part:
-        parts.append(current_part)
-
-    log(f"Final split messages: {parts}", "DEBUG")  # Log split messages
-    return parts
-
-def process_message(server, message, channel=None, sender=None):
-    """
-    Main message processing function that parses and handles incoming IRC messages.
-    
-    This function routes messages to the appropriate handler based on commands
-    and tracks certain types of content (like drink-related words).
-    
-    Args:
-        server: The IRC server instance
-        message (str): The message to process
-        channel (str, optional): The channel where the message was received
-        sender (str, optional): The user who sent the message
-    
-    Returns:
-        bool: True if the message was handled, False otherwise
-    """
-    try:
-        log(f"Processing message from {sender}: {message}", "DEBUG")
-        
-        # Skip messages from the bot itself
-        if sender and sender.lower() == server.nickname.lower():
-            return False
-            
-        # Handle commands
-        if message.startswith("!"):
-            parts = message.split(maxsplit=1)
-            command = parts[0].lower()
-            args = parts[1].split() if len(parts) > 1 else []
-            
-            # YouTube search
-            if command == "!youtube":
-                handle_youtube_search(server, channel, message, sender, args)
-                return True
-                
-            # Weather information
-            elif command == "!weather":
-                location = " ".join(args) if args else "Joensuu"
-                threading.Thread(target=send_weather, 
-                                args=(server.irc, channel, location),
-                                daemon=True).start()
-                return True
-                
-            # Electricity price
-            elif command == "!sahko":
-                threading.Thread(target=send_electricity_price, 
-                                args=(server.irc, channel, parts),
-                                daemon=True).start()
-                return True
-                
-            # Eurojackpot numbers
-            elif command == "!eurojackpot":
-                handle_eurojackpot(server, channel, message, sender, args)
-                return True
-                
-            # AI conversation with GPT
-            elif command == "!gpt":
-                if len(parts) > 1:
-                    user_input = parts[1]
-                    threading.Thread(target=lambda: [
-                        send_message(server.irc, channel, part) 
-                        for part in chat_with_gpt(user_input)
-                    ], daemon=True).start()
-                    return True
-                else:
-                    server.send_message(channel, "Usage: !gpt <message>")
-                    return True
-        
-        # Track drink-related words
-        message_lower = message.lower()
-        for word, drink_mapping in {
-            "krak": "Karhu", 
-            "kr1k": "Karhu", 
-            "kr0k": "Karhu",
-            "narsk": "Karjala", 
-            "parsk": "Olut", 
-            "tlup": "Keppana",
-            "marsk": "Mariska", 
-            "tsup": "Olut", 
-            "plop": "Pullo"
-        }.items():
-            if word in message_lower:
-                count_kraks(word, drink_mapping)
-                
-        # URL title fetching - this would need the fetch_title function implemented
-        url_pattern = re.compile(r'https?://\S+')
-        urls = url_pattern.findall(message)
-        if urls:
-            for url in urls:
-                # Start a thread to fetch the title without blocking
-                threading.Thread(target=fetch_title, 
-                                args=(server.irc, channel, url),
-                                daemon=True).start()
-                
-        return False  # Message wasn't explicitly handled
-        
-    except Exception as e:
-        log(f"Error processing message: {str(e)}", "ERROR")
-        import traceback
-        log(traceback.format_exc(), "ERROR")
-        return False
-
-def load_conversation_history():
-    """Loads the conversation history from a file or initializes a new one."""
-    if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, "r", encoding="utf-8") as file:
-            return json.load(file)
-    return DEFAULT_HISTORY.copy()
-
-def save_conversation_history(history):
-    """Saves the conversation history to a file."""
-    with open(HISTORY_FILE, "w", encoding="utf-8") as file:
-        json.dump(history, file, indent=4, ensure_ascii=False)
-
-def load_leet_winners():
-    """Loads the leet winners from a JSON file."""
-    try:
-        with open("leet_winners.json", "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}  # Return an empty dictionary if the file does not exist or is corrupted
-
-def save_leet_winners(leet_winners):
-    """Saves the leet winners to a JSON file."""
-    with open("leet_winners.json", "w", encoding="utf-8") as f:
-        json.dump(leet_winners, f, indent=4, ensure_ascii=False)
-
-def count_kraks(word, beverage):
-    """
-    Counts the occurrences of a specific word (beverage) in the IRC messages.
-
-    Args:
-        word (str): The word to track (e.g., "krak").
-        beverage (str): The beverage associated with the word (e.g., "karhu").
-    """
-    if word in DRINK_WORDS:
-        DRINK_WORDS[word] += 1
-        log(f"Detected {word} ({beverage}). Total count: {DRINK_WORDS[word]}")
-    else:
-        log(f"Word {word} is not in the tracking list.")
-
-def chat_with_gpt(user_input):
-    """
-    Simulates a chat with GPT and updates the conversation history.
-
-    Args:
-        user_input (str): The user's input message.
-
-    Returns:
-        list: List of the assistant's response parts.
-    """
-    IRC_MESSAGE_LIMIT = 435  # Message limit, might not be enough considering UTF-8 encoding
-    conversation_history = load_conversation_history() # Load conversation history
-    conversation_history.append({"role": "user", "content": user_input}) # Append user's message
-
-    # Get response from gpt-4o or gpt-4o-mini
-    response = client.chat.completions.create(  # Use the new syntax
-        model="gpt-4o-mini",  # Specify the model
-        messages=conversation_history,  # Provide the conversation history as the prompt
-        max_tokens=350  # Adjust the token count as needed
-    )
-
-    # Correct way to access the response
-    assistant_reply = response.choices[0].message.content.strip()
-
-    # Append assistant's response
-    conversation_history.append({"role": "assistant", "content": assistant_reply})
-
-    # Muutetaan rivinvaihdot yhdeksi välilyönniksi, jotta viesti ei katkea
-    assistant_reply = assistant_reply.replace("\n", " ")
-
-    # Save updated conversation history
-    save_conversation_history(conversation_history)
-
-    # Split the message intelligently
-    response_parts = split_message_intelligently(assistant_reply, IRC_MESSAGE_LIMIT)
-    response_parts = [part.replace("  ", " ") for part in response_parts]  # Remove double spaces
-    return response_parts
-
-def send_weather(irc=None, channel=None, location="Joensuu"):
-    """
-    Fetches and sends weather information for a specified location.
-    
-    Args:
-        irc (socket, optional): IRC socket object
-        channel (str, optional): IRC channel to send to
-        location (str): Location to get weather for. Default is "Joensuu"
-    """
-    location = location.strip().title()  # Ensimmäinen kirjain isolla
-    encoded_location = urllib.parse.quote(location)  # Muutetaan sijainti URL-muotoon
-    weather_url = f"http://api.openweathermap.org/data/2.5/weather?q={encoded_location}&appid={WEATHER_API_KEY}&units=metric&lang=fi"
-
-    try:
-        weather_response = requests.get(weather_url) # Lähetetään pyyntö
-        if weather_response.status_code == 200: # Onnistunut vastaus
-            data = weather_response.json() # Data JSON-muotoon
-            description = data["weather"][0]["description"].capitalize() # Kuvaus
-            temp = data["main"]["temp"] # Lämpötila °C
-            feels_like = data["main"]["feels_like"] # Tuntuu kuin °C
-            humidity = data["main"]["humidity"] # Kosteus %
-            wind_speed = data["wind"]["speed"] # Tuuli m/s
-            visibility = data.get("visibility", 0) / 1000  # Näkyvyys, muutetaan metreistä kilometreiksi
-            pressure = data["main"]["pressure"]  # Ilmanpaine hPa
-            clouds = data["clouds"]["all"]  # Pilvisyys prosentteina
-            country = data["sys"].get("country", "?")  # Get country code, default to "?"
-
-            # Tarkistetaan, onko sateen tai lumen tietoja
-            rain = data.get("rain", {}).get("1h", 0)  # Sade viimeisen tunnin aikana (mm)
-            snow = data.get("snow", {}).get("1h", 0)  # Lumi viimeisen tunnin aikana (mm)
-
-            # Auringonnousu ja -lasku aikaleimoista
-            sunrise = datetime.fromtimestamp(data["sys"]["sunrise"]).strftime("%H:%M")
-            sunset = datetime.fromtimestamp(data["sys"]["sunset"]).strftime("%H:%M")
-
-            # Rakennetaan viesti
-            weather_info = (f"{location}, {country} 🔮: {description}, {temp}°C ({feels_like} ~°C), "
-                           f"💦 {humidity}%, 🍃 {wind_speed} m/s, 👁  {visibility:.1f} km, "
-                           f"P: {pressure} hPa, pilvisyys {clouds}%. "
-                           f"🌄{sunrise} - {sunset}🌅.")
-
-            if rain > 0:
-                weather_info += f" Sade: {rain} mm/tunti."
-            if snow > 0:
-                weather_info += f" Lumi: {snow} mm/tunti."
-
-        else:
-            weather_info = f"Sään haku epäonnistui. (Virhekoodi {weather_response.status_code})"
-
-    except Exception as e:
-        weather_info = f"Sään haku epäonnistui: {str(e)}"
-
-    output_message(weather_info, irc, channel)
-
-def send_electricity_price(irc=None, channel=None, text=None):
-    # Validate input and set defaults
-    date = datetime.now()
-    hour = date.hour
-    if len(text) == 1:
-        log(f"Haettu tunti t�n��n: {hour}", "DEBUG")
-    elif len(text) == 2:
-        parts = text[1].strip().split()
-        if parts[0].lower() == "huomenna" and len(parts) == 2:
-            hour = int(parts[1])
-            date += timedelta(days=1)
-            log(f"Haettu tunti huomenna: {hour}", "DEBUG")
-        elif len(parts) == 1 and parts[0].isdigit():
-            hour = int(parts[0])
-            log(f"Haettu tunti t�n��n: {hour}", "DEBUG")
-        else:
-            error_message = "Virheellinen komento! K�yt�: !sahko [huomenna] <tunti>"
-            log(error_message)
-            send_message(irc, channel, error_message)
-            return
-
-    # Format dates
-    date_str = date.strftime("%Y%m%d")
-    date_plus_one = date + timedelta(days=1)
-    date_tomorrow = date_plus_one.strftime("%Y%m%d")
-
-    # Form API URLs
-    url_today = f"https://web-api.tp.entsoe.eu/api?securityToken={ELECTRICITY_API_KEY}&documentType=A44&in_Domain=10YFI-1--------U&out_Domain=10YFI-1--------U&periodStart={date_str}0000&periodEnd={date_str}2300"
-    url_tomorrow = f"https://web-api.tp.entsoe.eu/api?securityToken={ELECTRICITY_API_KEY}&documentType=A44&in_Domain=10YFI-1--------U&out_Domain=10YFI-1--------U&periodStart={date_tomorrow}0000&periodEnd={date_tomorrow}2300"
-
-    def fetch_prices(url):
-        try:
-            response = requests.get(url)
-            if response.status_code != 200:
-                return {}
-            xml_data = ElementTree.parse(StringIO(response.text))
-            ns = {"ns": "urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3"}
-            prices = {
-                int(point.find("ns:position", ns).text): 
-                float(point.find("ns:price.amount", ns).text)
-                for point in xml_data.findall(".//ns:Point", ns)
-            }
-            return prices
+            with open(file_path, "wb") as f:
+                pickle.dump({}, f)  # Placeholder for kraks data
         except Exception as e:
-            log(f"Virhe s�hk�n hintojen haussa: {e}")
+            log(f"Error saving data: {e}", "ERROR")
+
+
+def load(file_path: str = WORDS_FILE) -> dict:
+    """Load kraks data from a file with thread safety."""
+    with kraks_lock:
+        if not os.path.exists(file_path):
+            log("Data file not found, creating a new one.", "WARNING")
+            return {}
+        try:
+            with open(file_path, "rb") as f:
+                return pickle.load(f)
+        except (pickle.UnpicklingError, EOFError) as e:
+            log(f"Corrupted data file: {e}", "ERROR")
+            return {}
+        except Exception as e:
+            log(f"Error loading data: {e}", "ERROR")
             return {}
 
-    # Fetch prices for today and tomorrow
-    prices_today = fetch_prices(url_today)
-    prices_tomorrow = fetch_prices(url_tomorrow)
 
-    # Process and format the prices
-    hour_position = hour + 1  # API uses 1-24 hour format
-    result_parts = []
+def save_conversation_history(history: dict):
+    """Save conversation history to a file with thread safety."""
+    with conversation_history_lock:
+        try:
+            with open(HISTORY_FILE, "w", encoding="utf-8") as file:
+                json.dump(history, file, indent=4, ensure_ascii=False)
+        except Exception as e:
+            log(f"Error saving conversation history: {e}", "ERROR")
 
-    if hour_position in prices_today:
-        price_eur_per_mwh = prices_today[hour_position]
-        price_snt_per_kwh = (price_eur_per_mwh / 10) * 1.255  # Convert to cents and add VAT 25.5%
-        result_parts.append(f"T�n��n klo {hour}: {price_snt_per_kwh:.2f} snt/kWh (ALV 25,5%)")
 
-    if hour_position in prices_tomorrow:
-        price_eur_per_mwh = prices_tomorrow[hour_position]
-        price_snt_per_kwh = (price_eur_per_mwh / 10) * 1.255
-        result_parts.append(f"Huomenna klo {hour}: {price_snt_per_kwh:.2f} snt/kWh (ALV 25,5%)")
+def save_leet_winners(leet_winners: dict):
+    """Save leet winners to a file with thread safety."""
+    with leet_winners_lock:
+        try:
+            with open("leet_winners.json", "w", encoding="utf-8") as f:
+                json.dump(leet_winners, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            log(f"Error saving leet winners: {e}", "ERROR")
 
-    # Send the results
-    if result_parts:
-        output_message(", ".join(result_parts), irc, channel)
-    else:
-        output_message(f"S�hk�n hintatietoja ei saatavilla tunneille {hour}. https://sahko.tk", irc, channel)
-    """
-    Fetches and sends electricity price information.
-    
-    Args:
-        irc (socket, optional): IRC socket object
-        channel (str, optional): IRC channel to send to
-        text (list): Command parts containing time information
-    """
-    log(f"Syöte: {text}", "DEBUG")  # Tulostetaan koko syöte
-    log(f"Syötteen pituus: {len(text)}", "DEBUG")  # Tulostetaan syötteen pituus
 
-    # Käydään läpi kaikki text-listan osat
-    for i, part in enumerate(text):
-        log(f"text[{i}] = {part}", "DEBUG")  # Tulostetaan jokainen osa
-
-    # Oletuksena haetaan nykyinen päivä ja tunti
-    date = datetime.now()
-    hour = date.hour
-
-    # Tarkistetaan käyttäjän syöte
-    if len(text) == 1:  # Käyttäjä ei antanut tuntia
-        log(f"Haettu tunti tänään: {hour}", "DEBUG")
-    elif len(text) == 2:  # Käyttäjä antoi tunnin tai "huomenna" ja tunnin
-        parts = text[1].strip().split()
-        log(f"parts[0] = {parts[0]}")  # Lisätty debug-tulostus
-        if parts[0].lower() == "huomenna" and len(parts) == 2:  # Käyttäjä antoi "huomenna" ja tunnin
-            hour = int(parts[1])  # Käyttäjän syöttämä tunti huomenna
-            date += timedelta(days=1)  # Lisätään yksi päivä nykyhetkeen
-            log(f"Haettu tunti huomenna: {hour}", "DEBUG")
-        elif len(parts) == 1 and parts[0].isdigit():  # Käyttäjä antoi vain tunnin
-            hour = int(parts[0])
-            log(f"Haettu tunti tänään: {hour}", "DEBUG")
-        else:
-            error_message = "Virheellinen komento! Käytä: !sahko [huomenna] <tunti>"
-            log(error_message)
-            send_message(irc, channel, error_message)
-            return
-
-# Eurojackpot functionality
-EUROJACKPOT_URL = "https://www.euro-jackpot.net/fi/tilastot/numerotaajuus"
-
-def get_eurojackpot_numbers():
-    """
-    Fetches the latest Eurojackpot numbers and most frequent numbers.
-    
-    Returns:
-        tuple: (latest_numbers, most_frequent_numbers) or error message if failed
-    """
-    url = "https://www.euro-jackpot.net/fi/tilastot/numerotaajuus"
-    response = requests.get(url)
-    response.raise_for_status()
-    
-    soup = BeautifulSoup(response.text, "html.parser")
-    table_rows = soup.select("table tr")  # Adjust the selector based on actual table structure
-    
-    latest_numbers = []
-    most_frequent_numbers = []
-    
-    draw_data = []  # Store tuples of (Arvontaa sitten, Number)
-    
-    for row in table_rows:
-        columns = row.find_all("td")
-        if len(columns) >= 3:
-            draw_order = columns[2].text.strip()  # "Arvontaa sitten"
-            number = columns[1].text.strip()  # The number itself
-            
-            if draw_order.isdigit():
-                draw_data.append((int(draw_order), int(number)))
-    
-    # Sort by "Arvontaa sitten" to get the latest draw (smallest value should be 0)
-    draw_data.sort()
-    
-    # Extract numbers with "Arvontaa sitten" = 0 (latest draw)
-    latest_numbers = [num for order, num in draw_data if order == 0]
-    
-    # Extract most frequent numbers (sort by frequency, needs correct column parsing)
-    frequency_data = []
-    
-    for row in table_rows:
-        columns = row.find_all("td")
-        if len(columns) >= 3:
-            number = columns[1].text.strip()
-            frequency = columns[2].text.strip()
-            
-            if number.isdigit() and frequency.isdigit():
-                frequency_data.append((int(frequency), int(number)))
-    
-    # Sort by frequency in descending order to get most frequent numbers
-    frequency_data.sort(reverse=True, key=lambda x: x[0])
-    most_frequent_numbers = [num for freq, num in frequency_data[:7]]  # Top 7 numbers
-    
-    return latest_numbers, most_frequent_numbers
-
-def handle_eurojackpot(server, channel, message, sender, args):
-    """Handler for !eurojackpot command"""
-    result = get_eurojackpot_numbers()
-    
-    if isinstance(result, tuple):
-        latest, frequent = result
-        message = (f"Latest Eurojackpot: {', '.join(map(str, latest))} | "
-                  f"Most Frequent Numbers: {', '.join(map(str, frequent))}")
-    else:
-        message = result  # Error message
-
-    server.send_message(channel, message)
-
-def search_youtube(query):
-    """
-    Search for videos on YouTube and return the top result URL.
-    
-    Args:
-        query (str): Search terms for YouTube
-        
-    Returns:
-        str: URL of the top video result or error message
-    """
+def send_message(irc, channel: str, message: str):
+    """Send a PRIVMSG to a channel or user."""
     try:
-        search_response = youtube.search().list(
-            q=query,
-            part="id,snippet",
-            maxResults=1,
-            type="video"
-        ).execute()
+        irc.send_raw(f"PRIVMSG {channel} :{message}")
+        log(f"Sent message to {channel}: {message}", "DEBUG")
+    except Exception as e:
+        log(f"Error sending message to {channel}: {e}", "ERROR")
 
-        # Check if we have results
-        if search_response.get("items"):
-            video_id = search_response["items"][0]["id"]["videoId"]
-            title = search_response["items"][0]["snippet"]["title"]
+
+def output_message(message: str):
+    """Output a message to the console."""
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}")
+
+
+def split_message_intelligently(message: str, max_length: int = 400) -> List[str]:
+    """Split a message into parts while respecting word boundaries."""
+    if len(message) <= max_length:
+        return [message]
+
+    parts = []
+    current_part = ""
+    words = message.split(" ")
+
+    for word in words:
+        if len(current_part) + len(word) + 1 <= max_length:
+            current_part += (word + " ") if current_part else word
+        else:
+            if current_part:
+                parts.append(current_part.strip())
+            current_part = word + " "
+
+    if current_part:
+        parts.append(current_part.strip())
+
+    return parts
+
+
+def count_kraks(server, word: str, beverage: str):
+    """Count occurrences of drink words for a server."""
+    with drink_words_lock:
+        if word in server.drink_words:
+            server.drink_words[word] += 1
+            log(
+                f"Detected {word} ({beverage}). Total count: {server.drink_words[word]}"
+            )
+        else:
+            log(f"Word {word} is not in the tracking list.")
+
+
+def fetch_title(server, channel: str, url: str):
+    """Fetch and send the title of a webpage from a URL."""
+    try:
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        title = soup.title.string.strip() if soup.title else "No title found"
+        formatted_title = (
+            f"Title: {title[:100]}..." if len(title) > 100 else f"Title: {title}"
+        )
+
+        with last_title_lock:
+            if formatted_title != server.last_title:
+                server.send_message(channel, formatted_title)
+                server.last_title = formatted_title
+                log(f"Sent title: {title}", "DEBUG")
+    except Exception as e:
+        log(f"Error fetching title for {url}: {e}", "ERROR")
+
+
+def send_weather(server, channel: str, location: str = "Joensuu"):
+    """Fetch and send weather information for a location."""
+    log(
+        f"Fetching weather for {location} (server: {server.config.name if server else 'None'}, channel: {channel})",
+        "DEBUG",
+    )
+    try:
+        api_key = get_api_key("WEATHER_API_KEY")
+        if not api_key:
+            log("Weather API key not configured", "ERROR")
+            if server and channel:
+                server.send_message(channel, "Weather API key not configured.")
+            return "Weather API key not configured."
+
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={urllib.parse.quote(location)}&appid={api_key}&units=metric&lang=fi"
+        log(f"Sending weather API request: {url}", "DEBUG")
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        temp = data["main"]["temp"]
+        feels_like = data["main"]["feels_like"]
+        description = data["weather"][0]["description"]
+        city = data["name"]
+        message = f"Sää kohteessa {city}: {temp}°C (tuntuu kuin {feels_like}°C), {description}"
+        log(f"Weather response: {message}", "DEBUG")
+        if server and channel:
+            server.send_message(channel, message)
+        return message
+    except Exception as e:
+        log(f"Error fetching weather for {location}: {e}", "ERROR")
+        error_message = f"Virhe haettaessa säätietoja kohteelle {location}."
+        if server and channel:
+            server.send_message(channel, error_message)
+        return error_message
+
+
+def send_electricity_price(server, channel: str, text: List[str]):
+    """Fetch and send electricity price information."""
+    try:
+        api_key = get_api_key("ELECTRICITY_API_KEY")
+        if not api_key:
+            if server and channel:
+                server.send_message(channel, "Electricity API key not configured.")
+            return "Electricity API key not configured."
+
+        date = datetime.now().strftime("%Y-%m-%d")
+        url = f"https://api.porssisahko.net/v1/price.json?date={date}&hour={datetime.now().hour}&api_key={api_key}"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        price = data["price"]
+        message = f"Sähkön hinta nyt: {price} snt/kWh"
+        if server and channel:
+            server.send_message(channel, message)
+        return message
+    except Exception as e:
+        log(f"Error fetching electricity price: {e}", "ERROR")
+        error_message = "Virhe haettaessa sähkön hintaa."
+        if server and channel:
+            server.send_message(channel, error_message)
+        return error_message
+
+
+def search_youtube(server, channel: str, query: str):
+    """Search YouTube and send the first result."""
+    try:
+        api_key = get_api_key("YOUTUBE_API_KEY")
+        if not api_key:
+            if server and channel:
+                server.send_message(channel, "YouTube API key not configured.")
+            return "YouTube API key not configured."
+
+        youtube = build("youtube", "v3", developerKey=api_key)
+        request = youtube.search().list(
+            part="snippet", q=query, type="video", maxResults=1
+        )
+        response = request.execute()
+
+        if response["items"]:
+            video = response["items"][0]
+            title = video["snippet"]["title"]
+            video_id = video["id"]["videoId"]
             url = f"https://www.youtube.com/watch?v={video_id}"
-            return f"{title}: {url}"
+            message = f"{title} - {url}"
+            if server and channel:
+                server.send_message(channel, message)
+            return message
         else:
-            return "No results found."
+            message = "Ei tuloksia haulle."
+            if server and channel:
+                server.send_message(channel, message)
+            return message
     except Exception as e:
-        log(f"YouTube search error: {e}", "ERROR")
-        return f"Error searching YouTube: {str(e)}"
+        log(f"Error searching YouTube for {query}: {e}", "ERROR")
+        error_message = "Virhe haettaessa YouTube-videoita."
+        if server and channel:
+            server.send_message(channel, error_message)
+        return error_message
 
-def handle_youtube_search(server, channel, message, sender, args):
-    """
-    Handler for !youtube command - searches YouTube and returns first result
-    
-    Args:
-        server: The IRC server instance
-        channel: The IRC channel to respond to
-        message: The original message
-        sender: The user who sent the command
-        args: Command arguments (search query)
-    """
-    log(f"YouTube search requested by {sender} with query: {args}")
-    
+
+def chat_with_gpt(server, channel: str, prompt: str):
+    """Interact with OpenAI GPT model."""
     try:
-        # Extract search query from arguments
-        if not args:
-            server.send_message(channel, "Usage: !youtube <search query>")
-            return
-            
-        # Join all args to form the search query
-        search_query = " ".join(args)
-        log(f"Searching YouTube for: {search_query}", "DEBUG")
-        
-        # Search YouTube using the existing function
-        result = search_youtube(search_query)
-        
-        # Send the result back to the channel
-        server.send_message(channel, result)
-        
+        api_key = get_api_key("OPENAI_API_KEY")
+        if not api_key:
+            if server and channel:
+                server.send_message(channel, "OpenAI API key not configured.")
+            return "OpenAI API key not configured."
+
+        client = openai.OpenAI(api_key=api_key)
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=100,
+        )
+        message = response.choices[0].message.content.strip()
+
+        with conversation_history_lock:
+            history = load_conversation_history()
+            history.append(
+                {
+                    "prompt": prompt,
+                    "response": message,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
+            save_conversation_history(history)
+
+        if server and channel:
+            for part in split_message_intelligently(message):
+                server.send_message(channel, part)
+        return message
     except Exception as e:
-        error_msg = f"Error processing YouTube search: {str(e)}"
-        log(error_msg, "ERROR")
-        server.send_message(channel, "Sorry, an error occurred while searching YouTube.")
+        log(f"Error in GPT chat: {e}", "ERROR")
+        error_message = "Virhe GPT-keskustelussa."
+        if server and channel:
+            server.send_message(channel, error_message)
+        return error_message
+
+
+def load_conversation_history() -> dict:
+    """Load conversation history from file."""
+    with conversation_history_lock:
+        if not os.path.exists(HISTORY_FILE):
+            return []
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as file:
+                return json.load(file)
+        except Exception as e:
+            log(f"Error loading conversation history: {e}", "ERROR")
+            return []
+
+
+def handle_youtube_search(
+    server, channel: str, message: str, sender: str, args: List[str]
+):
+    """Handle !youtube command."""
+    if not args:
+        server.send_message(channel, "Käytä komentoa: !youtube <hakusana>")
+        return
+    query = " ".join(args)
+    threading.Thread(
+        target=search_youtube, args=(server, channel, query), daemon=True
+    ).start()
+
+
+def handle_eurojackpot(
+    server, channel: str, message: str, sender: str, args: List[str]
+):
+    """Handle !eurojackpot command."""
+    try:
+        url = "https://www.veikkaus.fi/fi/tulokset#!/tulokset/eurojackpot"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        result = soup.find("div", class_="result").text.strip()[:100]
+        server.send_message(channel, f"Eurojackpot: {result}")
+    except Exception as e:
+        log(f"Error fetching Eurojackpot results: {e}", "ERROR")
+        server.send_message(channel, "Virhe haettaessa Eurojackpot-tuloksia.")
+
+
+def handle_weather(server, sender: str, channel: str, message: str):
+    """Handle !sää command."""
+    log(f"Handling weather command: {message} from {sender} in {channel}", "DEBUG")
+    parts = message.split(" ", 1)
+    location = parts[1].strip() if len(parts) > 1 else "Joensuu"
+    threading.Thread(
+        target=send_weather, args=(server, channel, location), daemon=True
+    ).start()
+
+
+def handle_time(server, sender: str, channel: str, message: str):
+    """Handle !aika command."""
+    server.send_message(
+        channel,
+        f"Nykyinen aika: {datetime.now().isoformat(timespec='microseconds') + '000'}",
+    )
+
+
+def handle_echo(server, sender: str, channel: str, message: str):
+    """Handle !kaiku command."""
+    parts = message.split(" ", 1)
+    if len(parts) > 1:
+        server.send_message(channel, f"{sender}: {parts[1]}")
+    else:
+        server.send_message(channel, "Käytä komentoa: !kaiku <teksti>")
+
+
+def handle_word_count(server, sender: str, channel: str, message: str):
+    """Handle !sana command."""
+    parts = message.split(" ", 1)
+    if len(parts) < 2:
+        server.send_message(channel, "Käytä komentoa: !sana <sana>")
+        return
+    search_word = parts[1].lower()
+    kraks = load()
+    word_counts = {
+        nick: stats[search_word]
+        for nick, stats in kraks.items()
+        if search_word in stats
+    }
+    if word_counts:
+        results = ", ".join(f"{nick}: {count}" for nick, count in word_counts.items())
+        server.send_message(channel, f"Sana '{search_word}' on sanottu: {results}")
+    else:
+        server.send_message(
+            channel, f"Kukaan ei ole sanonut sanaa '{search_word}' vielä."
+        )
+
+
+def handle_top_words(server, sender: str, channel: str, message: str):
+    """Handle !top command."""
+    kraks = load()
+    if not kraks:
+        server.send_message(channel, "Ei sanadataa saatavilla.")
+        return
+    top_words = sorted(
+        [
+            (word, count)
+            for nick, stats in kraks.items()
+            for word, count in stats.items()
+        ],
+        key=lambda x: x[1],
+        reverse=True,
+    )[:5]
+    if top_words:
+        results = ", ".join(f"{word}: {count}" for word, count in top_words)
+        server.send_message(channel, f"Top sanat: {results}")
+    else:
+        server.send_message(channel, "Ei suosittuja sanoja vielä.")
+
+
+def handle_leaderboard(server, sender: str, channel: str, message: str):
+    """Handle !leaderboard command."""
+    kraks = load()
+    if not kraks:
+        server.send_message(channel, "Ei sanadataa saatavilla.")
+        return
+    leaderboard = sorted(
+        [(nick, sum(stats.values())) for nick, stats in kraks.items()],
+        key=lambda x: x[1],
+        reverse=True,
+    )[:5]
+    if leaderboard:
+        results = ", ".join(f"{nick}: {count}" for nick, count in leaderboard)
+        server.send_message(channel, f"Johtotaulu: {results}")
+    else:
+        server.send_message(channel, "Ei johtajia vielä.")
+
+
+def handle_euribor(server, sender: str, channel: str, message: str):
+    """Handle !euribor command."""
+    try:
+        url = "https://www.suomenpankki.fi/fi/Tilastot/korot/euribor-korot/"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        rate = soup.find("span", class_="euribor-rate").text.strip()
+        server.send_message(channel, f"Euribor-korko: {rate}")
+    except Exception as e:
+        log(f"Error fetching Euribor rate: {e}", "ERROR")
+        server.send_message(channel, "Virhe haettaessa Euribor-korkoa.")
+
+
+def handle_leet_winners(server, sender: str, channel: str, message: str):
+    """Handle !leet_winners command."""
+    with leet_winners_lock:
+        try:
+            with open("leet_winners.json", "r", encoding="utf-8") as f:
+                leet_winners = json.load(f)
+        except Exception as e:
+            log(f"Error loading leet winners: {e}", "ERROR")
+            server.send_message(channel, "Virhe haettaessa leet-voittajia.")
+            return
+        if leet_winners:
+            results = ", ".join(
+                f"{nick}: {count}" for nick, count in leet_winners.items()
+            )
+            server.send_message(channel, f"Leet-voittajat: {results}")
+        else:
+            server.send_message(channel, "Ei leet-voittajia vielä.")
+
+
+def handle_url_title(server, sender: str, channel: str, message: str):
+    """Handle !title command."""
+    parts = message.split(" ", 1)
+    if len(parts) < 2:
+        server.send_message(channel, "Käytä komentoa: !title <url>")
+        return
+    url = parts[1].strip()
+    threading.Thread(
+        target=fetch_title, args=(server, channel, url), daemon=True
+    ).start()
+
+
+def handle_leet(server, sender: str, channel: str, message: str):
+    """Handle !leet command."""
+    now = datetime.now()
+    if now.hour == 13 and now.minute == 37:
+        with leet_winners_lock:
+            leet_winners = load_leet_winners()
+            leet_winners[sender] = leet_winners.get(sender, 0) + 1
+            save_leet_winners(leet_winners)
+            server.send_message(
+                channel, f"{sender} voitti leet-ajan! Yhteensä: {leet_winners[sender]}"
+            )
+    else:
+        server.send_message(channel, "Ei ole leet-aika (13:37).")
+
+
+def handle_kraks(server, sender: str, channel: str, message: str):
+    """Handle !kraks command."""
+    with drink_words_lock:
+        if server.drink_words:
+            results = ", ".join(
+                f"{word}: {count}"
+                for word, count in server.drink_words.items()
+                if count > 0
+            )
+            server.send_message(channel, f"Kraks-tilastot: {results}")
+        else:
+            server.send_message(channel, "Ei kraks-tilastoja vielä.")
+
+
+def handle_ekavika(server, sender: str, channel: str, message: str):
+    """Handle !ekavika command."""
+    try:
+        url = "https://www.ekarjala.fi/viat"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        outage = soup.find("div", class_="outage-info").text.strip()[:100]
+        server.send_message(channel, f"Sähkökatkot: {outage}")
+    except Exception as e:
+        log(f"Error fetching outage info: {e}", "ERROR")
+        server.send_message(channel, "Virhe haettaessa sähkökatkotietoja.")
+
+
+def handle_crypto(server, sender: str, channel: str, message: str):
+    """Handle !crypto command."""
+    parts = message.split(" ", 1)
+    coin = parts[1].strip().upper() if len(parts) > 1 else "BTC"
+    try:
+        url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin.lower()}&vs_currencies=eur"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        price = data.get(coin.lower(), {}).get("eur", "N/A")
+        server.send_message(channel, f"{coin} hinta: {price} EUR")
+    except Exception as e:
+        log(f"Error fetching crypto price for {coin}: {e}", "ERROR")
+        server.send_message(channel, f"Virhe haettaessa {coin} hintaa.")
+
+
+def load_leet_winners() -> dict:
+    """Load leet winners from file."""
+    with leet_winners_lock:
+        if not os.path.exists("leet_winners.json"):
+            return {}
+        try:
+            with open("leet_winners.json", "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            log(f"Error loading leet winners: {e}", "ERROR")
+            return {}
+
+
+def process_message(
+    server, message: str, channel: Optional[str] = None, sender: Optional[str] = None
+):
+    """Process an incoming IRC message."""
+    try:
+        log(f"Processing message from {sender}: {message}", "DEBUG")
+
+        if sender and sender.lower() == server.bot_name.lower():
+            return False
+
+        # Parse PRIVMSG
+        match = re.search(r":(\S+)!(\S+) PRIVMSG (\S+) :(.+)", message)
+        if match:
+            sender, _, target, text = match.groups()
+            channel = target if target.startswith("#") else sender
+
+            # Handle commands
+            if text.startswith("!"):
+                parts = text.split(maxsplit=1)
+                command = parts[0].lower()
+                args = parts[1].split() if len(parts) > 1 else []
+
+                # Delegate to registered handlers
+                if command[1:] in server.handlers:
+                    server.handlers[command[1:]](server, sender, channel, text)
+                    return True
+
+                # Direct command processing
+                if command == "!youtube":
+                    handle_youtube_search(server, channel, text, sender, args)
+                    return True
+                elif command in ("!s", "!sää"):  # Added !s as alias for !sää
+                    handle_weather(server, sender, channel, text)
+                    return True
+                elif command == "!sahko" or command == "!sähkö":
+                    threading.Thread(
+                        target=send_electricity_price,
+                        args=(server, channel, [command] + args),
+                        daemon=True,
+                    ).start()
+                    return True
+                elif command == "!eurojackpot":
+                    handle_eurojackpot(server, channel, text, sender, args)
+                    return True
+                elif command == "!gpt":
+                    if args:
+                        threading.Thread(
+                            target=chat_with_gpt,
+                            args=(server, channel, " ".join(args)),
+                            daemon=True,
+                        ).start()
+                    else:
+                        server.send_message(channel, "Käytä komentoa: !gpt <teksti>")
+                    return True
+
+            # Handle URLs
+            url_pattern = re.compile(r"https?://\S+")
+            urls = url_pattern.findall(text)
+            if urls:
+                for url in urls:
+                    threading.Thread(
+                        target=fetch_title, args=(server, channel, url), daemon=True
+                    ).start()
+
+            # Handle drink words
+            for word in server.drink_words:
+                if word in text.lower():
+                    count_kraks(server, word, "unknown")
+
+            return False
+
+        return False
+    except Exception as e:
+        log(f"Error processing message: {str(e)}", "ERROR")
+        log(traceback.format_exc(), "ERROR")
+        return False
