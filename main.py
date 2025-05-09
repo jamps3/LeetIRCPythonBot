@@ -59,6 +59,7 @@ HISTORY_FILE = "conversation_history.json"  # File to store conversation history
 EKAVIKA_FILE = "ekavika.json"  # File to store ekavika winners
 WORDS_FILE = "kraks_data.pkl"  # File to store words data
 RECONNECT_DELAY = 60  # Time in seconds before retrying connection (irc.settimeout = RECONNECT_DELAY * 2)
+QUIT_MESSAGE = "🍺 Nähdään! 🍺"
 
 # All drink words to track
 DRINK_WORDS = {
@@ -102,7 +103,6 @@ else:
     """ channels = [
         ("#joensuutest", ""),
     ] """
-QUIT_MESSAGE = "Nähdään!"
 
 last_ping = time.time()
 last_title = ""
