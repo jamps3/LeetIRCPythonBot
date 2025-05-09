@@ -55,12 +55,10 @@ import html  # Title quote removal
 
 # Log level
 LOG_LEVEL = "INFO"  # oletus
-# File to store conversation history
-HISTORY_FILE = "conversation_history.json"
-# File to store ekavika winners
-EKAVIKA_FILE = "ekavika.json"
-# File to store words data
-WORDS_FILE = "kraks_data.pkl"
+HISTORY_FILE = "conversation_history.json"  # File to store conversation history
+EKAVIKA_FILE = "ekavika.json"  # File to store ekavika winners
+WORDS_FILE = "kraks_data.pkl"  # File to store words data
+RECONNECT_DELAY = 60  # Time in seconds before retrying connection (irc.settimeout = RECONNECT_DELAY * 2)
 
 # All drink words to track
 DRINK_WORDS = {
@@ -73,13 +71,14 @@ DRINK_WORDS = {
     "marsk": 0,
     "tsup": 0,
     "plop": 0,
+    "tsirp": 0,
 }
 
 # Default history with system prompt
 DEFAULT_HISTORY = [
     {
         "role": "system",
-        "content": "You are a helpful assistant who knows about Finnish beer culture. You respond in a friendly, conversational manner. If you don't know something, just say so. Keep responses brief.",
+        "content": "You are a helpful assistant who knows about Finnish beer culture. You respond in a friendly, short and tight manner. If you don't know something, just say so. Keep responses brief.",
     }
 ]
 
@@ -106,7 +105,6 @@ else:
 QUIT_MESSAGE = "Nähdään!"
 
 last_ping = time.time()
-global last_title
 last_title = ""
 
 # Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
@@ -297,9 +295,6 @@ def update_kraks(kraks, nick, words):
 
     for word in words:
         kraks[nick][word] = kraks[nick].get(word, 0) + 1
-
-
-RECONNECT_DELAY = 60  # Time in seconds before retrying connection
 
 
 def login(irc, writer, channels, show_api_keys=False):
@@ -1857,7 +1852,7 @@ def log(message, level="INFO"):
     levels = ["COMMAND", "INFO", "SERVER", "MSG", "ERROR", "WARNING", "INFO", "DEBUG"]
     if levels.index(level) <= levels.index(LOG_LEVEL):
         timestamp = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}"  # Nanosekunnit
-        print(f"[{timestamp}] [{level}] {message}")
+        print(f"[{timestamp}] [{level:<8}] {message}")
 
 
 def euribor(irc, target):
@@ -1946,7 +1941,7 @@ def main():
                 irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 irc.connect((server, port))
                 irc.settimeout(
-                    RECONNECT_DELAY
+                    RECONNECT_DELAY * 2
                 )  # Add a timeout so Ctrl+C is handled promptly
                 writer = irc
                 login(irc, writer, channels, show_api_keys=args.api)
