@@ -33,9 +33,9 @@ import random
 import sys  # Check if Debugging
 import platform  # For checking where are we running for correct datetime formatting
 import socket
-import os
+import os  # For file handling and environment variables
 import time
-import threading
+import threading  # Threading
 import re  # Regular expression
 import requests
 import pickle  # Tiedostojen tallennukseen
@@ -45,7 +45,7 @@ from io import StringIO
 import xml.etree.ElementTree as ElementTree
 import openai
 import urllib.parse  # Lisätään URL-koodausta varten
-from dotenv import load_dotenv  # Load api-keys from .env file
+from dotenv import load_dotenv  # Load api-keys, servers and channels from .env file
 from collections import Counter
 import json  # json support
 import argparse  # Command line argument parsing
@@ -53,7 +53,7 @@ from googleapiclient.discovery import build  # Youtube API
 import signal
 import html  # Title quote removal
 
-bot_name = "jl3b2"  # Botin nimi
+bot_name = "jl3b"  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
 LOG_LEVEL = "INFO"  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
 HISTORY_FILE = "conversation_history.json"  # File to store conversation history
 EKAVIKA_FILE = "ekavika.json"  # File to store ekavika winners
@@ -1950,15 +1950,34 @@ def euribor(irc, target):
         )
 
 
+def parse_server_config(prefix):
+    host = os.getenv(f"{prefix}_HOST")
+    port = os.getenv(f"{prefix}_PORT")
+    channels_raw = os.getenv(f"{prefix}_CHANNELS", "")
+    keys_raw = os.getenv(f"{prefix}_KEYS", "")
+
+    if not host or not port:
+        return None  # skip if missing core data
+
+    channels = [ch.strip() for ch in channels_raw.split(",") if ch.strip()]
+    keys = [k.strip() for k in keys_raw.split(",") if k.strip()]
+
+    # Pad keys list to match length of channels
+    while len(keys) < len(channels):
+        keys.append("")
+
+    return {"host": host, "port": int(port), "channels": list(zip(channels, keys))}
+
+
 def main():
     log("Bot starting...", "DEBUG")  # Centralized startup message
-    # Parse command line arguments
     global LOG_LEVEL
     global bot_name
+    # Parse command line arguments
     parser = argparse.ArgumentParser(description="IRC Bot with API key handling")
-    parser.add_argument(
+    parser.add_argument(  # -api näyttää API-avaimet
         "-api", action="store_true", help="Show API key values in logs"
-    )  # -api näyttää API-avaimet
+    )
     parser.add_argument(  # -l tai --loglevel *ERROR*, *INFO* tai *DEBUG* määrittää lokitason
         "-l",
         "--loglevel",
@@ -1969,9 +1988,9 @@ def main():
     parser.add_argument("-nick", "--nickname", type=str, default=bot_name)
     args = parser.parse_args()
 
-    LOG_LEVEL = args.loglevel
-    bot_name = args.nickname
-    # channels = [("#joensuutest", "")]
+    LOG_LEVEL = args.loglevel  # Set the log level based on command line argument
+    bot_name = args.nickname  # Set the bot nickname based on command line argument
+
     channels_raw = os.getenv("CHANNELS", "")
     channels = []
 
@@ -1980,10 +1999,21 @@ def main():
             name, key = ch.split(":", 1)
             channels.append((name.strip(), key.strip()))
 
-    # API visibility preference will be passed to login()
+    # List of possible server prefixes
+    server_prefixes = ["SERVER1", "SERVER2"]
 
-    server = "irc.atw-inter.net"
-    port = 6667
+    servers = []
+    for prefix in server_prefixes:
+        server = parse_server_config(prefix)
+        if server:
+            servers.append(server)
+
+    log(servers, "DEBUG")  # Log the server configurations
+    port = servers[0]["port"]
+    server = servers[0]["host"]
+    channels = servers[0]["channels"]
+    log(port, "DEBUG")  # Log the port
+
     stop_event = threading.Event()
     irc = None
     threads = []
