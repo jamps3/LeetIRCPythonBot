@@ -1415,6 +1415,19 @@ def send_weather(irc=None, target=None, location="Joensuu"):
                 # Lisätään suuntanuoli lopuksi
                 # pressure_visual += "⬆️" if pressure_diff > 0 else "⬇️"
 
+            lat = data["coord"]["lat"]
+            lon = data["coord"]["lon"]
+            uv_url = f"http://api.openweathermap.org/data/2.5/uvi?lat={lat}&lon={lon}&appid={WEATHER_API_KEY}"
+            uv_index = None
+
+            try:
+                uv_response = requests.get(uv_url)
+                if uv_response.status_code == 200:
+                    uv_data = uv_response.json()
+                    uv_index = uv_data.get("value", None)
+            except Exception as e:
+                log(f"UV-indeksin haku epäonnistui: {str(e)}", "ERROR")
+
             wind_deg = data["wind"].get("deg", 0)
             directions = [
                 ("⬆️"),
@@ -1458,13 +1471,18 @@ def send_weather(irc=None, target=None, location="Joensuu"):
                 f"{random_symbol} {location}, {country}: {weather_emoji} {description}, {temp}°C ({feels_like} 🌡️°C), "
                 f"💦 {humidity}%, 🍃 {wind_speed}{wind_dir_emoji}m/s, 👁  {visibility:.1f} km, "
                 f"⚖️ {pressure} hPa {pressure_visual}, ☁️ {clouds}%. "
-                f"🌄{sunrise} - {sunset}🌅."
+                f"🌄{sunrise} - {sunset}🌅"
             )
 
+            # Lisää UV-indeksi ja sade/lumi tiedot
+            if uv_index is not None:
+                weather_info += f", 🔆(UV): {uv_index:.1f}"
             if rain > 0:
-                weather_info += f" Sade: {rain} mm/tunti."
+                weather_info += f", Sade: {rain} mm/tunti."
             if snow > 0:
-                weather_info += f" Lumi: {snow} mm/tunti."
+                weather_info += f", Lumi: {snow} mm/tunti."
+            if rain == 0 and snow == 0:
+                weather_info += "."
 
             log(f"Weather: {weather_info}", "DEBUG")
             notice_message(weather_info, irc, target)  # Send weather information
