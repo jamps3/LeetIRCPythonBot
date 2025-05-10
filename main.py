@@ -1971,7 +1971,14 @@ def main():
 
     LOG_LEVEL = args.loglevel
     bot_name = args.nickname
-    channels = [("#joensuutest", "")]
+    # channels = [("#joensuutest", "")]
+    channels_raw = os.getenv("CHANNELS", "")
+    channels = []
+
+    for ch in channels_raw.split(","):
+        if ":" in ch:
+            name, key = ch.split(":", 1)
+            channels.append((name.strip(), key.strip()))
 
     # API visibility preference will be passed to login()
 
