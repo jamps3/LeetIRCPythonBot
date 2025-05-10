@@ -1417,14 +1417,14 @@ def send_weather(irc=None, target=None, location="Joensuu"):
 
             wind_deg = data["wind"].get("deg", 0)
             directions = [
-                ("N", "⬆️"),
-                ("NE", "↗️"),
-                ("E", "➡️"),
-                ("SE", "↘️"),
-                ("S", "⬇️"),
-                ("SW", "↙️"),
-                ("W", "⬅️"),
-                ("NW", "↖️"),
+                ("⬆️"),
+                ("↗️"),
+                ("➡️"),
+                ("↘️"),
+                ("⬇️"),
+                ("↙️"),
+                ("⬅️"),
+                ("↖️"),
             ]
             idx = round(wind_deg % 360 / 45) % 8
             wind_dir_emoji = directions[idx]
@@ -1455,7 +1455,7 @@ def send_weather(irc=None, target=None, location="Joensuu"):
 
             # Rakennetaan viesti 🌡️
             weather_info = (
-                f"{random_symbol} {location}, {country}: {weather_emoji}{description}, {temp}°C ({feels_like} 🌡️°C), "
+                f"{random_symbol} {location}, {country}: {weather_emoji} {description}, {temp}°C ({feels_like} 🌡️°C), "
                 f"💦 {humidity}%, 🍃 {wind_speed}{wind_dir_emoji} m/s, 👁  {visibility:.1f} km, "
                 f"⚖️ {pressure} hPa {pressure_visual}, ☁️ {clouds}%. "
                 f"🌄{sunrise} - {sunset}🌅."
