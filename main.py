@@ -392,7 +392,6 @@ def read(irc, stop_event):
             except socket.timeout:
                 log("Socket timeout. Let's continue.", "INFO")
                 continue  # Socket timeout occurred, just continue the loop
-            log("Handling...", "DEBUG")
 
             for line in response.strip().split("\r\n"):  # Handle multiple messages
                 log(line.strip(), "SERVER")
