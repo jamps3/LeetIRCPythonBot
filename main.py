@@ -1456,7 +1456,7 @@ def send_weather(irc=None, target=None, location="Joensuu"):
             # Rakennetaan viesti 🌡️
             weather_info = (
                 f"{random_symbol} {location}, {country}: {weather_emoji} {description}, {temp}°C ({feels_like} 🌡️°C), "
-                f"💦 {humidity}%, 🍃 {wind_speed}{wind_dir_emoji} m/s, 👁  {visibility:.1f} km, "
+                f"💦 {humidity}%, 🍃 {wind_speed}{wind_dir_emoji}m/s, 👁  {visibility:.1f} km, "
                 f"⚖️ {pressure} hPa {pressure_visual}, ☁️ {clouds}%. "
                 f"🌄{sunrise} - {sunset}🌅."
             )
