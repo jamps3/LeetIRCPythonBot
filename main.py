@@ -53,8 +53,8 @@ from googleapiclient.discovery import build  # Youtube API
 import signal
 import html  # Title quote removal
 
-# Log level
-LOG_LEVEL = "INFO"  # oletus
+bot_name = "jl3b2"  # Botin nimi
+LOG_LEVEL = "INFO"  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
 HISTORY_FILE = "conversation_history.json"  # File to store conversation history
 EKAVIKA_FILE = "ekavika.json"  # File to store ekavika winners
 WORDS_FILE = "kraks_data.pkl"  # File to store words data
@@ -79,7 +79,7 @@ DRINK_WORDS = {
 DEFAULT_HISTORY = [
     {
         "role": "system",
-        "content": "You are a helpful assistant who knows about Finnish beer culture. You respond in a friendly, short and tight manner. If you don't know something, just say so. Keep responses brief.",
+        "content": "You are a helpful assistant who knows about Finnish beer culture. You respond in a friendly, short and tight manner. If you don't know something, just say so. Keep responses brief, we are on IRC.",
     }
 ]
 
@@ -89,20 +89,6 @@ WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
 ELECTRICITY_API_KEY = os.getenv("ELECTRICITY_API_KEY")
 api_key = os.getenv("OPENAI_API_KEY")
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-
-if sys.gettrace():
-    bot_name = "jL3b2"
-    channels = [("#joensuutest", "")]
-else:
-    bot_name = "jL3b"
-    channels = [
-        ("#53", os.getenv("CHANNEL_KEY_53", "")),
-        ("#joensuu", ""),
-        ("#west", ""),
-    ]
-    """ channels = [
-        ("#joensuutest", ""),
-    ] """
 
 last_ping = time.time()
 last_title = ""
@@ -150,12 +136,12 @@ def search_youtube(query, max_results=1):
                     "DEBUG",
                 )
             else:
-                log(f"Query is not a valid YouTube Shorts link: {query}", "ERROR")
+                log(f"Query is not a valid YouTube Shorts link: {query}", "DEBUG")
 
         log(f"After processing Shorts link, query is: {query}", "DEBUG")
 
         if query is None:
-            log("Query is None after Shorts extraction", "ERROR")
+            log("Query is None after Shorts extraction", "DEBUG")
             return "Error: Query is None after Shorts extraction."
 
         if is_video_id:  # Hae videon tiedot ID:llä
@@ -167,7 +153,7 @@ def search_youtube(query, max_results=1):
 
             items = response.get("items", [])
             if not items:
-                log(f"No video found with the given ID: {query}", "WARNING")
+                log(f"No video found with the given ID: {query}", "INFO")
                 return "No video found with the given ID."
 
             item = items[0]
@@ -189,7 +175,7 @@ def search_youtube(query, max_results=1):
 
             items = response.get("items", [])
             if not items:
-                log(f"No results found for query: {query}", "WARNING")
+                log(f"No results found for query: {query}", "INFO")
                 return "No results found."
 
             item = items[0]
@@ -233,7 +219,7 @@ def load_leet_winners():
     except (FileNotFoundError, json.JSONDecodeError):
         log(
             "Error loading leet winners from file leet_winners.json, creating a new file.",
-            "WARNING",
+            "ERROR",
         )
         return (
             {}
@@ -270,7 +256,7 @@ def save(kraks, file_path=WORDS_FILE):
 def load(file_path=WORDS_FILE):
     """Loads kraks (IRC nick word stats) from a file using pickle, with error handling."""
     if not os.path.exists(file_path):
-        log("Data file not found, creating a new one.", "WARNING")
+        log("Data file not found, creating a new one.", "ERROR")
         return {}
 
     try:
@@ -297,7 +283,7 @@ def update_kraks(kraks, nick, words):
         kraks[nick][word] = kraks[nick].get(word, 0) + 1
 
 
-def login(irc, writer, channels, show_api_keys=False):
+def login(irc, writer, bot_name, channels, show_api_keys=False):
     """
     Logs into the IRC server, waits for the MOTD to finish, and joins multiple channels.
     Implements automatic reconnection in case of disconnection.
@@ -305,6 +291,7 @@ def login(irc, writer, channels, show_api_keys=False):
     Args:
         irc: The IRC connection object (socket).
         writer: The socket writer used to send messages.
+        bot_name: The name of the bot.
         channels (list): List of channels to join.
         show_api_keys (bool): Whether to display API keys in logs.
     """
@@ -319,7 +306,7 @@ def login(irc, writer, channels, show_api_keys=False):
                 log(f"Electricity API Key: {ELECTRICITY_API_KEY}", "DEBUG")
                 log(f"OpenAI API Key: {api_key}", "DEBUG")
             else:
-                log("API keys loaded (use -api flag to show values)", "DEBUG")
+                log("API keys loaded (use -api flag to show values)", "INFO")
 
             writer.sendall(f"NICK {nick}\r\n".encode("utf-8"))
             writer.sendall(f"USER {login} 0 * :{nick}\r\n".encode("utf-8"))
@@ -338,7 +325,7 @@ def login(irc, writer, channels, show_api_keys=False):
                     if " 020 " in line:
                         log(
                             "Server is still processing connection, continuing to wait...",
-                            "DEBUG",
+                            "INFO",
                         )
                         last_response_time = (
                             time.time()
@@ -388,7 +375,7 @@ def login(irc, writer, channels, show_api_keys=False):
 
 
 # Main loop to read messages from IRC
-def read(irc, server, port, stop_event, reconnect_delay=RECONNECT_DELAY):
+def read(irc, stop_event):
     log("Starting read loop...", "DEBUG")
     global last_ping, latency_start
 
@@ -403,8 +390,9 @@ def read(irc, server, port, stop_event, reconnect_delay=RECONNECT_DELAY):
                     )
                     continue  # If no response, keep listening
             except socket.timeout:
-                log("Socket timeout. Let's continue.", "ERROR")
+                log("Socket timeout. Let's continue.", "INFO")
                 continue  # Socket timeout occurred, just continue the loop
+            log("Handling...", "DEBUG")
 
             for line in response.strip().split("\r\n"):  # Handle multiple messages
                 log(line.strip(), "SERVER")
@@ -672,19 +660,27 @@ def keepalive_ping(irc, stop_event):
     global last_ping
     while not stop_event.is_set():
         time.sleep(2)  # Check more frequently for stop event
-        if stop_event.is_set():
-            break
 
         if time.time() - last_ping > 120:
-            # Throws error when socket is lost, need to capture it
-            irc.sendall("PING :keepalive\r\n".encode("utf-8"))
-            # log("Sent keepalive PING", "DEBUG")
-            last_ping = time.time()
+            try:
+                # Send keepalive ping to server
+                irc.sendall("PING :keepalive\r\n".encode("utf-8"))
+                log("Sent keepalive PING", "DEBUG")
+                last_ping = time.time()
+            except (socket.error, ConnectionResetError, BrokenPipeError) as e:
+                log(f"Socket error during keepalive ping: {e}", "ERROR")
+                # Notify main thread to handle reconnection
+                stop_event.set()
+                break
+            except Exception as e:
+                log(f"Unexpected error during keepalive ping: {e}", "ERROR")
+                # Continue running but log the error
 
 
 def process_message(irc, message):
     """Processes incoming IRC messages and tracks word statistics."""
     global latency_start
+    global bot_name
     is_private = False
     match = re.search(r":(\S+)!(\S+) PRIVMSG (\S+) :(.+)", message)
 
@@ -750,7 +746,8 @@ def process_message(irc, message):
 
                 else:
                     log(
-                        "⚠️ Warning: Received LatencyCheck response, but no latency_start timestamp exists."
+                        "⚠️ Warning: Received LatencyCheck response, but no latency_start timestamp exists.",
+                        "ERROR",
                     )
 
             return  # Stop further processing
@@ -989,7 +986,7 @@ def process_message(irc, message):
                 with open(EKAVIKA_FILE, "r", encoding="utf-8") as f:
                     ekavika_data = json.load(f)
             except (FileNotFoundError, json.JSONDecodeError):
-                log("Ei vielä yhtään eka- tai vika-voittoja tallennettuna.", "WARNING")
+                log("Ei vielä yhtään eka- tai vika-voittoja tallennettuna.", "INFO")
                 notice_message(
                     "Ei vielä yhtään eka- tai vika-voittoja tallennettuna.", irc, target
                 )
@@ -1173,9 +1170,7 @@ def process_message(irc, message):
                 with open(EKAVIKA_FILE, "r", encoding="utf-8") as f:
                     ekavika_data = json.load(f)
             except (FileNotFoundError, json.JSONDecodeError):
-                log(
-                    "Ekavika file not found or corrupt, creating a new file.", "WARNING"
-                )
+                log("Ekavika file not found or corrupt, creating a new file.", "INFO")
                 ekavika_data = {
                     "eka": {},
                     "vika": {},
@@ -1205,23 +1200,38 @@ def get_crypto_price(coin="bitcoin", currency="eur"):
     return response.get(coin, {}).get(currency, "Price not available")
 
 
-def countdown(irc, target):
+def countdown(irc, target, stop_event):
     sent_messages = {"12:37": False, "13:36": False}
 
-    while True:
+    while not stop_event.is_set():
         now = datetime.now()
         current_time = now.strftime("%H:%M")
 
         if current_time in sent_messages and not sent_messages[current_time]:
+            if stop_event.is_set():
+                break
+
             message = (
                 "⏳ 1 tunti aikaa leettiin!"
                 if current_time == "12:37"
                 else "⚡ 1 minuutti aikaa leettiin! Brace yourselves!"
             )
-            notice_message(message, irc, target)
-            sent_messages[current_time] = True  # Merkitään viesti lähetetyksi
 
-            time.sleep(82440)  # Nukutaan 22,9 tuntia viestin lähettämisen jälkeen
+            try:
+                notice_message(message, irc, target)
+                sent_messages[current_time] = True  # Merkitään viesti lähetetyksi
+                log(f"Sent countdown message for {current_time}", "INFO")
+            except Exception as e:
+                log(f"Error sending countdown message: {e}", "ERROR")
+
+            # Sleep in smaller intervals to check for stop_event
+            for _ in range(82440):  # 22.9 hours total
+                if stop_event.is_set():
+                    break
+                time.sleep(1)  # Check every second
+
+            if stop_event.is_set():
+                break
 
         time.sleep(1)  # Tarkistetaan aika joka sekunti
 
@@ -1405,13 +1415,48 @@ def send_weather(irc=None, target=None, location="Joensuu"):
                 # Lisätään suuntanuoli lopuksi
                 # pressure_visual += "⬆️" if pressure_diff > 0 else "⬇️"
 
-            # Arvotaan symboli
-            weather_symbol = random.choice(["🌈", "🔮", "🍺", "☀️", "❄️", "🌊", "🔥"])
+            wind_deg = data["wind"].get("deg", 0)
+            directions = [
+                ("N", "⬆️"),
+                ("NE", "↗️"),
+                ("E", "➡️"),
+                ("SE", "↘️"),
+                ("S", "⬇️"),
+                ("SW", "↙️"),
+                ("W", "⬅️"),
+                ("NW", "↖️"),
+            ]
+            idx = round(wind_deg % 360 / 45) % 8
+            wind_dir_emoji = directions[idx]
+
+            # Arvotaan symboli alkuun
+            random_symbol = random.choice(["🌈", "🔮", "🍺", "☀️", "❄️", "🌊", "🔥"])
+
+            # Muodostetaan säätilasymboli
+            weather_icons = {
+                "Clear": "☀️",
+                "Clouds": "☁️",
+                "Rain": "🌧️",
+                "Drizzle": "🌦️",
+                "Thunderstorm": "⛈️",
+                "Snow": "❄️",
+                "Mist": "🌫️",
+                "Smoke": "🌫️",
+                "Haze": "🌫️",
+                "Dust": "🌪️",
+                "Fog": "🌁",
+                "Sand": "🌪️",
+                "Ash": "🌋",
+                "Squall": "💨",
+                "Tornado": "🌪️",
+            }
+            main_weather = data["weather"][0]["main"]  # Esim. "Rain", "Clear"
+            weather_emoji = weather_icons.get(main_weather, "🌈")  # Oletuksena 🌈
 
             # Rakennetaan viesti 🌡️
             weather_info = (
-                f"{weather_symbol} {location}, {country}: {description}, {temp}°C ({feels_like} 🌡️°C), "
-                f"💦 {humidity}%, 🍃 {wind_speed} m/s, 👁  {visibility:.1f} km, "
+                f"{random_symbol} {location}, {country}: {weather_emoji}{description}, {temp}°C ({feels_like} 🌡️°C), "
+                f"💦 {humidity}%, 🍃 {wind_speed}{wind_dir_emoji} m/s, 👁  {visibility:.1f} km, "
                 f"⚖️ {pressure} hPa {pressure_visual}, ☁️ {clouds}%. "
                 f"🌄{sunrise} - {sunset}🌅."
             )
@@ -1841,18 +1886,21 @@ def log(message, level="INFO"):
 
     Args:
         message (str): Tulostettava viesti.
-        level (str, optional): Viestin taso (INFO, WARNING, ERROR, DEBUG). Oletus: INFO.
+        level (str, optional): Viestin taso (ERROR, COMMAND, MSG, SERVER, INFO, DEBUG). Oletus: INFO.
 
     Käyttöesimerkkejä
         log("Ohjelma käynnistyy...")
-        log("Tämä on varoitus!", "WARNING")
         log("Virhe tapahtui!", "ERROR")
+        log("Komento", "COMMAND")
+        log("Viesti kanavalle", "MSG")
+        log("Palvelinviesti", "SERVER")
+        log("Jotain tapahtui", "INFO")
         log("Debug-viesti", "DEBUG")
     """
-    levels = ["COMMAND", "INFO", "SERVER", "MSG", "ERROR", "WARNING", "INFO", "DEBUG"]
+    levels = ["ERROR", "COMMAND", "MSG", "SERVER", "INFO", "DEBUG"]
     if levels.index(level) <= levels.index(LOG_LEVEL):
         timestamp = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}"  # Nanosekunnit
-        print(f"[{timestamp}] [{level:<8}] {message}")
+        print(f"[{timestamp}] [{level:^9}] {message}")
 
 
 def euribor(irc, target):
@@ -1903,20 +1951,27 @@ def euribor(irc, target):
 
 
 def main():
+    log("Bot starting...", "DEBUG")  # Centralized startup message
     # Parse command line arguments
     global LOG_LEVEL
+    global bot_name
     parser = argparse.ArgumentParser(description="IRC Bot with API key handling")
-    parser.add_argument("-api", action="store_true", help="Show API key values in logs")
     parser.add_argument(
+        "-api", action="store_true", help="Show API key values in logs"
+    )  # -api näyttää API-avaimet
+    parser.add_argument(  # -l tai --loglevel *ERROR*, *INFO* tai *DEBUG* määrittää lokitason
         "-l",
         "--loglevel",
-        choices=["ERROR", "WARNING", "INFO", "DEBUG"],
-        default="INFO",
+        choices=["ERROR", "INFO", "DEBUG"],
+        default="DEBUG",  # Oletus: DEBUG
         help="Set the logging level (default: INFO)",
     )
+    parser.add_argument("-nick", "--nickname", type=str, default=bot_name)
     args = parser.parse_args()
 
     LOG_LEVEL = args.loglevel
+    bot_name = args.nickname
+    channels = [("#joensuutest", "")]
 
     # API visibility preference will be passed to login()
 
@@ -1941,10 +1996,13 @@ def main():
                 irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 irc.connect((server, port))
                 irc.settimeout(
-                    RECONNECT_DELAY * 2
-                )  # Add a timeout so Ctrl+C is handled promptly
+                    RECONNECT_DELAY
+                    * 2  # Set a longer timeout than the keepalive ping for the connection
+                )
                 writer = irc
-                login(irc, writer, channels, show_api_keys=args.api)
+                login(
+                    irc, writer, bot_name, channels, show_api_keys=args.api
+                )  # Login to IRC
 
                 # Start Keepalive PING
                 keepalive_thread = threading.Thread(
@@ -1961,12 +2019,14 @@ def main():
                 threads.append(input_thread)
 
                 # Start leet countdown timer
-                threading.Thread(
-                    target=countdown, args=(irc, "#joensuu"), daemon=True
-                ).start()
+                countdown_thread = threading.Thread(
+                    target=countdown, args=(irc, "#joensuu", stop_event), daemon=True
+                )
+                countdown_thread.start()
+                threads.append(countdown_thread)  # Add to threads list for cleanup
 
                 # Main read loop - this will block until disconnect or interrupt
-                read(irc, server, port, stop_event, reconnect_delay=5)
+                read(irc, stop_event)
 
             except (socket.error, ConnectionError) as e:
                 log(f"Server error: {e}", "ERROR")
@@ -1974,10 +2034,12 @@ def main():
                 time.sleep(5)
 
             except KeyboardInterrupt:
+                log("KeyboardInterrupt received. Shutting down...", "INFO")
                 break
 
     except KeyboardInterrupt:
-        pass  # Shutdown message will be handled in finally block
+        # pass  # Shutdown message will be handled in finally block
+        log("KeyboardInterrupt received. Shutting down...", "INFO")
 
     finally:
         log("Shutting down...", "INFO")  # Centralized shutdown message
