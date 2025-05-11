@@ -388,10 +388,11 @@ def read(irc, stop_event):
                         "Received empty data, server may have closed the connection. Let's still keep listening.",
                         "ERROR",
                     )
-                    continue  # If no response, keep listening
+                    # continue  # If no response, keep listening
+                    raise ConnectionError("Server closed connection")
             except socket.timeout:
                 log("Socket timeout. Let's continue.", "INFO")
-                continue  # Socket timeout occurred, just continue the loop
+                raise  # Socket timeout occurred
 
             for line in response.strip().split("\r\n"):  # Handle multiple messages
                 log(line.strip(), "SERVER")
@@ -671,9 +672,8 @@ def keepalive_ping(irc, stop_event):
                 # Notify main thread to handle reconnection
                 stop_event.set()
                 break
-            except Exception as e:
+            except Exception as e:  # Continue running but log the error
                 log(f"Unexpected error during keepalive ping: {e}", "ERROR")
-                # Continue running but log the error
 
 
 def process_message(irc, message):
@@ -1906,12 +1906,12 @@ def log(message, level="INFO"):
         level (str, optional): Viestin taso (ERROR, COMMAND, MSG, SERVER, INFO, DEBUG). Oletus: INFO.
 
     Käyttöesimerkkejä
-        log("Ohjelma käynnistyy...")
+        log("Ohjelma käynnistyy...") # Oletus INFO, sama kuin:
+        log("Ohjelma käynnistyy!", "INFO")
         log("Virhe tapahtui!", "ERROR")
         log("Komento", "COMMAND")
         log("Viesti kanavalle", "MSG")
         log("Palvelinviesti", "SERVER")
-        log("Jotain tapahtui", "INFO")
         log("Debug-viesti", "DEBUG")
     """
     levels = ["ERROR", "COMMAND", "MSG", "SERVER", "INFO", "DEBUG"]
@@ -2096,31 +2096,36 @@ def main():
         log("KeyboardInterrupt received. Shutting down...", "INFO")
 
     finally:
-        log("Shutting down...", "INFO")  # Centralized shutdown message
-        # Save data and close socket
+        log("Shutting down...", "INFO")
         try:
-            kraks = load()  # Load kraks data before saving
-            save(kraks)  # Pass the loaded kraks data to save()
+            kraks = load()
+            save(kraks)
             log(f"IRC? : {irc}", "DEBUG")
+
             if irc:
                 try:
-                    # Clean shutdown procedures
-                    log("Saving data...", "DEBUG")  # Debug message
+                    log("Saving data...", "DEBUG")
                     writer.sendall(f"QUIT :{QUIT_MESSAGE}\r\n".encode("utf-8"))
-                    time.sleep(1)  # Allow time for the message to send
-                    irc.shutdown(socket.SHUT_RDWR)
-                    stop_event.set()  # Signal all threads to terminate
+                    writer.shutdown(socket.SHUT_WR)  # Half-close write side
+                    time.sleep(2)  # Give time for the server to receive the QUIT
 
-                    # Wait for threads to finish (with timeout)
+                    stop_event.set()
+
                     for thread in threads:
                         if thread.is_alive():
                             thread.join(timeout=1.0)
-                except:
-                    pass
-                irc.close()
+                except Exception as e:
+                    log(f"Error during socket shutdown: {e}", "ERROR")
+
+                try:
+                    irc.close()
+                except Exception as e:
+                    log(f"Error during socket close: {e}", "ERROR")
+
             log("Cleanup complete.", "DEBUG")
             log("Bot exited gracefully. Goodbye!", "INFO")
             sys.exit(0)
+
         except Exception as e:
             log(f"Error during cleanup: {e}", "ERROR")
 
