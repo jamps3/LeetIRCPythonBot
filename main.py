@@ -321,6 +321,15 @@ def login(irc, writer, bot_name, channels, show_api_keys=False):
                     if line:
                         log(f"MOTD: {line}", "SERVER")
 
+                    if "jl3b2 :Nickname is already in use." in line:
+                        log(
+                            "Nickname is already in use. Trying again with a different one...",
+                            "ERROR",
+                        )
+                        nick = f"{bot_name}{random.randint(1, 100)}"
+                        writer.sendall(f"NICK {nick}\r\n".encode("utf-8"))
+                        continue
+
                     # If server says "Please wait while we process your connection", don't disconnect yet
                     if " 020 " in line:
                         log(
@@ -1917,7 +1926,7 @@ def log(message, level="INFO"):
     levels = ["ERROR", "COMMAND", "MSG", "SERVER", "INFO", "DEBUG"]
     if levels.index(level) <= levels.index(LOG_LEVEL):
         timestamp = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}"  # Nanosekunnit
-        print(f"[{timestamp}] [{level:^9}] {message}")
+        print(f"[{timestamp}] [{level:^8}] {message}")
 
 
 def euribor(irc, target):
