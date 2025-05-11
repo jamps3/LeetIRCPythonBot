@@ -333,7 +333,7 @@ def login(irc, writer, bot_name, channels, show_api_keys=False):
                     # If server says "Please wait while we process your connection", don't disconnect yet
                     if " 020 " in line:
                         log(
-                            "Server is still processing connection, continuing to wait...",
+                            "Server is processing connection, waiting...",
                             "INFO",
                         )
                         last_response_time = (
@@ -363,11 +363,12 @@ def login(irc, writer, bot_name, channels, show_api_keys=False):
                         f"No response from server for {RECONNECT_DELAY} seconds"
                     )
 
+        except socket.timeout:
+            continue  # Ignore timeout errors silently and keep going
         except (
             socket.error,
             ConnectionResetError,
             BrokenPipeError,
-            socket.timeout,
         ) as e:
             log(
                 f"Connection lost: {e}. Reconnecting in {RECONNECT_DELAY} seconds...",
