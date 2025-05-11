@@ -341,8 +341,8 @@ def login(irc, writer, bot_name, channels, show_api_keys=False):
                         )  # Reset timeout so it doesn't assume failure
                         continue  # Keep waiting instead of assuming failure
 
-                    # If welcome (001) or MOTD completion (376/422) received, join channels
-                    if " 001 " in line or " 376 " in line or " 422 " in line:
+                    # If MOTD completion (376/422) received, join channels
+                    if " 376 " in line or " 422 " in line:
                         log("MOTD complete, joining channels...", "INFO")
 
                         for channel, key in channels:
@@ -391,17 +391,16 @@ def read(irc, stop_event):
     try:
         while not stop_event.is_set():  # Check if shutdown is requested
             try:
-                response = irc.recv(4096).decode("utf-8", errors="ignore")
-                if not response:
+                data = irc.recv(4096)
+                if not data:
                     log(
-                        "Received empty data, server may have closed the connection. Let's still keep listening.",
+                        "Received empty data, server may have closed the connection.",
                         "ERROR",
                     )
-                    # continue  # If no response, keep listening
-                    raise ConnectionError("Server closed connection")
+                    raise ConnectionError("Server closed connection.")
+                response = data.decode("utf-8", errors="ignore")
             except socket.timeout:
-                log("Socket timeout. Let's continue.", "INFO")
-                raise  # Socket timeout occurred
+                continue  # Ignore timeout errors silently and keep listening
 
             for line in response.strip().split("\r\n"):  # Handle multiple messages
                 log(line.strip(), "SERVER")
@@ -417,20 +416,9 @@ def read(irc, stop_event):
                 except Exception as e:
                     log(f"Error while processing message: {e}", "ERROR")
 
-    except KeyboardInterrupt:
-        log("Keyboard interrupt received. Exiting...", "INFO")
-        stop_event.set()  # Notify all threads to stop without logging
-
     except Exception as e:
         log(f"Error in read(): {e}", "ERROR")
-
-    finally:
-        log("Shutting down IRC connection...", "INFO")
-        try:
-            irc.shutdown(socket.SHUT_RDWR)
-            irc.close()
-        except Exception as e:
-            log(f"Error while closing IRC connection: {e}", "ERROR")
+        raise
 
 
 def listen_for_commands(stop_event):
@@ -676,13 +664,9 @@ def keepalive_ping(irc, stop_event):
                 irc.sendall("PING :keepalive\r\n".encode("utf-8"))
                 log("Sent keepalive PING", "DEBUG")
                 last_ping = time.time()
-            except (socket.error, ConnectionResetError, BrokenPipeError) as e:
-                log(f"Socket error during keepalive ping: {e}", "ERROR")
-                # Notify main thread to handle reconnection
-                stop_event.set()
-                break
             except Exception as e:  # Continue running but log the error
                 log(f"Unexpected error during keepalive ping: {e}", "ERROR")
+                raise
 
 
 def process_message(irc, message):
@@ -1643,7 +1627,7 @@ def fetch_title(irc=None, target=None, text=""):
     urls = re.findall(pattern, text)
 
     if not urls:
-        log("Ei löydetty kelvollisia URL-osoitteita.", "DEBUG")
+        # log("Ei löydetty kelvollisia URL-osoitteita.", "DEBUG")
         return
 
     log(f"Löydetyt URL-osoitteet: {urls}", "DEBUG")  # Logataan löydetyt URL-osoitteet
@@ -1926,7 +1910,7 @@ def log(message, level="INFO"):
     levels = ["ERROR", "COMMAND", "MSG", "SERVER", "INFO", "DEBUG"]
     if levels.index(level) <= levels.index(LOG_LEVEL):
         timestamp = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}"  # Nanosekunnit
-        print(f"[{timestamp}] [{level:^8}] {message}")
+        print(f"[{timestamp}] [{level:^7}] {message}")
 
 
 def euribor(irc, target):
@@ -2038,7 +2022,6 @@ def main():
     port = servers[0]["port"]
     server = servers[0]["host"]
     channels = servers[0]["channels"]
-    log(port, "DEBUG")  # Log the port
 
     stop_event = threading.Event()
     irc = None
@@ -2059,9 +2042,8 @@ def main():
                 irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 irc.connect((server, port))
                 irc.settimeout(
-                    RECONNECT_DELAY
-                    * 2  # Set a longer timeout than the keepalive ping for the connection
-                )
+                    5
+                )  # Set a timeout for socket operations, ctrl+c will not hang longer than this
                 writer = irc
                 login(
                     irc, writer, bot_name, channels, show_api_keys=args.api
@@ -2092,7 +2074,7 @@ def main():
                 read(irc, stop_event)
 
             except (socket.error, ConnectionError) as e:
-                log(f"Server error: {e}", "ERROR")
+                log(f"Server error: {e}, retrying after 5 seconds...", "ERROR")
                 # Wait before reconnecting
                 time.sleep(5)
 
@@ -2100,43 +2082,34 @@ def main():
                 log("KeyboardInterrupt received. Shutting down...", "INFO")
                 break
 
-    except KeyboardInterrupt:
-        # pass  # Shutdown message will be handled in finally block
-        log("KeyboardInterrupt received. Shutting down...", "INFO")
-
     finally:
-        log("Shutting down...", "INFO")
         try:
+            log("Shutting down, saving data...", "INFO")
             kraks = load()
             save(kraks)
-            log(f"IRC? : {irc}", "DEBUG")
-
             if irc:
                 try:
-                    log("Saving data...", "DEBUG")
                     writer.sendall(f"QUIT :{QUIT_MESSAGE}\r\n".encode("utf-8"))
                     writer.shutdown(socket.SHUT_WR)  # Half-close write side
-                    time.sleep(2)  # Give time for the server to receive the QUIT
-
+                    time.sleep(1)  # Give time for the server to receive the QUIT
                     stop_event.set()
-
                     for thread in threads:
                         if thread.is_alive():
                             thread.join(timeout=1.0)
-                except Exception as e:
-                    log(f"Error during socket shutdown: {e}", "ERROR")
-
-                try:
+                            if thread.is_alive():
+                                log(
+                                    f"Thread {thread.name} did not terminate cleanly.",
+                                    "ERROR",
+                                )
+                    log("Cleanup complete. Shutting down IRC connection...", "DEBUG")
+                    irc.shutdown(socket.SHUT_RDWR)
                     irc.close()
                 except Exception as e:
-                    log(f"Error during socket close: {e}", "ERROR")
-
-            log("Cleanup complete.", "DEBUG")
+                    log(f"Error during shutdown: {e}", "ERROR")
             log("Bot exited gracefully. Goodbye!", "INFO")
             sys.exit(0)
-
         except Exception as e:
-            log(f"Error during cleanup: {e}", "ERROR")
+            log(f"Error saving data: {e}", "ERROR")
 
 
 if __name__ == "__main__":
