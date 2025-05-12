@@ -439,7 +439,7 @@ def listen_for_commands(stop_event):
                 command_parts = user_input.split(" ", 1)
                 command = command_parts[0].lower()
                 args = command_parts[1] if len(command_parts) > 1 else ""
-                log(f"Processing command {command} with args: {args}", "COMMAND")
+                log(f"Processing command {command} with args: {args}", "CMD")
 
                 # List all commands
                 if command == "!help":
@@ -746,7 +746,7 @@ def process_message(irc, message):
             return  # Stop further processing
 
         # Track words only if it's not a bot command
-        if not text.startswith(("!", "http")):
+        if not text.startswith(("!")):  # Track all lines except commands
             words = re.findall(r"\b\w+\b", text.lower())  # Extract words, ignore case
             kraks = load()
             update_kraks(kraks, sender, words)
@@ -1880,14 +1880,9 @@ def notice_message(message, irc=None, target=None):
         irc (socket, optional): IRC socket object. If None, outputs to console
         target (str, optional): IRC nick/channel to send to.
     """
-    if irc and target:
-        # Send to IRC
+    if irc and target:  # Send message to IRC target
         irc.sendall(f"NOTICE {target} :{message}\r\n".encode("utf-8"))
         log(f"Message sent to {target}: {message}", "MSG")
-    elif irc:
-        # Send command to IRC
-        irc.sendall(f"{message}\r\n".encode("utf-8"))
-        log(f"Command '{message}' sent.")
     else:
         log(message, "MSG")  # Output to console
 
@@ -1897,21 +1892,21 @@ def log(message, level="INFO"):
 
     Args:
         message (str): Tulostettava viesti.
-        level (str, optional): Viestin taso (ERROR, COMMAND, MSG, SERVER, INFO, DEBUG). Oletus: INFO.
+        level (str, optional): Viestin taso (ERROR, CMD, MSG, SERVER, INFO, DEBUG). Oletus: INFO.
 
     Käyttöesimerkkejä
         log("Ohjelma käynnistyy...") # Oletus INFO, sama kuin:
         log("Ohjelma käynnistyy!", "INFO")
         log("Virhe tapahtui!", "ERROR")
-        log("Komento", "COMMAND")
+        log("Komento", "CMD")
         log("Viesti kanavalle", "MSG")
         log("Palvelinviesti", "SERVER")
         log("Debug-viesti", "DEBUG")
     """
-    levels = ["ERROR", "COMMAND", "MSG", "SERVER", "INFO", "DEBUG"]
+    levels = ["ERROR", "CMD", "MSG", "SERVER", "INFO", "DEBUG"]
     if levels.index(level) <= levels.index(LOG_LEVEL):
         timestamp = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}"  # Nanosekunnit
-        print(f"[{timestamp}] [{level:^7}] {message}")
+        print(f"[{timestamp}] [{level:^6}] {message}")
 
 
 def euribor(irc, target):
