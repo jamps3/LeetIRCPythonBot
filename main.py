@@ -606,88 +606,24 @@ def listen_for_commands(stop_event):
                                 or count > filtered_winners[cat][1]
                             ):
                                 filtered_winners[cat] = (winner, count)
-
                     # Format the output
                     winners_text = ", ".join(
                         f"{cat}: {winner} [{count}]"
                         for cat, (winner, count) in filtered_winners.items()
                     )
-
                     response = (
                         f"Leet winners: {winners_text}"
                         if winners_text
                         else "No leet winners recorded yet."
                     )
                     notice_message(response)
-
                 elif command.startswith("!url"):  # Handle URL title fetching
                     if args:
                         fetch_title(None, None, args)
                     else:
                         notice_message("Käytä komentoa: !url <url>")
-
                 elif command.startswith("!ipfs"):
-                    if not args:
-                        notice_message("Usage: !ipfs <url>")
-                        return
-                    MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
-                    url = args.strip()
-                    log(f"Received !ipfs command with URL: {url}", "DEBUG")
-
-                    try:
-                        # Stream download and limit size
-                        response = requests.get(url, stream=True, timeout=10)
-                        response.raise_for_status()
-
-                        total_size = 0
-                        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-                            for chunk in response.iter_content(chunk_size=8192):
-                                if chunk:
-                                    total_size += len(chunk)
-                                    if total_size > MAX_FILE_SIZE:
-                                        tmp.close()
-                                        os.remove(tmp.name)
-                                        notice_message(
-                                            "File too large (limit is 100MB)."
-                                        )
-                                        log(
-                                            "Aborted: File exceeded 100MB during download.",
-                                            "DEBUG",
-                                        )
-                                        return
-                                    tmp.write(chunk)
-                            tmp_path = tmp.name
-
-                        log(
-                            f"Downloaded file to temporary path: {tmp_path} ({total_size} bytes)",
-                            "DEBUG",
-                        )
-
-                        log(f"Running IPFS command: ipfs add {tmp_path}", "DEBUG")
-                        # Add file to IPFS
-                        result = subprocess.run(
-                            ["ipfs", "add", "-q", tmp_path],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            text=True,
-                        )
-
-                        os.remove(tmp_path)
-
-                        if result.returncode == 0:
-                            ipfs_hash = result.stdout.strip()
-                            ipfs_url = f"https://ipfs.io/ipfs/{ipfs_hash}"
-                            log(f"File added to IPFS with hash: {ipfs_hash}", "DEBUG")
-                            notice_message(f"Added to IPFS: {ipfs_url}")
-                        else:
-                            error_msg = result.stderr.strip()
-                            log(f"IPFS add failed: {error_msg}", "DEBUG")
-                            notice_message("Failed to add file to IPFS.")
-
-                    except Exception as e:
-                        log(f"Exception during !ipfs handling: {str(e)}", "DEBUG")
-                        notice_message("Error handling !ipfs request.")
-
+                    handle_ipfs_command(command, args)
                 else:
                     notice_message(
                         f"Command '{command}' not recognized or not implemented for console use"
@@ -700,6 +636,68 @@ def listen_for_commands(stop_event):
                     log(f"Bot: {part}", "MSG")
     except (EOFError, KeyboardInterrupt):
         stop_event.set()
+
+
+def handle_ipfs_command(command, args):
+    """
+    Handles IPFS commands from the console. Currently only !ipfs add supported.
+    """
+    if command.startswith("!ipfs add "):
+        # Extract the file path from the command
+        # file_path = command[len("!ipfs add ") :].strip()
+        if not args:
+            notice_message("Usage: !ipfs add <url>")
+            return
+        MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
+        url = args.strip()
+        log(f"Received !ipfs command with URL: {url}", "DEBUG")
+        try:
+            # Stream download and limit size
+            response = requests.get(url, stream=True, timeout=10)
+            response.raise_for_status()
+            total_size = 0
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        total_size += len(chunk)
+                        if total_size > MAX_FILE_SIZE:
+                            tmp.close()
+                            os.remove(tmp.name)
+                            notice_message("File too large (limit is 100MB).")
+                            log(
+                                "Aborted: File exceeded 100MB during download.",
+                                "DEBUG",
+                            )
+                            return
+                        tmp.write(chunk)
+                tmp_path = tmp.name
+            log(
+                f"Downloaded file to temporary path: {tmp_path} ({total_size} bytes)",
+                "DEBUG",
+            )
+            log(f"Running IPFS command: ipfs add {tmp_path}", "DEBUG")
+            # Add file to IPFS
+            result = subprocess.run(
+                ["ipfs", "add", "-q", tmp_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            os.remove(tmp_path)
+            if result.returncode == 0:
+                ipfs_hash = result.stdout.strip()
+                ipfs_url = f"https://ipfs.io/ipfs/{ipfs_hash}"
+                log(f"File added to IPFS with hash: {ipfs_hash}", "DEBUG")
+                notice_message(f"Added to IPFS: {ipfs_url}")
+            else:
+                error_msg = result.stderr.strip()
+                log(f"IPFS add failed: {error_msg}", "DEBUG")
+                notice_message("Failed to add file to IPFS.")
+        except Exception as e:
+            log(f"Exception during !ipfs handling: {str(e)}", "DEBUG")
+            notice_message("Error handling !ipfs request.")
+    else:
+        log("Invalid IPFS command", "ERROR")
 
 
 def count_kraks(word, beverage):
@@ -1169,14 +1167,20 @@ def process_message(irc, message):
                 key = parts[2]
             if match:
                 notice_message(f"JOIN {channel} {key}", irc)
-
         elif text.startswith("!opzor"):
             # Extracts the nick from the given text after the !opzor command.
             parts = message.split()
             if len(parts) == 5 and parts[3] == ":!opzor":
                 viesti = f"MODE {parts[2]} +o {parts[4]}"
                 notice_message(f"MODE {parts[2]} +o {parts[4]}", irc)
-
+        elif text.startswith("!ipfs"):
+            # Extracts the command and URL from the given text after the !ipfs command.
+            parts = message.split()
+            if len(parts) >= 3 and parts[1] == "!ipfs":
+                command = parts[1]
+                url = parts[2]
+                # Handle the IPFS command
+                handle_ipfs_command(command, url)
         else:
             # ✅ Handle regular chat messages (send to GPT)
             # ✅ Only respond to private messages or messages mentioning the bot's name
@@ -1186,7 +1190,6 @@ def process_message(irc, message):
                 reply_target = (
                     sender if is_private else target
                 )  # Send private replies to sender
-
                 # Send each response part separately as full messages
                 for part in response_parts:
                     send_message(irc, reply_target, part)
@@ -1526,13 +1529,13 @@ def send_weather(irc=None, target=None, location="Joensuu"):
             weather_info = (
                 f"{random_symbol}{location},{country}:{weather_emoji} {description}, {temp}°C ({feels_like}🌡️°C), "
                 f"💦{humidity}%, 🍃{wind_speed}{wind_dir_emoji}m/s, 👁 {visibility:.1f} km, "
-                f"⚖️ {pressure} hPa{pressure_visual}, ☁️{clouds}%, "
+                f"⚖️{pressure} hPa{pressure_visual}, ☁️{clouds}%, "
                 f"🌄{sunrise}-{sunset}🌅"
             )
 
             # Lisää UV-indeksi ja sade/lumi tiedot
             if uv_index is not None:
-                weather_info += f", 🔆(UV): {uv_index:.1f}"
+                weather_info += f", 🔆UV: {uv_index:.1f}"
             if rain > 0:
                 weather_info += f", Sade: {rain} mm/tunti."
             if snow > 0:
