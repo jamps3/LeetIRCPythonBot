@@ -3,3 +3,4 @@ bs4
 openai
 dotenv
 google-api-python-client
+isodate
