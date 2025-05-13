@@ -297,18 +297,18 @@ def login(irc, writer, bot_name, channels, show_api_keys=False):
         channels (list): List of channels to join.
         show_api_keys (bool): Whether to display API keys in logs.
     """
+    # Log API keys if requested
+    if show_api_keys:
+        log(f"Weather API Key: {WEATHER_API_KEY}", "DEBUG")
+        log(f"Electricity API Key: {ELECTRICITY_API_KEY}", "DEBUG")
+        log(f"OpenAI API Key: {api_key}", "DEBUG")
+    else:
+        log("API keys loaded (use -api flag to show values)", "INFO")
+
     while True:  # Infinite loop for automatic reconnection
         try:
             nick = bot_name
             login = bot_name
-
-            # Log API keys if requested
-            if show_api_keys:
-                log(f"Weather API Key: {WEATHER_API_KEY}", "DEBUG")
-                log(f"Electricity API Key: {ELECTRICITY_API_KEY}", "DEBUG")
-                log(f"OpenAI API Key: {api_key}", "DEBUG")
-            else:
-                log("API keys loaded (use -api flag to show values)", "INFO")
 
             writer.sendall(f"NICK {nick}\r\n".encode("utf-8"))
             writer.sendall(f"USER {login} 0 * :{nick}\r\n".encode("utf-8"))
@@ -323,7 +323,7 @@ def login(irc, writer, bot_name, channels, show_api_keys=False):
                     if line:
                         log(f"MOTD: {line}", "SERVER")
 
-                    if "jl3b2 :Nickname is already in use." in line:
+                    if "Nickname is already in use." in line:
                         log(
                             "Nickname is already in use. Trying again with a different one...",
                             "ERROR",
