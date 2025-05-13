@@ -285,7 +285,14 @@ def update_kraks(kraks, nick, words):
         kraks[nick][word] = kraks[nick].get(word, 0) + 1
 
 
-def login(irc, writer, bot_name, channels, show_api_keys=False):
+def login(
+    irc,
+    writer,
+    bot_name,
+    channels,
+    show_api_keys=False,
+    reconnect_delay=RECONNECT_DELAY,
+):
     """
     Logs into the IRC server, waits for the MOTD to finish, and joins multiple channels.
     Implements automatic reconnection in case of disconnection.
@@ -296,33 +303,32 @@ def login(irc, writer, bot_name, channels, show_api_keys=False):
         bot_name: The name of the bot.
         channels (list): List of channels to join.
         show_api_keys (bool): Whether to display API keys in logs.
+        reconnect_delay (int): Delay in seconds before retrying connection.
     """
-    # Log API keys if requested
+    # Log API keys if requested or show help
     if show_api_keys:
         log(f"Weather API Key: {WEATHER_API_KEY}", "DEBUG")
         log(f"Electricity API Key: {ELECTRICITY_API_KEY}", "DEBUG")
         log(f"OpenAI API Key: {api_key}", "DEBUG")
     else:
         log("API keys loaded (use -api flag to show values)", "INFO")
-
+    nick = bot_name  # Alusta kerran
+    login = bot_name  # Alusta kerran
     while True:  # Infinite loop for automatic reconnection
         try:
-            nick = bot_name
-            login = bot_name
-
             writer.sendall(f"NICK {nick}\r\n".encode("utf-8"))
             writer.sendall(f"USER {login} 0 * :{nick}\r\n".encode("utf-8"))
-
             last_response_time = time.time()  # Track last received message time
             while True:
                 response = irc.recv(2048).decode("utf-8", errors="ignore")
-                if response:
-                    last_response_time = time.time()  # Reset timeout on any message
-
+                if not response:
+                    log("Empty response from server. Waiting...", "ERROR")
+                    continue
+                last_response_time = time.time()  # Reset timeout on any message
                 for line in response.split("\r\n"):
-                    if line:
-                        log(f"MOTD: {line}", "SERVER")
-
+                    if not line:
+                        continue
+                    log(f"MOTD: {line}", "SERVER")
                     if "Nickname is already in use." in line:
                         log(
                             "Nickname is already in use. Trying again with a different one...",
@@ -330,8 +336,7 @@ def login(irc, writer, bot_name, channels, show_api_keys=False):
                         )
                         nick = f"{bot_name}{random.randint(1, 100)}"
                         writer.sendall(f"NICK {nick}\r\n".encode("utf-8"))
-                        continue
-
+                        break  # Palaa käsittelemään uutta nickiä, älä jatka loopissa!
                     # If server says "Please wait while we process your connection", don't disconnect yet
                     if " 020 " in line:
                         log(
@@ -342,11 +347,9 @@ def login(irc, writer, bot_name, channels, show_api_keys=False):
                             time.time()
                         )  # Reset timeout so it doesn't assume failure
                         continue  # Keep waiting instead of assuming failure
-
                     # If MOTD completion (376/422) received, join channels
                     if " 376 " in line or " 422 " in line:
                         log("MOTD complete, joining channels...", "INFO")
-
                         for channel, key in channels:
                             if key:
                                 writer.sendall(
@@ -356,15 +359,12 @@ def login(irc, writer, bot_name, channels, show_api_keys=False):
                             else:
                                 writer.sendall(f"JOIN {channel}\r\n".encode("utf-8"))
                                 log(f"Joined channel {channel} (no key)", "INFO")
-
                         return  # Successfully joined, exit function
-
                 # Timeout handling: If no response received in RECONNECT_DELAY seconds, assume failure
                 if time.time() - last_response_time > RECONNECT_DELAY:
                     raise socket.timeout(
                         f"No response from server for {RECONNECT_DELAY} seconds"
                     )
-
         except socket.timeout:
             continue  # Ignore timeout errors silently and keep going
         except (
@@ -377,7 +377,6 @@ def login(irc, writer, bot_name, channels, show_api_keys=False):
                 "ERROR",
             )
             time.sleep(RECONNECT_DELAY)
-
         except Exception as e:
             log(
                 f"Unexpected error: {e}. Reconnecting in {RECONNECT_DELAY} seconds...",
@@ -664,6 +663,7 @@ def listen_for_commands(stop_event):
                             "DEBUG",
                         )
 
+                        log(f"Running IPFS command: ipfs add {tmp_path}", "DEBUG")
                         # Add file to IPFS
                         result = subprocess.run(
                             ["ipfs", "add", "-q", tmp_path],
