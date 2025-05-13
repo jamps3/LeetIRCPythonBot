@@ -52,6 +52,8 @@ import argparse  # Command line argument parsing
 from googleapiclient.discovery import build  # Youtube API
 import signal
 import html  # Title quote removal
+import subprocess  # IPFS
+import tempfile  # IPFS
 
 bot_name = "jl3b"  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
 LOG_LEVEL = "INFO"  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
@@ -624,6 +626,67 @@ def listen_for_commands(stop_event):
                         fetch_title(None, None, args)
                     else:
                         notice_message("Käytä komentoa: !url <url>")
+
+                elif command.startswith("!ipfs"):
+                    if not args:
+                        notice_message("Usage: !ipfs <url>")
+                        return
+                    MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
+                    url = args.strip()
+                    log(f"Received !ipfs command with URL: {url}", "DEBUG")
+
+                    try:
+                        # Stream download and limit size
+                        response = requests.get(url, stream=True, timeout=10)
+                        response.raise_for_status()
+
+                        total_size = 0
+                        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                            for chunk in response.iter_content(chunk_size=8192):
+                                if chunk:
+                                    total_size += len(chunk)
+                                    if total_size > MAX_FILE_SIZE:
+                                        tmp.close()
+                                        os.remove(tmp.name)
+                                        notice_message(
+                                            "File too large (limit is 100MB)."
+                                        )
+                                        log(
+                                            "Aborted: File exceeded 100MB during download.",
+                                            "DEBUG",
+                                        )
+                                        return
+                                    tmp.write(chunk)
+                            tmp_path = tmp.name
+
+                        log(
+                            f"Downloaded file to temporary path: {tmp_path} ({total_size} bytes)",
+                            "DEBUG",
+                        )
+
+                        # Add file to IPFS
+                        result = subprocess.run(
+                            ["ipfs", "add", "-q", tmp_path],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                        )
+
+                        os.remove(tmp_path)
+
+                        if result.returncode == 0:
+                            ipfs_hash = result.stdout.strip()
+                            ipfs_url = f"https://ipfs.io/ipfs/{ipfs_hash}"
+                            log(f"File added to IPFS with hash: {ipfs_hash}", "DEBUG")
+                            notice_message(f"Added to IPFS: {ipfs_url}")
+                        else:
+                            error_msg = result.stderr.strip()
+                            log(f"IPFS add failed: {error_msg}", "DEBUG")
+                            notice_message("Failed to add file to IPFS.")
+
+                    except Exception as e:
+                        log(f"Exception during !ipfs handling: {str(e)}", "DEBUG")
+                        notice_message("Error handling !ipfs request.")
 
                 else:
                     notice_message(
