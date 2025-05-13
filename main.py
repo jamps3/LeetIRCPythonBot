@@ -54,6 +54,8 @@ import signal
 import html  # Title quote removal
 import subprocess  # IPFS
 import tempfile  # IPFS
+import isodate  # For parsing YouTube video duration
+import traceback  # For error handling
 
 bot_name = "jl3b"  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
 LOG_LEVEL = "INFO"  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
@@ -121,7 +123,9 @@ def search_youtube(query, max_results=1):
 
         log(f"Received query: {query}", "DEBUG")
 
-        # Tarkistetaan onko query todennäköisesti video-ID
+        # IRC-formatted YouTube logo
+        yt_logo = "\x02\x0314,15You\x0315,04Tube\x03\x02"
+        # Tarkistetaan onko query video-ID
         is_video_id = re.fullmatch(r"[a-zA-Z0-9_-]{11}", query)
         log(f"Is query a valid video ID? {is_video_id}", "DEBUG")
 
@@ -137,8 +141,6 @@ def search_youtube(query, max_results=1):
                     f"Detected YouTube Shorts link, extracted video ID: {query}",
                     "DEBUG",
                 )
-            else:
-                log(f"Query is not a valid YouTube Shorts link: {query}", "DEBUG")
 
         log(f"After processing Shorts link, query is: {query}", "DEBUG")
 
@@ -146,11 +148,12 @@ def search_youtube(query, max_results=1):
             log("Query is None after Shorts extraction", "DEBUG")
             return "Error: Query is None after Shorts extraction."
 
-        if is_video_id:  # Hae videon tiedot ID:llä
+        if is_video_id:
             log(f"Searching video by ID: {query}", "DEBUG")
-            request = youtube.videos().list(id=query, part="snippet")
+            request = youtube.videos().list(
+                id=query, part="snippet,statistics,contentDetails"
+            )
             response = request.execute()
-
             log(f"Response received: {response}", "DEBUG")
 
             items = response.get("items", [])
@@ -159,20 +162,37 @@ def search_youtube(query, max_results=1):
                 return "No video found with the given ID."
 
             item = items[0]
-            video_title = html.unescape(item["snippet"]["title"]).replace("  ", " ")
-            video_url = f"https://www.youtube.com/watch?v={query}"
-            log(f"Found video: {video_title} ({video_url})", "DEBUG")
-            return f"'{video_title}' URL: {video_url}"
+            title = html.unescape(item["snippet"]["title"]).replace("  ", " ")
+            statistics = item.get("statistics", {})
+            views = statistics.get("viewCount", "0")
+            likes = statistics.get("likeCount", "0")
+            url = f"https://www.youtube.com/watch?v={query}"
+
+            # Duration
+            duration_raw = item["contentDetails"]["duration"]
+            log("Duration: " + duration_raw, "DEBUG")
+            duration_str = parse_iso8601_duration(duration_raw)
+
+            # Published date
+            published_at = item["snippet"]["publishedAt"]
+            date_obj = datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ")
+            if platform.system() == "Windows":
+                formatted_date = date_obj.strftime("%#d.%#m.%Y")
+            else:
+                formatted_date = date_obj.strftime("%-d.%-m.%Y")
+
+            log(
+                f"Found video: {title} [{duration_str}] / Views: {views}|{likes}👍 / Added: {formatted_date} / URL: {url}",
+                "DEBUG",
+            )
+            return f"{yt_logo} '{title}' [{duration_str}] / Views: {views}|{likes}👍 / Added: {formatted_date} / URL: {url}"
+
         else:  # Tekstihaku
             log(f"Searching video by query: {query}", "DEBUG")
             request = youtube.search().list(
-                q=query,
-                part="snippet",
-                maxResults=max_results,
-                type="video",  # This will ensure only videos are returned
+                q=query, part="snippet", maxResults=max_results, type="video"
             )
             response = request.execute()
-
             log(f"Response received: {response}", "DEBUG")
 
             items = response.get("items", [])
@@ -181,15 +201,51 @@ def search_youtube(query, max_results=1):
                 return "No results found."
 
             item = items[0]
-            video_title = html.unescape(item["snippet"]["title"]).replace("  ", " ")
             video_id = item["id"]["videoId"]
-            video_url = f"https://www.youtube.com/watch?v={video_id}"
-            log(f"Found video: {video_title} ({video_url})", "DEBUG")
-            return f"'{video_title}' URL: {video_url}"
+            title = html.unescape(item["snippet"]["title"]).replace("  ", " ")
+            url = f"https://www.youtube.com/watch?v={video_id}"
+
+            # For full details, we'd need to call videos().list again to get stats + contentDetails
+            details_request = youtube.videos().list(
+                id=video_id, part="statistics,contentDetails,snippet"
+            )
+            details_response = details_request.execute()
+            log(f"Details response: {details_response}", "DEBUG")
+
+            detail = details_response["items"][0]
+            statistics = item.get("statistics", {})
+            views = statistics.get("viewCount", "0")
+            likes = statistics.get("likeCount", "0")
+            duration_str = parse_iso8601_duration(detail["contentDetails"]["duration"])
+            published_at = detail["snippet"]["publishedAt"]
+            date_obj = datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ")
+            if platform.system() == "Windows":
+                formatted_date = date_obj.strftime("%#d.%#m.%Y")
+            else:
+                formatted_date = date_obj.strftime("%-d.%-m.%Y")
+
+            log(
+                f"Found video: {title} [{duration_str}] / Views: {views}|{likes}👍 / Added: {formatted_date} / URL: {url}",
+                "DEBUG",
+            )
+            return f"{yt_logo} '{title}' [{duration_str}] / Views: {views}|{likes}👍 / Added: {formatted_date} / URL: {url}"
 
     except Exception as e:
         log(f"An error occurred while searching for YouTube video: {e}", "ERROR")
+        log(traceback.format_exc(), "ERROR")
         return f"An error occurred: {e}"
+
+
+def parse_iso8601_duration(duration_str):
+    match = re.match(r"^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$", duration_str)
+    if not match:
+        return "tuntematon kesto"
+    hours, minutes, seconds = match.groups(default="0")
+    hours, minutes, seconds = int(hours), int(minutes), int(seconds)
+    if hours:
+        return f"{hours}:{minutes:02}:{seconds:02}"
+    else:
+        return f"{minutes}:{seconds:02}"
 
 
 def load_conversation_history():
