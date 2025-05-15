@@ -124,7 +124,12 @@ def search_youtube(query, max_results=1):
         log(f"Received query: {query}", "DEBUG")
 
         # IRC-formatted YouTube logo
-        yt_logo = "\x02\x0314,15You\x0315,04Tube\x03\x02"
+        yt_logo = random.choice(
+            [
+                "\x02\x0314,15You\x0315,04Tube\x03\x02",  # YouTube
+                "\x02\x0300,04 ▶ \x02",  # _▶_
+            ]
+        )
         # Tarkistetaan onko query video-ID
         is_video_id = re.fullmatch(r"[a-zA-Z0-9_-]{11}", query)
         log(f"Is query a valid video ID? {is_video_id}", "DEBUG")
