@@ -126,8 +126,8 @@ def search_youtube(query, max_results=1):
         # IRC-formatted YouTube logo
         yt_logo = random.choice(
             [
-                "\x02\x0314,15You\x0315,04Tube\x03\x02",  # YouTube
-                "\x02\x0300,04 ▶ \x02",  # _▶_
+                # "\x02\x0314,15You\x0315,04Tube\x03\x02",  # YouTube
+                "\x0300,04 ▶ \x03",  # _▶_
             ]
         )
         # Tarkistetaan onko query video-ID
