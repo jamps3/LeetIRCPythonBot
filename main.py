@@ -790,15 +790,15 @@ def keepalive_ping(irc, stop_event):
     global last_ping
     while not stop_event.is_set():
         time.sleep(2)  # Check more frequently for stop event
-
         if time.time() - last_ping > 120:
             try:
                 # Send keepalive ping to server
-                irc.sendall("PING :keepalive\r\n".encode("utf-8"))
-                log("Sent keepalive PING", "DEBUG")
+                log("Sending PING", "DEBUG")
+                irc.sendall("PING :leetalive\r\n".encode("utf-8"))
+                log("Sent PING", "DEBUG")
                 last_ping = time.time()
             except Exception as e:  # Continue running but log the error
-                log(f"Unexpected error during keepalive ping: {e}", "ERROR")
+                log(f"Unexpected error during leetalive ping: {e}", "ERROR")
                 raise
 
 
