@@ -56,6 +56,12 @@ import subprocess  # IPFS
 import tempfile  # IPFS
 import isodate  # For parsing YouTube video duration
 import traceback  # For error handling
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from otiedote_monitor import OtiedoteMonitor
+from functools import partial
+
 
 bot_name = "jl3b"  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
 LOG_LEVEL = "INFO"  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
@@ -108,6 +114,10 @@ voitot = {"ensimmäinen": {}, "viimeinen": {}, "multileet": {}}
 
 # Create a stop event to handle clean shutdown
 stop_event = threading.Event()
+
+
+def post_otiedote_to_irc(irc, title, url):
+    notice_message(f"'{title}', {url}", irc, "#joensuu")
 
 
 def search_youtube(query, max_results=1):
@@ -1563,7 +1573,9 @@ def send_weather(irc=None, target=None, location="Joensuu"):
             wind_dir_emoji = directions[idx]
 
             # Arvotaan symboli alkuun
-            random_symbol = random.choice(["🌈", "🔮", "🍺", "☀️", "❄️", "🌊", "🔥"])
+            random_symbol = random.choice(
+                ["🌈", "🔮", "🍺", "☀️", "❄️", "🌊", "🔥", "🚴"]
+            )
 
             # Muodostetaan säätilasymboli
             weather_icons = {
@@ -2192,6 +2204,10 @@ def main():
                 )
                 countdown_thread.start()
                 threads.append(countdown_thread)  # Add to threads list for cleanup
+
+                # Start Onnettomuustiedote Monitor
+                monitor = OtiedoteMonitor(callback=partial(post_otiedote_to_irc, irc))
+                monitor.start()
 
                 # Main read loop - this will block until disconnect or interrupt
                 read(irc, stop_event)
