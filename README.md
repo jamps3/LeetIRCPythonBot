@@ -23,6 +23,10 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
+If you want to use Voikko -features you need to install these packages with apt:
+```bash
+sudo apt install -y libvoikko1 voikko-fi python3-libvoikko
+```
 ## .env file for configuration:
 You need this for all the APIs to work and for the server and channel information.
 ```bash
