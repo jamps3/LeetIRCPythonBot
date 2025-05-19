@@ -6,24 +6,22 @@ Simple IRC Bot made with Python and as few libraries as possible.
 ## Features
 - 🚀 OpenAI - Responds using GPT-4o-mini (or others)
 - 🔥 Weather
+- ✅ URL Titles
 - ⚡ Electricity prices in Finland for today/tomorrow
 - ✅ Scheduled messages
-- 🔥 Statistics for words and special words
+- 🔥 Statistics for words and special (drinking) words
 - ✅ Multiple channels support, multiple servers support in progress
-- 📺 Youtube search
+- 📺 Youtube search with text and ID
 - 🔥 Keeping track of channel notifications
+- ⚠️ Accident reports monitoring
 
 ## Installation
 Not needed!
-Run file has all this included. But here it is anyway (might get outdated if the libraries update):
+Run file has all this included:
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install requests
-pip install bs4
-pip install openai
-pip install dotenv
-pip install google-api-client
+pip install -r requirements.txt
 ```
 ## .env file for configuration:
 You need this for all the APIs to work and for the server and channel information.
@@ -34,7 +32,6 @@ WEATHER_API_KEY = ""
 ELECTRICITY_API_KEY = ""
 OPENAI_API_KEY = ""
 YOUTUBE_API_KEY = ""
-CHANNEL_KEY_53 = ""
 
 # Server Configurations
 # Format: SERVERx_HOST, SERVERx_PORT, SERVERx_CHANNELS, SERVERx_KEYS
@@ -69,7 +66,7 @@ What does it do?
 
 ✅Starts the bot with python3 main.py
 
-## run:
+## run (might be updated in the source):
 ```bash
 #!/bin/bash
 
