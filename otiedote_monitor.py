@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup
 class OtiedoteMonitor:
     BASE_URL = "https://otiedote.fi/pohjois-karjalan-pelastuslaitos"
     RELEASE_URL_TEMPLATE = "https://otiedote.fi/release_view/{}"
-    CHECK_INTERVAL = 15 * 60  # 15 minutes
+    CHECK_INTERVAL = 5 * 60  # 5 minutes
     STATE_FILE = "latest_otiedote.txt"
 
     def __init__(self, callback, check_interval=None):
@@ -25,7 +25,7 @@ class OtiedoteMonitor:
         """
         self.callback = callback
         self.check_interval = check_interval or self.CHECK_INTERVAL
-        self.latest_release = 1916  # Default fallback
+        self.latest_release = 2039  # Default fallback 19.5.2025
         self.driver = None
         self.thread = None
         self.running = False
@@ -41,8 +41,12 @@ class OtiedoteMonitor:
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--log-level=3")
         chrome_options.add_argument("--silent")
-        service = Service(log_output=os.devnull)
-        self.driver = webdriver.Chrome(service=service, options=chrome_options)
+        chrome_options.add_argument("--disable-logging")
+        service = Service(log_path=os.devnull)
+        try:
+            self.driver = webdriver.Chrome(service=service, options=chrome_options)
+        except Exception as e:
+            print("Virhe WebDriverin käynnistyksessä:", e)
 
     def _load_latest_release(self):
         if os.path.exists(self.STATE_FILE):
@@ -93,7 +97,17 @@ class OtiedoteMonitor:
                                 self.driver.page_source, "html.parser"
                             )
                             title_tag = release_soup.find("h1")
-                            title = title_tag.text.strip() if title_tag else "No title"
+                            title = (
+                                title_tag.text.strip() if title_tag else ""
+                            )  # No title
+                            description_tag = release_soup.find(
+                                "#releaseCommentsWrapper > ul > li > p"
+                            )
+                            description = (
+                                description_tag.text.strip() if description_tag else ""
+                            )  # No description
+                            print("Description: " + description)
+                            title += description
                             self.callback(title, url)
                             self.latest_release = release
                             self._save_latest_release(release)
