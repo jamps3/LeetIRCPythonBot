@@ -117,7 +117,9 @@ stop_event = threading.Event()
 
 
 def post_otiedote_to_irc(irc, title, url):
-    notice_message(f"'{title}', {url}", irc, "#joensuu")
+    symbols = ["⚠️", "🚧", "💣", "🔥", "⚡", "🌊", "💥", "🚨", "⛑️", "📛", "🚑"]
+    symbol = random.choice(symbols)
+    notice_message(f"{symbol} '{title}', {url}", irc, "#joensuu")
 
 
 def search_youtube(query, max_results=1):
