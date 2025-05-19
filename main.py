@@ -54,14 +54,32 @@ import signal
 import html  # Title quote removal
 import subprocess  # IPFS
 import tempfile  # IPFS
-import isodate  # For parsing YouTube video duration
 import traceback  # For error handling
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from otiedote_monitor import OtiedoteMonitor
+import contextlib
 from functools import partial
+import libvoikko
 
+
+@contextlib.contextmanager
+def suppress_all_output():
+    """Suppress all stdout/stderr, including C-level output."""
+    devnull = os.open(os.devnull, os.O_RDWR)
+    saved_stdout = os.dup(1)
+    saved_stderr = os.dup(2)
+    try:
+        os.dup2(devnull, 1)
+        os.dup2(devnull, 2)
+        yield
+    finally:
+        os.dup2(saved_stdout, 1)
+        os.dup2(saved_stderr, 2)
+        os.close(devnull)
+        os.close(saved_stdout)
+        os.close(saved_stderr)
+
+
+with suppress_all_output():
+    from otiedote_monitor import OtiedoteMonitor
 
 bot_name = "jl3b"  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
 LOG_LEVEL = "INFO"  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
@@ -116,8 +134,16 @@ voitot = {"ensimmäinen": {}, "viimeinen": {}, "multileet": {}}
 stop_event = threading.Event()
 
 
+# Tamagotchi
+def tamagotchi(string):
+    v = libvoikko.Voikko("fi")
+    print(v.analyze("kauniimpia"))
+
+
 def post_otiedote_to_irc(irc, title, url):
-    notice_message(f"'{title}', {url}", irc, "#joensuu")
+    symbols = ["⚠️", "🚧", "💣", "🔥", "⚡", "🌊", "💥", "🚨", "⛑️", "📛", "🚑"]
+    symbol = random.choice(symbols)
+    notice_message(f"{symbol} '{title}', {url}", irc, "#joensuutest")
 
 
 def search_youtube(query, max_results=1):
@@ -393,7 +419,8 @@ def login(
             while True:
                 response = irc.recv(2048).decode("utf-8", errors="ignore")
                 if not response:
-                    log("Empty response from server. Waiting...", "ERROR")
+                    # log("Empty response from server. Waiting...", "ERROR")
+                    time.sleep(1)  # Empty response, wait 1s and continue
                     continue
                 last_response_time = time.time()  # Reset timeout on any message
                 for line in response.split("\r\n"):
@@ -828,6 +855,8 @@ def process_message(irc, message):
                 word in DRINK_WORDS
             ):  # Check if the first word is in the DRINKING_WORDS list
                 count_kraks(word, beverage)  # Call the function with extracted values
+
+        tamagotchi("lol")
 
         # Check if the message is a private message (not a channel)
         if target.lower() == bot_name.lower():  # Private message detected
@@ -1608,7 +1637,7 @@ def send_weather(irc=None, target=None, location="Joensuu"):
 
             # Lisää UV-indeksi ja sade/lumi tiedot
             if uv_index is not None:
-                weather_info += f", 🔆UV: {uv_index:.1f}"
+                weather_info += f", 🔆{uv_index:.1f}"
             if rain > 0:
                 weather_info += f", Sade: {rain} mm/tunti."
             if snow > 0:
@@ -1785,6 +1814,11 @@ def fetch_title(irc=None, target=None, text=""):
         "(ei otsikkoa)",
         "Bevor Sie zu YouTube weitergehen",
         "Bevor Sie zu Google Maps weitergehen",
+        "Dynasty tietopalvelu : Pohjois-Karjalan hyvinvointialue - Siun sote",
+        "Tiedotteen katselu :: Itä-Suomen pelastuslaitosten onnettomuustiedotteet",
+        "Example Domain",
+        "Imgur: The magic of the Internet",
+        "Etusivu - joensuu.fi",
     ]
 
     for url in urls:
