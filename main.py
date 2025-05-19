@@ -1787,6 +1787,11 @@ def fetch_title(irc=None, target=None, text=""):
         "(ei otsikkoa)",
         "Bevor Sie zu YouTube weitergehen",
         "Bevor Sie zu Google Maps weitergehen",
+        "Dynasty tietopalvelu : Pohjois-Karjalan hyvinvointialue - Siun sote",
+        "Tiedotteen katselu :: Itä-Suomen pelastuslaitosten onnettomuustiedotteet",
+        "Example Domain",
+        "Imgur: The magic of the Internet",
+        "Etusivu - joensuu.fi",
     ]
 
     for url in urls:
