@@ -7,3 +7,4 @@ packaging
 PySocks
 selenium
 requests
+feedparser
