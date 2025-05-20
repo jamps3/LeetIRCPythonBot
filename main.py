@@ -58,6 +58,7 @@ import traceback  # For error handling
 import contextlib
 from functools import partial
 import libvoikko
+from fmi_varoitukset import FMIWatcher
 
 
 @contextlib.contextmanager
@@ -143,7 +144,12 @@ def tamagotchi(string):
 def post_otiedote_to_irc(irc, title, url):
     symbols = ["⚠️", "🚧", "💣", "🔥", "⚡", "🌊", "💥", "🚨", "⛑️", "📛", "🚑"]
     symbol = random.choice(symbols)
-    notice_message(f"{symbol} '{title}', {url}", irc, "#joensuutest")
+    notice_message(f"{symbol} '{title}', {url}", irc, "#joensuu")
+
+
+def post_fmi_warnings_to_irc(irc, messages):
+    for msg in messages:
+        notice_message(f"{msg}", irc, "#joensuu")
 
 
 def search_youtube(query, max_results=1):
@@ -2242,6 +2248,10 @@ def main():
 
                 # Start Onnettomuustiedote Monitor
                 monitor = OtiedoteMonitor(callback=partial(post_otiedote_to_irc, irc))
+                monitor.start()
+
+                # Start FMI Varoitukset Monitor
+                monitor = FMIWatcher(callback=partial(post_fmi_warnings_to_irc, irc))
                 monitor.start()
 
                 # Main read loop - this will block until disconnect or interrupt
