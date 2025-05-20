@@ -14,12 +14,14 @@ CHECK_INTERVAL = 300  # sekunteina
 EXCLUDED_LOCATIONS = [
     "ahvenanmaa",
     "etelä-pohjanmaa",
+    "keski-lappi",
     "länsi-lappi",
     "maan länsiosa",
     "maan eteläosa",
     "maan pohjoisosa",
     "pohjois-pohjanmaa",
     "pohjanmaa",
+    "merelle",
 ]
 
 # Alueet, joita halutaan seurata (jos tyhjä, kaikki kelpaavat)
@@ -110,10 +112,10 @@ class FMIWatcher:
                     continue
 
                 # Värisymbolit
-                title = title.replace("Punainen", "🟥")
-                title = title.replace("Oranssi", "🟠")
-                title = title.replace("Keltainen", "🟡")
-                title = title.replace("Vihreä", "🟢")
+                title = title.replace("Punainen ", "🟥")
+                title = title.replace("Oranssi ", "🟠")
+                title = title.replace("Keltainen ", "🟡")
+                title = title.replace("Vihreä ", "🟢")
 
                 # Varoitustyyppien symbolit
                 if "tuulivaroitus" in lower_title or "tuulivaroitus" in lower_summary:
