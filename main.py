@@ -1819,6 +1819,7 @@ def fetch_title(irc=None, target=None, text=""):
         "Example Domain",
         "Imgur: The magic of the Internet",
         "Etusivu - joensuu.fi",
+        "TikTok - Make Your Day",
     ]
 
     for url in urls:
