@@ -1221,8 +1221,9 @@ def process_message(irc, message):
 
         # !leet - Ajasta viestin lähetys
         elif text.startswith("!leet"):
-            match = re.search(
-                r"!leet (#\S+) (\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d+) (.+)", text
+            match = re.match(
+                r"!leet\s+(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)",
+                text,
             )
 
             if match:
@@ -1230,16 +1231,23 @@ def process_message(irc, message):
                 hour = int(match.group(2))
                 minute = int(match.group(3))
                 second = int(match.group(4))
-                microsecond = int(match.group(5))
-                message = match.group(6)  # Capture the custom message
+                microsecond_str = match.group(5)
+                message = match.group(6)
+
+                microsecond = (
+                    int(microsecond_str.ljust(6, "0")[:6]) if microsecond_str else 0
+                )
 
                 send_scheduled_message(
                     irc, channel, message, hour, minute, second, microsecond
                 )
             else:
-                log(
-                    "Virheellinen komento! Käytä muotoa: !leet #kanava HH:MM:SS.mmmmmm",
-                    "ERROR",
+                notice_message(
+                    (
+                        "Virheellinen komento! Käytä muotoa: !leet #kanava HH:MM:SS viesti tai !leet #kanava HH:MM:SS.mmmmmm viesti - Ajan perään tulee antaa viesti, esim.: !leet #kanava 12:34:56.123456 Hei maailma!"
+                    ),
+                    irc,
+                    target,
                 )
 
         # !link - Lyhennä linkki
@@ -1289,7 +1297,8 @@ def process_message(irc, message):
             # Extracts the nick from the given text after the !opzor command.
             parts = message.split()
             if len(parts) == 5 and parts[3] == ":!opzor":
-                notice_message(f"MODE {parts[2]} +o {parts[4]}", irc)
+                irc.send(f"MODE {parts[2]} +o {parts[4]}\r\n".encode("utf-8"))
+                # notice_message(f"MODE {parts[2]} +o {parts[4]}", irc)
         elif text.startswith("!ipfs"):
             # Extracts the command and URL from the given text after the !ipfs command.
             parts = message.split()
@@ -1543,11 +1552,18 @@ def get_eurojackpot_numbers():
     return latest_numbers, most_frequent_numbers
 
 
+_last_send_time = 0  # globaalimuuttuja
+
+
 def send_message(irc, reply_target, message):
+    global _last_send_time
+    now = time.perf_counter()
+    if now - _last_send_time < 1.0:  # alle sekunti edellisestä viestistä
+        time.sleep(0.5)
     encoded_message = message.encode("utf-8")
-    log(f"Sending message ({len(encoded_message)} bytes): {message}", "DEBUG")
     irc.sendall(f"PRIVMSG {reply_target} :{message}\r\n".encode("utf-8"))
-    time.sleep(0.5)  # Prevent flooding
+    log(f"Sent message: ({len(encoded_message)} bytes): {message}", "DEBUG")
+    _last_send_time = time.perf_counter()
 
 
 def measure_latency(irc, nickname):
@@ -1557,6 +1573,35 @@ def measure_latency(irc, nickname):
     test_message = "!LatencyCheck"
     irc.sendall(f"PRIVMSG {nickname} :{test_message}\r\n".encode("utf-8"))
     log(f"Sent latency check message: {test_message}")
+
+
+# Lista toteutuneista viiveistä nanosekunteina
+actual_deltas_ns = []
+# Säilytetään send_message viive
+send_message_kesto_ns = 0
+
+
+def calculate_dynamic_compensation_factor(deltas_ns):
+    if not deltas_ns:
+        return 0.5  # oletuskerroin ilman dataa
+
+    # Painotettu keskiarvo, painotetaan uudempia poikkeamia enemmän
+    weights = list(range(1, len(deltas_ns) + 1))
+    weighted_avg_ns = sum(d * w for d, w in zip(deltas_ns, weights)) / sum(
+        weights
+    )  # Käytetään nanosekunteja suoraan
+
+    # Jos viive on yli 500 000 ns (0.5 ms), käytetään kerrointa 0.5, jos viive on yli 100 000 ns (0.1 ms), käytetään kerrointa 0.1,  muuten 0.05
+    if weighted_avg_ns > 500000:
+        factor = 0.5
+    elif weighted_avg_ns > 100000:
+        factor = 0.1
+    elif weighted_avg_ns > 10000:
+        factor = 0.01  # 100 ns
+    else:
+        factor = 0.001  # 10 ns on pienin arvo jolla viivettä muutetaan
+
+    return factor
 
 
 def send_scheduled_message(
@@ -1569,44 +1614,80 @@ def send_scheduled_message(
     target_nanosecond=371337133,
 ):
     def wait_and_send():
+        global send_message_kesto_ns
         now = datetime.now()
-        target_time = now.replace(
-            hour=target_hour,
+        now_perf_ns = time.perf_counter_ns()
+
+        # Rakenna kohdeaika datetime:lla mikrosekuntitasolla (vaikka odotus on tarkempi)
+        target_datetime = now.replace(
+            hour=target_hour % 24,
             minute=target_minute % 60,
-            second=target_second,
+            second=target_second % 60,
             microsecond=min(target_nanosecond // 1000, 999999),
         )
 
-        if now >= target_time:
-            target_time += timedelta(days=1)
+        if now >= target_datetime:
+            target_datetime += timedelta(days=1)
 
-        # Convert to nanoseconds for precise timing
-        target_ns = time.perf_counter_ns() + int(
-            (target_time - now).total_seconds() * 1e9
+        # Tavoiteaika perf_counter-kellona
+        delta_s = (target_datetime - now).total_seconds()
+        target_perf_ns = now_perf_ns + int(delta_s * 1e9)
+
+        # target_perf_ns -= 500837033  # Kiinteä send_message() viive
+        # Käytä vain viimeisintä viivettä kompensointiin
+        # if actual_deltas_ns:
+        #    latest_deviation_ns = actual_deltas_ns[-1]
+        # else:
+        #    latest_deviation_ns = 0
+        # Käytä viimeisimpiä viiveitä painottaen tuoreempia enemmän
+        if actual_deltas_ns:
+            compensation_factor = calculate_dynamic_compensation_factor(
+                actual_deltas_ns
+            )
+            latest_deviation_ns = actual_deltas_ns[-1]
+        else:
+            compensation_factor = 0.5
+            latest_deviation_ns = 0
+
+        adjusted_target_ns = (
+            target_perf_ns
+            - int(latest_deviation_ns * compensation_factor)
+            - send_message_kesto_ns  # Huomioidaan myös muuttuva send_message() viive
         )
         log(
-            f"[Scheduled] time_to_wait: {(target_ns - time.perf_counter_ns()) / 1e9:.9f} s"
+            f"[Scheduled] Waiting for {(adjusted_target_ns - time.perf_counter_ns()) / 1e9:.9f} s"
         )
-
-        # 🕒 **Nanosecond-level wait**
-        while time.perf_counter_ns() < target_ns - 2_000_000:  # Wait until last ~2ms
-            time.sleep(0.0005)  # Sleep in small increments
-
-        # 🎯 **Final busy wait for nanosecond accuracy**
-        while time.perf_counter_ns() < target_ns:
-            pass  # Active wait loop
-
-        # 📨 **Send message**
+        # 🕓 Odotus tarkkaan hetkeen
+        while time.perf_counter_ns() < adjusted_target_ns - 1_000_000:
+            time.sleep(0.00001)
+        while time.perf_counter_ns() < adjusted_target_ns:
+            pass
+        # 💬 Lähetä viesti ja mittaa todellinen lähetysaika
+        start_send = time.perf_counter_ns()
         send_message(irc, channel, message)
-
+        end_send = time.perf_counter_ns()
+        send_message_kesto_ns = end_send - start_send
+        # Poikkeama (positiivinen = myöhässä, negatiivinen = etuajassa)
+        deviation_ns = end_send - target_perf_ns
+        actual_deltas_ns.append(deviation_ns)
+        actual_deltas_ns[:] = actual_deltas_ns[
+            -10:
+        ]  # Säilytä vain viimeiset 10 mittausta
+        log("actual_deltas_ns: " + str(actual_deltas_ns), "DEBUG")
+        log(
+            f"target_perf_ns: {target_perf_ns}, adjusted_target_ns: {adjusted_target_ns}, start_send: {start_send}, end_send: {end_send}, deviation_ns: {deviation_ns}",
+            "DEBUG",
+        )
         # 📝 **Log accurate timestamps**
+        actual_perf_ns = time.perf_counter_ns()
+        actual_now = datetime.now()
         scheduled_time_str = f"{target_hour:02}:{target_minute:02}:{target_second:02}.{target_nanosecond:09}"
-        actual_time_str = datetime.now().strftime("%H:%M:%S.%f")[
-            :-3
-        ]  # Microsecond-level logging
-
-        log(f"Viesti ajastettu kanavalle {channel} klo {scheduled_time_str}")
-        log(f"Viesti lähetetty: {message} @ {actual_time_str}")
+        actual_time_str = (
+            actual_now.strftime("%H:%M:%S") + f".{actual_perf_ns % 1_000_000_000:09}"
+        )
+        log(
+            f"📤 Viesti ajastettu kanavalle {channel} klo {scheduled_time_str}, Lähetetty: {message} @ {actual_time_str}"
+        )
 
     # Run in a separate thread to avoid blocking execution
     threading.Thread(target=wait_and_send, daemon=True).start()
