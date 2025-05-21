@@ -59,12 +59,14 @@ from functools import partial
 from fmi_varoitukset import FMIWatcher  # FMI Warnings Watcher
 from lemmatizer import Lemmatizer  # Lemmatizer for word counts
 from otiedote_monitor import OtiedoteMonitor  # Onnettomuustiedotteet
+import subscriptions  # Tilaukset
 
 bot_name = "jl3b"  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
 LOG_LEVEL = "INFO"  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
 HISTORY_FILE = "conversation_history.json"  # File to store conversation history
 EKAVIKA_FILE = "ekavika.json"  # File to store ekavika winners
 WORDS_FILE = "kraks_data.pkl"  # File to store words data
+SUBSCRIBERS_FILE = "subscribers.json"  # File to store Subscriber information
 RECONNECT_DELAY = 60  # Time in seconds before retrying connection (irc.settimeout = RECONNECT_DELAY * 2)
 QUIT_MESSAGE = "🍺 Nähdään! 🍺"
 
@@ -137,12 +139,16 @@ def lookup(irc):
 def post_otiedote_to_irc(irc, title, url):
     symbols = ["⚠️", "🚧", "💣", "🔥", "⚡", "🌊", "💥", "🚨", "⛑️", "📛", "🚑"]
     symbol = random.choice(symbols)
-    notice_message(f"{symbol} '{title}', {url}", irc, "#joensuu")
+    subscribers = subscribers.get_subscribers("onnettomuustiedotteet")
+    for nick in subscribers:
+        notice_message(f"{symbol} '{title}', {url}", irc, nick)
 
 
 def post_fmi_warnings_to_irc(irc, messages):
+    subscribers = subscriptions.get_subscribers("varoitukset")
     for msg in messages:
-        notice_message(f"{msg}", irc, "#joensuu")
+        for nick in subscribers:
+            notice_message(msg, irc, nick)
 
 
 def search_youtube(query, max_results=1):
@@ -1332,6 +1338,31 @@ def process_message(irc, message):
                 notice_message(
                     "⚠ Anna palvelimen nimi: !get_top_words <server>", irc, target
                 )
+        elif text.lower().startswith("!tilaa"):
+            parts = text.strip().split()
+            if len(parts) >= 2:
+                topic = parts[1].lower()
+                if topic in ["varoitukset", "onnettomuustiedotteet"]:
+                    # Tarkistetaan, onko kohde annettu (esim. #kanava)
+                    if len(parts) >= 3:
+                        subscriber = parts[2]  # esim. #kanava tai nick
+                    else:
+                        subscriber = sender  # käytä viestin lähettäjän nimeä oletuksena
+                    result = subscriptions.toggle_subscription(subscriber, topic)
+                    notice_message(f"{result}: {topic}", irc, target)
+                else:
+                    notice_message(
+                        "⚠ Tuntematon tilaustyyppi. Käytä: varoitukset tai onnettomuustiedotteet",
+                        irc,
+                        target,
+                    )
+            else:
+                notice_message(
+                    "⚠ Anna tilaustyyppi: varoitukset tai onnettomuustiedotteet",
+                    irc,
+                    target,
+                )
+
         elif "säätänää" in text:
             # elif text.startswith("Onks siel millane säätänää?"):
             print(_)
