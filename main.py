@@ -55,32 +55,10 @@ import html  # Title quote removal
 import subprocess  # IPFS
 import tempfile  # IPFS
 import traceback  # For error handling
-import contextlib
 from functools import partial
-import libvoikko
-from fmi_varoitukset import FMIWatcher
-
-
-@contextlib.contextmanager
-def suppress_all_output():
-    """Suppress all stdout/stderr, including C-level output."""
-    devnull = os.open(os.devnull, os.O_RDWR)
-    saved_stdout = os.dup(1)
-    saved_stderr = os.dup(2)
-    try:
-        os.dup2(devnull, 1)
-        os.dup2(devnull, 2)
-        yield
-    finally:
-        os.dup2(saved_stdout, 1)
-        os.dup2(saved_stderr, 2)
-        os.close(devnull)
-        os.close(saved_stdout)
-        os.close(saved_stderr)
-
-
-with suppress_all_output():
-    from otiedote_monitor import OtiedoteMonitor
+from fmi_varoitukset import FMIWatcher  # FMI Warnings Watcher
+from lemmatizer import Lemmatizer  # Lemmatizer for word counts
+from otiedote_monitor import OtiedoteMonitor  # Onnettomuustiedotteet
 
 bot_name = "jl3b"  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
 LOG_LEVEL = "INFO"  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
@@ -134,11 +112,25 @@ voitot = {"ensimmäinen": {}, "viimeinen": {}, "multileet": {}}
 # Create a stop event to handle clean shutdown
 stop_event = threading.Event()
 
+# Import Voikko DLL
+if sys.version_info >= (3, 8):
+    os.add_dll_directory(r"C:\Voikko")  # missä libvoikko-1.dll sijaitsee
+
+# Initialize Voikko
+lemmat = Lemmatizer()
+
 
 # Tamagotchi
-def tamagotchi(string):
-    v = libvoikko.Voikko("fi")
-    print(v.analyze("kauniimpia"))
+def tamagotchi(text, irc, target):
+    remote_ip, remote_port = irc.getpeername()
+    # Reverse-lookup the IP to get the hostname
+    try:
+        hostname = socket.gethostbyaddr(remote_ip)[0]
+        print("Resolved hostname:", hostname)
+    except socket.herror:
+        hostname = remote_ip  # Fallback to IP if no reverse DNS
+        print("No hostname found, using IP:", hostname)
+    lemmat.process_message(text, server_name=hostname, source_id=target)
 
 
 def post_otiedote_to_irc(irc, title, url):
@@ -845,6 +837,9 @@ def process_message(irc, message):
     if match:
         sender, _, target, text = match.groups()
 
+        # Process each message and count words
+        tamagotchi(text, irc, target)
+
         # Process each message sent to the channel and detect drinking words.
         # Regex pattern to find words in the format "word (beverage)"
         match = re.search(r"(\w+)\s*\(\s*([\w\s]+)\s*\)", text)
@@ -861,8 +856,6 @@ def process_message(irc, message):
                 word in DRINK_WORDS
             ):  # Check if the first word is in the DRINKING_WORDS list
                 count_kraks(word, beverage)  # Call the function with extracted values
-
-        tamagotchi("lol")
 
         # Check if the message is a private message (not a channel)
         if target.lower() == bot_name.lower():  # Private message detected
