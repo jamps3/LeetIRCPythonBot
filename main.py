@@ -112,10 +112,6 @@ voitot = {"ensimmäinen": {}, "viimeinen": {}, "multileet": {}}
 # Create a stop event to handle clean shutdown
 stop_event = threading.Event()
 
-# Import Voikko DLL
-# if sys.version_info >= (3, 8):
-#    os.add_dll_directory(r"C:\Voikko")  # missä libvoikko-1.dll sijaitsee
-
 # Initialize Voikko
 lemmat = Lemmatizer()
 
@@ -1338,9 +1334,17 @@ def process_message(irc, message):
                 )
         elif "säätänää" in text:
             # elif text.startswith("Onks siel millane säätänää?"):
-            notice_message(
-                "https://img-9gag-fun.9cache.com/photo/aqGwo2R_700bwp.webp", irc, sender
-            )
+            print(_)
+            match = re.match(r"~?([^@]+)@", _)
+            if target == bot_name:
+                target = sender
+            if match:
+                username = match.group(1)
+                notice_message(
+                    "https://img-9gag-fun.9cache.com/photo/aqGwo2R_700bwp.webp",
+                    irc,
+                    target,
+                )
         else:
             # ✅ Handle regular chat messages (send to GPT)
             # ✅ Only respond to private messages or messages mentioning the bot's name
