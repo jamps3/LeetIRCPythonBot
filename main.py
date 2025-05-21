@@ -122,15 +122,20 @@ lemmat = Lemmatizer()
 
 # Tamagotchi
 def tamagotchi(text, irc, target):
-    remote_ip, remote_port = irc.getpeername()
+    hostname = lookup(irc)
+    lemmat.process_message(text, server_name=hostname, source_id=target)
+
+
+def lookup(irc):
     # Reverse-lookup the IP to get the hostname
+    remote_ip, remote_port = irc.getpeername()
     try:
         hostname = socket.gethostbyaddr(remote_ip)[0]
-        print("Resolved hostname:", hostname)
+        log("Resolved hostname: {hostname}", "DEBUG")
     except socket.herror:
         hostname = remote_ip  # Fallback to IP if no reverse DNS
-        print("No hostname found, using IP:", hostname)
-    lemmat.process_message(text, server_name=hostname, source_id=target)
+        log("No hostname found, using IP: {hostname}", "DEBUG")
+    return hostname
 
 
 def post_otiedote_to_irc(irc, title, url):
@@ -827,6 +832,17 @@ def keepalive_ping(irc, stop_event):
                 raise
 
 
+def format_counts(counts, max_length=500):
+    """Palauttaa muotoillun stringin sanamääristä, rajoitettuna max_length-merkin mittaiseksi."""
+    parts = []
+    for word, count in counts.items():
+        part = f"{word}:{count}"
+        if sum(len(p) + 2 for p in parts) + len(part) + 2 > max_length:
+            break
+        parts.append(part)
+    return ", ".join(parts)
+
+
 def process_message(irc, message):
     """Processes incoming IRC messages and tracks word statistics."""
     global latency_start
@@ -837,8 +853,9 @@ def process_message(irc, message):
     if match:
         sender, _, target, text = match.groups()
 
-        # Process each message and count words
-        tamagotchi(text, irc, target)
+        # Process each message and count words, except lines starting with !
+        if not text.startswith("!"):
+            tamagotchi(text, irc, target)
 
         # Process each message sent to the channel and detect drinking words.
         # Regex pattern to find words in the format "word (beverage)"
@@ -1270,7 +1287,6 @@ def process_message(irc, message):
             # Extracts the nick from the given text after the !opzor command.
             parts = message.split()
             if len(parts) == 5 and parts[3] == ":!opzor":
-                viesti = f"MODE {parts[2]} +o {parts[4]}"
                 notice_message(f"MODE {parts[2]} +o {parts[4]}", irc)
         elif text.startswith("!ipfs"):
             # Extracts the command and URL from the given text after the !ipfs command.
@@ -1280,12 +1296,53 @@ def process_message(irc, message):
                 url = parts[2]
                 # Handle the IPFS command
                 handle_ipfs_command(command, url)
+        elif text.startswith("!get_total_counts"):
+            parts = text.strip().split()
+            if len(parts) >= 1:
+                if len(parts) >= 2:
+                    server_name = parts[1]
+                else:
+                    server_name = lookup(irc)
+                counts = lemmat.get_total_counts(server_name)
+                counts = format_counts(counts)
+                notice_message(counts, irc, target)
+            else:
+                notice_message(
+                    "⚠ Anna palvelimen nimi: !get_total_counts <server>", irc, target
+                )
+        elif text.startswith("!get_counts_for_source"):
+            parts = text.strip().split()
+            if len(parts) >= 2:
+                source = parts[1]
+                server_name = parts[2] if len(parts) >= 3 else lookup(irc)
+                counts = lemmat.get_counts_for_source(server_name, source)
+                counts = format_counts(counts)
+                notice_message(counts, irc, target)
+            else:
+                notice_message(
+                    "⚠ Käyttö: !get_counts_for_source <source> [<server>]", irc, target
+                )
+        elif text.startswith("!get_top_words"):
+            parts = text.strip().split()
+            if len(parts) >= 1:
+                if len(parts) >= 2:
+                    server_name = parts[1]
+                else:
+                    server_name = lookup(irc)
+                counts = lemmat.get_top_words(server_name)
+                counts = format_counts(counts)
+                notice_message(counts, irc, target)
+            else:
+                notice_message(
+                    "⚠ Anna palvelimen nimi: !get_top_words <server>", irc, target
+                )
         else:
             # ✅ Handle regular chat messages (send to GPT)
             # ✅ Only respond to private messages or messages mentioning the bot's name
-            if is_private or bot_name.lower() in text.lower():
-                # Get response from GPT
-                response_parts = chat_with_gpt(text)
+            if is_private or text.startswith(
+                bot_name
+            ):  # Only respond when the message begins with the bot's name
+                response_parts = chat_with_gpt(text)  # Get response from GPT
                 reply_target = (
                     sender if is_private else target
                 )  # Send private replies to sender
