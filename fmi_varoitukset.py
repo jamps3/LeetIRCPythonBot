@@ -65,8 +65,10 @@ class FMIWatcher:
             time.sleep(self.interval)
 
     def get_hash(self, entry):
-        key = entry.get("title", "") + entry.get("published", "")
-        return hashlib.sha256(key.encode("utf-8")).hexdigest()
+        title = entry.get("title", "")
+        summary = entry.get("summary", "")[:100]
+        cleaned = " ".join((title + summary).split())
+        return hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
 
     def load_seen_hashes(self):
         if os.path.exists(self.state_file):
