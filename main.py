@@ -1336,6 +1336,11 @@ def process_message(irc, message):
                 notice_message(
                     "⚠ Anna palvelimen nimi: !get_top_words <server>", irc, target
                 )
+        elif "säätänää" in text:
+            # elif text.startswith("Onks siel millane säätänää?"):
+            notice_message(
+                "https://img-9gag-fun.9cache.com/photo/aqGwo2R_700bwp.webp", irc, sender
+            )
         else:
             # ✅ Handle regular chat messages (send to GPT)
             # ✅ Only respond to private messages or messages mentioning the bot's name
