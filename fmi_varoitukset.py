@@ -96,7 +96,8 @@ class FMIWatcher:
             self.save_last_hash(new_entries[0][0])
             messages = []
             for _, entry in reversed(new_entries):
-                title = "⚠ " + entry.title
+                # title = "⚠ " + entry.title
+                title = entry.title
                 summary = entry.summary
                 lower_title = title.lower()
                 lower_summary = summary.lower()
@@ -119,21 +120,23 @@ class FMIWatcher:
 
                 # Varoitustyyppien symbolit
                 if "tuulivaroitus" in lower_title or "tuulivaroitus" in lower_summary:
-                    title = title.replace("tuulivaroitus", "🌪️ Tuulivaroitus")
+                    title = title.replace("tuulivaroitus", "🌪️")
                 elif (
                     "maastopalovaroitus" in lower_title
                     or "maastopalovaroitus" in lower_summary
                 ):
-                    title = title.replace("maastopalovaroitus", "♨ Maastopalovaroitus")
+                    title = title.replace("maastopalovaroitus", "♨ ")
                 elif "liikennesää" in lower_title or "liikennesää" in lower_summary:
-                    title = title.replace("liikennesää", "🚗 Liikennesää")
+                    title = title.replace("liikennesää", "🚗 ")
                 elif (
                     "aallokkovaroitus" in lower_title
                     or "aallokkovaroitus" in lower_summary
                 ):
-                    title = title.replace("aallokkovaroitus", "🌊 Aallokkovaroitus")
-
-                msg = f"{title} | {summary}"
+                    title = title.replace("aallokkovaroitus", "🌊 ")
+                title = title.replace(" maa-alueille:", "")
+                title = title.replace("  ", " ")
+                title = title.replace(": Paikoin", "Paikoin")
+                msg = f"{title} | {summary} ⚠"
                 messages.append(msg)
 
             return messages

@@ -149,7 +149,7 @@ def post_otiedote_to_irc(irc, title, url):
 
 def post_fmi_warnings_to_irc(irc, messages):
     for msg in messages:
-        notice_message(f"{msg}", irc, "#joensuu")
+        notice_message(f"{msg}", irc, "#joensuutest")
 
 
 def search_youtube(query, max_results=1):
@@ -833,6 +833,32 @@ def keepalive_ping(irc, stop_event):
             except Exception as e:  # Continue running but log the error
                 log(f"Unexpected error during leetalive ping: {e}", "ERROR")
                 raise
+
+
+def reconnect():
+    global irc
+    try:
+        irc.close()
+    except Exception:
+        pass  # Socket may already be closed
+
+    time.sleep(5)  # Wait a bit before retrying
+
+    while True:
+        try:
+            log("Reconnecting to IRC...", "INFO")
+            irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            irc.connect((IRC_SERVER, IRC_PORT))  # Use your real server and port
+            irc.send(f"USER {bot_name} 0 * :{bot_name}\r\n".encode("utf-8"))
+            irc.send(f"NICK {bot_name}\r\n".encode("utf-8"))
+            # (Re)join your channels here
+            for channel in IRC_CHANNELS:
+                irc.send(f"JOIN {channel}\r\n".encode("utf-8"))
+            log("Reconnected successfully", "INFO")
+            break
+        except Exception as e:
+            log(f"Reconnection failed: {e}. Retrying in 10s...", "ERROR")
+            time.sleep(10)
 
 
 def process_message(irc, message):
