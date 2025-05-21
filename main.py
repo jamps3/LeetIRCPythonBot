@@ -113,8 +113,8 @@ voitot = {"ensimmäinen": {}, "viimeinen": {}, "multileet": {}}
 stop_event = threading.Event()
 
 # Import Voikko DLL
-if sys.version_info >= (3, 8):
-    os.add_dll_directory(r"C:\Voikko")  # missä libvoikko-1.dll sijaitsee
+# if sys.version_info >= (3, 8):
+#    os.add_dll_directory(r"C:\Voikko")  # missä libvoikko-1.dll sijaitsee
 
 # Initialize Voikko
 lemmat = Lemmatizer()
