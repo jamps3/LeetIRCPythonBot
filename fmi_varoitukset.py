@@ -14,6 +14,9 @@ CHECK_INTERVAL = 300  # sekunteina
 EXCLUDED_LOCATIONS = [
     "ahvenanmaa",
     "etelä-pohjanmaa",
+    "kainuu",
+    "keski-",
+    "keskiosa",
     "keski-lappi",
     "länsi-lappi",
     "maan länsiosa",
@@ -31,10 +34,7 @@ ALLOWED_LOCATIONS = [
     "pohjois-karjala",
     "itä-",
     "itäosa",
-    "keski-",
-    "keskiosa",
     "koko maa",
-    "kainuu",
 ]
 
 
