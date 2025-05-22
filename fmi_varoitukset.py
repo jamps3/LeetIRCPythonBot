@@ -65,8 +65,23 @@ class FMIWatcher:
             time.sleep(self.interval)
 
     def get_hash(self, entry):
-        key = entry.get("title", "") + entry.get("published", "")
-        return hashlib.sha256(key.encode("utf-8")).hexdigest()
+        title = entry.get("title", "")
+        summary = entry.get("summary", "")[:100]
+        cleaned = " ".join((title + summary).split())
+        return hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
+
+    def load_seen_hashes(self):
+        if os.path.exists(self.state_file):
+            try:
+                with open(self.state_file, "r") as f:
+                    return set(json.load(f).get("seen_hashes", []))
+            except (json.JSONDecodeError, ValueError):
+                print("⚠ Varoitus: JSON-tiedosto vioittunut, nollataan tila.")
+        return set()
+
+    def save_seen_hashes(self, hashes):
+        with open(self.state_file, "w") as f:
+            json.dump({"seen_hashes": list(hashes)}, f)
 
     def load_last_hash(self):
         if os.path.exists(self.state_file):
@@ -83,21 +98,19 @@ class FMIWatcher:
 
     def check_new_warnings(self):
         feed = feedparser.parse(FEED_URL)
-        last_hash = self.load_last_hash()
+        seen_hashes = self.load_seen_hashes()
 
         new_entries = []
         for entry in feed.entries:
             entry_hash = self.get_hash(entry)
-            if entry_hash == last_hash:
-                break
+            if entry_hash in seen_hashes:
+                continue
             new_entries.append((entry_hash, entry))
 
         if new_entries:
-            self.save_last_hash(new_entries[0][0])
             messages = []
-            for _, entry in reversed(new_entries):
-                # title = "⚠ " + entry.title
-                title = entry.title
+            for entry_hash, entry in reversed(new_entries):
+                title = "⚠ " + entry.title
                 summary = entry.summary
                 lower_title = title.lower()
                 lower_summary = summary.lower()
@@ -106,7 +119,7 @@ class FMIWatcher:
                 if any(bl in lower_title for bl in EXCLUDED_LOCATIONS):
                     continue
 
-                # Whitelist-suodatus (jos määritelty)
+                # Whitelist-suodatus
                 if ALLOWED_LOCATIONS and not any(
                     wl in lower_title for wl in ALLOWED_LOCATIONS
                 ):
@@ -139,7 +152,14 @@ class FMIWatcher:
                 msg = f"{title} | {summary} ⚠"
                 messages.append(msg)
 
+                seen_hashes.add(entry_hash)
+
+            # Rajataan muistiin jäävät hashit esim. 50 uusimpaan
+            seen_hashes = set(list(seen_hashes)[-50:])
+            self.save_seen_hashes(seen_hashes)
+
             return messages
+
         return []
 
 

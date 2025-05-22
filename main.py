@@ -55,38 +55,18 @@ import html  # Title quote removal
 import subprocess  # IPFS
 import tempfile  # IPFS
 import traceback  # For error handling
-import contextlib
 from functools import partial
-import libvoikko
-from fmi_varoitukset import FMIWatcher
-
-
-@contextlib.contextmanager
-def suppress_all_output():
-    """Suppress all stdout/stderr, including C-level output."""
-    devnull = os.open(os.devnull, os.O_RDWR)
-    saved_stdout = os.dup(1)
-    saved_stderr = os.dup(2)
-    try:
-        os.dup2(devnull, 1)
-        os.dup2(devnull, 2)
-        yield
-    finally:
-        os.dup2(saved_stdout, 1)
-        os.dup2(saved_stderr, 2)
-        os.close(devnull)
-        os.close(saved_stdout)
-        os.close(saved_stderr)
-
-
-with suppress_all_output():
-    from otiedote_monitor import OtiedoteMonitor
+from fmi_varoitukset import FMIWatcher  # FMI Warnings Watcher
+from lemmatizer import Lemmatizer  # Lemmatizer for word counts
+from otiedote_monitor import OtiedoteMonitor  # Onnettomuustiedotteet
+import subscriptions  # Tilaukset
 
 bot_name = "jl3b"  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
 LOG_LEVEL = "INFO"  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
 HISTORY_FILE = "conversation_history.json"  # File to store conversation history
 EKAVIKA_FILE = "ekavika.json"  # File to store ekavika winners
 WORDS_FILE = "kraks_data.pkl"  # File to store words data
+SUBSCRIBERS_FILE = "subscribers.json"  # File to store Subscriber information
 RECONNECT_DELAY = 60  # Time in seconds before retrying connection (irc.settimeout = RECONNECT_DELAY * 2)
 QUIT_MESSAGE = "🍺 Nähdään! 🍺"
 
@@ -134,22 +114,41 @@ voitot = {"ensimmäinen": {}, "viimeinen": {}, "multileet": {}}
 # Create a stop event to handle clean shutdown
 stop_event = threading.Event()
 
+# Initialize Voikko
+lemmat = Lemmatizer()
+
 
 # Tamagotchi
-def tamagotchi(string):
-    v = libvoikko.Voikko("fi")
-    print(v.analyze("kauniimpia"))
+def tamagotchi(text, irc, target):
+    hostname = lookup(irc)
+    lemmat.process_message(text, server_name=hostname, source_id=target)
+
+
+def lookup(irc):
+    # Reverse-lookup the IP to get the hostname
+    remote_ip, remote_port = irc.getpeername()
+    try:
+        hostname = socket.gethostbyaddr(remote_ip)[0]
+        log("Resolved hostname: {hostname}", "DEBUG")
+    except socket.herror:
+        hostname = remote_ip  # Fallback to IP if no reverse DNS
+        log("No hostname found, using IP: {hostname}", "DEBUG")
+    return hostname
 
 
 def post_otiedote_to_irc(irc, title, url):
     symbols = ["⚠️", "🚧", "💣", "🔥", "⚡", "🌊", "💥", "🚨", "⛑️", "📛", "🚑"]
     symbol = random.choice(symbols)
-    notice_message(f"{symbol} '{title}', {url}", irc, "#joensuu")
+    subscribers = subscribers.get_subscribers("onnettomuustiedotteet")
+    for nick in subscribers:
+        notice_message(f"{symbol} '{title}', {url}", irc, nick)
 
 
 def post_fmi_warnings_to_irc(irc, messages):
+    subscribers = subscriptions.get_subscribers("varoitukset")
     for msg in messages:
-        notice_message(f"{msg}", irc, "#joensuutest")
+        for nick in subscribers:
+            notice_message(msg, irc, nick)
 
 
 def search_youtube(query, max_results=1):
@@ -837,6 +836,29 @@ def keepalive_ping(irc, stop_event):
 
 def reconnect():
     global irc
+
+    channels_raw = os.getenv("CHANNELS", "")
+    channels = []
+
+    for ch in channels_raw.split(","):
+        if ":" in ch:
+            name, key = ch.split(":", 1)
+            channels.append((name.strip(), key.strip()))
+
+    # List of possible server prefixes
+    server_prefixes = ["SERVER1", "SERVER2"]
+
+    servers = []
+    for prefix in server_prefixes:
+        server = parse_server_config(prefix)
+        if server:
+            servers.append(server)
+
+    log(servers, "DEBUG")  # Log the server configurations
+    port = servers[0]["port"]
+    server = servers[0]["host"]
+    channels = servers[0]["channels"]
+
     try:
         irc.close()
     except Exception:
@@ -848,17 +870,28 @@ def reconnect():
         try:
             log("Reconnecting to IRC...", "INFO")
             irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            irc.connect((IRC_SERVER, IRC_PORT))  # Use your real server and port
+            irc.connect((server, port))  # Use your real server and port
             irc.send(f"USER {bot_name} 0 * :{bot_name}\r\n".encode("utf-8"))
             irc.send(f"NICK {bot_name}\r\n".encode("utf-8"))
             # (Re)join your channels here
-            for channel in IRC_CHANNELS:
+            for channel in channels:
                 irc.send(f"JOIN {channel}\r\n".encode("utf-8"))
             log("Reconnected successfully", "INFO")
             break
         except Exception as e:
             log(f"Reconnection failed: {e}. Retrying in 10s...", "ERROR")
             time.sleep(10)
+
+
+def format_counts(counts, max_length=500):
+    """Palauttaa muotoillun stringin sanamääristä, rajoitettuna max_length-merkin mittaiseksi."""
+    parts = []
+    for word, count in counts.items():
+        part = f"{word}:{count}"
+        if sum(len(p) + 2 for p in parts) + len(part) + 2 > max_length:
+            break
+        parts.append(part)
+    return ", ".join(parts)
 
 
 def process_message(irc, message):
@@ -870,6 +903,10 @@ def process_message(irc, message):
 
     if match:
         sender, _, target, text = match.groups()
+
+        # Process each message and count words, except lines starting with !
+        if not text.startswith("!"):
+            tamagotchi(text, irc, target)
 
         # Process each message sent to the channel and detect drinking words.
         # Regex pattern to find words in the format "word (beverage)"
@@ -887,8 +924,6 @@ def process_message(irc, message):
                 word in DRINK_WORDS
             ):  # Check if the first word is in the DRINKING_WORDS list
                 count_kraks(word, beverage)  # Call the function with extracted values
-
-        tamagotchi("lol")
 
         # Check if the message is a private message (not a channel)
         if target.lower() == bot_name.lower():  # Private message detected
@@ -1235,8 +1270,9 @@ def process_message(irc, message):
 
         # !leet - Ajasta viestin lähetys
         elif text.startswith("!leet"):
-            match = re.search(
-                r"!leet (#\S+) (\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d+) (.+)", text
+            match = re.match(
+                r"!leet\s+(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)",
+                text,
             )
 
             if match:
@@ -1244,16 +1280,23 @@ def process_message(irc, message):
                 hour = int(match.group(2))
                 minute = int(match.group(3))
                 second = int(match.group(4))
-                microsecond = int(match.group(5))
-                message = match.group(6)  # Capture the custom message
+                microsecond_str = match.group(5)
+                message = match.group(6)
+
+                microsecond = (
+                    int(microsecond_str.ljust(6, "0")[:6]) if microsecond_str else 0
+                )
 
                 send_scheduled_message(
                     irc, channel, message, hour, minute, second, microsecond
                 )
             else:
-                log(
-                    "Virheellinen komento! Käytä muotoa: !leet #kanava HH:MM:SS.mmmmmm",
-                    "ERROR",
+                notice_message(
+                    (
+                        "Virheellinen komento! Käytä muotoa: !leet #kanava HH:MM:SS viesti tai !leet #kanava HH:MM:SS.mmmmmm viesti - Ajan perään tulee antaa viesti, esim.: !leet #kanava 12:34:56.123456 Hei maailma!"
+                    ),
+                    irc,
+                    target,
                 )
 
         # !link - Lyhennä linkki
@@ -1303,8 +1346,8 @@ def process_message(irc, message):
             # Extracts the nick from the given text after the !opzor command.
             parts = message.split()
             if len(parts) == 5 and parts[3] == ":!opzor":
-                viesti = f"MODE {parts[2]} +o {parts[4]}"
-                notice_message(f"MODE {parts[2]} +o {parts[4]}", irc)
+                irc.send(f"MODE {parts[2]} +o {parts[4]}\r\n".encode("utf-8"))
+                # notice_message(f"MODE {parts[2]} +o {parts[4]}", irc)
         elif text.startswith("!ipfs"):
             # Extracts the command and URL from the given text after the !ipfs command.
             parts = message.split()
@@ -1313,12 +1356,91 @@ def process_message(irc, message):
                 url = parts[2]
                 # Handle the IPFS command
                 handle_ipfs_command(command, url)
+        elif text.startswith("!get_total_counts"):
+            parts = text.strip().split()
+            if len(parts) >= 1:
+                if len(parts) >= 2:
+                    server_name = parts[1]
+                else:
+                    server_name = lookup(irc)
+                counts = lemmat.get_total_counts(server_name)
+                counts = format_counts(counts)
+                notice_message(counts, irc, target)
+            else:
+                notice_message(
+                    "⚠ Anna palvelimen nimi: !get_total_counts <server>", irc, target
+                )
+        elif text.startswith("!get_counts_for_source"):
+            parts = text.strip().split()
+            if len(parts) >= 2:
+                source = parts[1]
+                server_name = parts[2] if len(parts) >= 3 else lookup(irc)
+                counts = lemmat.get_counts_for_source(server_name, source)
+                counts = format_counts(counts)
+                notice_message(counts, irc, target)
+            else:
+                notice_message(
+                    "⚠ Käyttö: !get_counts_for_source <source> [<server>]", irc, target
+                )
+        elif text.startswith("!get_top_words"):
+            parts = text.strip().split()
+            if len(parts) >= 1:
+                if len(parts) >= 2:
+                    server_name = parts[1]
+                else:
+                    server_name = lookup(irc)
+                counts = lemmat.get_top_words(server_name)
+                counts = format_counts(counts)
+                notice_message(counts, irc, target)
+            else:
+                notice_message(
+                    "⚠ Anna palvelimen nimi: !get_top_words <server>", irc, target
+                )
+        elif text.lower().startswith("!tilaa"):
+            parts = text.strip().split()
+            if len(parts) >= 2:
+                topic = parts[1].lower()
+                if topic in ["varoitukset", "onnettomuustiedotteet"]:
+                    # Tarkistetaan, onko kohde annettu (esim. #kanava)
+                    if len(parts) >= 3:
+                        subscriber = parts[2]  # esim. #kanava tai nick
+                    else:
+                        subscriber = sender  # käytä viestin lähettäjän nimeä oletuksena
+                    result = subscriptions.toggle_subscription(subscriber, topic)
+                    notice_message(f"{result}: {topic}", irc, target)
+                else:
+                    notice_message(
+                        "⚠ Tuntematon tilaustyyppi. Käytä: varoitukset tai onnettomuustiedotteet",
+                        irc,
+                        target,
+                    )
+            else:
+                notice_message(
+                    "⚠ Anna tilaustyyppi: varoitukset tai onnettomuustiedotteet",
+                    irc,
+                    target,
+                )
+
+        elif "säätänää" in text:
+            # elif text.startswith("Onks siel millane säätänää?"):
+            print(_)
+            match = re.match(r"~?([^@]+)@", _)
+            if target == bot_name:
+                target = sender
+            if match:
+                username = match.group(1)
+                notice_message(
+                    "https://img-9gag-fun.9cache.com/photo/aqGwo2R_700bwp.webp",
+                    irc,
+                    target,
+                )
         else:
             # ✅ Handle regular chat messages (send to GPT)
             # ✅ Only respond to private messages or messages mentioning the bot's name
-            if is_private or bot_name.lower() in text.lower():
-                # Get response from GPT
-                response_parts = chat_with_gpt(text)
+            if is_private or text.startswith(
+                bot_name
+            ):  # Only respond when the message begins with the bot's name
+                response_parts = chat_with_gpt(text)  # Get response from GPT
                 reply_target = (
                     sender if is_private else target
                 )  # Send private replies to sender
@@ -1479,11 +1601,18 @@ def get_eurojackpot_numbers():
     return latest_numbers, most_frequent_numbers
 
 
+_last_send_time = 0  # globaalimuuttuja
+
+
 def send_message(irc, reply_target, message):
+    global _last_send_time
+    now = time.perf_counter()
+    if now - _last_send_time < 1.0:  # alle sekunti edellisestä viestistä
+        time.sleep(0.5)
     encoded_message = message.encode("utf-8")
-    log(f"Sending message ({len(encoded_message)} bytes): {message}", "DEBUG")
     irc.sendall(f"PRIVMSG {reply_target} :{message}\r\n".encode("utf-8"))
-    time.sleep(0.5)  # Prevent flooding
+    log(f"Sent message: ({len(encoded_message)} bytes): {message}", "DEBUG")
+    _last_send_time = time.perf_counter()
 
 
 def measure_latency(irc, nickname):
@@ -1493,6 +1622,35 @@ def measure_latency(irc, nickname):
     test_message = "!LatencyCheck"
     irc.sendall(f"PRIVMSG {nickname} :{test_message}\r\n".encode("utf-8"))
     log(f"Sent latency check message: {test_message}")
+
+
+# Lista toteutuneista viiveistä nanosekunteina
+actual_deltas_ns = []
+# Säilytetään send_message viive
+send_message_kesto_ns = 0
+
+
+def calculate_dynamic_compensation_factor(deltas_ns):
+    if not deltas_ns:
+        return 0.5  # oletuskerroin ilman dataa
+
+    # Painotettu keskiarvo, painotetaan uudempia poikkeamia enemmän
+    weights = list(range(1, len(deltas_ns) + 1))
+    weighted_avg_ns = sum(d * w for d, w in zip(deltas_ns, weights)) / sum(
+        weights
+    )  # Käytetään nanosekunteja suoraan
+
+    # Jos viive on yli 500 000 ns (0.5 ms), käytetään kerrointa 0.5, jos viive on yli 100 000 ns (0.1 ms), käytetään kerrointa 0.1,  muuten 0.05
+    if weighted_avg_ns > 500000:
+        factor = 0.5
+    elif weighted_avg_ns > 100000:
+        factor = 0.1
+    elif weighted_avg_ns > 10000:
+        factor = 0.01  # 100 ns
+    else:
+        factor = 0.001  # 10 ns on pienin arvo jolla viivettä muutetaan
+
+    return factor
 
 
 def send_scheduled_message(
@@ -1505,44 +1663,80 @@ def send_scheduled_message(
     target_nanosecond=371337133,
 ):
     def wait_and_send():
+        global send_message_kesto_ns
         now = datetime.now()
-        target_time = now.replace(
-            hour=target_hour,
+        now_perf_ns = time.perf_counter_ns()
+
+        # Rakenna kohdeaika datetime:lla mikrosekuntitasolla (vaikka odotus on tarkempi)
+        target_datetime = now.replace(
+            hour=target_hour % 24,
             minute=target_minute % 60,
-            second=target_second,
+            second=target_second % 60,
             microsecond=min(target_nanosecond // 1000, 999999),
         )
 
-        if now >= target_time:
-            target_time += timedelta(days=1)
+        if now >= target_datetime:
+            target_datetime += timedelta(days=1)
 
-        # Convert to nanoseconds for precise timing
-        target_ns = time.perf_counter_ns() + int(
-            (target_time - now).total_seconds() * 1e9
+        # Tavoiteaika perf_counter-kellona
+        delta_s = (target_datetime - now).total_seconds()
+        target_perf_ns = now_perf_ns + int(delta_s * 1e9)
+
+        # target_perf_ns -= 500837033  # Kiinteä send_message() viive
+        # Käytä vain viimeisintä viivettä kompensointiin
+        # if actual_deltas_ns:
+        #    latest_deviation_ns = actual_deltas_ns[-1]
+        # else:
+        #    latest_deviation_ns = 0
+        # Käytä viimeisimpiä viiveitä painottaen tuoreempia enemmän
+        if actual_deltas_ns:
+            compensation_factor = calculate_dynamic_compensation_factor(
+                actual_deltas_ns
+            )
+            latest_deviation_ns = actual_deltas_ns[-1]
+        else:
+            compensation_factor = 0.5
+            latest_deviation_ns = 0
+
+        adjusted_target_ns = (
+            target_perf_ns
+            - int(latest_deviation_ns * compensation_factor)
+            - send_message_kesto_ns  # Huomioidaan myös muuttuva send_message() viive
         )
         log(
-            f"[Scheduled] time_to_wait: {(target_ns - time.perf_counter_ns()) / 1e9:.9f} s"
+            f"[Scheduled] Waiting for {(adjusted_target_ns - time.perf_counter_ns()) / 1e9:.9f} s"
         )
-
-        # 🕒 **Nanosecond-level wait**
-        while time.perf_counter_ns() < target_ns - 2_000_000:  # Wait until last ~2ms
-            time.sleep(0.0005)  # Sleep in small increments
-
-        # 🎯 **Final busy wait for nanosecond accuracy**
-        while time.perf_counter_ns() < target_ns:
-            pass  # Active wait loop
-
-        # 📨 **Send message**
+        # 🕓 Odotus tarkkaan hetkeen
+        while time.perf_counter_ns() < adjusted_target_ns - 1_000_000:
+            time.sleep(0.00001)
+        while time.perf_counter_ns() < adjusted_target_ns:
+            pass
+        # 💬 Lähetä viesti ja mittaa todellinen lähetysaika
+        start_send = time.perf_counter_ns()
         send_message(irc, channel, message)
-
+        end_send = time.perf_counter_ns()
+        send_message_kesto_ns = end_send - start_send
+        # Poikkeama (positiivinen = myöhässä, negatiivinen = etuajassa)
+        deviation_ns = end_send - target_perf_ns
+        actual_deltas_ns.append(deviation_ns)
+        actual_deltas_ns[:] = actual_deltas_ns[
+            -10:
+        ]  # Säilytä vain viimeiset 10 mittausta
+        log("actual_deltas_ns: " + str(actual_deltas_ns), "DEBUG")
+        log(
+            f"target_perf_ns: {target_perf_ns}, adjusted_target_ns: {adjusted_target_ns}, start_send: {start_send}, end_send: {end_send}, deviation_ns: {deviation_ns}",
+            "DEBUG",
+        )
         # 📝 **Log accurate timestamps**
+        actual_perf_ns = time.perf_counter_ns()
+        actual_now = datetime.now()
         scheduled_time_str = f"{target_hour:02}:{target_minute:02}:{target_second:02}.{target_nanosecond:09}"
-        actual_time_str = datetime.now().strftime("%H:%M:%S.%f")[
-            :-3
-        ]  # Microsecond-level logging
-
-        log(f"Viesti ajastettu kanavalle {channel} klo {scheduled_time_str}")
-        log(f"Viesti lähetetty: {message} @ {actual_time_str}")
+        actual_time_str = (
+            actual_now.strftime("%H:%M:%S") + f".{actual_perf_ns % 1_000_000_000:09}"
+        )
+        log(
+            f"📤 Viesti ajastettu kanavalle {channel} klo {scheduled_time_str}, Lähetetty: {message} @ {actual_time_str}"
+        )
 
     # Run in a separate thread to avoid blocking execution
     threading.Thread(target=wait_and_send, daemon=True).start()
