@@ -43,10 +43,15 @@ class OtiedoteMonitor:
         chrome_options.add_argument("--silent")
         chrome_options.add_argument("--disable-logging")
         service = Service(log_path=os.devnull)
-        try:
-            self.driver = webdriver.Chrome(service=service, options=chrome_options)
-        except Exception as e:
-            print("Virhe WebDriverin käynnistyksessä:", e)
+        for attempt in range(3):
+            try:
+                self.driver = webdriver.Chrome(service=service, options=chrome_options)
+                return
+            except Exception as e:
+                print(f"Virhe WebDriverin käynnistyksessä: (yritys {attempt + 1}): {e}")
+                time.sleep(2)
+        logging.critical("WebDriver ei käynnistynyt useista yrityksistä huolimatta.")
+        self.driver = None
 
     def _load_latest_release(self):
         if os.path.exists(self.STATE_FILE):
@@ -66,6 +71,12 @@ class OtiedoteMonitor:
     def _fetch_announcements(self):
         while self.running:
             try:
+                if not self.driver:
+                    self._setup_driver()
+                if not self.driver:
+                    logging.error("WebDriver not available, retrying later.")
+                    time.sleep(self.check_interval)
+                    continue
                 self.driver.get(self.BASE_URL)
                 WebDriverWait(self.driver, 10).until(
                     EC.presence_of_element_located(

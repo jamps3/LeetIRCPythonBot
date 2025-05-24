@@ -8,3 +8,4 @@ PySocks
 selenium
 requests
 feedparser
+libvoikko
