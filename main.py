@@ -139,8 +139,8 @@ def lookup(irc):
 def post_otiedote_to_irc(irc, title, url):
     symbols = ["⚠️", "🚧", "💣", "🔥", "⚡", "🌊", "💥", "🚨", "⛑️", "📛", "🚑"]
     symbol = random.choice(symbols)
-    subscribers = subscribers.get_subscribers("onnettomuustiedotteet")
-    for nick in subscribers:
+    tilaajat = subscriptions.get_subscribers("onnettomuustiedotteet")
+    for nick in tilaajat:
         notice_message(f"{symbol} '{title}', {url}", irc, nick)
 
 
