@@ -1,6 +1,6 @@
 import json
-import sys
 import os
+import sys
 import re
 import libvoikko
 from collections import defaultdict
@@ -9,32 +9,16 @@ from collections import defaultdict
 class Lemmatizer:
     def __init__(self, data_dir="voikko"):
         # Import Voikko DLL
-        """if sys.version_info >= (3, 8):
+        if sys.version_info >= (3, 8):
             if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
                 base_dir = os.path.dirname(os.path.abspath(__file__))
                 voikko_path = os.path.join(
                     base_dir, "voikko"
                 )  # missä libvoikko-1.dll sijaitsee
                 os.add_dll_directory(voikko_path)
-        voikko_path = os.path.join(
-            base_dir, "voikko"
-        )  # missä libvoikko-1.dll sijaitsee
-        os.add_dll_directory(voikko_path)
-        os.environ["VOIKKO_PATH"] = voikko_path
         self.v = libvoikko.Voikko("fi")
-        self.data_dir = data_dir"""
-
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        # voikko_path = os.path.join(script_dir, "voikko")
-        # os.environ["VOIKKO_PATH"] = voikko_path
-
-        # print(f"VOIKKO_PATH is set to: {voikko_path}")
-        # if not os.path.exists(os.path.join(voikko_path, "5", "mor-standard", "index")):
-        #    print("WARNING: Voikko dictionary files not found where expected!")
-
-        self.v = libvoikko.Voikko("fi")
-
-        # os.makedirs(self.data_dir, exist_ok=True)
+        self.data_dir = data_dir
+        os.makedirs(self.data_dir, exist_ok=True)
 
     def _get_baseform(self, word):
         analysis = self.v.analyze(word)
