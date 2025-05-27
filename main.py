@@ -825,9 +825,9 @@ def keepalive_ping(irc, stop_event):
         if time.time() - last_ping > 120:
             try:
                 # Send keepalive ping to server
-                log("Sending PING", "DEBUG")
+                # log("Sending PING", "DEBUG")
                 irc.sendall("PING :leetalive\r\n".encode("utf-8"))
-                log("Sent PING", "DEBUG")
+                # log("Sent PING", "DEBUG")
                 last_ping = time.time()
             except Exception as e:  # Continue running but log the error
                 log(f"Unexpected error during leetalive ping: {e}", "ERROR")
