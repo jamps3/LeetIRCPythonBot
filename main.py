@@ -726,7 +726,7 @@ def listen_for_commands(stop_event):
                     else:
                         notice_message("Käytä komentoa: !url <url>")
                 elif command.startswith("!ipfs"):
-                    handle_ipfs_command(command, args)
+                    handle_ipfs_command(command)
                 else:
                     notice_message(
                         f"Command '{command}' not recognized or not implemented for console use"
@@ -741,7 +741,7 @@ def listen_for_commands(stop_event):
         stop_event.set()
 
 
-def handle_ipfs_command(command, args):
+def handle_ipfs_command(command):
     """
     Handles IPFS commands from the console. Currently only !ipfs add supported.
     """
@@ -749,14 +749,13 @@ def handle_ipfs_command(command, args):
     if command.startswith("!ipfs"):
         # Extract the file path from the command
         # file_path = command[len("!ipfs add ") :].strip()
-        if not args:
+        MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
+        parts = command.split()
+        if not parts or len(parts) < 2 or parts[1].lower() != "add":
             notice_message("Usage: !ipfs add <url>")
             return
-        log("args: " + args, "DEBUG")
-        MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
-        parts = args.split()
         if len(parts) >= 2:
-            url = parts[1]
+            url = parts[2]
             log(f"Received !ipfs command with URL: {url}", "DEBUG")
             try:
                 # Stream download and limit size
@@ -1356,12 +1355,12 @@ def process_message(irc, message):
                 # notice_message(f"MODE {parts[2]} +o {parts[4]}", irc)
         elif text.startswith("!ipfs"):
             # Extracts the command and URL from the given text after the !ipfs command.
-            parts = message.split()
-            if len(parts) >= 3 and parts[1] == "!ipfs":
-                command = parts[1]
-                url = parts[2]
-                # Handle the IPFS command
-                handle_ipfs_command(command, url)
+            # parts = message.split()
+            # if len(parts) >= 3 and parts[1] == "!ipfs":
+            # command = parts[1]
+            # url = parts[2]
+            # Handle the IPFS command
+            handle_ipfs_command(text)
         elif text.startswith("!get_total_counts"):
             parts = text.strip().split()
             if len(parts) >= 1:
