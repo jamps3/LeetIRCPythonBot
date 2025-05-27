@@ -745,60 +745,66 @@ def handle_ipfs_command(command, args):
     """
     Handles IPFS commands from the console. Currently only !ipfs add supported.
     """
-    if command.startswith("!ipfs add "):
+    log("Command: " + command, "DEBUG")
+    if command.startswith("!ipfs"):
         # Extract the file path from the command
         # file_path = command[len("!ipfs add ") :].strip()
         if not args:
             notice_message("Usage: !ipfs add <url>")
             return
+        log("args: " + args, "DEBUG")
         MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
-        url = args.strip()
-        log(f"Received !ipfs command with URL: {url}", "DEBUG")
-        try:
-            # Stream download and limit size
-            response = requests.get(url, stream=True, timeout=10)
-            response.raise_for_status()
-            total_size = 0
-            with tempfile.NamedTemporaryFile(delete=False) as tmp:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        total_size += len(chunk)
-                        if total_size > MAX_FILE_SIZE:
-                            tmp.close()
-                            os.remove(tmp.name)
-                            notice_message("File too large (limit is 100MB).")
-                            log(
-                                "Aborted: File exceeded 100MB during download.",
-                                "DEBUG",
-                            )
-                            return
-                        tmp.write(chunk)
-                tmp_path = tmp.name
-            log(
-                f"Downloaded file to temporary path: {tmp_path} ({total_size} bytes)",
-                "DEBUG",
-            )
-            log(f"Running IPFS command: ipfs add {tmp_path}", "DEBUG")
-            # Add file to IPFS
-            result = subprocess.run(
-                ["ipfs", "add", "-q", tmp_path],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            os.remove(tmp_path)
-            if result.returncode == 0:
-                ipfs_hash = result.stdout.strip()
-                ipfs_url = f"https://ipfs.io/ipfs/{ipfs_hash}"
-                log(f"File added to IPFS with hash: {ipfs_hash}", "DEBUG")
-                notice_message(f"Added to IPFS: {ipfs_url}")
-            else:
-                error_msg = result.stderr.strip()
-                log(f"IPFS add failed: {error_msg}", "DEBUG")
-                notice_message("Failed to add file to IPFS.")
-        except Exception as e:
-            log(f"Exception during !ipfs handling: {str(e)}", "DEBUG")
-            notice_message("Error handling !ipfs request.")
+        parts = args.split()
+        if len(parts) >= 2:
+            url = parts[1]
+            log(f"Received !ipfs command with URL: {url}", "DEBUG")
+            try:
+                # Stream download and limit size
+                response = requests.get(url, stream=True, timeout=10)
+                response.raise_for_status()
+                total_size = 0
+                with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            total_size += len(chunk)
+                            if total_size > MAX_FILE_SIZE:
+                                tmp.close()
+                                os.remove(tmp.name)
+                                notice_message("File too large (limit is 100MB).")
+                                log(
+                                    "Aborted: File exceeded 100MB during download.",
+                                    "DEBUG",
+                                )
+                                return
+                            tmp.write(chunk)
+                    tmp_path = tmp.name
+                log(
+                    f"Downloaded file to temporary path: {tmp_path} ({total_size} bytes)",
+                    "DEBUG",
+                )
+                log(f"Running IPFS command: ipfs add {tmp_path}", "DEBUG")
+                # Add file to IPFS
+                result = subprocess.run(
+                    ["ipfs", "add", "-q", tmp_path],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                os.remove(tmp_path)
+                if result.returncode == 0:
+                    ipfs_hash = result.stdout.strip()
+                    ipfs_url = f"https://ipfs.io/ipfs/{ipfs_hash}"
+                    log(f"File added to IPFS with hash: {ipfs_hash}", "DEBUG")
+                    notice_message(f"Added to IPFS: {ipfs_url}")
+                else:
+                    error_msg = result.stderr.strip()
+                    log(f"IPFS add failed: {error_msg}", "DEBUG")
+                    notice_message("Failed to add file to IPFS.")
+            except Exception as e:
+                log(f"Exception during !ipfs handling: {str(e)}", "DEBUG")
+                notice_message("Error handling !ipfs request.")
+        else:
+            log("No URL found.", "DEBUG")
     else:
         log("Invalid IPFS command", "ERROR")
 
