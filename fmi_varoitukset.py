@@ -14,6 +14,7 @@ CHECK_INTERVAL = 300  # sekunteina
 EXCLUDED_LOCATIONS = [
     "ahvenanmaa",
     "etelä-pohjanmaa",
+    "itämeren",
     "kainuu",
     "keski-",
     "keskiosa",
@@ -25,6 +26,7 @@ EXCLUDED_LOCATIONS = [
     "pohjois-pohjanmaa",
     "pohjanmaa",
     "merelle",
+    "suomenlahden",
 ]
 
 # Alueet, joita halutaan seurata (jos tyhjä, kaikki kelpaavat)
@@ -33,7 +35,6 @@ ALLOWED_LOCATIONS = [
     "itä-suomi",
     "pohjois-karjala",
     "itä-",
-    "itäosa",
     "koko maa",
 ]
 
