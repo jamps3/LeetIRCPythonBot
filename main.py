@@ -726,7 +726,7 @@ def listen_for_commands(stop_event):
                     else:
                         notice_message("Käytä komentoa: !url <url>")
                 elif command.startswith("!ipfs"):
-                    handle_ipfs_command(command)
+                    handle_ipfs_command(command, irc, target=None)
                 else:
                     notice_message(
                         f"Command '{command}' not recognized or not implemented for console use"
@@ -741,7 +741,7 @@ def listen_for_commands(stop_event):
         stop_event.set()
 
 
-def handle_ipfs_command(command):
+def handle_ipfs_command(command, irc, target):
     """
     Handles IPFS commands from the console. Currently only !ipfs add supported.
     """
@@ -794,14 +794,20 @@ def handle_ipfs_command(command):
                     ipfs_hash = result.stdout.strip()
                     ipfs_url = f"https://ipfs.io/ipfs/{ipfs_hash}"
                     log(f"File added to IPFS with hash: {ipfs_hash}", "DEBUG")
-                    notice_message(f"Added to IPFS: {ipfs_url}")
+                    if target:
+                        notice_message(f"Added to IPFS: {ipfs_url}", irc, target)
+                    else:
+                        notice_message(f"Added to IPFS: {ipfs_url}")
                 else:
                     error_msg = result.stderr.strip()
                     log(f"IPFS add failed: {error_msg}", "DEBUG")
-                    notice_message("Failed to add file to IPFS.")
+                    if target:
+                        notice_message("Failed to add file to IPFS.", irc, target)
+                    else:
+                        notice_message("Failed to add file to IPFS.")
             except Exception as e:
                 log(f"Exception during !ipfs handling: {str(e)}", "DEBUG")
-                notice_message("Error handling !ipfs request.")
+                notice_message("Error handling !ipfs request.", irc, target)
         else:
             log("No URL found.", "DEBUG")
     else:
@@ -1360,7 +1366,7 @@ def process_message(irc, message):
             # command = parts[1]
             # url = parts[2]
             # Handle the IPFS command
-            handle_ipfs_command(text)
+            handle_ipfs_command(text, irc, target)
         elif text.startswith("!get_total_counts"):
             parts = text.strip().split()
             if len(parts) >= 1:
