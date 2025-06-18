@@ -1,5 +1,16 @@
 {
-  "servers": {},
+  "servers": {
+    "unknown_server": {
+      "level": 1,
+      "experience": 2,
+      "happiness": 60,
+      "hunger": 80,
+      "last_interaction": "2025-06-19T01:25:47.904528",
+      "mood": "neutral",
+      "total_interactions": 1,
+      "created": "2025-06-18T22:59:52.571875"
+    }
+  },
   "global_state": {
     "level": 1,
     "experience": 0,
@@ -8,6 +19,6 @@
     "last_interaction": "2025-06-18T15:42:06.807494",
     "mood": "neutral"
   },
-  "last_updated": "2025-06-18T15:42:06.811425",
+  "last_updated": "2025-06-19T01:25:47.909047",
   "version": "1.0.0"
 }

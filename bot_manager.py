@@ -19,6 +19,8 @@ from lemmatizer import Lemmatizer
 from services.weather_service import WeatherService
 from services.gpt_service import GPTService
 from services.electricity_service import create_electricity_service
+from services.youtube_service import create_youtube_service
+from services.crypto_service import create_crypto_service
 import commands
 
 
@@ -96,6 +98,19 @@ class BotManager:
         else:
             print("⚠️  Warning: No electricity API key found. Electricity price commands will not work.")
             self.electricity_service = None
+        
+        # Initialize YouTube service
+        youtube_api_key = get_api_key('YOUTUBE_API_KEY')
+        if youtube_api_key:
+            self.youtube_service = create_youtube_service(youtube_api_key)
+            print("▶️ YouTube service initialized")
+        else:
+            print("⚠️  Warning: No YouTube API key found. YouTube commands will not work.")
+            self.youtube_service = None
+        
+        # Initialize crypto service
+        self.crypto_service = create_crypto_service()
+        print("🪙 Crypto service initialized (using CoinGecko API)")
         
         # Initialize lemmatizer with graceful fallback
         try:
@@ -187,6 +202,10 @@ class BotManager:
             if sender.lower() != self.bot_name.lower():
                 self._track_words(context)
             
+            # Check for YouTube URLs and display video info
+            if self.youtube_service and sender.lower() != self.bot_name.lower():
+                self._handle_youtube_urls(context)
+            
             # Process commands
             self._process_commands(context)
             
@@ -277,6 +296,8 @@ class BotManager:
             'send_electricity_price': self._send_electricity_price,
             'measure_latency': self._measure_latency,
             'get_crypto_price': self._get_crypto_price,
+            'send_youtube_info': self._send_youtube_info,
+            'send_crypto_price': self._send_crypto_price,
             'load_leet_winners': self._load_leet_winners,
             'save_leet_winners': self._save_leet_winners,
             'send_weather': self._send_weather,
@@ -457,12 +478,21 @@ class BotManager:
     
     def _measure_latency(self):
         """Measure latency."""
-        print("Latency measurement not yet implemented in new architecture")
+        import time
+        # Set latency measurement start time
+        setattr(self, '_latency_start', time.time())
+        return time.time()
     
     def _get_crypto_price(self, coin: str, currency: str = "eur"):
         """Get cryptocurrency price."""
-        print(f"Crypto price for {coin} not yet implemented in new architecture")
-        return "N/A"
+        try:
+            price_data = self.crypto_service.get_crypto_price(coin, currency)
+            if price_data.get('error'):
+                return f"Error: {price_data.get('message', 'Unknown error')}"
+            return f"{price_data['price']:.2f} {currency.upper()}"
+        except Exception as e:
+            print(f"Error getting crypto price: {e}")
+            return "N/A"
     
     def _load_leet_winners(self):
         """Load leet winners data."""
@@ -525,8 +555,15 @@ class BotManager:
     
     def _search_youtube(self, query):
         """Search YouTube."""
-        print(f"YouTube search for '{query}' not yet implemented in new architecture")
-        return "N/A"
+        if not self.youtube_service:
+            return "YouTube service not available. Please configure YOUTUBE_API_KEY."
+        
+        try:
+            search_data = self.youtube_service.search_videos(query, max_results=3)
+            return self.youtube_service.format_search_results_message(search_data)
+        except Exception as e:
+            print(f"Error searching YouTube: {e}")
+            return f"Error searching YouTube: {str(e)}"
     
     def _handle_ipfs_command(self, *args):
         """Handle IPFS commands."""
@@ -655,5 +692,83 @@ class BotManager:
         print(f"[{server.config.name}] {sender} toggled tamagotchi to {status}")
         
         return response
+    
+    def _handle_youtube_urls(self, context: Dict[str, Any]):
+        """Handle YouTube URLs by fetching and displaying video information."""
+        server = context['server']
+        target = context['target']
+        text = context['text']
+        
+        # Only process in channels, not private messages
+        if not target.startswith('#'):
+            return
+        
+        try:
+            video_id = self.youtube_service.extract_video_id(text)
+            if video_id:
+                video_data = self.youtube_service.get_video_info(video_id)
+                message = self.youtube_service.format_video_info_message(video_data)
+                self._send_response(server, target, message)
+        except Exception as e:
+            print(f"Error handling YouTube URL: {e}")
+    
+    def _send_youtube_info(self, irc, channel, query_or_url):
+        """Send YouTube video info or search results."""
+        if not self.youtube_service:
+            response = "YouTube service not available. Please configure YOUTUBE_API_KEY."
+            self._send_response(irc, channel, response)
+            return
+        
+        try:
+            # Check if it's a URL or search query
+            video_id = self.youtube_service.extract_video_id(query_or_url)
+            
+            if video_id:
+                # It's a URL, get video info
+                video_data = self.youtube_service.get_video_info(video_id)
+                response = self.youtube_service.format_video_info_message(video_data)
+            else:
+                # It's a search query
+                search_data = self.youtube_service.search_videos(query_or_url, max_results=3)
+                response = self.youtube_service.format_search_results_message(search_data)
+            
+            self._send_response(irc, channel, response)
+            
+        except Exception as e:
+            error_msg = f"🎥 Error with YouTube request: {str(e)}"
+            print(f"YouTube error: {e}")
+            self._send_response(irc, channel, error_msg)
+    
+    def _send_crypto_price(self, irc, channel, text_or_parts):
+        """Send cryptocurrency price information."""
+        try:
+            # Handle both string and list inputs for compatibility
+            if isinstance(text_or_parts, list):
+                # Called from IRC command with parts list
+                args = text_or_parts[1:] if len(text_or_parts) > 1 else []
+                if len(args) == 0:
+                    self._send_response(irc, channel, "💸 Usage: !crypto <coin> [currency]. Example: !crypto btc eur")
+                    return
+                coin = args[0]
+                currency = args[1] if len(args) > 1 else 'eur'
+            else:
+                # Called with string (e.g., from tests or console)
+                args = text_or_parts.split() if text_or_parts else []
+                if len(args) == 0:
+                    self._send_response(irc, channel, "💸 Usage: !crypto <coin> [currency]. Example: !crypto btc eur")
+                    return
+                coin = args[0]
+                currency = args[1] if len(args) > 1 else 'eur'
+            
+            # Get cryptocurrency price
+            price_data = self.crypto_service.get_crypto_price(coin, currency)
+            response = self.crypto_service.format_price_message(price_data)
+            
+            self._send_response(irc, channel, response)
+            
+        except Exception as e:
+            error_msg = f"💸 Error getting crypto price: {str(e)}"
+            print(f"Crypto price error: {e}")
+            self._send_response(irc, channel, error_msg)
     
 

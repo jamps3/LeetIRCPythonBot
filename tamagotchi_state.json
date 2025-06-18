@@ -2,12 +2,12 @@
   "servers": {
     "unknown_server": {
       "level": 1,
-      "experience": 0,
-      "happiness": 50,
-      "hunger": 50,
-      "last_interaction": "2025-06-18T22:59:52.571868",
-      "mood": "neutral",
-      "total_interactions": 0,
+      "experience": 4,
+      "happiness": 70,
+      "hunger": 100,
+      "last_interaction": "2025-06-19T01:25:53.633915",
+      "mood": "happy",
+      "total_interactions": 2,
       "created": "2025-06-18T22:59:52.571875"
     }
   },
@@ -19,6 +19,6 @@
     "last_interaction": "2025-06-18T15:42:06.807494",
     "mood": "neutral"
   },
-  "last_updated": "2025-06-18T22:59:52.572849",
+  "last_updated": "2025-06-19T01:25:53.635112",
   "version": "1.0.0"
 }
