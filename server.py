@@ -75,11 +75,11 @@ class Server:
             event_type (str): The type of event to register for (message, join, part, quit)
             callback (Callable): The callback function to register
         """
-        #if event_type in self.callbacks:
-            #self.callbacks[event_type].append(callback)
-        #else:
-            #self.logger(f"Unknown event type: {event_type}", "WARNING")
-        print("registered callback")
+        if event_type in self.callbacks:
+            self.callbacks[event_type].append(callback)
+            self.logger(f"Registered callback for {event_type} events", "DEBUG")
+        else:
+            self.logger(f"Unknown event type: {event_type}", "WARNING")
     
     def connect_and_run(self):
         """
