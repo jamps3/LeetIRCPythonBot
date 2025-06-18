@@ -303,7 +303,7 @@ class IRCMessageProcessor:
                 return False
             
             # Get AI response
-            response = chat_with_gpt(context.irc_message.text)
+            response = chat_with_gpt(context.irc_message.text, context.irc_message.sender)
             if response:
                 # Determine target
                 target = context.irc_message.sender if context.is_private_to_bot else context.irc_message.target

@@ -1,0 +1,13 @@
+{
+  "servers": {},
+  "global_state": {
+    "level": 1,
+    "experience": 0,
+    "happiness": 50,
+    "hunger": 50,
+    "last_interaction": "2025-06-18T15:42:06.807494",
+    "mood": "neutral"
+  },
+  "last_updated": "2025-06-18T15:42:06.811425",
+  "version": "1.0.0"
+}
