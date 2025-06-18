@@ -78,7 +78,7 @@ import commands  # IRC Command processing
 
 # Load configuration from .env file
 bot_name = os.getenv(
-    "BOT_NAME", "jl3b2"
+    "BOT_NAME", "jl3b"
 )  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
 LOG_LEVEL = os.getenv(
     "LOG_LEVEL", "INFO"
@@ -89,7 +89,7 @@ HISTORY_FILE = os.getenv(
 EKAVIKA_FILE = os.getenv(
     "EKAVIKA_FILE", "ekavika.json"
 )  # File to store ekavika winners
-WORDS_FILE = os.getenv("WORDS_FILE", "kraks_data.pkl")  # File to store words data
+WORDS_FILE = os.getenv("WORDS_FILE", "words_data.json")  # File to store words data
 SUBSCRIBERS_FILE = os.getenv(
     "SUBSCRIBERS_FILE", "subscribers.json"
 )  # File to store Subscriber information
