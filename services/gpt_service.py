@@ -14,16 +14,18 @@ import openai
 class GPTService:
     """Service for handling GPT chat conversations with history."""
     
-    def __init__(self, api_key: str, history_file: str = "conversation_history.json"):
+    def __init__(self, api_key: str, history_file: str = "conversation_history.json", history_limit: int = 100):
         """
         Initialize GPT service.
         
         Args:
             api_key: OpenAI API key
             history_file: Path to conversation history file
+            history_limit: Maximum number of messages to keep in conversation history (default: 100)
         """
         self.api_key = api_key
         self.history_file = history_file
+        self.history_limit = history_limit
         
         # Initialize OpenAI client
         self.client = openai.OpenAI(api_key=api_key)
@@ -64,10 +66,14 @@ class GPTService:
     def _save_conversation_history(self):
         """Save conversation history to file."""
         try:
-            # Keep only the last 20 messages plus system prompt to avoid growing too large
-            if len(self.conversation_history) > 21:  # system + 20 messages
-                # Keep system prompt (first message) and last 20 messages
-                self.conversation_history = [self.conversation_history[0]] + self.conversation_history[-20:]
+            # Keep only the configured limit of messages plus system prompt to avoid growing too large
+            # history_limit includes both user and assistant messages, but not the system prompt
+            max_total_messages = self.history_limit + 1  # +1 for system prompt
+            
+            if len(self.conversation_history) > max_total_messages:
+                # Keep system prompt (first message) and last N messages up to limit
+                messages_to_keep = self.history_limit
+                self.conversation_history = [self.conversation_history[0]] + self.conversation_history[-messages_to_keep:]
             
             with open(self.history_file, 'w', encoding='utf-8') as f:
                 json.dump(self.conversation_history, f, indent=2, ensure_ascii=False)
@@ -159,16 +165,17 @@ class GPTService:
         return f"System prompt updated: {prompt[:50]}..."
 
 
-def create_gpt_service(api_key: str, history_file: str = "conversation_history.json") -> GPTService:
+def create_gpt_service(api_key: str, history_file: str = "conversation_history.json", history_limit: int = 100) -> GPTService:
     """
     Factory function to create a GPT service instance.
     
     Args:
         api_key: OpenAI API key
         history_file: Path to conversation history file
+        history_limit: Maximum number of messages to keep in conversation history
         
     Returns:
         GPTService instance
     """
-    return GPTService(api_key, history_file)
+    return GPTService(api_key, history_file, history_limit)
 

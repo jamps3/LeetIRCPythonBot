@@ -79,9 +79,10 @@ class BotManager:
         # Initialize GPT service
         openai_api_key = get_api_key('OPENAI_API_KEY')
         history_file = os.getenv('HISTORY_FILE', 'conversation_history.json')
+        history_limit = int(os.getenv('GPT_HISTORY_LIMIT', '100'))
         if openai_api_key:
-            self.gpt_service = GPTService(openai_api_key, history_file)
-            print("🤖 GPT chat service initialized")
+            self.gpt_service = GPTService(openai_api_key, history_file, history_limit)
+            print(f"🤖 GPT chat service initialized (history limit: {history_limit} messages)")
         else:
             print("⚠️  Warning: No OpenAI API key found. AI chat will not work.")
             self.gpt_service = None
