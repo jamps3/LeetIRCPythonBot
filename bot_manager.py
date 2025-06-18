@@ -218,7 +218,36 @@ class BotManager:
             'server_name': context['server_name'],
             'bot_name': self.bot_name,
             'latency_start': lambda: getattr(self, '_latency_start', 0),
-            'set_latency_start': lambda value: setattr(self, '_latency_start', value)
+            'set_latency_start': lambda value: setattr(self, '_latency_start', value),
+            
+            # Add legacy function implementations
+            'count_kraks': self._count_kraks_legacy,
+            'notice_message': lambda msg, irc=None, target=None: self._send_notice(server, target or context['target'], msg),
+            'send_electricity_price': self._send_electricity_price,
+            'measure_latency': self._measure_latency,
+            'get_crypto_price': self._get_crypto_price,
+            'load_leet_winners': self._load_leet_winners,
+            'save_leet_winners': self._save_leet_winners,
+            'send_weather': self._send_weather,
+            'send_scheduled_message': self._send_scheduled_message,
+            'get_eurojackpot_numbers': self._get_eurojackpot_numbers,
+            'search_youtube': self._search_youtube,
+            'handle_ipfs_command': self._handle_ipfs_command,
+            'lookup': lambda irc: context['server_name'],
+            'format_counts': self._format_counts,
+            'chat_with_gpt': self._chat_with_gpt,
+            'wrap_irc_message_utf8_bytes': self._wrap_irc_message_utf8_bytes,
+            'send_message': lambda irc, target, msg: server.send_message(target, msg),
+            'load': self._load_legacy_data,
+            'save': self._save_legacy_data,
+            'update_kraks': self._update_kraks_legacy,
+            'log': self._log,
+            'fetch_title': self._fetch_title,
+            'subscriptions': self._get_subscriptions_module(),
+            'DRINK_WORDS': self._get_drink_words(),
+            'EKAVIKA_FILE': 'ekavika.json',
+            'get_latency_start': lambda: getattr(self, '_latency_start', 0),
+            'BOT_VERSION': '2.0.0'
         }
         
         # Create a mock IRC message format for commands.py compatibility
@@ -311,4 +340,164 @@ class BotManager:
                 server.send_notice(target, message)
             except Exception as e:
                 print(f"Error sending notice to {server.config.name}: {e}")
+    
+    # Legacy function implementations for commands.py compatibility
+    def _count_kraks_legacy(self, word: str, beverage: str):
+        """Legacy drink counting function."""
+        print(f"Legacy drink count: {word} ({beverage})")
+        # This is now handled by DrinkTracker automatically
+    
+    def _send_notice(self, server, target: str, message: str):
+        """Send a notice message."""
+        if server:
+            server.send_notice(target, message)
+        else:
+            print(f"Console: {message}")
+    
+    def _send_electricity_price(self, irc, channel, args):
+        """Send electricity price information."""
+        print("Electricity price feature not yet implemented in new architecture")
+    
+    def _measure_latency(self):
+        """Measure latency."""
+        print("Latency measurement not yet implemented in new architecture")
+    
+    def _get_crypto_price(self, coin: str, currency: str = "eur"):
+        """Get cryptocurrency price."""
+        print(f"Crypto price for {coin} not yet implemented in new architecture")
+        return "N/A"
+    
+    def _load_leet_winners(self):
+        """Load leet winners data."""
+        try:
+            import json
+            with open('leet_winners.json', 'r') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
+    
+    def _save_leet_winners(self, data):
+        """Save leet winners data."""
+        try:
+            import json
+            with open('leet_winners.json', 'w') as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            print(f"Error saving leet winners: {e}")
+    
+    def _send_weather(self, irc, channel, location):
+        """Send weather information."""
+        print(f"Weather for {location} not yet implemented in new architecture")
+    
+    def _send_scheduled_message(self, *args):
+        """Send scheduled message."""
+        print("Scheduled messages not yet implemented in new architecture")
+    
+    def _get_eurojackpot_numbers(self):
+        """Get Eurojackpot numbers."""
+        print("Eurojackpot not yet implemented in new architecture")
+        return "N/A"
+    
+    def _search_youtube(self, query):
+        """Search YouTube."""
+        print(f"YouTube search for '{query}' not yet implemented in new architecture")
+        return "N/A"
+    
+    def _handle_ipfs_command(self, *args):
+        """Handle IPFS commands."""
+        print("IPFS not yet implemented in new architecture")
+    
+    def _format_counts(self, data):
+        """Format word counts."""
+        if isinstance(data, dict):
+            return ", ".join(f"{k}: {v}" for k, v in data.items())
+        return str(data)
+    
+    def _chat_with_gpt(self, message):
+        """Chat with GPT."""
+        print(f"GPT chat for '{message}' not yet implemented in new architecture")
+        return "Sorry, AI chat is not available right now."
+    
+    def _wrap_irc_message_utf8_bytes(self, message, reply_target=None, max_lines=5, placeholder="..."):
+        """Wrap IRC message for UTF-8 byte limits."""
+        # Simple implementation - split by lines
+        lines = message.split('\n')[:max_lines]
+        if len(message.split('\n')) > max_lines:
+            lines[-1] = lines[-1][:400] + placeholder
+        return lines
+    
+    def _load_legacy_data(self):
+        """Load legacy pickle data."""
+        try:
+            import pickle
+            with open('data.pkl', 'rb') as f:
+                return pickle.load(f)
+        except (FileNotFoundError, pickle.PickleError):
+            return {}
+    
+    def _save_legacy_data(self, data):
+        """Save legacy pickle data."""
+        try:
+            import pickle
+            with open('data.pkl', 'wb') as f:
+                pickle.dump(data, f)
+        except Exception as e:
+            print(f"Error saving legacy data: {e}")
+    
+    def _update_kraks_legacy(self, kraks, sender, words):
+        """Update legacy kraks data."""
+        if sender not in kraks:
+            kraks[sender] = {}
+        for word in words:
+            if word not in kraks[sender]:
+                kraks[sender][word] = 0
+            kraks[sender][word] += 1
+    
+    def _log(self, message, level="INFO"):
+        """Log a message."""
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[{timestamp}] [{level}] {message}")
+    
+    def _fetch_title(self, irc, target, text):
+        """Fetch and display URL titles."""
+        import re
+        import requests
+        from bs4 import BeautifulSoup
+        
+        # Find URLs in the text
+        urls = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text)
+        
+        for url in urls:
+            try:
+                response = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    title = soup.find('title')
+                    if title and title.string:
+                        # Send title to IRC if we have a proper server object
+                        if hasattr(irc, 'send_message'):
+                            irc.send_message(target, f"📄 {title.string.strip()}")
+                        else:
+                            print(f"Title: {title.string.strip()}")
+            except Exception as e:
+                print(f"Error fetching title for {url}: {e}")
+    
+    def _get_subscriptions_module(self):
+        """Get subscriptions module."""
+        try:
+            import subscriptions
+            return subscriptions
+        except ImportError:
+            # Return a mock object with basic functionality
+            class MockSubscriptions:
+                def get_subscribers(self, topic):
+                    return []
+            return MockSubscriptions()
+    
+    def _get_drink_words(self):
+        """Get drink words dictionary."""
+        return {
+            "krak": 0, "kr1k": 0, "kr0k": 0, "narsk": 0, "parsk": 0,
+            "tlup": 0, "marsk": 0, "tsup": 0, "plop": 0, "tsirp": 0
+        }
 
