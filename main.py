@@ -144,10 +144,10 @@ def lookup(irc):
     remote_ip, remote_port = irc.getpeername()
     try:
         hostname = socket.gethostbyaddr(remote_ip)[0]
-        log("Resolved hostname: {hostname}", "DEBUG")
+        log(f"Resolved hostname: {hostname}", "DEBUG")
     except socket.herror:
         hostname = remote_ip  # Fallback to IP if no reverse DNS
-        log("No hostname found, using IP: {hostname}", "DEBUG")
+        log(f"No hostname found, using IP: {hostname}", "DEBUG")
     return hostname
 
 
@@ -1465,9 +1465,9 @@ def process_message(irc, message):
                 )
         else:
             # ✅ Handle regular chat messages (send to GPT)
-            # ✅ Only respond to private messages or messages mentioning the bot's name
-            if is_private or text.startswith(
-                bot_name + " "
+            # ✅ Only respond to private messages or messages mentioning the bot's name exactly
+            if is_private or re.match(
+                rf"^{re.escape(bot_name)}[ ,.:;]", text
             ):  # Only respond when the message begins with the bot's name
                 response = chat_with_gpt(text)  # Get response from GPT
                 reply_target = (
