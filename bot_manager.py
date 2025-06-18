@@ -4,6 +4,7 @@ Bot Manager for Multiple IRC Servers
 This module provides the BotManager class that orchestrates multiple IRC server
 connections and integrates all bot functionality across servers.
 """
+import os
 import threading
 import time
 import signal
@@ -42,6 +43,14 @@ class BotManager:
         self.servers: Dict[str, Server] = {}
         self.server_threads: Dict[str, threading.Thread] = {}
         self.stop_event = threading.Event()
+        
+        # Load USE_NOTICES setting
+        use_notices_setting = os.getenv('USE_NOTICES', 'false').lower()
+        self.use_notices = use_notices_setting in ('true', '1', 'yes', 'on')
+        if self.use_notices:
+            print("📢 Using IRC NOTICEs for channel responses")
+        else:
+            print("💬 Using regular PRIVMSGs for channel responses")
         
         # Initialize bot components
         self.data_manager = DataManager()
@@ -208,7 +217,7 @@ class BotManager:
         # Send tamagotchi response if needed
         if should_respond and response:
             server = context['server']
-            server.send_message(target, response)
+            self._send_response(server, target, response)
     
     def _process_commands(self, context: Dict[str, Any]):
         """Process IRC commands and bot interactions."""
@@ -232,7 +241,7 @@ class BotManager:
             
             # Add legacy function implementations
             'count_kraks': self._count_kraks_legacy,
-            'notice_message': lambda msg, irc=None, target=None: self._send_notice(server, target or context['target'], msg),
+            'notice_message': lambda msg, irc=None, target=None: self._send_response(server, target or context['target'], msg),
             'send_electricity_price': self._send_electricity_price,
             'measure_latency': self._measure_latency,
             'get_crypto_price': self._get_crypto_price,
@@ -395,6 +404,17 @@ class BotManager:
         except Exception as e:
             print(f"Error saving leet winners: {e}")
     
+    def _send_response(self, server, target: str, message: str):
+        """Send a response using NOTICE or PRIVMSG based on USE_NOTICES setting."""
+        if not server:
+            print(message)
+            return
+            
+        if self.use_notices:
+            server.send_notice(target, message)
+        else:
+            server.send_message(target, message)
+    
     def _send_weather(self, irc, channel, location):
         """Send weather information."""
         if not self.weather_service:
@@ -408,10 +428,11 @@ class BotManager:
         
         # Send response via IRC if we have server context, otherwise print to console
         if irc and hasattr(irc, 'send_message') and channel:
-            irc.send_message(channel, response)
+            self._send_response(irc, channel, response)
         elif irc and hasattr(irc, 'sendall') and channel:
-            # Legacy IRC socket interface
-            irc.sendall(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
+            # Legacy IRC socket interface - use NOTICE or PRIVMSG based on setting
+            msg_type = "NOTICE" if self.use_notices else "PRIVMSG"
+            irc.sendall(f"{msg_type} {channel} :{response}\r\n".encode('utf-8'))
         else:
             print(response)
     
@@ -502,7 +523,7 @@ class BotManager:
                     if title and title.string:
                         # Send title to IRC if we have a proper server object
                         if hasattr(irc, 'send_message'):
-                            irc.send_message(target, f"📄 {title.string.strip()}")
+                            self._send_response(irc, target, f"📄 {title.string.strip()}")
                         else:
                             print(f"Title: {title.string.strip()}")
             except Exception as e:
