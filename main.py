@@ -70,7 +70,6 @@ import subprocess  # IPFS
 import tempfile  # IPFS
 import traceback  # For error handling
 from functools import partial
-import textwrap
 from fmi_varoitukset import FMIWatcher  # FMI Warnings Watcher
 from lemmatizer import Lemmatizer  # Lemmatizer for word counts
 from otiedote_monitor import OtiedoteMonitor  # Onnettomuustiedotteet
@@ -78,13 +77,25 @@ import subscriptions  # Tilaukset
 import commands  # IRC Command processing
 
 # Load configuration from .env file
-bot_name = os.getenv("BOT_NAME", "jl3b2")  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
-HISTORY_FILE = os.getenv("HISTORY_FILE", "conversation_history.json")  # File to store conversation history
-EKAVIKA_FILE = os.getenv("EKAVIKA_FILE", "ekavika.json")  # File to store ekavika winners
+bot_name = os.getenv(
+    "BOT_NAME", "jl3b2"
+)  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
+LOG_LEVEL = os.getenv(
+    "LOG_LEVEL", "INFO"
+)  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
+HISTORY_FILE = os.getenv(
+    "HISTORY_FILE", "conversation_history.json"
+)  # File to store conversation history
+EKAVIKA_FILE = os.getenv(
+    "EKAVIKA_FILE", "ekavika.json"
+)  # File to store ekavika winners
 WORDS_FILE = os.getenv("WORDS_FILE", "kraks_data.pkl")  # File to store words data
-SUBSCRIBERS_FILE = os.getenv("SUBSCRIBERS_FILE", "subscribers.json")  # File to store Subscriber information
-RECONNECT_DELAY = int(os.getenv("RECONNECT_DELAY", "60"))  # Time in seconds before retrying connection
+SUBSCRIBERS_FILE = os.getenv(
+    "SUBSCRIBERS_FILE", "subscribers.json"
+)  # File to store Subscriber information
+RECONNECT_DELAY = int(
+    os.getenv("RECONNECT_DELAY", "60")
+)  # Time in seconds before retrying connection
 QUIT_MESSAGE = os.getenv("QUIT_MESSAGE", "🍺 Nähdään! 🍺")
 
 # All drink words to track
@@ -537,38 +548,42 @@ def read(irc, stop_event):
                 try:
                     # Create bot_functions dictionary with all required functions and variables
                     bot_functions = {
-                        'tamagotchi': tamagotchi,
-                        'count_kraks': count_kraks,
-                        'notice_message': notice_message,
-                        'send_electricity_price': send_electricity_price,
-                        'measure_latency': measure_latency,
-                        'get_crypto_price': get_crypto_price,
-                        'load_leet_winners': load_leet_winners,
-                        'save_leet_winners': save_leet_winners,
-                        'send_weather': send_weather,
-                        'send_scheduled_message': send_scheduled_message,
-                        'get_eurojackpot_numbers': get_eurojackpot_numbers,
-                        'search_youtube': search_youtube,
-                        'handle_ipfs_command': handle_ipfs_command,
-                        'lookup': lookup,
-                        'format_counts': format_counts,
-                        'chat_with_gpt': chat_with_gpt,
-                        'wrap_irc_message_utf8_bytes': wrap_irc_message_utf8_bytes,
-                        'send_message': send_message,
-                        'load': load,
-                        'save': save,
-                        'update_kraks': update_kraks,
-                        'log': log,
-                        'fetch_title': fetch_title,
-                        'lemmat': lemmat,
-                        'subscriptions': subscriptions,
-                        'DRINK_WORDS': DRINK_WORDS,
-                        'EKAVIKA_FILE': EKAVIKA_FILE,
-                        'bot_name': bot_name,
-                        'latency_start': lambda: latency_start,
-                        'set_latency_start': lambda value: globals().update({'latency_start': value})
+                        "tamagotchi": tamagotchi,
+                        "count_kraks": count_kraks,
+                        "notice_message": notice_message,
+                        "send_electricity_price": send_electricity_price,
+                        "measure_latency": measure_latency,
+                        "get_crypto_price": get_crypto_price,
+                        "load_leet_winners": load_leet_winners,
+                        "save_leet_winners": save_leet_winners,
+                        "send_weather": send_weather,
+                        "send_scheduled_message": send_scheduled_message,
+                        "get_eurojackpot_numbers": get_eurojackpot_numbers,
+                        "search_youtube": search_youtube,
+                        "handle_ipfs_command": handle_ipfs_command,
+                        "lookup": lookup,
+                        "format_counts": format_counts,
+                        "chat_with_gpt": chat_with_gpt,
+                        "wrap_irc_message_utf8_bytes": wrap_irc_message_utf8_bytes,
+                        "send_message": send_message,
+                        "load": load,
+                        "save": save,
+                        "update_kraks": update_kraks,
+                        "log": log,
+                        "fetch_title": fetch_title,
+                        "lemmat": lemmat,
+                        "subscriptions": subscriptions,
+                        "DRINK_WORDS": DRINK_WORDS,
+                        "EKAVIKA_FILE": EKAVIKA_FILE,
+                        "bot_name": bot_name,
+                        "latency_start": lambda: latency_start,
+                        "set_latency_start": lambda value: globals().update(
+                            {"latency_start": value}
+                        ),
                     }
-                    commands.process_message(irc, line, bot_functions)  # Process each message separately
+                    commands.process_message(
+                        irc, line, bot_functions
+                    )  # Process each message separately
                 except Exception as e:
                     log(f"Error while processing message: {e}", "ERROR")
 
@@ -957,8 +972,6 @@ def format_counts(counts, max_length=500):
             break
         parts.append(part)
     return ", ".join(parts)
-
-
 
 
 def get_crypto_price(coin="bitcoin", currency="eur"):
