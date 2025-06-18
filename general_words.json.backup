@@ -210,15 +210,15 @@
         "jamps": {
           "general_words": {
             "jl3b": 1,
-            "moi": 2,
-            "jl3b2": 1
+            "moi": 3,
+            "jl3b2": 2
           },
           "first_seen": "2025-06-18T22:45:02.734047",
-          "last_activity": "2025-06-18T22:45:05.173110",
-          "total_words": 4,
+          "last_activity": "2025-06-18T22:51:39.976818",
+          "total_words": 6,
           "channels": {
             "#joensuutest": {
-              "word_count": 4
+              "word_count": 6
             }
           }
         },
@@ -276,6 +276,20 @@
               "word_count": 7
             }
           }
+        },
+        "TestUser": {
+          "general_words": {
+            "testbot": 1,
+            "hello": 1
+          },
+          "first_seen": "2025-06-18T22:47:58.743987",
+          "last_activity": "2025-06-18T22:47:58.744003",
+          "total_words": 2,
+          "channels": {
+            "#test": {
+              "word_count": 2
+            }
+          }
         }
       }
     },
@@ -298,6 +312,6 @@
       }
     }
   },
-  "last_updated": "2025-06-18T22:47:58.724877",
+  "last_updated": "2025-06-18T22:51:39.977950",
   "version": "1.0.0"
 }
