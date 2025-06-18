@@ -14,6 +14,7 @@ from functools import partial
 from config import get_server_configs, load_env_file, get_api_key
 from server import Server
 from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
+from lemmatizer import Lemmatizer
 import commands
 
 
@@ -46,6 +47,14 @@ class BotManager:
         self.drink_tracker = DrinkTracker(self.data_manager)
         self.general_words = GeneralWords(self.data_manager)
         self.tamagotchi = TamagotchiBot(self.data_manager)
+        
+        # Initialize lemmatizer with graceful fallback
+        try:
+            self.lemmatizer = Lemmatizer()
+            print("🔤 Lemmatizer component initialized")
+        except Exception as e:
+            print(f"⚠️  Warning: Could not initialize lemmatizer: {e}")
+            self.lemmatizer = None
         
         # Setup signal handlers for graceful shutdown
         self._setup_signal_handlers()
@@ -200,6 +209,7 @@ class BotManager:
             'drink_tracker': self.drink_tracker,
             'general_words': self.general_words,
             'tamagotchi': self.tamagotchi,
+            'lemmat': self.lemmatizer,  # Legacy compatibility
             'server': server,
             'server_name': context['server_name'],
             'bot_name': self.bot_name,
