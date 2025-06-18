@@ -17,6 +17,7 @@ from server import Server
 from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
 from lemmatizer import Lemmatizer
 from services.weather_service import WeatherService
+from services.gpt_service import GPTService
 import commands
 
 
@@ -74,6 +75,16 @@ class BotManager:
         else:
             print("⚠️  Warning: No weather API key found. Weather commands will not work.")
             self.weather_service = None
+        
+        # Initialize GPT service
+        openai_api_key = get_api_key('OPENAI_API_KEY')
+        history_file = os.getenv('HISTORY_FILE', 'conversation_history.json')
+        if openai_api_key:
+            self.gpt_service = GPTService(openai_api_key, history_file)
+            print("🤖 GPT chat service initialized")
+        else:
+            print("⚠️  Warning: No OpenAI API key found. AI chat will not work.")
+            self.gpt_service = None
         
         # Initialize lemmatizer with graceful fallback
         try:
@@ -264,7 +275,7 @@ class BotManager:
             'handle_ipfs_command': self._handle_ipfs_command,
             'lookup': lambda irc: context['server_name'],
             'format_counts': self._format_counts,
-            'chat_with_gpt': self._chat_with_gpt,
+            'chat_with_gpt': lambda msg, sender=None: self._chat_with_gpt(msg, sender or context['sender']),
             'wrap_irc_message_utf8_bytes': self._wrap_irc_message_utf8_bytes,
             'send_message': lambda irc, target, msg: server.send_message(target, msg),
             'load': self._load_legacy_data,
@@ -471,10 +482,25 @@ class BotManager:
             return ", ".join(f"{k}: {v}" for k, v in data.items())
         return str(data)
     
-    def _chat_with_gpt(self, message):
+    def _chat_with_gpt(self, message, sender="user"):
         """Chat with GPT."""
-        print(f"GPT chat for '{message}' not yet implemented in new architecture")
-        return "Sorry, AI chat is not available right now."
+        if not self.gpt_service:
+            return "Sorry, AI chat is not available. Please configure OPENAI_API_KEY."
+        
+        try:
+            # Clean the message by removing bot name mentions
+            clean_message = message
+            if clean_message.lower().startswith(self.bot_name.lower()):
+                # Remove bot name and common separators
+                clean_message = clean_message[len(self.bot_name):].lstrip(':, ')
+            
+            # Get response from GPT service
+            response = self.gpt_service.chat(clean_message, sender)
+            return response
+            
+        except Exception as e:
+            print(f"Error in GPT chat: {e}")
+            return "Sorry, I had trouble processing your message."
     
     def _wrap_irc_message_utf8_bytes(self, message, reply_target=None, max_lines=5, placeholder="..."):
         """Wrap IRC message for UTF-8 byte limits."""
