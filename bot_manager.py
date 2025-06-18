@@ -406,7 +406,7 @@ class BotManager:
         else:
             print(f"Console: {message}")
     
-    def _send_electricity_price(self, irc, channel, text):
+    def _send_electricity_price(self, irc, channel, text_or_parts):
         """Send electricity price information."""
         if not self.electricity_service:
             response = "⚡ Electricity price service not available. Please configure ELECTRICITY_API_KEY."
@@ -414,8 +414,21 @@ class BotManager:
             return
         
         try:
+            # Handle both string and list inputs for compatibility
+            if isinstance(text_or_parts, list):
+                # Called from IRC command with parts list
+                args = text_or_parts[1:] if len(text_or_parts) > 1 else []
+                if len(text_or_parts) > 1:
+                    # Join back to string for further parsing
+                    text = " ".join(text_or_parts[1:])
+                else:
+                    text = ""
+            else:
+                # Called with string (e.g., from tests or console)
+                text = text_or_parts or ""
+                args = text.split() if text else []
+            
             # Parse command arguments
-            args = text.split() if text else []
             parsed_args = self.electricity_service.parse_command_args(args)
             
             if parsed_args.get('error'):
