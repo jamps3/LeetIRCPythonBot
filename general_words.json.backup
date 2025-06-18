@@ -210,22 +210,22 @@
         "jamps": {
           "general_words": {
             "jl3b": 1,
-            "moi": 5,
-            "jl3b2": 4
+            "moi": 6,
+            "jl3b2": 5
           },
           "first_seen": "2025-06-18T22:45:02.734047",
-          "last_activity": "2025-06-18T22:59:45.050853",
-          "total_words": 10,
+          "last_activity": "2025-06-19T00:31:44.491878",
+          "total_words": 12,
           "channels": {
             "#joensuutest": {
-              "word_count": 10
+              "word_count": 12
             }
           }
         },
         "jl3b": {
           "general_words": {
-            "moi": 5,
-            "mitä": 2,
+            "moi": 6,
+            "mitä": 3,
             "kuuluu": 2,
             "kuinka": 1,
             "voin": 1,
@@ -234,14 +234,15 @@
             "menee": 1,
             "onko": 1,
             "jotain": 1,
-            "mielessä": 1
+            "mielessä": 1,
+            "sinulle": 1
           },
           "first_seen": "2025-06-18T22:45:04.057217",
-          "last_activity": "2025-06-18T22:59:46.256332",
-          "total_words": 17,
+          "last_activity": "2025-06-19T00:31:46.962610",
+          "total_words": 20,
           "channels": {
             "#joensuutest": {
-              "word_count": 17
+              "word_count": 20
             }
           }
         }
@@ -252,33 +253,36 @@
         "jamps": {
           "general_words": {
             "jl3b": 1,
-            "moi": 4,
-            "jl3b2": 3
+            "moi": 5,
+            "jl3b2": 4
           },
           "first_seen": "2025-06-18T22:45:02.758071",
-          "last_activity": "2025-06-18T22:59:45.106463",
-          "total_words": 8,
+          "last_activity": "2025-06-19T00:31:44.512171",
+          "total_words": 10,
           "channels": {
             "#joensuutest": {
-              "word_count": 8
+              "word_count": 10
             }
           }
         },
         "jl3b": {
           "general_words": {
-            "moi": 3,
+            "moi": 4,
             "mitä": 2,
             "kuuluu": 2,
             "kuinka": 1,
             "voin": 1,
-            "auttaa": 1
+            "auttaa": 1,
+            "onko": 1,
+            "jotain": 1,
+            "mielessä": 1
           },
           "first_seen": "2025-06-18T22:45:04.080374",
-          "last_activity": "2025-06-18T22:56:20.026302",
-          "total_words": 10,
+          "last_activity": "2025-06-18T22:59:46.275845",
+          "total_words": 14,
           "channels": {
             "#joensuutest": {
-              "word_count": 10
+              "word_count": 14
             }
           }
         },
@@ -317,6 +321,6 @@
       }
     }
   },
-  "last_updated": "2025-06-18T22:59:46.258297",
+  "last_updated": "2025-06-19T00:31:46.963531",
   "version": "1.0.0"
 }
