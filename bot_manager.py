@@ -175,26 +175,30 @@ class BotManager:
         
         # Track drink words
         self.drink_tracker.process_message(
-            server_name=server_name,
-            channel=target,
-            sender=sender,
-            message=text
+            server=server_name,
+            nick=sender,
+            text=text
         )
         
         # Track general words
         self.general_words.process_message(
-            server_name=server_name,
-            channel=target,
-            sender=sender,
-            message=text
+            server=server_name,
+            nick=sender,
+            text=text,
+            target=target
         )
         
         # Update tamagotchi
-        self.tamagotchi.process_interaction(
-            server_name=server_name,
-            sender=sender,
-            message=text
+        should_respond, response = self.tamagotchi.process_message(
+            server=server_name,
+            nick=sender,
+            text=text
         )
+        
+        # Send tamagotchi response if needed
+        if should_respond and response:
+            server = context['server']
+            server.send_message(target, response)
     
     def _process_commands(self, context: Dict[str, Any]):
         """Process IRC commands and bot interactions."""
