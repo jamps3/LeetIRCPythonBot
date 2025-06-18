@@ -46,7 +46,8 @@ def process_message(irc, message, bot_functions):
     DRINK_WORDS = bot_functions['DRINK_WORDS']
     EKAVIKA_FILE = bot_functions['EKAVIKA_FILE']
     bot_name = bot_functions['bot_name']
-    latency_start = bot_functions.get('latency_start', 0)
+    get_latency_start = bot_functions['latency_start']
+    set_latency_start = bot_functions['set_latency_start']
     is_private = False
     match = re.search(r":(\S+)!(\S+) PRIVMSG (\S+) :(.+)", message)
 
@@ -95,8 +96,9 @@ def process_message(irc, message, bot_functions):
 
             # Handle bot's own LatencyCheck response
             if "!LatencyCheck" in text:
-                if "latency_start" in globals():
-                    elapsed_time = time.time() - latency_start
+                latency_start_value = get_latency_start()
+                if latency_start_value > 0:
+                    elapsed_time = time.time() - latency_start_value
                     latency_ns = int(elapsed_time * 1_000_000_000)  # Convert to ns
 
                     # ✅ Estimate one-way latency

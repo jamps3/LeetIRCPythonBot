@@ -77,14 +77,15 @@ from otiedote_monitor import OtiedoteMonitor  # Onnettomuustiedotteet
 import subscriptions  # Tilaukset
 import commands  # IRC Command processing
 
-bot_name = "jl3b2"  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
-LOG_LEVEL = "INFO"  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
-HISTORY_FILE = "conversation_history.json"  # File to store conversation history
-EKAVIKA_FILE = "ekavika.json"  # File to store ekavika winners
-WORDS_FILE = "kraks_data.pkl"  # File to store words data
-SUBSCRIBERS_FILE = "subscribers.json"  # File to store Subscriber information
-RECONNECT_DELAY = 60  # Time in seconds before retrying connection (irc.settimeout = RECONNECT_DELAY * 2)
-QUIT_MESSAGE = "🍺 Nähdään! 🍺"
+# Load configuration from .env file
+bot_name = os.getenv("BOT_NAME", "jl3b2")  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
+HISTORY_FILE = os.getenv("HISTORY_FILE", "conversation_history.json")  # File to store conversation history
+EKAVIKA_FILE = os.getenv("EKAVIKA_FILE", "ekavika.json")  # File to store ekavika winners
+WORDS_FILE = os.getenv("WORDS_FILE", "kraks_data.pkl")  # File to store words data
+SUBSCRIBERS_FILE = os.getenv("SUBSCRIBERS_FILE", "subscribers.json")  # File to store Subscriber information
+RECONNECT_DELAY = int(os.getenv("RECONNECT_DELAY", "60"))  # Time in seconds before retrying connection
+QUIT_MESSAGE = os.getenv("QUIT_MESSAGE", "🍺 Nähdään! 🍺")
 
 # All drink words to track
 DRINK_WORDS = {
@@ -117,6 +118,7 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
 last_ping = time.time()
 last_title = ""
+latency_start = 0  # Initialize latency measurement variable
 
 # Luo OpenAI-asiakasolio (uusi tapa OpenAI 1.0.0+ versiossa)
 client = openai.OpenAI(api_key=api_key)
@@ -563,7 +565,8 @@ def read(irc, stop_event):
                         'DRINK_WORDS': DRINK_WORDS,
                         'EKAVIKA_FILE': EKAVIKA_FILE,
                         'bot_name': bot_name,
-                        'latency_start': latency_start
+                        'latency_start': lambda: latency_start,
+                        'set_latency_start': lambda value: globals().update({'latency_start': value})
                     }
                     commands.process_message(irc, line, bot_functions)  # Process each message separately
                 except Exception as e:
