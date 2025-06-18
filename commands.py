@@ -458,11 +458,15 @@ def process_console_command(command_text, bot_functions):
         notice_message(response)
     
     elif command == "!tamagotchi":
-        console_server = "console"
-        status = tamagotchi_bot.get_status(console_server)
-        lines = status.split('\n')
-        for line in lines:
-            notice_message(line)
+        if args and args.lower() == "toggle":
+            # Toggle tamagotchi responses (only in console)
+            notice_message("🐣 Tamagotchi toggle functionality is only available in IRC channels.")
+        else:
+            console_server = "console"
+            status = tamagotchi_bot.get_status(console_server)
+            lines = status.split('\n')
+            for line in lines:
+                notice_message(line)
     
     elif command == "!feed":
         food = args if args else None
@@ -1222,12 +1226,22 @@ def process_message(irc, message, bot_functions):
         
         # === TAMAGOTCHI COMMANDS ===
         elif text.startswith("!tamagotchi"):
-            server_name = data_manager.get_server_name(irc)
-            status = tamagotchi_bot.get_status(server_name)
-            # Split into multiple messages if too long
-            lines = status.split('\n')
-            for line in lines:
-                notice_message(line, irc, target)
+            parts = text.split(" ", 1)
+            if len(parts) > 1 and parts[1].lower() == "toggle":
+                # Toggle tamagotchi responses
+                toggle_func = bot_functions.get('toggle_tamagotchi')
+                if toggle_func:
+                    toggle_func()
+                else:
+                    notice_message("Tamagotchi toggle not available.", irc, target)
+            else:
+                # Show tamagotchi status
+                server_name = data_manager.get_server_name(irc)
+                status = tamagotchi_bot.get_status(server_name)
+                # Split into multiple messages if too long
+                lines = status.split('\n')
+                for line in lines:
+                    notice_message(line, irc, target)
         
         elif text.startswith("!feed"):
             parts = text.split(" ", 1)

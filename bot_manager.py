@@ -52,6 +52,14 @@ class BotManager:
         else:
             print("💬 Using regular PRIVMSGs for channel responses")
         
+        # Load TAMAGOTCHI_ENABLED setting
+        tamagotchi_setting = os.getenv('TAMAGOTCHI_ENABLED', 'true').lower()
+        self.tamagotchi_enabled = tamagotchi_setting in ('true', '1', 'yes', 'on')
+        if self.tamagotchi_enabled:
+            print("🐣 Tamagotchi responses enabled")
+        else:
+            print("🐣 Tamagotchi responses disabled")
+        
         # Initialize bot components
         self.data_manager = DataManager()
         self.drink_tracker = DrinkTracker(self.data_manager)
@@ -207,17 +215,18 @@ class BotManager:
             target=target
         )
         
-        # Update tamagotchi
-        should_respond, response = self.tamagotchi.process_message(
-            server=server_name,
-            nick=sender,
-            text=text
-        )
-        
-        # Send tamagotchi response if needed
-        if should_respond and response:
-            server = context['server']
-            self._send_response(server, target, response)
+        # Update tamagotchi (only if enabled)
+        if self.tamagotchi_enabled:
+            should_respond, response = self.tamagotchi.process_message(
+                server=server_name,
+                nick=sender,
+                text=text
+            )
+            
+            # Send tamagotchi response if needed
+            if should_respond and response:
+                server = context['server']
+                self._send_response(server, target, response)
     
     def _process_commands(self, context: Dict[str, Any]):
         """Process IRC commands and bot interactions."""
@@ -267,7 +276,8 @@ class BotManager:
             'DRINK_WORDS': self._get_drink_words(),
             'EKAVIKA_FILE': 'ekavika.json',
             'get_latency_start': lambda: getattr(self, '_latency_start', 0),
-            'BOT_VERSION': '2.0.0'
+            'BOT_VERSION': '2.0.0',
+            'toggle_tamagotchi': lambda: self.toggle_tamagotchi(server, target, sender)
         }
         
         # Create a mock IRC message format for commands.py compatibility
@@ -548,5 +558,20 @@ class BotManager:
             "krak": 0, "kr1k": 0, "kr0k": 0, "narsk": 0, "parsk": 0,
             "tlup": 0, "marsk": 0, "tsup": 0, "plop": 0, "tsirp": 0
         }
+    
+    def toggle_tamagotchi(self, server, target, sender):
+        """Toggle tamagotchi responses on/off."""
+        self.tamagotchi_enabled = not self.tamagotchi_enabled
+        
+        status = "enabled" if self.tamagotchi_enabled else "disabled"
+        emoji = "🐣" if self.tamagotchi_enabled else "💤"
+        
+        response = f"{emoji} Tamagotchi responses are now {status}."
+        self._send_response(server, target, response)
+        
+        # Log the change
+        print(f"[{server.config.name}] {sender} toggled tamagotchi to {status}")
+        
+        return response
     
 
