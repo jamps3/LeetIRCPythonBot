@@ -261,22 +261,43 @@
         },
         "jl3b": {
           "general_words": {
-            "moi": 1,
+            "moi": 2,
             "mitä": 1,
-            "kuuluu": 1
+            "kuuluu": 1,
+            "kuinka": 1,
+            "voin": 1,
+            "auttaa": 1
           },
           "first_seen": "2025-06-18T22:45:04.080374",
-          "last_activity": "2025-06-18T22:45:04.080389",
-          "total_words": 3,
+          "last_activity": "2025-06-18T22:45:06.208467",
+          "total_words": 7,
           "channels": {
             "#joensuutest": {
-              "word_count": 3
+              "word_count": 7
+            }
+          }
+        }
+      }
+    },
+    "TestServer": {
+      "nicks": {
+        "TestUser": {
+          "general_words": {
+            "testbot": 1,
+            "hello": 1
+          },
+          "first_seen": "2025-06-18T22:47:58.724033",
+          "last_activity": "2025-06-18T22:47:58.724048",
+          "total_words": 2,
+          "channels": {
+            "#test": {
+              "word_count": 2
             }
           }
         }
       }
     }
   },
-  "last_updated": "2025-06-18T22:45:06.188991",
+  "last_updated": "2025-06-18T22:47:58.724877",
   "version": "1.0.0"
 }
