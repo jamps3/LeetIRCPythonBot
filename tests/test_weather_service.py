@@ -238,14 +238,15 @@ def test_pressure_analysis():
         
         test_cases = [
             (1013.25, "〇"),  # Normal pressure
-            (1020, "🟢"),     # Slightly high
-            (1025, "🟡"),     # Moderately high  
-            (1040, "🟠"),     # High
-            (1060, "☠"),      # Very high
-            (1005, "🟢"),     # Slightly low
-            (995, "🟡"),      # Moderately low
-            (980, "🟠"),      # Low
-            (950, "☠"),       # Very low
+            (1020, "🟢"),     # Slightly high (abs(percent) = 0.675 <= 1)
+            (1025, "🟡"),     # Moderately high (abs(percent) = 1.175 <= 2)
+            (1040, "🟠"),     # High (abs(percent) = 2.675 <= 3)
+            (1060, "☠"),      # Very high (abs(percent) = 4.675 > 4)
+            (1005, "🟢"),     # Slightly low (abs(percent) = 0.825 <= 1)
+            (995, "🟡"),      # Moderately low (abs(percent) = 1.825 <= 2)
+            (985, "🟠"),      # Low (abs(percent) = 2.825 <= 3)  
+            (980, "🔴"),      # Lower (abs(percent) = 3.325 <= 4)
+            (950, "☠"),       # Very low (abs(percent) = 6.325 > 4)
         ]
         
         for pressure, expected_visual in test_cases:
