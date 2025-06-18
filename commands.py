@@ -905,25 +905,8 @@ def process_message(irc, message, bot_functions):
 
         # Checks if the message contains a crypto request and fetches price.
         elif re.search(r"!crypto\b", text, re.IGNORECASE):
-            match = re.search(r"!crypto\s+(\w+)", text, re.IGNORECASE)
-
-            if match:
-                # Fetch specific coin price
-                coin = match.group(1).lower()
-                price = get_crypto_price(coin, "eur")
-                message = f"The current price of {coin.capitalize()} is {price} €."
-            else:
-                # Fetch top 3 most popular cryptocurrencies
-                top_coins = ["bitcoin", "ethereum", "tether"]
-                prices = {coin: get_crypto_price(coin, "eur") for coin in top_coins}
-                message = " | ".join(
-                    [f"{coin.capitalize()}: {prices[coin]} €" for coin in top_coins]
-                )
-
-            if irc:
-                notice_message(message, irc, target)
-            else:
-                log(message, "MSG")
+            parts = text.split()
+            send_crypto_price(irc, target, parts)
 
         # Show top eka and vika winners
         elif text.startswith("!ekavika"):
@@ -1048,10 +1031,8 @@ def process_message(irc, message, bot_functions):
         elif text.startswith("!youtube"):
             match = re.search(r"!youtube\s+(.+)", text)
             if match:
-                url = match.group(1)
-                result = search_youtube(url)
-                if result and result != "No results found.":
-                    notice_message(result, irc, target)
+                query_or_url = match.group(1)
+                send_youtube_info(irc, target, query_or_url)
 
         elif text.startswith("!join"):
             match = re.search(r"!join\s+(.+)", text)
