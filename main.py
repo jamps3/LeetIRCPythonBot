@@ -89,7 +89,7 @@ HISTORY_FILE = os.getenv(
 EKAVIKA_FILE = os.getenv(
     "EKAVIKA_FILE", "ekavika.json"
 )  # File to store ekavika winners
-WORDS_FILE = os.getenv("WORDS_FILE", "words_data.json")  # File to store words data
+WORDS_FILE = os.getenv("WORDS_FILE", "general_words.json")  # File to store words data
 SUBSCRIBERS_FILE = os.getenv(
     "SUBSCRIBERS_FILE", "subscribers.json"
 )  # File to store Subscriber information
