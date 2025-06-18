@@ -208,6 +208,11 @@ class BotManager:
                 'bot_name': self.bot_name
             }
             
+            # 🎯 FIRST PRIORITY: Check for nanoleet achievements for maximum timestamp accuracy
+            # This must be the very first thing we do to get the most accurate timestamp
+            if sender.lower() != self.bot_name.lower():
+                self._check_nanoleet_achievement(context)
+            
             # Track words if not from the bot itself
             if sender.lower() != self.bot_name.lower():
                 self._track_words(context)
@@ -215,10 +220,6 @@ class BotManager:
             # Check for YouTube URLs and display video info
             if self.youtube_service and sender.lower() != self.bot_name.lower():
                 self._handle_youtube_urls(context)
-            
-            # Check for nanoleet achievements if not from the bot itself
-            if sender.lower() != self.bot_name.lower():
-                self._check_nanoleet_achievement(context)
             
             # Process commands
             self._process_commands(context)
@@ -795,7 +796,8 @@ class BotManager:
             return
         
         try:
-            # Get current timestamp with nanosecond precision
+            # 🎯 CRITICAL: Get timestamp with MAXIMUM precision immediately upon message processing
+            # This is the most accurate timestamp possible for when the message was processed
             timestamp = self.nanoleet_detector.get_timestamp_with_nanoseconds()
             
             # Check for leet achievement
@@ -803,10 +805,10 @@ class BotManager:
             
             if result:
                 achievement_message, achievement_level = result
-                # Send achievement message to the channel
+                # Send achievement message to the channel immediately
                 self._send_response(server, target, achievement_message)
                 
-                # Log the achievement
+                # Log the achievement with high precision
                 self.logger.info(f"Nanoleet achievement: {achievement_level} for {sender} in {target} at {timestamp}")
                 
         except Exception as e:
