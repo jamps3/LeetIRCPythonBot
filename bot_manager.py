@@ -21,6 +21,7 @@ from services.gpt_service import GPTService
 from services.electricity_service import create_electricity_service
 from services.youtube_service import create_youtube_service
 from services.crypto_service import create_crypto_service
+from logger import get_logger
 import commands
 
 
@@ -48,21 +49,24 @@ class BotManager:
         self.server_threads: Dict[str, threading.Thread] = {}
         self.stop_event = threading.Event()
         
+        # Initialize high-precision logger first
+        self.logger = get_logger("BotManager")
+        
         # Load USE_NOTICES setting
         use_notices_setting = os.getenv('USE_NOTICES', 'false').lower()
         self.use_notices = use_notices_setting in ('true', '1', 'yes', 'on')
         if self.use_notices:
-            print("📢 Using IRC NOTICEs for channel responses")
+            self.logger.info("📢 Using IRC NOTICEs for channel responses")
         else:
-            print("💬 Using regular PRIVMSGs for channel responses")
+            self.logger.info("💬 Using regular PRIVMSGs for channel responses")
         
         # Load TAMAGOTCHI_ENABLED setting
         tamagotchi_setting = os.getenv('TAMAGOTCHI_ENABLED', 'true').lower()
         self.tamagotchi_enabled = tamagotchi_setting in ('true', '1', 'yes', 'on')
         if self.tamagotchi_enabled:
-            print("🐣 Tamagotchi responses enabled")
+            self.logger.info("🐣 Tamagotchi responses enabled")
         else:
-            print("🐣 Tamagotchi responses disabled")
+            self.logger.info("🐣 Tamagotchi responses disabled")
         
         # Initialize bot components
         self.data_manager = DataManager()
@@ -70,13 +74,14 @@ class BotManager:
         self.general_words = GeneralWords(self.data_manager)
         self.tamagotchi = TamagotchiBot(self.data_manager)
         
+        
         # Initialize weather service
         weather_api_key = get_api_key('WEATHER_API_KEY')
         if weather_api_key:
             self.weather_service = WeatherService(weather_api_key)
-            print("🌤️ Weather service initialized")
+            self.logger.info("🌤️ Weather service initialized")
         else:
-            print("⚠️  Warning: No weather API key found. Weather commands will not work.")
+            self.logger.warning("⚠️  No weather API key found. Weather commands will not work.")
             self.weather_service = None
         
         # Initialize GPT service
@@ -85,39 +90,39 @@ class BotManager:
         history_limit = int(os.getenv('GPT_HISTORY_LIMIT', '100'))
         if openai_api_key:
             self.gpt_service = GPTService(openai_api_key, history_file, history_limit)
-            print(f"🤖 GPT chat service initialized (history limit: {history_limit} messages)")
+            self.logger.info(f"🤖 GPT chat service initialized (history limit: {history_limit} messages)")
         else:
-            print("⚠️  Warning: No OpenAI API key found. AI chat will not work.")
+            self.logger.warning("⚠️  No OpenAI API key found. AI chat will not work.")
             self.gpt_service = None
         
         # Initialize electricity service
         electricity_api_key = get_api_key('ELECTRICITY_API_KEY')
         if electricity_api_key:
             self.electricity_service = create_electricity_service(electricity_api_key)
-            print("⚡ Electricity price service initialized")
+            self.logger.info("⚡ Electricity price service initialized")
         else:
-            print("⚠️  Warning: No electricity API key found. Electricity price commands will not work.")
+            self.logger.warning("⚠️  No electricity API key found. Electricity price commands will not work.")
             self.electricity_service = None
         
         # Initialize YouTube service
         youtube_api_key = get_api_key('YOUTUBE_API_KEY')
         if youtube_api_key:
             self.youtube_service = create_youtube_service(youtube_api_key)
-            print("▶️ YouTube service initialized")
+            self.logger.info("▶️ YouTube service initialized")
         else:
-            print("⚠️  Warning: No YouTube API key found. YouTube commands will not work.")
+            self.logger.warning("⚠️  No YouTube API key found. YouTube commands will not work.")
             self.youtube_service = None
         
         # Initialize crypto service
         self.crypto_service = create_crypto_service()
-        print("🪙 Crypto service initialized (using CoinGecko API)")
+        self.logger.info("🪙 Crypto service initialized (using CoinGecko API)")
         
         # Initialize lemmatizer with graceful fallback
         try:
             self.lemmatizer = Lemmatizer()
-            print("🔤 Lemmatizer component initialized")
+            self.logger.info("🔤 Lemmatizer component initialized")
         except Exception as e:
-            print(f"⚠️  Warning: Could not initialize lemmatizer: {e}")
+            self.logger.warning(f"⚠️  Could not initialize lemmatizer: {e}")
             self.lemmatizer = None
         
         # Setup signal handlers for graceful shutdown
@@ -126,7 +131,7 @@ class BotManager:
     def _setup_signal_handlers(self):
         """Setup signal handlers for graceful shutdown."""
         def signal_handler(sig, frame):
-            print(f"\nReceived signal {sig}, shutting down...")
+            self.logger.info(f"Received signal {sig}, shutting down...")
             self.stop()
             sys.exit(0)
         
@@ -142,20 +147,20 @@ class BotManager:
         """
         # Load environment file
         if not load_env_file():
-            print("Warning: Could not load .env file")
+            self.logger.warning("Could not load .env file")
         
         # Get server configurations
         server_configs = get_server_configs()
         
         if not server_configs:
-            print("ERROR: No server configurations found!")
+            self.logger.error("No server configurations found!")
             return False
         
         # Create Server instances
         for config in server_configs:
             server = Server(config, self.bot_name, self.stop_event)
             self.servers[config.name] = server
-            print(f"Loaded server configuration: {config.name} ({config.host}:{config.port})")
+            self.logger.info(f"Loaded server configuration: {config.name} ({config.host}:{config.port})")
         
         return True
     
@@ -174,7 +179,7 @@ class BotManager:
             # Register quit callback for cleanup
             server.register_callback("quit", self._handle_quit)
             
-            print(f"Registered callbacks for server: {server_name}")
+            self.logger.info(f"Registered callbacks for server: {server_name}")
     
     def _handle_message(self, server: Server, sender: str, target: str, text: str):
         """
@@ -210,25 +215,25 @@ class BotManager:
             self._process_commands(context)
             
         except Exception as e:
-            print(f"Error handling message from {server.config.name}: {e}")
+            self.logger.error(f"Error handling message from {server.config.name}: {e}")
     
     def _handle_join(self, server: Server, sender: str, channel: str):
         """Handle user join events."""
         # Track user activity
         server_name = server.config.name
-        print(f"[{server_name}] {sender} joined {channel}")
+        self.logger.info(f"{sender} joined {channel}", server_name)
     
     def _handle_part(self, server: Server, sender: str, channel: str):
         """Handle user part events."""
         # Track user activity
         server_name = server.config.name
-        print(f"[{server_name}] {sender} left {channel}")
+        self.logger.info(f"{sender} left {channel}", server_name)
     
     def _handle_quit(self, server: Server, sender: str):
         """Handle user quit events."""
         # Track user activity
         server_name = server.config.name
-        print(f"[{server_name}] {sender} quit")
+        self.logger.info(f"{sender} quit", server_name)
     
     def _track_words(self, context: Dict[str, Any]):
         """Track words for statistics and drink tracking."""
@@ -330,7 +335,7 @@ class BotManager:
             # Use existing commands.py with new context
             commands.process_message(server, mock_message, bot_functions)
         except Exception as e:
-            print(f"Error processing command: {e}")
+            self.logger.error(f"Error processing command: {e}")
     
     def start(self):
         """Start all servers and bot functionality."""
@@ -341,7 +346,7 @@ class BotManager:
         
         # Migrate legacy data if needed
         if not self.data_manager.migrate_from_pickle():
-            print("Warning: Data migration failed, but continuing...")
+            self.logger.warning("Data migration failed, but continuing...")
         
         # Start each server in its own thread
         for server_name, server in self.servers.items():
@@ -352,34 +357,34 @@ class BotManager:
             )
             thread.start()
             self.server_threads[server_name] = thread
-            print(f"Started server thread for {server_name}")
+            self.logger.info(f"Started server thread for {server_name}")
         
-        print(f"Bot manager started with {len(self.servers)} servers")
+        self.logger.info(f"Bot manager started with {len(self.servers)} servers")
         return True
     
     def stop(self):
         """Stop all servers and bot functionality gracefully."""
-        print("Shutting down bot manager...")
+        self.logger.info("Shutting down bot manager...")
         
         # Set stop event
         self.stop_event.set()
         
         # Stop all servers
         for server_name, server in self.servers.items():
-            print(f"Stopping server {server_name}...")
+            self.logger.info(f"Stopping server {server_name}...")
             try:
                 server.stop()
             except Exception as e:
-                print(f"Error stopping server {server_name}: {e}")
+                self.logger.error(f"Error stopping server {server_name}: {e}")
         
         # Wait for all server threads to finish
         for server_name, thread in self.server_threads.items():
-            print(f"Waiting for server thread {server_name} to finish...")
+            self.logger.info(f"Waiting for server thread {server_name} to finish...")
             thread.join(timeout=10)
             if thread.is_alive():
-                print(f"Warning: Server thread {server_name} did not finish cleanly")
+                self.logger.warning(f"Server thread {server_name} did not finish cleanly")
         
-        print("Bot manager shut down complete")
+        self.logger.info("Bot manager shut down complete")
     
     def wait_for_shutdown(self):
         """Wait for all server threads to complete."""
@@ -387,7 +392,7 @@ class BotManager:
             while any(thread.is_alive() for thread in self.server_threads.values()):
                 time.sleep(1)
         except KeyboardInterrupt:
-            print("\nKeyboard interrupt received")
+            self.logger.info("Keyboard interrupt received")
             self.stop()
     
     def get_server_by_name(self, name: str) -> Optional[Server]:
@@ -404,7 +409,7 @@ class BotManager:
             try:
                 server.send_message(target, message)
             except Exception as e:
-                print(f"Error sending to {server.config.name}: {e}")
+                self.logger.error(f"Error sending to {server.config.name}: {e}")
     
     def send_notice_to_all_servers(self, target: str, message: str):
         """Send a notice to the same target on all servers."""
@@ -412,12 +417,12 @@ class BotManager:
             try:
                 server.send_notice(target, message)
             except Exception as e:
-                print(f"Error sending notice to {server.config.name}: {e}")
+                self.logger.error(f"Error sending notice to {server.config.name}: {e}")
     
     # Legacy function implementations for commands.py compatibility
     def _count_kraks_legacy(self, word: str, beverage: str):
         """Legacy drink counting function."""
-        print(f"Legacy drink count: {word} ({beverage})")
+        self.logger.debug(f"Legacy drink count: {word} ({beverage})")
         # This is now handled by DrinkTracker automatically
     
     def _send_notice(self, server, target: str, message: str):
@@ -425,7 +430,7 @@ class BotManager:
         if server:
             server.send_notice(target, message)
         else:
-            print(f"Console: {message}")
+            self.logger.info(f"Console: {message}")
     
     def _send_electricity_price(self, irc, channel, text_or_parts):
         """Send electricity price information."""
@@ -473,7 +478,7 @@ class BotManager:
             
         except Exception as e:
             error_msg = f"⚡ Error getting electricity price: {str(e)}"
-            print(f"Electricity price error: {e}")
+            self.logger.error(f"Electricity price error: {e}")
             self._send_response(irc, channel, error_msg)
     
     def _measure_latency(self):
@@ -491,7 +496,7 @@ class BotManager:
                 return f"Error: {price_data.get('message', 'Unknown error')}"
             return f"{price_data['price']:.2f} {currency.upper()}"
         except Exception as e:
-            print(f"Error getting crypto price: {e}")
+            self.logger.error(f"Error getting crypto price: {e}")
             return "N/A"
     
     def _load_leet_winners(self):
@@ -510,7 +515,7 @@ class BotManager:
             with open('leet_winners.json', 'w') as f:
                 json.dump(data, f, indent=2)
         except Exception as e:
-            print(f"Error saving leet winners: {e}")
+            self.logger.error(f"Error saving leet winners: {e}")
     
     def _send_response(self, server, target: str, message: str):
         """Send a response using NOTICE or PRIVMSG based on USE_NOTICES setting."""
@@ -546,11 +551,11 @@ class BotManager:
     
     def _send_scheduled_message(self, *args):
         """Send scheduled message."""
-        print("Scheduled messages not yet implemented in new architecture")
+        self.logger.warning("Scheduled messages not yet implemented in new architecture")
     
     def _get_eurojackpot_numbers(self):
         """Get Eurojackpot numbers."""
-        print("Eurojackpot not yet implemented in new architecture")
+        self.logger.warning("Eurojackpot not yet implemented in new architecture")
         return "N/A"
     
     def _search_youtube(self, query):
@@ -562,12 +567,12 @@ class BotManager:
             search_data = self.youtube_service.search_videos(query, max_results=3)
             return self.youtube_service.format_search_results_message(search_data)
         except Exception as e:
-            print(f"Error searching YouTube: {e}")
+            self.logger.error(f"Error searching YouTube: {e}")
             return f"Error searching YouTube: {str(e)}"
     
     def _handle_ipfs_command(self, *args):
         """Handle IPFS commands."""
-        print("IPFS not yet implemented in new architecture")
+        self.logger.warning("IPFS not yet implemented in new architecture")
     
     def _format_counts(self, data):
         """Format word counts."""
@@ -592,7 +597,7 @@ class BotManager:
             return response
             
         except Exception as e:
-            print(f"Error in GPT chat: {e}")
+            self.logger.error(f"Error in GPT chat: {e}")
             return "Sorry, I had trouble processing your message."
     
     def _wrap_irc_message_utf8_bytes(self, message, reply_target=None, max_lines=5, placeholder="..."):
@@ -619,7 +624,7 @@ class BotManager:
             with open('data.pkl', 'wb') as f:
                 pickle.dump(data, f)
         except Exception as e:
-            print(f"Error saving legacy data: {e}")
+            self.logger.error(f"Error saving legacy data: {e}")
     
     def _update_kraks_legacy(self, kraks, sender, words):
         """Update legacy kraks data."""
@@ -632,8 +637,7 @@ class BotManager:
     
     def _log(self, message, level="INFO"):
         """Log a message."""
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[{timestamp}] [{level}] {message}")
+        self.logger.log(message, level)
     
     def _fetch_title(self, irc, target, text):
         """Fetch and display URL titles."""
@@ -655,9 +659,9 @@ class BotManager:
                         if hasattr(irc, 'send_message'):
                             self._send_response(irc, target, f"📄 {title.string.strip()}")
                         else:
-                            print(f"Title: {title.string.strip()}")
+                            self.logger.info(f"Title: {title.string.strip()}")
             except Exception as e:
-                print(f"Error fetching title for {url}: {e}")
+                self.logger.error(f"Error fetching title for {url}: {e}")
     
     def _get_subscriptions_module(self):
         """Get subscriptions module."""
@@ -689,7 +693,7 @@ class BotManager:
         self._send_response(server, target, response)
         
         # Log the change
-        print(f"[{server.config.name}] {sender} toggled tamagotchi to {status}")
+        self.logger.info(f"{sender} toggled tamagotchi to {status}", server.config.name)
         
         return response
     
@@ -710,7 +714,7 @@ class BotManager:
                 message = self.youtube_service.format_video_info_message(video_data)
                 self._send_response(server, target, message)
         except Exception as e:
-            print(f"Error handling YouTube URL: {e}")
+            self.logger.error(f"Error handling YouTube URL: {e}")
     
     def _send_youtube_info(self, irc, channel, query_or_url):
         """Send YouTube video info or search results."""
@@ -736,7 +740,7 @@ class BotManager:
             
         except Exception as e:
             error_msg = f"🎥 Error with YouTube request: {str(e)}"
-            print(f"YouTube error: {e}")
+            self.logger.error(f"YouTube error: {e}")
             self._send_response(irc, channel, error_msg)
     
     def _send_crypto_price(self, irc, channel, text_or_parts):
@@ -768,7 +772,7 @@ class BotManager:
             
         except Exception as e:
             error_msg = f"💸 Error getting crypto price: {str(e)}"
-            print(f"Crypto price error: {e}")
+            self.logger.error(f"Crypto price error: {e}")
             self._send_response(irc, channel, error_msg)
     
 
