@@ -1,0 +1,19 @@
+# LeetIRC Bot Commit Message
+#
+# Format: <type>(<scope>): <description>
+#
+# Types:
+#   feat:     New feature
+#   fix:      Bug fix  
+#   docs:     Documentation changes
+#   style:    Code style changes (formatting, etc)
+#   refactor: Code refactoring
+#   test:     Adding or updating tests
+#   chore:    Maintenance tasks
+#
+# Examples:
+#   feat(weather): add UV index to weather service
+#   fix(irc): resolve connection timeout issue
+#   test(crypto): add comprehensive price formatting tests
+#
+# Remember: Tests run automatically before commit!
