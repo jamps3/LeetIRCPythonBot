@@ -613,7 +613,7 @@ def listen_for_commands(stop_event):
                 stop_event.set()  # Notify all threads to stop
                 break
             elif user_input.startswith("!"):
-                # Use the unified command processing function
+                # Use the new enhanced command processing function
                 try:
                     # Create bot_functions dictionary for console use
                     bot_functions = {
@@ -628,8 +628,11 @@ def listen_for_commands(stop_event):
                         "chat_with_gpt": chat_with_gpt,
                         "wrap_irc_message_utf8_bytes": wrap_irc_message_utf8_bytes,
                         "get_crypto_price": get_crypto_price,
+                        "split_message_intelligently": split_message_intelligently,
                     }
-                    commands.process_console_command(user_input, bot_functions)
+                    # Try new command system first, fall back to legacy
+                    from command_loader import enhanced_process_console_command
+                    enhanced_process_console_command(user_input, bot_functions)
                 except Exception as e:
                     log(f"Error processing console command: {e}", "ERROR")
             else:
