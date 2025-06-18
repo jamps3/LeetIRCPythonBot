@@ -1,6 +1,20 @@
 """
 This script is an IRC bot that connects to an IRC server, joins a channel, and responds to various commands.
 It includes functionalities such as fetching weather information, electricity prices, webpage titles and scheduled messages.
+
+- Parses command line arguments for API key display, log level, and bot nickname.
+- Loads channel and server configuration from environment variables.
+- Establishes a connection to the IRC server and handles login.
+- Starts background threads for:
+    - Keepalive PINGs to the IRC server.
+    - Listening for console commands.
+    - Sending scheduled countdown messages to a channel.
+    - Monitoring Onnettomuustiedote (accident bulletins).
+    - Monitoring FMI warnings.
+- Runs the main message read loop, processing incoming IRC messages and commands.
+- Handles reconnection logic on connection errors.
+- Performs graceful shutdown on KeyboardInterrupt or SIGINT, saving state and closing connections.
+This function orchestrates the bot's lifecycle, including setup, operation, and cleanup.
 Modules:
     - socket: Provides low-level networking interface.
     - os: Provides a way of using operating system dependent functionality.
@@ -56,12 +70,13 @@ import subprocess  # IPFS
 import tempfile  # IPFS
 import traceback  # For error handling
 from functools import partial
+import textwrap
 from fmi_varoitukset import FMIWatcher  # FMI Warnings Watcher
 from lemmatizer import Lemmatizer  # Lemmatizer for word counts
 from otiedote_monitor import OtiedoteMonitor  # Onnettomuustiedotteet
 import subscriptions  # Tilaukset
 
-bot_name = "jl3b"  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
+bot_name = "jl3b2"  # Botin oletus nimi, voi vaihtaa komentoriviltä -nick parametrilla
 LOG_LEVEL = "INFO"  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
 HISTORY_FILE = "conversation_history.json"  # File to store conversation history
 EKAVIKA_FILE = "ekavika.json"  # File to store ekavika winners
@@ -734,7 +749,10 @@ def listen_for_commands(stop_event):
             else:
                 # Any text not starting with ! is sent to OpenAI
                 log(f"Sending text to OpenAI: {user_input}", "INFO")
-                response_parts = chat_with_gpt(user_input)
+                response = chat_with_gpt(user_input)
+                response_parts = wrap_irc_message_utf8_bytes(
+                    response, reply_target="", max_lines=5, placeholder="..."
+                )
                 for part in response_parts:
                     log(f"Bot: {part}", "MSG")
     except (EOFError, KeyboardInterrupt):
@@ -1449,16 +1467,23 @@ def process_message(irc, message):
             # ✅ Handle regular chat messages (send to GPT)
             # ✅ Only respond to private messages or messages mentioning the bot's name
             if is_private or text.startswith(
-                bot_name
+                bot_name + " "
             ):  # Only respond when the message begins with the bot's name
-                response_parts = chat_with_gpt(text)  # Get response from GPT
+                response = chat_with_gpt(text)  # Get response from GPT
                 reply_target = (
                     sender if is_private else target
                 )  # Send private replies to sender
-                # Send each response part separately as full messages
+                # Split the response into parts if it's too long
+                response_parts = wrap_irc_message_utf8_bytes(
+                    response, reply_target=reply_target, max_lines=5, placeholder="..."
+                )
+                # Send each response part separately as max length IRC messages
                 for part in response_parts:
                     send_message(irc, reply_target, part)
-                log(f"\U0001f4ac Sent response to {reply_target}: {response_parts}")
+                log(
+                    f"\U0001f4ac Sent AI response to {reply_target}: {response_parts}",
+                    "MSG",
+                )
 
     # Keep track of leet winners
     if re.search(
@@ -2275,11 +2300,72 @@ def chat_with_gpt(user_input):
     save_conversation_history(conversation_history)
 
     # Split the message intelligently
-    response_parts = split_message_intelligently(assistant_reply, IRC_MESSAGE_LIMIT)
+    """
+    response_parts = textwrap.wrap(
+        assistant_reply,
+        width=IRC_MESSAGE_LIMIT,  # Ensure each part fits within the IRC message limit
+        break_long_words=True,
+        replace_whitespace=True,
+        break_on_hyphens=True,
+        drop_whitespace=True,
+        max_lines=3,  # Limit to 3 lines
+        placeholder="...",  # Placeholder for truncated text
+    )
     response_parts = [
         part.replace("  ", " ") for part in response_parts
     ]  # Remove double spaces
-    return response_parts
+    """
+    return assistant_reply
+
+
+def wrap_irc_message_utf8_bytes(text, reply_target, max_lines=None, placeholder="..."):
+    max_bytes_per_msg = 512 - 12 - len(reply_target.encode("utf-8"))
+    words = text.split()
+    lines = []
+    current_line = ""
+
+    for word in words:
+        sep = " " if current_line else ""
+        candidate = current_line + sep + word
+        if len(candidate.encode("utf-8")) <= max_bytes_per_msg:
+            current_line = candidate
+        else:
+            if current_line:
+                lines.append(current_line)
+            elif len(word.encode("utf-8")) <= max_bytes_per_msg:
+                lines.append(word)
+            else:
+                # Word itself too long, split it in chunks
+                chunk = ""
+                for char in word:
+                    if len((chunk + char).encode("utf-8")) <= max_bytes_per_msg:
+                        chunk += char
+                    else:
+                        lines.append(chunk)
+                        chunk = char
+                if chunk:
+                    lines.append(chunk)
+            current_line = ""
+        if max_lines and len(lines) >= max_lines:
+            break
+
+    if current_line and (not max_lines or len(lines) < max_lines):
+        lines.append(current_line)
+
+    if max_lines and len(lines) > max_lines:
+        lines = lines[:max_lines]
+
+    # Apply placeholder to the final line if text was truncated
+    total_bytes = sum(len(line.encode("utf-8")) for line in lines)
+    if max_lines and " ".join(words).encode("utf-8")[total_bytes:]:
+        if lines:
+            # Safely add placeholder without exceeding byte limit
+            last = lines[-1]
+            while len((last + placeholder).encode("utf-8")) > max_bytes_per_msg:
+                last = last[:-1]
+            lines[-1] = last + placeholder
+
+    return lines
 
 
 def notice_message(message, irc=None, target=None):
