@@ -1,0 +1,46 @@
+{
+  "servers": {
+    "irc.atw-inter.net": {
+      "nicks": {
+        "jamps": {
+          "general_words": {
+            "jl3b2": 2,
+            "moi": 3,
+            "mikä": 1,
+            "säätänää": 1,
+            "jl3b": 1
+          },
+          "first_seen": "2025-06-18T18:19:50.506954",
+          "last_activity": "2025-06-18T18:20:16.978674",
+          "total_words": 8,
+          "channels": {
+            "#joensuutest": {
+              "word_count": 8
+            }
+          }
+        },
+        "jl3b": {
+          "general_words": {
+            "moi": 2,
+            "onko": 1,
+            "jotain": 1,
+            "erityistä": 1,
+            "mielessä": 1,
+            "miten": 1,
+            "menee": 1
+          },
+          "first_seen": "2025-06-18T18:20:10.354751",
+          "last_activity": "2025-06-18T18:20:17.722018",
+          "total_words": 8,
+          "channels": {
+            "#joensuutest": {
+              "word_count": 8
+            }
+          }
+        }
+      }
+    }
+  },
+  "last_updated": "2025-06-18T18:20:17.722952",
+  "version": "1.0.0"
+}
