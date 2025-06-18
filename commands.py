@@ -28,6 +28,15 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 # Initialize YouTube API client
 youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY) if YOUTUBE_API_KEY else None
 
+# Import new word tracking system
+from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
+
+# Initialize word tracking system
+data_manager = DataManager()
+drink_tracker = DrinkTracker(data_manager)
+general_words = GeneralWords(data_manager)
+tamagotchi_bot = TamagotchiBot(data_manager)
+
 
 def fetch_title_improved(irc, channel, url, last_title_ref, send_message_func, log_func):
     """
@@ -242,8 +251,24 @@ def process_message(irc, message, bot_functions):
     if match:
         sender, _, target, text = match.groups()
 
+        # === NEW WORD TRACKING SYSTEM ===
+        # Get server name for tracking
+        server_name = data_manager.get_server_name(irc)
+        
         # Process each message and count words, except lines starting with !
         if not text.startswith("!"):
+            # General words tracking (renamed from tamagotchi)
+            general_words.process_message(server_name, sender, text, target)
+            
+            # Drink words tracking with privacy controls
+            drink_matches = drink_tracker.process_message(server_name, sender, text)
+            
+            # Tamagotchi bot interaction
+            should_respond, tamagotchi_response = tamagotchi_bot.process_message(server_name, sender, text)
+            if should_respond and tamagotchi_response:
+                notice_message(tamagotchi_response, irc, target)
+            
+            # Keep legacy tamagotchi call for now (will be deprecated)
             tamagotchi(text, irc, target)
 
         # Process each message sent to the channel and detect drinking words.
@@ -321,11 +346,21 @@ def process_message(irc, message, bot_functions):
 
         # Output all available commands
         if text.startswith("!help"):
-            notice_message(
-                "Available commands: !s !sää, !sahko !sähkö, !aika, !kaiku, !sana, !topwords, !leaderboard, !euribor, !leetwinners, !url <url>, !kraks",
-                irc,
-                target,
+            help_text = (
+                "📋 Available commands:\n"
+                "🌤️ Weather: !s [location]\n"
+                "⚡ Electricity: !sahko [hour|huomenna hour]\n"
+                "📊 Words: !sana <word>, !topwords [nick], !leaderboard\n"
+                "🍺 Drinks: !drinkstats [nick|server|global], !drinkword <word>, !drink <specific>, !drinktop, !antikrak\n"
+                "🐣 Tamagotchi: !tamagotchi, !feed [food], !pet\n"
+                "🎯 Other: !aika, !kaiku, !euribor, !leetwinners, !crypto [coin]\n"
+                "🎰 Games: !eurojackpot, !youtube <query>\n"
+                "⚙️ Advanced: !leet, !get_total_counts, !tilaa"
             )
+            # Split help into multiple messages
+            for line in help_text.split('\n'):
+                if line.strip():
+                    notice_message(line, irc, target)
 
         # !aika - Kerro nykyinen aika
         elif text.startswith("!aika"):
@@ -760,6 +795,106 @@ def process_message(irc, message, bot_functions):
                     target,
                 )
 
+        # === NEW DRINK TRACKING COMMANDS ===
+        elif text.startswith("!drinkstats"):
+            # !drinkstats [nick|server|global]
+            parts = text.split(" ", 1)
+            server_name = data_manager.get_server_name(irc)
+            
+            if len(parts) > 1:
+                arg = parts[1].strip().lower()
+                if arg == "server":
+                    stats = drink_tracker.get_server_stats(server_name)
+                    response = f"Server {stats['server']}: {stats['total_users']} users, {stats['total_drink_words']} drink words. Top: {', '.join([f'{nick}:{count}' for nick, count in stats['top_users'][:5]])}"
+                elif arg == "global":
+                    stats = drink_tracker.get_global_stats()
+                    response = f"Global: {stats['total_users']} users, {stats['total_drink_words']} drink words. Top: {', '.join([f'{u['nick']}@{u['server']}:{u['total']}' for u in stats['top_users'][:5]])}"
+                else:
+                    # Specific nick
+                    nick = parts[1].strip()
+                    top_drinks = drink_tracker.get_user_top_drinks(server_name, nick, 5)
+                    if top_drinks:
+                        drinks_text = ', '.join([f"{d['drink_word']}:{d['total']}({d['most_common_drink']})" for d in top_drinks])
+                        response = f"{nick}: {drinks_text}"
+                    else:
+                        response = f"Ei juomatilastoja käyttäjälle {nick}"
+            else:
+                # Show top users for current server
+                stats = drink_tracker.get_server_stats(server_name)
+                response = f"Top 5: {', '.join([f'{nick}:{count}' for nick, count in stats['top_users'][:5]])}"
+            
+            notice_message(response, irc, target)
+        
+        elif text.startswith("!drinkword"):
+            # !drinkword <word>
+            parts = text.split(" ", 1)
+            if len(parts) > 1:
+                drink_word = parts[1].strip()
+                results = drink_tracker.search_drink_word(drink_word)
+                if results['total_occurrences'] > 0:
+                    top_users = results['users'][:5]
+                    users_text = ', '.join([f"{u['nick']}:{u['total']}" for u in top_users])
+                    response = f"'{drink_word}': {results['total_occurrences']} total. Top: {users_text}"
+                else:
+                    response = f"Ei löydetty juomasanaa '{drink_word}'"
+            else:
+                response = "Käytä: !drinkword <sana>"
+            notice_message(response, irc, target)
+        
+        elif text.startswith("!drink "):
+            # !drink <specific_drink>
+            parts = text.split(" ", 1)
+            if len(parts) > 1:
+                specific_drink = parts[1].strip()
+                results = drink_tracker.search_specific_drink(specific_drink)
+                if results['total_occurrences'] > 0:
+                    top_users = results['users'][:5]
+                    users_text = ', '.join([f"{u['nick']}:{u['total']}" for u in top_users])
+                    response = f"'{specific_drink}': {results['total_occurrences']} total. Top: {users_text}"
+                else:
+                    response = f"Ei löydetty juomaa '{specific_drink}'"
+            else:
+                response = "Käytä: !drink <juoma>"
+            notice_message(response, irc, target)
+        
+        elif text.startswith("!drinktop"):
+            # Global drink leaderboard
+            stats = drink_tracker.get_global_stats()
+            top_users = stats['top_users'][:10]
+            if top_users:
+                users_text = ', '.join([f"{u['nick']}@{u['server']}:{u['total']}" for u in top_users])
+                response = f"🍺 Top 10 drinkers: {users_text}"
+            else:
+                response = "Ei vielä juomatilastoja"
+            notice_message(response, irc, target)
+        
+        elif text.startswith("!antikrak"):
+            # Privacy opt-out/opt-in
+            server_name = data_manager.get_server_name(irc)
+            response = drink_tracker.handle_opt_out(server_name, sender)
+            notice_message(response, irc, target)
+        
+        # === TAMAGOTCHI COMMANDS ===
+        elif text.startswith("!tamagotchi"):
+            server_name = data_manager.get_server_name(irc)
+            status = tamagotchi_bot.get_status(server_name)
+            # Split into multiple messages if too long
+            lines = status.split('\n')
+            for line in lines:
+                notice_message(line, irc, target)
+        
+        elif text.startswith("!feed"):
+            parts = text.split(" ", 1)
+            food = parts[1] if len(parts) > 1 else None
+            server_name = data_manager.get_server_name(irc)
+            response = tamagotchi_bot.feed(server_name, food)
+            notice_message(response, irc, target)
+        
+        elif text.startswith("!pet"):
+            server_name = data_manager.get_server_name(irc)
+            response = tamagotchi_bot.pet(server_name)
+            notice_message(response, irc, target)
+        
         elif "säätänää" in text:
             # elif text.startswith("Onks siel millane säätänää?"):
             print(sender)
