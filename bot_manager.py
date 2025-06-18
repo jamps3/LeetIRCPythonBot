@@ -231,6 +231,7 @@ class BotManager:
             'data_manager': self.data_manager,
             'drink_tracker': self.drink_tracker,
             'general_words': self.general_words,
+            'tamagotchi': lambda text, irc, target: None,  # No-op for legacy compatibility
             'tamagotchi_bot': self.tamagotchi,
             'lemmat': self.lemmatizer,  # Legacy compatibility
             'server': server,
