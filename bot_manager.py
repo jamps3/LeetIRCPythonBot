@@ -231,7 +231,6 @@ class BotManager:
             'data_manager': self.data_manager,
             'drink_tracker': self.drink_tracker,
             'general_words': self.general_words,
-            'tamagotchi': self._tamagotchi_legacy_wrapper,
             'tamagotchi_bot': self.tamagotchi,
             'lemmat': self.lemmatizer,  # Legacy compatibility
             'server': server,
@@ -549,10 +548,4 @@ class BotManager:
             "tlup": 0, "marsk": 0, "tsup": 0, "plop": 0, "tsirp": 0
         }
     
-    def _tamagotchi_legacy_wrapper(self, text, irc, target):
-        """Legacy wrapper for tamagotchi functionality."""
-        # This is called by the legacy commands.py system
-        # The new tamagotchi system handles this automatically in _track_words
-        # So we can just do nothing here to maintain compatibility
-        pass
 
