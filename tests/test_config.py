@@ -81,23 +81,37 @@ def test_environment_variable_handling():
     """Test environment variable handling."""
     try:
         from config import ConfigManager
+        import os
+        
+        # Save current environment state
+        original_bot_name = os.environ.get('BOT_NAME')
         
         # Create temporary .env file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.env', delete=False) as f:
-            f.write("TEST_VAR=test_value\n")
             f.write("BOT_NAME=test_bot\n")
+            f.write("TEST_VAR=test_value\n")
             temp_env_path = f.name
         
         try:
+            # Clear any existing BOT_NAME from environment
+            if 'BOT_NAME' in os.environ:
+                del os.environ['BOT_NAME']
+            
             # Test loading from specific file
             manager = ConfigManager(temp_env_path)
             
-            # Check if bot name was loaded
+            # Check if bot name was loaded from the temporary file
             config = manager.config
             assert config.name == "test_bot", f"Expected test_bot, got {config.name}"
             
             return True
         finally:
+            # Restore original environment
+            if original_bot_name is not None:
+                os.environ['BOT_NAME'] = original_bot_name
+            elif 'BOT_NAME' in os.environ:
+                del os.environ['BOT_NAME']
+            
             os.unlink(temp_env_path)
             
     except Exception as e:
@@ -119,13 +133,19 @@ def test_config_json_export():
             config_manager.save_config_to_json(temp_json_path)
             
             # Verify file was created and contains valid JSON
-            with open(temp_json_path, 'r') as f:
+            # Use UTF-8 encoding explicitly to handle any Unicode characters
+            with open(temp_json_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
             # Check structure
             assert 'bot' in data, "JSON should contain bot section"
             assert 'servers' in data, "JSON should contain servers section"
             assert 'files' in data, "JSON should contain files section"
+            
+            # Verify bot section has required fields
+            bot_section = data['bot']
+            assert 'name' in bot_section, "Bot section should have name"
+            assert 'version' in bot_section, "Bot section should have version"
             
             return True
         finally:
