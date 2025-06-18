@@ -18,6 +18,7 @@ from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
 from lemmatizer import Lemmatizer
 from services.weather_service import WeatherService
 from services.gpt_service import GPTService
+from services.electricity_service import create_electricity_service
 import commands
 
 
@@ -86,6 +87,15 @@ class BotManager:
         else:
             print("⚠️  Warning: No OpenAI API key found. AI chat will not work.")
             self.gpt_service = None
+        
+        # Initialize electricity service
+        electricity_api_key = get_api_key('ELECTRICITY_API_KEY')
+        if electricity_api_key:
+            self.electricity_service = create_electricity_service(electricity_api_key)
+            print("⚡ Electricity price service initialized")
+        else:
+            print("⚠️  Warning: No electricity API key found. Electricity price commands will not work.")
+            self.electricity_service = None
         
         # Initialize lemmatizer with graceful fallback
         try:
@@ -396,9 +406,41 @@ class BotManager:
         else:
             print(f"Console: {message}")
     
-    def _send_electricity_price(self, irc, channel, args):
+    def _send_electricity_price(self, irc, channel, text):
         """Send electricity price information."""
-        print("Electricity price feature not yet implemented in new architecture")
+        if not self.electricity_service:
+            response = "⚡ Electricity price service not available. Please configure ELECTRICITY_API_KEY."
+            self._send_response(irc, channel, response)
+            return
+        
+        try:
+            # Parse command arguments
+            args = text.split() if text else []
+            parsed_args = self.electricity_service.parse_command_args(args)
+            
+            if parsed_args.get('error'):
+                self._send_response(irc, channel, f"⚡ {parsed_args['error']}")
+                return
+            
+            if parsed_args.get('show_stats'):
+                # Show daily statistics
+                stats_data = self.electricity_service.get_price_statistics(parsed_args['date'])
+                response = self.electricity_service.format_statistics_message(stats_data)
+            else:
+                # Show specific hour price
+                price_data = self.electricity_service.get_electricity_price(
+                    hour=parsed_args['hour'],
+                    date=parsed_args['date'],
+                    include_tomorrow=not parsed_args['is_tomorrow']
+                )
+                response = self.electricity_service.format_price_message(price_data)
+            
+            self._send_response(irc, channel, response)
+            
+        except Exception as e:
+            error_msg = f"⚡ Error getting electricity price: {str(e)}"
+            print(f"Electricity price error: {e}")
+            self._send_response(irc, channel, error_msg)
     
     def _measure_latency(self):
         """Measure latency."""

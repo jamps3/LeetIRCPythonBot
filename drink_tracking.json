@@ -1,5 +1,29 @@
 {
-  "servers": {},
-  "last_updated": "2025-06-18T15:42:06.807537",
+  "servers": {
+    "SERVER1": {
+      "nicks": {
+        "jamps": {
+          "drink_words": {
+            "krak": {
+              "total": 1,
+              "drinks": {
+                "unspecified": 1
+              },
+              "timestamps": [
+                {
+                  "time": "2025-06-19T00:32:08.233647",
+                  "specific_drink": "unspecified"
+                }
+              ]
+            }
+          },
+          "first_seen": "2025-06-19T00:32:08.233629",
+          "last_activity": "2025-06-19T00:32:08.233647",
+          "total_drink_words": 1
+        }
+      }
+    }
+  },
+  "last_updated": "2025-06-19T00:32:08.234722",
   "version": "1.0.0"
 }
