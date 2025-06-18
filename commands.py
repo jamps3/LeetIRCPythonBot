@@ -24,6 +24,25 @@ from io import StringIO
 # Load environment variables
 load_dotenv()
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme")
+BOT_VERSION = "2.0.0"
+
+def verify_admin_password(command_text):
+    """Check if command contains correct admin password."""
+    parts = command_text.split()
+    if len(parts) >= 2 and parts[1] == ADMIN_PASSWORD:
+        return True
+    return False
+
+def send_raw_irc_command(irc, command, log_func):
+    """Send a raw IRC command to the server."""
+    try:
+        irc.sendall(f"{command}\r\n".encode("utf-8"))
+        log_func(f"Sent raw IRC command: {command}", "INFO")
+        return True
+    except Exception as e:
+        log_func(f"Error sending raw IRC command: {e}", "ERROR")
+        return False
 
 # Initialize YouTube API client
 youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY) if YOUTUBE_API_KEY else None
@@ -212,6 +231,330 @@ def split_message_intelligently(message, limit):
     return parts
 
 
+def process_console_command(command_text, bot_functions):
+    """Process commands from console input (unified with IRC commands)."""
+    # Extract functions from bot_functions for console use
+    notice_message = bot_functions['notice_message']
+    send_electricity_price = bot_functions['send_electricity_price']
+    load_leet_winners = bot_functions['load_leet_winners']
+    send_weather = bot_functions['send_weather']
+    load = bot_functions['load']
+    log = bot_functions['log']
+    fetch_title = bot_functions['fetch_title']
+    handle_ipfs_command = bot_functions['handle_ipfs_command']
+    chat_with_gpt = bot_functions['chat_with_gpt']
+    wrap_irc_message_utf8_bytes = bot_functions['wrap_irc_message_utf8_bytes']
+    
+    # Parse command
+    command_parts = command_text.split(" ", 1)
+    command = command_parts[0].lower()
+    args = command_parts[1] if len(command_parts) > 1 else ""
+    
+    # Handle commands
+    if command == "!help":
+        help_text = (
+            "📋 Available commands:\n"
+            "🌤️ Weather: !s [location]\n"
+            "⚡ Electricity: !sahko [hour|huomenna hour]\n"
+            "📊 Words: !sana <word>, !topwords [nick], !leaderboard\n"
+            "🍺 Drinks: !drinkstats [nick|server|global], !drinkword <word>, !drink <specific>, !drinktop, !antikrak\n"
+            "🐣 Tamagotchi: !tamagotchi, !feed [food], !pet\n"
+            "🎯 Other: !aika, !kaiku, !euribor, !leetwinners, !crypto [coin], !version\n"
+            "🎰 Games: !eurojackpot, !youtube <query>\n"
+            "⚙️ Advanced: !leet, !get_total_counts, !tilaa, !url <url>, !ipfs add <url>\n"
+            "🔒 Admin*: !join*, !part*, !nick*, !quit*, !raw*\n"
+            "💬 Chat: Any message not starting with ! will be sent to AI\n"
+            "* = Requires admin password"
+        )
+        for line in help_text.split('\n'):
+            if line.strip():
+                notice_message(line)
+    
+    elif command == "!s" or command == "!sää":
+        location = args.strip() if args else "Joensuu"
+        log(f"Getting weather for {location} from console", "INFO")
+        send_weather(None, None, location)  # Pass None for IRC and channel
+    
+    elif command == "!sahko" or command == "!sähkö":
+        send_electricity_price(None, None, command_parts)
+    
+    elif command == "!aika":
+        now_ns = time.time_ns()
+        dt = datetime.fromtimestamp(now_ns // 1_000_000_000)
+        nanoseconds = now_ns % 1_000_000_000
+        formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S") + f".{nanoseconds:09d}"
+        notice_message(f"Nykyinen aika: {formatted_time}")
+    
+    elif command == "!kaiku":
+        notice_message(f"Console: {args}")
+    
+    elif command == "!sana":
+        if args:
+            search_word = args.strip().lower()
+            kraks = load()
+            word_counts = {
+                nick: stats[search_word]
+                for nick, stats in kraks.items()
+                if search_word in stats
+            }
+            if word_counts:
+                results = ", ".join(
+                    f"{nick}: {count}" for nick, count in word_counts.items()
+                )
+                notice_message(f"Sana '{search_word}' on sanottu: {results}")
+            else:
+                notice_message(f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
+        else:
+            notice_message("Käytä komentoa: !sana <sana>")
+    
+    elif command == "!topwords":
+        kraks = load()
+        if args:  # Specific nick provided
+            nick = args.strip()
+            if nick in kraks:
+                top_words = Counter(kraks[nick]).most_common(5)
+                word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
+                notice_message(f"{nick}: {word_list}")
+            else:
+                notice_message(f"Käyttäjää '{nick}' ei löydy.")
+        else:  # Show top words for all users
+            overall_counts = Counter()
+            for words in kraks.values():
+                overall_counts.update(words)
+            top_words = overall_counts.most_common(5)
+            word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
+            notice_message(f"Käytetyimmät sanat: {word_list}")
+    
+    elif command == "!leaderboard":
+        kraks = load()
+        user_word_counts = {
+            nick: sum(words.values()) for nick, words in kraks.items()
+        }
+        top_users = sorted(
+            user_word_counts.items(), key=lambda x: x[1], reverse=True
+        )[:5]
+        if top_users:
+            leaderboard_msg = ", ".join(
+                f"{nick}: {count}" for nick, count in top_users
+            )
+            notice_message(f"Aktiivisimmat käyttäjät: {leaderboard_msg}")
+        else:
+            notice_message("Ei vielä tarpeeksi dataa leaderboardille.")
+    
+    elif command == "!euribor":
+        # XML data URL from Suomen Pankki
+        url = "https://reports.suomenpankki.fi/WebForms/ReportViewerPage.aspx?report=/tilastot/markkina-_ja_hallinnolliset_korot/euribor_korot_today_xml_en&output=xml"
+        response = requests.get(url)
+        if response.status_code == 200:
+            root = ElementTree.fromstring(response.content)
+            ns = {"ns": "euribor_korot_today_xml_en"}
+            period = root.find(".//ns:period", namespaces=ns)
+            if period is not None:
+                date_str = period.attrib.get("value")
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+                if platform.system() == "Windows":
+                    formatted_date = date_obj.strftime("%#d.%#m.%y")
+                else:
+                    formatted_date = date_obj.strftime("%-d.%-m.%y")
+                rates = period.findall(".//ns:rate", namespaces=ns)
+                for rate in rates:
+                    if rate.attrib.get("name") == "12 month (act/360)":
+                        euribor_12m = rate.find("./ns:intr", namespaces=ns)
+                        if euribor_12m is not None:
+                            notice_message(f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%")
+                        else:
+                            notice_message("Interest rate value not found.")
+                        break
+                else:
+                    notice_message("12-month Euribor rate not found.")
+            else:
+                notice_message("No period data found in XML.")
+        else:
+            notice_message(f"Failed to retrieve XML data. HTTP Status Code: {response.status_code}")
+    
+    elif command == "!leetwinners":
+        leet_winners = load_leet_winners()
+        filtered_winners = {}
+        for winner, categories in leet_winners.items():
+            for cat, count in categories.items():
+                if cat not in filtered_winners or count > filtered_winners[cat][1]:
+                    filtered_winners[cat] = (winner, count)
+        winners_text = ", ".join(
+            f"{cat}: {winner} [{count}]" for cat, (winner, count) in filtered_winners.items()
+        )
+        response = f"𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼: {winners_text}" if winners_text else "No 𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼 recorded yet."
+        notice_message(response)
+    
+    elif command.startswith("!url"):
+        if args:
+            fetch_title(None, None, args)
+        else:
+            notice_message("Käytä komentoa: !url <url>")
+    
+    elif command.startswith("!ipfs"):
+        handle_ipfs_command(command_text, None, target=None)
+    
+    # Handle new drink tracking commands for console
+    elif command == "!drinkstats":
+        # For console, we'll use a dummy server name
+        console_server = "console"
+        if args:
+            arg = args.strip().lower()
+            if arg == "server":
+                stats = drink_tracker.get_server_stats(console_server)
+                response = f"Server {stats['server']}: {stats['total_users']} users, {stats['total_drink_words']} drink words"
+            elif arg == "global":
+                stats = drink_tracker.get_global_stats()
+                response = f"Global: {stats['total_users']} users, {stats['total_drink_words']} drink words"
+            else:
+                nick = args.strip()
+                top_drinks = drink_tracker.get_user_top_drinks(console_server, nick, 5)
+                if top_drinks:
+                    drinks_text = ', '.join([f"{d['drink_word']}:{d['total']}" for d in top_drinks])
+                    response = f"{nick}: {drinks_text}"
+                else:
+                    response = f"Ei juomatilastoja käyttäjälle {nick}"
+        else:
+            stats = drink_tracker.get_server_stats(console_server)
+            response = f"Top 5: {', '.join([f'{nick}:{count}' for nick, count in stats['top_users'][:5]])}"
+        notice_message(response)
+    
+    elif command == "!drinkword":
+        if args:
+            drink_word = args.strip()
+            results = drink_tracker.search_drink_word(drink_word)
+            if results['total_occurrences'] > 0:
+                top_users = results['users'][:5]
+                users_text = ', '.join([f"{u['nick']}:{u['total']}" for u in top_users])
+                response = f"'{drink_word}': {results['total_occurrences']} total. Top: {users_text}"
+            else:
+                response = f"Ei löydetty juomasanaa '{drink_word}'"
+        else:
+            response = "Käytä: !drinkword <sana>"
+        notice_message(response)
+    
+    elif command == "!drink":
+        if args:
+            specific_drink = args.strip()
+            results = drink_tracker.search_specific_drink(specific_drink)
+            if results['total_occurrences'] > 0:
+                top_users = results['users'][:5]
+                users_text = ', '.join([f"{u['nick']}:{u['total']}" for u in top_users])
+                response = f"'{specific_drink}': {results['total_occurrences']} total. Top: {users_text}"
+            else:
+                response = f"Ei löydetty juomaa '{specific_drink}'"
+        else:
+            response = "Käytä: !drink <juoma>"
+        notice_message(response)
+    
+    elif command == "!drinktop":
+        stats = drink_tracker.get_global_stats()
+        top_users = stats['top_users'][:10]
+        if top_users:
+            users_text = ', '.join([f"{u['nick']}@{u['server']}:{u['total']}" for u in top_users])
+            response = f"🍺 Top 10 drinkers: {users_text}"
+        else:
+            response = "Ei vielä juomatilastoja"
+        notice_message(response)
+    
+    elif command == "!tamagotchi":
+        console_server = "console"
+        status = tamagotchi_bot.get_status(console_server)
+        lines = status.split('\n')
+        for line in lines:
+            notice_message(line)
+    
+    elif command == "!feed":
+        food = args if args else None
+        console_server = "console"
+        response = tamagotchi_bot.feed(console_server, food)
+        notice_message(response)
+    
+    elif command == "!pet":
+        console_server = "console"
+        response = tamagotchi_bot.pet(console_server)
+        notice_message(response)
+    
+    elif command == "!version":
+        notice_message(f"Bot version: {BOT_VERSION}")
+    
+    # Admin commands requiring password
+    elif command == "!join":
+        if verify_admin_password(command_text):
+            # Extract channel from command: !join password #channel [key]
+            parts = command_text.split()
+            if len(parts) >= 3:
+                channel = parts[2]
+                key = parts[3] if len(parts) > 3 else ""
+                notice_message(f"Admin command: JOIN {channel} {key if key else '(no key)'}")
+            else:
+                notice_message("Usage: !join <password> #channel [key]")
+        else:
+            notice_message("Invalid password for admin command.")
+    
+    elif command == "!part":
+        if verify_admin_password(command_text):
+            # Extract channel from command: !part password #channel
+            parts = command_text.split()
+            if len(parts) >= 3:
+                channel = parts[2]
+                notice_message(f"Admin command: PART {channel}")
+            else:
+                notice_message("Usage: !part <password> #channel")
+        else:
+            notice_message("Invalid password for admin command.")
+    
+    elif command == "!nick":
+        if verify_admin_password(command_text):
+            # Extract new nickname from command: !nick password newnick
+            parts = command_text.split()
+            if len(parts) >= 3:
+                new_nick = parts[2]
+                notice_message(f"Admin command: NICK {new_nick}")
+            else:
+                notice_message("Usage: !nick <password> <new_nickname>")
+        else:
+            notice_message("Invalid password for admin command.")
+    
+    elif command == "!quit":
+        if verify_admin_password(command_text):
+            # Extract quit message from command: !quit password [message]
+            parts = command_text.split(" ", 2)
+            quit_message = parts[2] if len(parts) > 2 else "Admin quit"
+            notice_message(f"Admin command: QUIT :{quit_message}")
+        else:
+            notice_message("Invalid password for admin command.")
+    
+    elif command == "!raw":
+        if verify_admin_password(command_text):
+            # Extract raw IRC command: !raw password COMMAND
+            parts = command_text.split(" ", 2)
+            if len(parts) >= 3:
+                raw_command = parts[2]
+                notice_message(f"Admin command: {raw_command}")
+            else:
+                notice_message("Usage: !raw <password> <IRC_COMMAND>")
+        else:
+            notice_message("Invalid password for admin command.")
+    
+    else:
+        # Check if it's a crypto command
+        if re.search(r"!crypto\b", command_text, re.IGNORECASE):
+            get_crypto_price = bot_functions['get_crypto_price']
+            match = re.search(r"!crypto\s+(\w+)", command_text, re.IGNORECASE)
+            if match:
+                coin = match.group(1).lower()
+                price = get_crypto_price(coin, "eur")
+                message = f"The current price of {coin.capitalize()} is {price} €."
+            else:
+                top_coins = ["bitcoin", "ethereum", "tether"]
+                prices = {coin: get_crypto_price(coin, "eur") for coin in top_coins}
+                message = " | ".join([f"{coin.capitalize()}: {prices[coin]} €" for coin in top_coins])
+            notice_message(message)
+        else:
+            # Any unrecognized command
+            notice_message(f"Command '{command}' not recognized. Type !help for available commands.")
+
 def process_message(irc, message, bot_functions):
     """Processes incoming IRC messages and tracks word statistics."""
     # Extract all needed functions and variables from bot_functions dict
@@ -353,9 +696,12 @@ def process_message(irc, message, bot_functions):
                 "📊 Words: !sana <word>, !topwords [nick], !leaderboard\n"
                 "🍺 Drinks: !drinkstats [nick|server|global], !drinkword <word>, !drink <specific>, !drinktop, !antikrak\n"
                 "🐣 Tamagotchi: !tamagotchi, !feed [food], !pet\n"
-                "🎯 Other: !aika, !kaiku, !euribor, !leetwinners, !crypto [coin]\n"
+                "🎯 Other: !aika, !kaiku, !euribor, !leetwinners, !crypto [coin], !version\n"
                 "🎰 Games: !eurojackpot, !youtube <query>\n"
-                "⚙️ Advanced: !leet, !get_total_counts, !tilaa"
+                "⚙️ Advanced: !leet, !get_total_counts, !tilaa, !url <url>, !ipfs add <url>\n"
+                "🔒 Admin*: !join*, !part*, !nick*, !quit*, !raw*\n"
+                "💬 Chat: Mention bot name or send private message for AI chat\n"
+                "* = Requires admin password"
             )
             # Split help into multiple messages
             for line in help_text.split('\n'):
@@ -894,6 +1240,81 @@ def process_message(irc, message, bot_functions):
             server_name = data_manager.get_server_name(irc)
             response = tamagotchi_bot.pet(server_name)
             notice_message(response, irc, target)
+        
+        elif text.startswith("!version"):
+            notice_message(f"Bot version: {BOT_VERSION}", irc, target)
+        
+        # Admin commands requiring password
+        elif text.startswith("!join "):
+            if verify_admin_password(text):
+                # Extract channel from command: !join password #channel [key]
+                parts = text.split()
+                if len(parts) >= 3:
+                    channel = parts[2]
+                    key = parts[3] if len(parts) > 3 else ""
+                    if key:
+                        irc.sendall(f"JOIN {channel} {key}\r\n".encode("utf-8"))
+                        log(f"Admin joined channel {channel} with key", "INFO")
+                    else:
+                        irc.sendall(f"JOIN {channel}\r\n".encode("utf-8"))
+                        log(f"Admin joined channel {channel}", "INFO")
+                    notice_message(f"Joined {channel}", irc, target)
+                else:
+                    notice_message("Usage: !join <password> #channel [key]", irc, target)
+            else:
+                notice_message("Invalid password for admin command.", irc, target)
+        
+        elif text.startswith("!part "):
+            if verify_admin_password(text):
+                # Extract channel from command: !part password #channel
+                parts = text.split()
+                if len(parts) >= 3:
+                    channel = parts[2]
+                    irc.sendall(f"PART {channel}\r\n".encode("utf-8"))
+                    log(f"Admin left channel {channel}", "INFO")
+                    notice_message(f"Left {channel}", irc, target)
+                else:
+                    notice_message("Usage: !part <password> #channel", irc, target)
+            else:
+                notice_message("Invalid password for admin command.", irc, target)
+        
+        elif text.startswith("!nick "):
+            if verify_admin_password(text):
+                # Extract new nickname from command: !nick password newnick
+                parts = text.split()
+                if len(parts) >= 3:
+                    new_nick = parts[2]
+                    irc.sendall(f"NICK {new_nick}\r\n".encode("utf-8"))
+                    log(f"Admin changed nick to {new_nick}", "INFO")
+                    notice_message(f"Changed nick to {new_nick}", irc, target)
+                else:
+                    notice_message("Usage: !nick <password> <new_nickname>", irc, target)
+            else:
+                notice_message("Invalid password for admin command.", irc, target)
+        
+        elif text.startswith("!quit "):
+            if verify_admin_password(text):
+                # Extract quit message from command: !quit password [message]
+                parts = text.split(" ", 2)
+                quit_message = parts[2] if len(parts) > 2 else "Admin quit"
+                irc.sendall(f"QUIT :{quit_message}\r\n".encode("utf-8"))
+                log(f"Admin quit with message: {quit_message}", "INFO")
+            else:
+                notice_message("Invalid password for admin command.", irc, target)
+        
+        elif text.startswith("!raw "):
+            if verify_admin_password(text):
+                # Extract raw IRC command: !raw password COMMAND
+                parts = text.split(" ", 2)
+                if len(parts) >= 3:
+                    raw_command = parts[2]
+                    irc.sendall(f"{raw_command}\r\n".encode("utf-8"))
+                    log(f"Admin sent raw command: {raw_command}", "INFO")
+                    notice_message(f"Sent: {raw_command}", irc, target)
+                else:
+                    notice_message("Usage: !raw <password> <IRC_COMMAND>", irc, target)
+            else:
+                notice_message("Invalid password for admin command.", irc, target)
         
         elif "säätänää" in text:
             # elif text.startswith("Onks siel millane säätänää?"):
