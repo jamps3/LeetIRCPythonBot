@@ -18,6 +18,8 @@ import html
 from bs4 import BeautifulSoup
 from googleapiclient.discovery import build
 import os
+import commands
+from logger import get_logger
 from dotenv import load_dotenv
 from io import StringIO
 
@@ -46,6 +48,9 @@ def send_raw_irc_command(irc, command, log_func):
 
 # Initialize YouTube API client
 youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY) if YOUTUBE_API_KEY else None
+
+# Initialize logger
+_logger = get_logger("Commands")
 
 # Import new word tracking system
 from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
@@ -76,7 +81,7 @@ def fetch_title_improved(irc, channel, url, last_title_ref, send_message_func, l
         
         if youtube_match and youtube:
             video_id = youtube_match.group(1)
-            log_func(f"YouTube video detected, ID: {video_id}", "DEBUG")
+            _logger.debug(f"YouTube video detected, ID: {video_id}")
             
             try:
                 # Use YouTube API to get detailed information
@@ -107,7 +112,7 @@ def fetch_title_improved(irc, channel, url, last_title_ref, send_message_func, l
                         last_title_ref[0] = youtube_info
                     return
             except Exception as e:
-                log_func(f"Error fetching YouTube video info: {str(e)}", "WARNING")
+                _logger.warning(f"Error fetching YouTube video info: {str(e)}")
                 # Fall back to regular title extraction if YouTube API fails
         
         # Regular title extraction for all other URLs
@@ -182,21 +187,21 @@ def fetch_title_improved(irc, channel, url, last_title_ref, send_message_func, l
             if formatted_title != last_title_ref[0]:
                 send_message_func(irc, channel, formatted_title)
                 last_title_ref[0] = formatted_title
-                log_func(f"Sent title: {title}", "DEBUG")
+                _logger.debug(f"Sent title: {title}")
         else:
-            log_func(f"No title found for URL: {url}", "DEBUG")
+            _logger.debug(f"No title found for URL: {url}")
             
     except requests.exceptions.Timeout:
-        log_func(f"Timeout while fetching URL: {url}", "WARNING")
+        _logger.warning(f"Timeout while fetching URL: {url}")
     except requests.exceptions.TooManyRedirects:
-        log_func(f"Too many redirects for URL: {url}", "WARNING")
+        _logger.warning(f"Too many redirects for URL: {url}")
     except requests.exceptions.RequestException as e:
-        log_func(f"Request error for URL {url}: {str(e)}", "WARNING")
+        _logger.warning(f"Request error for URL {url}: {str(e)}")
     except Exception as e:
-        log_func(f"Error fetching title for {url}: {str(e)}", "ERROR")
+        _logger.error(f"Error fetching title for {url}: {str(e)}")
         # More detailed error logging for debugging
         import traceback
-        log_func(traceback.format_exc(), "ERROR")
+        _logger.error(traceback.format_exc())
 
 
 def split_message_intelligently(message, limit):
@@ -272,7 +277,7 @@ def process_console_command(command_text, bot_functions):
     
     elif command == "!s" or command == "!sää":
         location = args.strip() if args else "Joensuu"
-        log(f"Getting weather for {location} from console", "INFO")
+        _logger.info(f"Getting weather for {location} from console")
         send_weather(None, None, location)  # Pass None for IRC and channel
     
     elif command == "!sahko" or command == "!sähkö":

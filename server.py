@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import List, Tuple, Optional, Callable, Dict, Any
 
 from config import ServerConfig
+from logger import get_logger
 
 
 class Server:
@@ -58,14 +59,7 @@ class Server:
             "part": [],     # Callbacks for user part events
             "quit": []      # Callbacks for user quit events
         }
-        self.logger = self._setup_logger()
-    
-    def _setup_logger(self) -> Callable:
-        """Set up and return a logger function."""
-        def log(message, level="INFO"):
-            timestamp = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.{time.time_ns() % 1_000_000_000:09d}]"
-            print(f"{timestamp} [{level.upper()}] [{self.config.name}] {message}")
-        return log
+        self.logger = get_logger(self.config.name)
     
     def register_callback(self, event_type: str, callback: Callable):
         """
@@ -77,9 +71,9 @@ class Server:
         """
         if event_type in self.callbacks:
             self.callbacks[event_type].append(callback)
-            self.logger(f"Registered callback for {event_type} events", "DEBUG")
+            self.logger.debug(f"Registered callback for {event_type} events")
         else:
-            self.logger(f"Unknown event type: {event_type}", "WARNING")
+            self.logger.warning(f"Unknown event type: {event_type}")
     
     def connect_and_run(self):
         """
@@ -98,11 +92,11 @@ class Server:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.config.host, self.config.port))
             self.socket.settimeout(1.0)  # Timeout for socket operations
-            self.logger(f"Connected to {self.config.host}:{self.config.port}", "INFO")
+            self.logger.info(f"Connected to {self.config.host}:{self.config.port}")
             self.connected = True
             return True
         except (socket.error, ConnectionError) as e:
-            self.logger(f"Failed to connect: {e}", "ERROR")
+            self.logger.error(f"Failed to connect: {e}")
             self.connected = False
             return False
     
@@ -130,17 +124,17 @@ class Server:
                     
                     for line in response.split("\r\n"):
                         if line:
-                            self.logger(f"SERVER: {line}", "DEBUG")
+                            self.logger.server(line)
                         
                         # If server says "Please wait while we process your connection", don't disconnect yet
                         if " 020 " in line:
-                            self.logger("Server is still processing connection, continuing to wait...", "DEBUG")
+                            self.logger.debug("Server is still processing connection, continuing to wait...")
                             last_response_time = time.time()
                             continue
                         
                         # If welcome (001) or MOTD completion (376/422) received, join channels
                         if " 001 " in line or " 376 " in line or " 422 " in line:
-                            self.logger("Login successful, joining channels...", "INFO")
+                            self.logger.info("Login successful, joining channels...")
                             self.join_channels()
                             return True
                     
@@ -155,12 +149,12 @@ class Server:
             return False  # Stop event was set
             
         except (socket.error, ConnectionResetError, BrokenPipeError, socket.timeout) as e:
-            self.logger(f"Login failed: {e}", "ERROR")
+            self.logger.error(f"Login failed: {e}")
             self.connected = False
             return False
         
         except Exception as e:
-            self.logger(f"Unexpected error during login: {e}", "ERROR")
+            self.logger.error(f"Unexpected error during login: {e}")
             self.connected = False
             return False
     
@@ -169,10 +163,10 @@ class Server:
         for channel, key in zip(self.config.channels, self.config.keys or [""]*len(self.config.channels)):
             if key:
                 self.send_raw(f"JOIN {channel} {key}")
-                self.logger(f"Joined channel {channel} with key", "INFO")
+                self.logger.info(f"Joined channel {channel} with key")
             else:
                 self.send_raw(f"JOIN {channel}")
-                self.logger(f"Joined channel {channel} (no key)", "INFO")
+                self.logger.info(f"Joined channel {channel} (no key)")
     
     def send_raw(self, message: str):
         """
@@ -182,14 +176,14 @@ class Server:
             message (str): The message to send
         """
         if not self.connected or not self.socket:
-            self.logger("Cannot send message: not connected", "WARNING")
+            self.logger.warning("Cannot send message: not connected")
             return
         
         try:
             self.socket.sendall(f"{message}\r\n".encode("utf-8"))
-            # self.logger(f"SENT: {message}", "DEBUG")
+            # self.logger.debug(f"SENT: {message}")
         except (socket.error, BrokenPipeError) as e:
-            self.logger(f"Error sending message: {e}", "ERROR")
+            self.logger.error(f"Error sending message: {e}")
             self.connected = False
     
     def send_message(self, target: str, message: str):
@@ -225,7 +219,7 @@ class Server:
                     self.send_raw("PING :keepalive")
                     self.last_ping = time.time()
                 except Exception as e:
-                    self.logger(f"Error sending keepalive ping: {e}", "ERROR")
+                    self.logger.error(f"Error sending keepalive ping: {e}")
                     self.connected = False
                     break
     
@@ -236,19 +230,19 @@ class Server:
                 response = self.socket.recv(4096).decode("utf-8", errors="ignore")
                 if not response:
                     if not self.stop_event.is_set():
-                        self.logger("Connection closed by server", "WARNING")
+                        self.logger.warning("Connection closed by server")
                         self.connected = False
                     break
                 
                 for line in response.strip().split("\r\n"):
-                    self.logger(line.strip(), "SERVER")
+                    self.logger.server(line.strip())
                     
                     # Handle PING
                     if line.startswith("PING"):
                         self.last_ping = time.time()
                         ping_value = line.split(":", 1)[1].strip()
                         self.send_raw(f"PONG :{ping_value}")
-                        self.logger(f"Sent PONG response to {ping_value}", "DEBUG")
+                        self.logger.debug(f"Sent PONG response to {ping_value}")
                     
                     # Process the message
                     self._process_message(line)
@@ -259,12 +253,12 @@ class Server:
             
             except (socket.error, ConnectionResetError) as e:
                 if not self.stop_event.is_set():
-                    self.logger(f"Connection error: {e}", "ERROR")
+                    self.logger.error(f"Connection error: {e}")
                     self.connected = False
                 break
             
             except Exception as e:
-                self.logger(f"Unexpected error reading messages: {e}", "ERROR")
+                self.logger.error(f"Unexpected error reading messages: {e}")
                 if not self.stop_event.is_set():
                     self.connected = False
                 break
@@ -285,7 +279,7 @@ class Server:
                 try:
                     callback(self, sender, target, text)
                 except Exception as e:
-                    self.logger(f"Error in message callback: {e}", "ERROR")
+                    self.logger.error(f"Error in message callback: {e}")
             return
         
         # Process JOIN
@@ -296,7 +290,7 @@ class Server:
                 try:
                     callback(self, sender, channel)
                 except Exception as e:
-                    self.logger(f"Error in join callback: {e}", "ERROR")
+                    self.logger.error(f"Error in join callback: {e}")
             return
         
         # Process PART
@@ -307,7 +301,7 @@ class Server:
                 try:
                     callback(self, sender, channel)
                 except Exception as e:
-                    self.logger(f"Error in part callback: {e}", "ERROR")
+                    self.logger.error(f"Error in part callback: {e}")
             return
         
         # Process QUIT
@@ -318,7 +312,7 @@ class Server:
                 try:
                     callback(self, sender)
                 except Exception as e:
-                    self.logger(f"Error in quit callback: {e}", "ERROR")
+                    self.logger.error(f"Error in quit callback: {e}")
             return
     
     def start(self):
@@ -367,7 +361,7 @@ class Server:
                 break
             
             # Wait before retry with exponential backoff
-            self.logger(f"Reconnecting in {retry_delay} seconds...", "INFO")
+            self.logger.info(f"Reconnecting in {retry_delay} seconds...")
             for _ in range(retry_delay):
                 if self.stop_event.is_set():
                     break
@@ -390,10 +384,10 @@ class Server:
                 self.socket.shutdown(socket.SHUT_RDWR)
                 self.socket.close()
             except Exception as e:
-                self.logger(f"Error during quit: {e}", "WARNING")
+                self.logger.warning(f"Error during quit: {e}")
             
             self.connected = False
-            self.logger("Disconnected from server", "INFO")
+            self.logger.info("Disconnected from server")
     
     def stop(self):
         """Stop the server and clean up all resources."""
@@ -402,30 +396,30 @@ class Server:
         
         if self.connected:
             try:
-                self.logger("Stopping server connection...", "INFO")
+                self.logger.info("Stopping server connection...")
                 # Send quit message if connected
                 self.quit("Bot shutting down")
-                self.logger("Quit message sent", "DEBUG")
+                self.logger.debug("Quit message sent")
                 
                 # Wait for threads to finish with timeout
                 timeout_per_thread = 5  # seconds
                 for thread in self.threads:
-                    self.logger(f"Waiting for thread {thread.name} to finish...", "DEBUG")
+                    self.logger.debug(f"Waiting for thread {thread.name} to finish...")
                     thread.join(timeout=timeout_per_thread)
                     if thread.is_alive():
-                        self.logger(f"Thread {thread.name} did not finish within timeout", "WARNING")
+                        self.logger.warning(f"Thread {thread.name} did not finish within timeout")
                 
                 # Ensure socket is closed
                 if self.socket:
                     try:
                         self.socket.close()
-                        self.logger("Socket connection closed", "INFO")
+                        self.logger.info("Socket connection closed")
                     except Exception as e:
-                        self.logger(f"Error closing socket: {e}", "ERROR")
+                        self.logger.error(f"Error closing socket: {e}")
             except Exception as e:
-                self.logger(f"Error during server shutdown: {e}", "ERROR")
+                self.logger.error(f"Error during server shutdown: {e}")
             finally:
                 self.connected = False
                 self.socket = None
                 self.threads = []
-                self.logger("Server resources cleaned up", "INFO")
+                self.logger.info("Server resources cleaned up")
