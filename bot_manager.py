@@ -15,6 +15,7 @@ from config import get_server_configs, load_env_file, get_api_key
 from server import Server
 from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
 from lemmatizer import Lemmatizer
+from services.weather_service import WeatherService
 import commands
 
 
@@ -47,6 +48,15 @@ class BotManager:
         self.drink_tracker = DrinkTracker(self.data_manager)
         self.general_words = GeneralWords(self.data_manager)
         self.tamagotchi = TamagotchiBot(self.data_manager)
+        
+        # Initialize weather service
+        weather_api_key = get_api_key('WEATHER_API_KEY')
+        if weather_api_key:
+            self.weather_service = WeatherService(weather_api_key)
+            print("🌤️ Weather service initialized")
+        else:
+            print("⚠️  Warning: No weather API key found. Weather commands will not work.")
+            self.weather_service = None
         
         # Initialize lemmatizer with graceful fallback
         try:
@@ -387,7 +397,23 @@ class BotManager:
     
     def _send_weather(self, irc, channel, location):
         """Send weather information."""
-        print(f"Weather for {location} not yet implemented in new architecture")
+        if not self.weather_service:
+            response = "Weather service not available. Please configure WEATHER_API_KEY."
+        else:
+            try:
+                weather_data = self.weather_service.get_weather(location)
+                response = self.weather_service.format_weather_message(weather_data)
+            except Exception as e:
+                response = f"Error getting weather for {location}: {str(e)}"
+        
+        # Send response via IRC if we have server context, otherwise print to console
+        if irc and hasattr(irc, 'send_message') and channel:
+            irc.send_message(channel, response)
+        elif irc and hasattr(irc, 'sendall') and channel:
+            # Legacy IRC socket interface
+            irc.sendall(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
+        else:
+            print(response)
     
     def _send_scheduled_message(self, *args):
         """Send scheduled message."""
