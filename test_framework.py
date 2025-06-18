@@ -76,7 +76,7 @@ class TestRunner:
     
     def run_all(self) -> bool:
         """Run all test suites and return overall success."""
-        print("🧪 LeetIRC Bot - Comprehensive Test Suite")
+        print("LeetIRC Bot - Comprehensive Test Suite")
         print("=" * 60)
         
         total_tests = sum(len(suite.tests) for suite in self.suites)
@@ -96,14 +96,14 @@ class TestRunner:
     
     def _run_suite(self, suite: TestSuite) -> bool:
         """Run a single test suite."""
-        print(f"📋 Suite: {suite.name}")
+        print(f"Suite: {suite.name}")
         print(f"   {suite.description}")
         print("-" * 50)
         
         # Setup
         if suite.setup_func:
             if not self._run_safe(suite.setup_func, f"{suite.name} setup"):
-                print(f"❌ Suite setup failed, skipping {suite.name}")
+                print(f"[FAIL] Suite setup failed, skipping {suite.name}")
                 return False
         
         suite_success = True
@@ -120,7 +120,7 @@ class TestRunner:
         if suite.teardown_func:
             self._run_safe(suite.teardown_func, f"{suite.name} teardown")
         
-        print(f"📊 Suite Result: {passed}/{len(suite.tests)} tests passed")
+        print(f"Stats: Suite Result: {passed}/{len(suite.tests)} tests passed")
         print()
         
         return suite_success
@@ -128,7 +128,7 @@ class TestRunner:
     def _run_test(self, suite_name: str, test: TestCase) -> bool:
         """Run a single test case."""
         if self.verbose:
-            print(f"  🔍 {test.name}... ", end="", flush=True)
+            print(f"  Test: {test.name}... ", end="", flush=True)
         
         start_time = time.time()
         
@@ -145,7 +145,7 @@ class TestRunner:
                     )
                     self.reports.append(result)
                     if self.verbose:
-                        print(f"⏭️  SKIP (missing {dep})")
+                        print(f"[SKIP]  SKIP (missing {dep})")
                     return True  # Skip doesn't count as failure
             
             # Run the test
@@ -160,7 +160,7 @@ class TestRunner:
                     duration=duration
                 )
                 if self.verbose:
-                    print(f"✅ PASS ({duration:.3f}s)")
+                    print(f"[PASS] PASS ({duration:.3f}s)")
             else:
                 result = TestReport(
                     suite_name=suite_name,
@@ -170,7 +170,7 @@ class TestRunner:
                     message="Test returned False"
                 )
                 if self.verbose:
-                    print(f"❌ FAIL ({duration:.3f}s)")
+                    print(f"[FAIL] FAIL ({duration:.3f}s)")
             
             self.reports.append(result)
             return success
@@ -190,7 +190,7 @@ class TestRunner:
             self.reports.append(result)
             
             if self.verbose:
-                print(f"💥 ERROR ({duration:.3f}s): {e}")
+                print(f"[ERROR] ERROR ({duration:.3f}s): {e}")
             
             return False
     
@@ -199,7 +199,7 @@ class TestRunner:
         try:
             return func()
         except Exception as e:
-            print(f"❌ {name} failed: {e}")
+            print(f"[FAIL] {name} failed: {e}")
             return False
     
     def _check_dependency(self, dep: str) -> bool:
@@ -224,7 +224,7 @@ class TestRunner:
     def _print_summary(self):
         """Print comprehensive test summary."""
         print("=" * 60)
-        print("📊 TEST SUMMARY")
+        print("Stats: TEST SUMMARY")
         print("=" * 60)
         
         # Count results by status
@@ -239,36 +239,36 @@ class TestRunner:
         skipped = counts[TestResult.SKIP]
         
         print(f"Total Tests: {total}")
-        print(f"✅ Passed:   {passed}")
-        print(f"❌ Failed:   {failed}")
-        print(f"💥 Errors:   {errors}")
-        print(f"⏭️ Skipped:  {skipped}")
+        print(f"[PASS] Passed:   {passed}")
+        print(f"[FAIL] Failed:   {failed}")
+        print(f"[ERROR] Errors:   {errors}")
+        print(f"[SKIP] Skipped:  {skipped}")
         
         if total > 0:
             success_rate = (passed / total) * 100
-            print(f"📈 Success Rate: {success_rate:.1f}%")
+            print(f"Success Rate: Success Rate: {success_rate:.1f}%")
         
         # Show failed tests
         if failed > 0 or errors > 0:
-            print("\n🔍 FAILED TESTS:")
+            print("\nTest: FAILED TESTS:")
             for report in self.reports:
                 if report.result in [TestResult.FAIL, TestResult.ERROR]:
-                    print(f"  ❌ {report.suite_name}.{report.test_name}: {report.message}")
+                    print(f"  [FAIL] {report.suite_name}.{report.test_name}: {report.message}")
                     if report.error_details and self.verbose:
                         print(f"     Details: {report.error_details.split(chr(10))[-2] if chr(10) in report.error_details else report.error_details}")
         
         # Performance summary
         total_time = sum(r.duration for r in self.reports)
         avg_time = total_time / total if total > 0 else 0
-        print(f"\n⏱️ Total Time: {total_time:.3f}s (avg: {avg_time:.3f}s per test)")
+        print(f"\nTime: Total Time: {total_time:.3f}s (avg: {avg_time:.3f}s per test)")
         
         # Overall result
         overall_success = failed == 0 and errors == 0
         print("\n" + "=" * 60)
         if overall_success:
-            print("🎉 ALL TESTS PASSED!")
+            print("[SUCCESS] ALL TESTS PASSED!")
         else:
-            print("⚠️ SOME TESTS FAILED!")
+            print("[WARNING] SOME TESTS FAILED!")
         print("=" * 60)
 
 
@@ -279,11 +279,11 @@ def create_git_hook():
 echo "Running tests before commit..."
 python test_framework.py --quick
 if [ $? -ne 0 ]; then
-    echo "❌ Tests failed! Commit aborted."
+    echo "[FAIL] Tests failed! Commit aborted."
     echo "Fix the failing tests or use 'git commit --no-verify' to skip tests."
     exit 1
 fi
-echo "✅ All tests passed!"
+echo "[PASS] All tests passed!"
 '''
     
     hook_path = ".git/hooks/pre-commit"
@@ -298,11 +298,11 @@ echo "✅ All tests passed!"
         if os.name != 'nt':  # Not Windows
             os.chmod(hook_path, 0o755)
         
-        print(f"✅ Created git pre-commit hook at {hook_path}")
+        print(f"[PASS] Created git pre-commit hook at {hook_path}")
         return True
         
     except Exception as e:
-        print(f"❌ Failed to create git hook: {e}")
+        print(f"[FAIL] Failed to create git hook: {e}")
         return False
 
 
@@ -360,11 +360,11 @@ jobs:
         with open(".github/workflows/tests.yml", 'w') as f:
             f.write(workflow_content)
         
-        print("✅ Created GitHub Actions workflow at .github/workflows/tests.yml")
+        print("[PASS] Created GitHub Actions workflow at .github/workflows/tests.yml")
         return True
         
     except Exception as e:
-        print(f"❌ Failed to create GitHub workflow: {e}")
+        print(f"[FAIL] Failed to create GitHub workflow: {e}")
         return False
 
 
@@ -382,10 +382,10 @@ def main():
     args = parser.parse_args()
     
     if args.setup_hooks:
-        print("🔧 Setting up automated testing...")
+        print("Setup: Setting up automated testing...")
         create_git_hook()
         create_github_workflow()
-        print("✅ Automated testing setup complete!")
+        print("[PASS] Automated testing setup complete!")
         return 0
     
     # Import and register all test suites
@@ -396,7 +396,7 @@ def main():
         from tests import register_all_test_suites
         register_all_test_suites(runner, quick_mode=args.quick)
     except ImportError:
-        print("⚠️ No test suites found. Run with --setup-hooks first.")
+        print("[WARNING] No test suites found. Run with --setup-hooks first.")
         return 1
     
     # Run tests
@@ -406,7 +406,7 @@ def main():
         if suite:
             success = runner._run_suite(suite)
         else:
-            print(f"❌ Test suite '{args.suite}' not found")
+            print(f"[FAIL] Test suite '{args.suite}' not found")
             return 1
     else:
         # Run all suites
