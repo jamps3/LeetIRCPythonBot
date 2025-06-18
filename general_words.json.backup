@@ -212,14 +212,21 @@
             "jl3b": 2,
             "moi": 6,
             "jl3b2": 5,
-            "d": 1
+            "d": 1,
+            "https": 1,
+            "www": 1,
+            "youtube": 1,
+            "com": 1,
+            "watch": 1,
+            "v": 1,
+            "ikwwu2w1ggk": 1
           },
           "first_seen": "2025-06-18T22:45:02.734047",
-          "last_activity": "2025-06-19T02:14:41.424570",
-          "total_words": 14,
+          "last_activity": "2025-06-19T02:38:29.605946",
+          "total_words": 21,
           "channels": {
             "#joensuutest": {
-              "word_count": 14
+              "word_count": 21
             }
           }
         },
@@ -279,17 +286,21 @@
             "kuinka": 1,
             "voin": 1,
             "auttaa": 1,
-            "onko": 1,
-            "jotain": 1,
-            "mielessä": 1,
-            "sinulle": 1
+            "onko": 2,
+            "jotain": 2,
+            "mielessä": 2,
+            "sinulle": 1,
+            "haha": 1,
+            "hyvä": 1,
+            "nauru": 1,
+            "hauskaa": 1
           },
           "first_seen": "2025-06-18T22:45:04.080374",
-          "last_activity": "2025-06-19T00:31:46.983715",
-          "total_words": 17,
+          "last_activity": "2025-06-19T02:14:42.482305",
+          "total_words": 24,
           "channels": {
             "#joensuutest": {
-              "word_count": 17
+              "word_count": 24
             }
           }
         },
@@ -328,6 +339,6 @@
       }
     }
   },
-  "last_updated": "2025-06-19T02:14:42.348843",
+  "last_updated": "2025-06-19T02:38:29.607013",
   "version": "1.0.0"
 }

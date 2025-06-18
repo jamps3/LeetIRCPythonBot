@@ -21,6 +21,7 @@ from services.gpt_service import GPTService
 from services.electricity_service import create_electricity_service
 from services.youtube_service import create_youtube_service
 from services.crypto_service import create_crypto_service
+from nanoleet_detector import create_nanoleet_detector
 from logger import get_logger
 import commands
 
@@ -117,6 +118,10 @@ class BotManager:
         self.crypto_service = create_crypto_service()
         self.logger.info("🪙 Crypto service initialized (using CoinGecko API)")
         
+        # Initialize nanoleet detector
+        self.nanoleet_detector = create_nanoleet_detector()
+        self.logger.info("🎯 Nanosecond leet detector initialized")
+        
         # Initialize lemmatizer with graceful fallback
         try:
             self.lemmatizer = Lemmatizer()
@@ -210,6 +215,10 @@ class BotManager:
             # Check for YouTube URLs and display video info
             if self.youtube_service and sender.lower() != self.bot_name.lower():
                 self._handle_youtube_urls(context)
+            
+            # Check for nanoleet achievements if not from the bot itself
+            if sender.lower() != self.bot_name.lower():
+                self._check_nanoleet_achievement(context)
             
             # Process commands
             self._process_commands(context)
@@ -775,4 +784,30 @@ class BotManager:
             self.logger.error(f"Crypto price error: {e}")
             self._send_response(irc, channel, error_msg)
     
-
+    def _check_nanoleet_achievement(self, context: Dict[str, Any]):
+        """Check for nanoleet achievements in message timestamp."""
+        server = context['server']
+        target = context['target']
+        sender = context['sender']
+        
+        # Only check in channels, not private messages
+        if not target.startswith('#'):
+            return
+        
+        try:
+            # Get current timestamp with nanosecond precision
+            timestamp = self.nanoleet_detector.get_timestamp_with_nanoseconds()
+            
+            # Check for leet achievement
+            result = self.nanoleet_detector.check_message_for_leet(sender, timestamp)
+            
+            if result:
+                achievement_message, achievement_level = result
+                # Send achievement message to the channel
+                self._send_response(server, target, achievement_message)
+                
+                # Log the achievement
+                self.logger.info(f"Nanoleet achievement: {achievement_level} for {sender} in {target} at {timestamp}")
+                
+        except Exception as e:
+            self.logger.error(f"Error checking nanoleet achievement: {e}")
