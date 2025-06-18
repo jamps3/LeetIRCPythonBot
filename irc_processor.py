@@ -5,6 +5,7 @@ This module provides event-driven message processing that integrates
 with the command registry and handles various IRC events.
 """
 
+import os
 import asyncio
 import re
 from typing import Dict, List, Optional, Callable, Any
@@ -60,6 +61,10 @@ class IRCMessageProcessor:
         self.irc_client = irc_client
         self.bot_functions = bot_functions
         self.config = get_config()
+        
+        # Load USE_NOTICES setting
+        use_notices_setting = os.getenv('USE_NOTICES', 'false').lower()
+        self.use_notices = use_notices_setting in ('true', '1', 'yes', 'on')
         
         # Register message handlers
         self.irc_client.add_message_handler(IRCMessageType.PRIVMSG, self._handle_privmsg)
@@ -251,11 +256,11 @@ class IRCMessageProcessor:
                     if split_func:
                         parts = split_func(response.message, 400)
                         for part in parts:
-                            context.irc_client.send_notice(target, part)
+                            self._send_response(target, part)
                     else:
-                        context.irc_client.send_notice(target, response.message)
+                        self._send_response(target, response.message)
                 else:
-                    context.irc_client.send_notice(target, response.message)
+                    self._send_response(target, response.message)
                 
                 return True  # Command processed, stop further processing
         
@@ -308,9 +313,9 @@ class IRCMessageProcessor:
                 if wrap_func:
                     parts = wrap_func(response, reply_target=target, max_lines=5, placeholder="...")
                     for part in parts:
-                        context.irc_client.send_message(target, part)
+                        self._send_response(target, part)
                 else:
-                    context.irc_client.send_message(target, response)
+                    self._send_response(target, response)
                 
                 return True  # Handled AI chat
         
@@ -376,6 +381,13 @@ class IRCMessageProcessor:
             self._log(f"Leet tracking error: {e}", "WARNING")
         
         return False  # Don't stop processing
+    
+    def _send_response(self, target: str, message: str):
+        """Send a response using NOTICE or PRIVMSG based on USE_NOTICES setting."""
+        if self.use_notices:
+            self.irc_client.send_notice(target, message)
+        else:
+            self.irc_client.send_message(target, message)
     
     def _log(self, message: str, level: str = "INFO"):
         """Log a message."""
