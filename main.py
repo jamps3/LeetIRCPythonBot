@@ -76,6 +76,9 @@ from otiedote_monitor import OtiedoteMonitor  # Onnettomuustiedotteet
 import subscriptions  # Tilaukset
 import commands  # IRC Command processing
 
+# Bot version
+BOT_VERSION = "2.0.0"
+
 # Load configuration from .env file
 bot_name = os.getenv(
     "BOT_NAME", "jl3b"
@@ -83,6 +86,9 @@ bot_name = os.getenv(
 LOG_LEVEL = os.getenv(
     "LOG_LEVEL", "INFO"
 )  # Log level oletus, EI VAIHDA TÄTÄ, se tapahtuu main-funktiossa
+ADMIN_PASSWORD = os.getenv(
+    "ADMIN_PASSWORD", "changeme"
+)  # Admin password for protected commands
 HISTORY_FILE = os.getenv(
     "HISTORY_FILE", "conversation_history.json"
 )  # File to store conversation history
@@ -576,6 +582,8 @@ def read(irc, stop_event):
                         "DRINK_WORDS": DRINK_WORDS,
                         "EKAVIKA_FILE": EKAVIKA_FILE,
                         "bot_name": bot_name,
+                        "BOT_VERSION": BOT_VERSION,
+                        "ADMIN_PASSWORD": ADMIN_PASSWORD,
                         "latency_start": lambda: latency_start,
                         "set_latency_start": lambda value: globals().update(
                             {"latency_start": value}
@@ -605,198 +613,25 @@ def listen_for_commands(stop_event):
                 stop_event.set()  # Notify all threads to stop
                 break
             elif user_input.startswith("!"):
-                # Parse command
-                command_parts = user_input.split(" ", 1)
-                command = command_parts[0].lower()
-                args = command_parts[1] if len(command_parts) > 1 else ""
-                log(f"Processing command {command} with args: {args}", "CMD")
-
-                # List all commands
-                if command == "!help":
-                    notice_message(
-                        "Available commands: quit, !s !sää, !sahko !sähkö, !aika, !kaiku, !sana, !topwords, !leaderboard, !euribor, !leetwinners, !url <url>, (!kraks, !clearkraks)"
-                    )
-
-                # Handle commands similar to IRC commands
-                elif command == "!s" or command == "!sää":
-                    location = args.strip() if args else "Joensuu"
-                    log(f"Getting weather for {location} from console", "INFO")
-                    send_weather(None, None, location)  # Pass None for IRC and channel
-
-                elif command == "!sahko" or command == "!sähkö":
-                    send_electricity_price(None, None, command_parts)
-
-                elif command == "!aika":
-                    now_ns = time.time_ns()
-                    dt = datetime.fromtimestamp(now_ns // 1_000_000_000)
-                    nanoseconds = now_ns % 1_000_000_000
-
-                    formatted_time = (
-                        dt.strftime("%Y-%m-%d %H:%M:%S") + f".{nanoseconds:09d}"
-                    )
-                    notice_message(f"Nykyinen aika: {formatted_time}")
-
-                elif command == "!kaiku":
-                    notice_message(f"Console: {args}")
-
-                elif command == "!sana":
-                    if args:
-                        search_word = args.strip().lower()
-                        kraks = load()
-
-                        word_counts = {
-                            nick: stats[search_word]
-                            for nick, stats in kraks.items()
-                            if search_word in stats
-                        }
-
-                        if word_counts:
-                            results = ", ".join(
-                                f"{nick}: {count}"
-                                for nick, count in word_counts.items()
-                            )
-                            notice_message(
-                                f"Sana '{search_word}' on sanottu: {results}"
-                            )
-                        else:
-                            notice_message(
-                                f"Kukaan ei ole sanonut sanaa '{search_word}' vielä."
-                            )
-                    else:
-                        notice_message("Käytä komentoa: !sana <sana>")
-
-                elif command == "!topwords":
-                    kraks = load()
-
-                    if args:  # Specific nick provided
-                        nick = args.strip()
-                        if nick in kraks:
-                            top_words = Counter(kraks[nick]).most_common(5)
-                            word_list = ", ".join(
-                                f"{word}: {count}" for word, count in top_words
-                            )
-                            notice_message(f"{nick}: {word_list}")
-                        else:
-                            notice_message(f"Käyttäjää '{nick}' ei löydy.")
-                    else:  # Show top words for all users
-                        overall_counts = Counter()
-                        for words in kraks.values():
-                            overall_counts.update(words)
-
-                        top_words = overall_counts.most_common(5)
-                        word_list = ", ".join(
-                            f"{word}: {count}" for word, count in top_words
-                        )
-                        notice_message(f"Käytetyimmät sanat: {word_list}")
-
-                elif command == "!leaderboard":
-                    kraks = load()
-                    user_word_counts = {
-                        nick: sum(words.values()) for nick, words in kraks.items()
+                # Use the unified command processing function
+                try:
+                    # Create bot_functions dictionary for console use
+                    bot_functions = {
+                        "notice_message": notice_message,
+                        "send_electricity_price": send_electricity_price,
+                        "load_leet_winners": load_leet_winners,
+                        "send_weather": send_weather,
+                        "load": load,
+                        "log": log,
+                        "fetch_title": fetch_title,
+                        "handle_ipfs_command": handle_ipfs_command,
+                        "chat_with_gpt": chat_with_gpt,
+                        "wrap_irc_message_utf8_bytes": wrap_irc_message_utf8_bytes,
+                        "get_crypto_price": get_crypto_price,
                     }
-                    top_users = sorted(
-                        user_word_counts.items(), key=lambda x: x[1], reverse=True
-                    )[:5]
-
-                    if top_users:
-                        leaderboard_msg = ", ".join(
-                            f"{nick}: {count}" for nick, count in top_users
-                        )
-                        notice_message(f"Aktiivisimmat käyttäjät: {leaderboard_msg}")
-                    else:
-                        notice_message("Ei vielä tarpeeksi dataa leaderboardille.")
-
-                elif command == "!euribor":
-                    # XML data URL from Suomen Pankki
-                    url = "https://reports.suomenpankki.fi/WebForms/ReportViewerPage.aspx?report=/tilastot/markkina-_ja_hallinnolliset_korot/euribor_korot_today_xml_en&output=xml"
-
-                    # Fetch the XML data
-                    response = requests.get(url)
-
-                    if response.status_code == 200:
-                        # Parse the XML content
-                        root = ElementTree.fromstring(response.content)
-
-                        # Namespace handling (because the XML uses a default namespace)
-                        ns = {
-                            "ns": "euribor_korot_today_xml_en"
-                        }  # Update with correct namespace if needed
-
-                        # Find the correct period (yesterday's date)
-                        period = root.find(".//ns:period", namespaces=ns)
-                        if period is not None:
-                            # Extract the date from the XML attribute
-                            date_str = period.attrib.get("value")  # Muoto YYYY-MM-DD
-                            date_obj = datetime.strptime(
-                                date_str, "%Y-%m-%d"
-                            )  # Muunnetaan datetime-objektiksi
-
-                            # Käytetään oikeaa muotoilua riippuen käyttöjärjestelmästä
-                            if platform.system() == "Windows":
-                                formatted_date = date_obj.strftime(
-                                    "%#d.%#m.%y"
-                                )  # Windows
-                            else:
-                                formatted_date = date_obj.strftime(
-                                    "%-d.%-m.%y"
-                                )  # Linux & macOS
-                            rates = period.findall(".//ns:rate", namespaces=ns)
-
-                            for rate in rates:
-                                if rate.attrib.get("name") == "12 month (act/360)":
-                                    euribor_12m = rate.find("./ns:intr", namespaces=ns)
-                                    if euribor_12m is not None:
-                                        notice_message(
-                                            f"{formatted_date} 12kk Euribor: {euribor_12m.attrib['value']}%"
-                                        )
-                                    else:
-                                        notice_message("Interest rate value not found.")
-                                    break
-                            else:
-                                notice_message("12-month Euribor rate not found.")
-                        else:
-                            notice_message("No period data found in XML.")
-                    else:
-                        notice_message(
-                            f"Failed to retrieve XML data. HTTP Status Code: {response.status_code}"
-                        )
-
-                elif command == "!leetwinners":
-                    leet_winners = load_leet_winners()
-
-                    # Dictionary to store only one winner per category
-                    filtered_winners = {}
-
-                    for winner, categories in leet_winners.items():
-                        for cat, count in categories.items():
-                            # Ensure only one winner per category
-                            if (
-                                cat not in filtered_winners
-                                or count > filtered_winners[cat][1]
-                            ):
-                                filtered_winners[cat] = (winner, count)
-                    # Format the output
-                    winners_text = ", ".join(
-                        f"{cat}: {winner} [{count}]"
-                        for cat, (winner, count) in filtered_winners.items()
-                    )
-                    response = (
-                        f"Leet winners: {winners_text}"
-                        if winners_text
-                        else "No leet winners recorded yet."
-                    )
-                    notice_message(response)
-                elif command.startswith("!url"):  # Handle URL title fetching
-                    if args:
-                        fetch_title(None, None, args)
-                    else:
-                        notice_message("Käytä komentoa: !url <url>")
-                elif command.startswith("!ipfs"):
-                    handle_ipfs_command(command, irc, target=None)
-                else:
-                    notice_message(
-                        f"Command '{command}' not recognized or not implemented for console use"
-                    )
+                    commands.process_console_command(user_input, bot_functions)
+                except Exception as e:
+                    log(f"Error processing console command: {e}", "ERROR")
             else:
                 # Any text not starting with ! is sent to OpenAI
                 log(f"Sending text to OpenAI: {user_input}", "INFO")
