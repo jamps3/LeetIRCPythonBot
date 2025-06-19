@@ -559,14 +559,34 @@ class BotManager:
         else:
             print(response)
     
-    def _send_scheduled_message(self, *args):
+    def _send_scheduled_message(self, irc_client, channel, message, hour, minute, second, microsecond=0):
         """Send scheduled message."""
-        self.logger.warning("Scheduled messages not yet implemented in new architecture")
+        try:
+            from services.scheduled_message_service import send_scheduled_message
+            message_id = send_scheduled_message(irc_client, channel, message, hour, minute, second, microsecond)
+            self.logger.info(f"Scheduled message {message_id}: '{message}' to {channel} at {hour:02d}:{minute:02d}:{second:02d}.{microsecond:06d}")
+            return f"✅ Message scheduled with ID: {message_id}"
+        except Exception as e:
+            self.logger.error(f"Error scheduling message: {e}")
+            return f"❌ Error scheduling message: {str(e)}"
     
     def _get_eurojackpot_numbers(self):
         """Get Eurojackpot numbers."""
-        self.logger.warning("Eurojackpot not yet implemented in new architecture")
-        return "N/A"
+        try:
+            from services.eurojackpot_service import get_eurojackpot_numbers
+            return get_eurojackpot_numbers()
+        except Exception as e:
+            self.logger.error(f"Error getting Eurojackpot numbers: {e}")
+            return f"❌ Error getting Eurojackpot info: {str(e)}"
+    
+    def _get_eurojackpot_results(self):
+        """Get Eurojackpot results."""
+        try:
+            from services.eurojackpot_service import get_eurojackpot_results
+            return get_eurojackpot_results()
+        except Exception as e:
+            self.logger.error(f"Error getting Eurojackpot results: {e}")
+            return f"❌ Error getting Eurojackpot results: {str(e)}"
     
     def _search_youtube(self, query):
         """Search YouTube."""
@@ -580,9 +600,26 @@ class BotManager:
             self.logger.error(f"Error searching YouTube: {e}")
             return f"Error searching YouTube: {str(e)}"
     
-    def _handle_ipfs_command(self, *args):
+    def _handle_ipfs_command(self, command_text, irc_client=None, target=None):
         """Handle IPFS commands."""
-        self.logger.warning("IPFS not yet implemented in new architecture")
+        try:
+            from services.ipfs_service import handle_ipfs_command
+            admin_password = os.getenv('ADMIN_PASSWORD')
+            response = handle_ipfs_command(command_text, admin_password)
+            
+            if irc_client and target:
+                self._send_response(irc_client, target, response)
+            else:
+                self.logger.info(f"IPFS command result: {response}")
+                return response
+            
+        except Exception as e:
+            error_msg = f"❌ IPFS error: {str(e)}"
+            self.logger.error(f"Error handling IPFS command: {e}")
+            if irc_client and target:
+                self._send_response(irc_client, target, error_msg)
+            else:
+                return error_msg
     
     def _format_counts(self, data):
         """Format word counts."""
