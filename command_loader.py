@@ -20,6 +20,7 @@ def load_all_commands():
         # Import all command modules to trigger registration
         import commands_basic
         import commands_admin
+        import commands_extended  # Add new extended commands
         
         # Additional command modules can be imported here
         # import commands_weather
