@@ -7,36 +7,33 @@ The `!tamagotchi toggle` command was saying "Tamagotchi responses are now disabl
 The issue was that the `tamagotchi_enabled` state was only being changed in memory and not persisted to storage. When the bot was restarted, it would reload the default state from the environment variable.
 
 ## Solution
-Implemented persistent state management for the tamagotchi toggle functionality:
+Implemented persistent state management using the existing `.env` file configuration:
 
 ### Changes Made
 
-1. **Added state persistence functions** in `bot_manager.py`:
-   - `_load_tamagotchi_state()`: Loads state from JSON file, fallback to environment variable
-   - `_save_tamagotchi_state()`: Saves current state to JSON file
+1. **Added .env file update function** in `bot_manager.py`:
+   - `_update_env_file()`: Updates TAMAGOTCHI_ENABLED setting in .env file
+   - Handles commented lines and maintains file structure
 
-2. **Updated initialization** in `BotManager.__init__()`:
-   - Now uses `_load_tamagotchi_state()` instead of just reading environment variable
-   - State file path: `tamagotchi_enabled.json`
+2. **Enhanced toggle function** `toggle_tamagotchi()`:
+   - Now calls `_update_env_file()` to persist changes to .env file
+   - Updates both runtime state and environment variable
+   - State changes are immediately persisted to .env file
 
-3. **Enhanced toggle function** `toggle_tamagotchi()`:
-   - Now calls `_save_tamagotchi_state()` after changing state
-   - State changes are immediately persisted to disk
-
-4. **Added state file to gitignore**:
-   - `tamagotchi_enabled.json` is now ignored to prevent committing user preferences
+3. **Simplified initialization**:
+   - Uses existing environment variable approach (TAMAGOTCHI_ENABLED)
+   - No additional JSON file needed
 
 ### How It Works
 
-1. **On startup**: Bot loads state from `tamagotchi_enabled.json` if it exists, otherwise falls back to `TAMAGOTCHI_ENABLED` environment variable
-2. **On toggle**: State is immediately saved to the JSON file
+1. **On startup**: Bot loads state from `TAMAGOTCHI_ENABLED` environment variable (as before)
+2. **On toggle**: State is immediately saved to .env file and environment variable is updated
 3. **Message processing**: Only processes tamagotchi messages when `self.tamagotchi_enabled` is `True`
 
-### File Structure
-```json
-{
-  "enabled": true
-}
+### .env File Format
+```bash
+# Tamagotchi Settings
+TAMAGOTCHI_ENABLED=true   # or false
 ```
 
 ### Commands
