@@ -172,10 +172,10 @@ cython_debug/
 # Saved data
 conversation_history.json
 conversation_history_old.json
-kraks_data.pkl
 leet_winners.json
 ekavika.json
 last_warning.json
 *_words.json
 subscriptions.json
 voikko*
+tamagotchi_state.json

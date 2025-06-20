@@ -12,12 +12,12 @@
     },
     "SERVER1": {
       "level": 1,
-      "experience": 4,
-      "happiness": 70,
+      "experience": 10,
+      "happiness": 100,
       "hunger": 50,
-      "last_interaction": "2025-06-19T02:14:42.400593",
-      "mood": "happy",
-      "total_interactions": 1,
+      "last_interaction": "2025-06-20T17:10:31.857381",
+      "mood": "very_happy",
+      "total_interactions": 4,
       "created": "2025-06-19T02:14:42.387546"
     }
   },
@@ -29,6 +29,6 @@
     "last_interaction": "2025-06-18T15:42:06.807494",
     "mood": "neutral"
   },
-  "last_updated": "2025-06-19T02:14:42.516025",
+  "last_updated": "2025-06-20T17:10:31.861761",
   "version": "1.0.0"
 }
