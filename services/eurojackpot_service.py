@@ -2,197 +2,261 @@
 """
 Eurojackpot Service for LeetIRC Bot
 
-This service handles Eurojackpot lottery information including:
-- Getting next draw date, time and jackpot amount
-- Getting last drawn numbers, date and jackpot winners
+This service handles Eurojackpot lottery information using the Magayo API.
+Integrated from eurojackpot.py functionality.
 """
 
 import requests
-import json
-import re
-from datetime import datetime, timedelta
-from typing import Dict, Optional, List, Tuple
+import os
+from datetime import datetime
+from typing import Dict, Optional
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class EurojackpotService:
-    """Service for Eurojackpot lottery information."""
+    """Service for Eurojackpot lottery information using Magayo API."""
     
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.api_base_url = "https://www.veikkaus.fi/api"
-        self.eurojackpot_game_id = "eurojackpot"
+        self.api_key = os.getenv("EUROJACKPOT_API_KEY")
+        self.next_draw_url = "https://www.magayo.com/api/next_draw.php"
+        self.jackpot_url = "https://www.magayo.com/api/jackpot.php"
+        self.results_url = "https://www.magayo.com/api/results.php"
         
-    def _make_request(self, url: str, timeout: int = 10) -> Optional[Dict]:
-        """Make HTTP request and return JSON response."""
+    def get_week_number(self, date_str: str) -> int:
+        """Get ISO week number from date string."""
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+        return date_obj.isocalendar()[1]
+    
+    def _make_request(self, url: str, params: Dict, timeout: int = 10) -> Optional[Dict]:
+        """Make HTTP request with Magayo API parameters and return JSON response."""
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            response = requests.get(url, headers=headers, timeout=timeout)
+            response = requests.get(url, params=params, timeout=timeout)
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
             self.logger.error(f"Request error for {url}: {e}")
             return None
-        except json.JSONDecodeError as e:
+        except Exception as e:
             self.logger.error(f"JSON decode error for {url}: {e}")
             return None
     
     def get_next_draw_info(self) -> Dict[str, any]:
         """
-        Get information about the next Eurojackpot draw.
+        Get information about the next Eurojackpot draw using Magayo API.
         
         Returns:
             Dict with draw date, time and jackpot amount
         """
         try:
-            # Get next draw information
-            url = f"{self.api_base_url}/draw-games/v1/games/{self.eurojackpot_game_id}/draws/next"
-            data = self._make_request(url)
+            if not self.api_key:
+                return {
+                    'success': False,
+                    'message': 'EUROJACKPOT_API_KEY not configured'
+                }
             
-            if not data:
+            # Get next draw information
+            params = {"api_key": self.api_key, "game": "eurojackpot", "format": "json"}
+            draw_data = self._make_request(self.next_draw_url, params)
+            jackpot_data = self._make_request(self.jackpot_url, params)
+            
+            if not draw_data or not jackpot_data:
                 return {
                     'success': False,
                     'message': 'Could not fetch next draw information'
                 }
-            
-            # Extract information
-            draw_time = data.get('drawTime')
-            jackpot = data.get('jackpot', {})
-            
-            if not draw_time:
+                
+            if draw_data.get("error") != 0 or jackpot_data.get("error") != 0:
                 return {
                     'success': False,
-                    'message': 'Draw time not found in response'
+                    'message': 'Eurojackpot: Virhe seuraavan arvonnan tietojen hakemisessa.'
                 }
             
-            # Parse draw time (ISO format)
-            try:
-                dt = datetime.fromisoformat(draw_time.replace('Z', '+00:00'))
-                # Convert to local time (assuming Finnish time zone)
-                # Note: This is a simple approach, in production you'd want proper timezone handling
-                local_dt = dt + timedelta(hours=2)  # Finland is UTC+2 (or UTC+3 in summer)
-                
-                formatted_date = local_dt.strftime('%d.%m.%Y')
-                formatted_time = local_dt.strftime('%H:%M')
-                
-            except (ValueError, AttributeError) as e:
-                self.logger.error(f"Error parsing draw time {draw_time}: {e}")
-                return {
-                    'success': False,
-                    'message': 'Error parsing draw time'
-                }
+            # Extract and format information
+            draw_date_iso = draw_data["next_draw"]
+            draw_date = datetime.strptime(draw_date_iso, "%Y-%m-%d").strftime("%d.%m.%Y")
+            week_number = self.get_week_number(draw_date_iso)
+            jackpot = jackpot_data["jackpot"]
+            currency = jackpot_data["currency"]
             
-            # Format jackpot amount
-            jackpot_amount = jackpot.get('amount', 0)
-            jackpot_currency = jackpot.get('currency', 'EUR')
-            
-            # Format amount in millions
-            if jackpot_amount >= 1000000:
-                jackpot_text = f"{jackpot_amount / 1000000:.1f} miljoonaa {jackpot_currency}"
-            else:
-                jackpot_text = f"{jackpot_amount:,} {jackpot_currency}".replace(',', ' ')
-            
-            success_message = (
-                f"🎰 Seuraava Eurojackpot: {formatted_date} klo {formatted_time} "
-                f"| Potti: {jackpot_text}"
-            )
+            success_message = f"Seuraava Eurojackpot-arvonta: {draw_date} (viikko {week_number}) | Päävoitto: {jackpot} {currency}"
             
             return {
                 'success': True,
                 'message': success_message,
-                'date': formatted_date,
-                'time': formatted_time,
-                'jackpot_amount': jackpot_amount,
-                'jackpot_text': jackpot_text
+                'date': draw_date,
+                'week_number': week_number,
+                'jackpot': jackpot,
+                'currency': currency
             }
             
         except Exception as e:
             self.logger.error(f"Error getting next draw info: {e}")
             return {
                 'success': False,
-                'message': f'Error: {str(e)}'
+                'message': f'Eurojackpot: Virhe {str(e)}'
             }
     
     def get_last_results(self) -> Dict[str, any]:
         """
-        Get the last drawn Eurojackpot numbers and results.
+        Get the last drawn Eurojackpot numbers and results using Magayo API.
         
         Returns:
             Dict with last draw results
         """
         try:
+            if not self.api_key:
+                return {
+                    'success': False,
+                    'message': 'EUROJACKPOT_API_KEY not configured'
+                }
+            
             # Get latest draw results
-            url = f"{self.api_base_url}/draw-games/v1/games/{self.eurojackpot_game_id}/draws/latest"
-            data = self._make_request(url)
+            params = {"api_key": self.api_key, "game": "eurojackpot", "format": "json"}
+            data = self._make_request(self.results_url, params)
             
             if not data:
                 return {
                     'success': False,
                     'message': 'Could not fetch latest draw results'
                 }
-            
-            # Extract draw information
-            draw_time = data.get('drawTime')
-            results = data.get('results', {})
-            primary_numbers = results.get('primary', [])
-            secondary_numbers = results.get('secondary', [])
-            
-            if not draw_time or not primary_numbers:
+                
+            if data.get("error") != 0:
                 return {
                     'success': False,
-                    'message': 'Draw results incomplete'
+                    'message': f"Eurojackpot: Virhe {data.get('error')}."
                 }
             
-            # Parse draw time
-            try:
-                dt = datetime.fromisoformat(draw_time.replace('Z', '+00:00'))
-                local_dt = dt + timedelta(hours=2)  # Finland timezone adjustment
-                formatted_date = local_dt.strftime('%d.%m.%Y')
-            except (ValueError, AttributeError) as e:
-                self.logger.error(f"Error parsing draw time {draw_time}: {e}")
-                formatted_date = "Unknown date"
+            # Extract and format information
+            draw_date_iso = data["draw"]
+            draw_date = datetime.strptime(draw_date_iso, "%Y-%m-%d").strftime("%d.%m.%Y")
+            week_number = self.get_week_number(draw_date_iso)
+            numbers = data["results"].split(",")
+            main = " ".join(numbers[:5])
+            euro = " ".join(numbers[5:])
+            jackpot = data.get("jackpot", "Tuntematon")
+            currency = data.get("currency", "")
             
-            # Format numbers
-            primary_str = " - ".join(f"{num:02d}" for num in sorted(primary_numbers))
-            secondary_str = " - ".join(f"{num:02d}" for num in sorted(secondary_numbers))
-            
-            # Get prize information if available
-            prize_info = data.get('prizeBreakdown', [])
-            jackpot_winners = 0
-            
-            # Look for first prize (jackpot) winners
-            for prize in prize_info:
-                if prize.get('prizeRank') == 1:
-                    jackpot_winners = prize.get('winners', 0)
-                    break
-            
-            # Format message
-            numbers_text = f"{primary_str} + {secondary_str}"
-            winners_text = f"{jackpot_winners} jackpot-voittajaa" if jackpot_winners != 1 else "1 jackpot-voittaja"
-            
-            success_message = (
-                f"🎰 Viimeisin Eurojackpot ({formatted_date}): "
-                f"{numbers_text} | {winners_text}"
-            )
+            success_message = f"Viimeisin Eurojackpot-arvonta: {draw_date} (viikko {week_number}) | Numerot: {main} + {euro} | Suurin voitto: {jackpot} {currency}"
             
             return {
                 'success': True,
                 'message': success_message,
-                'date': formatted_date,
-                'primary_numbers': primary_numbers,
-                'secondary_numbers': secondary_numbers,
-                'jackpot_winners': jackpot_winners,
-                'numbers_text': numbers_text
+                'date': draw_date,
+                'week_number': week_number,
+                'numbers': numbers,
+                'main_numbers': main,
+                'euro_numbers': euro,
+                'jackpot': jackpot,
+                'currency': currency
             }
             
         except Exception as e:
             self.logger.error(f"Error getting last results: {e}")
             return {
                 'success': False,
-                'message': f'Error: {str(e)}'
+                'message': f'Eurojackpot: Virhe {str(e)}'
             }
+    
+    def get_draw_by_date(self, date_str: str) -> Dict[str, any]:
+        """
+        Get Eurojackpot draw results for a specific date.
+        
+        Args:
+            date_str: Date string in format DD.MM.YY
+            
+        Returns:
+            Dict with draw results for the specified date
+        """
+        try:
+            if not self.api_key:
+                return {
+                    'success': False,
+                    'message': 'EUROJACKPOT_API_KEY not configured'
+                }
+            
+            # Parse and validate date
+            try:
+                query_date = datetime.strptime(date_str, "%d.%m.%y").strftime("%Y-%m-%d")
+            except ValueError:
+                return {
+                    'success': False,
+                    'message': "Eurojackpot: Virheellinen päivämäärä. Käytä muotoa PP.KK.VV."
+                }
+            
+            # Get draw results for specific date
+            params = {
+                "api_key": self.api_key,
+                "game": "eurojackpot",
+                "draw": query_date,
+                "format": "json",
+            }
+            data = self._make_request(self.results_url, params)
+            
+            if not data:
+                return {
+                    'success': False,
+                    'message': 'Could not fetch draw results'
+                }
+                
+            if data.get("error") != 0:
+                return {
+                    'success': False,
+                    'message': f"Eurojackpot: Arvontaa ei löytynyt päivämäärälle {date_str} tai sen jälkeen."
+                }
+            
+            # Extract and format information
+            draw_date_iso = data["draw"]
+            draw_date = datetime.strptime(draw_date_iso, "%Y-%m-%d").strftime("%d.%m.%Y")
+            week_number = self.get_week_number(draw_date_iso)
+            numbers = data["results"].split(",")
+            main = " ".join(numbers[:5])
+            euro = " ".join(numbers[5:])
+            jackpot = data.get("jackpot", "Tuntematon")
+            currency = data.get("currency", "")
+            
+            success_message = f"Eurojackpot-arvonta {draw_date} (viikko {week_number}): {main} + {euro} | Suurin voitto: {jackpot} {currency}"
+            
+            return {
+                'success': True,
+                'message': success_message,
+                'date': draw_date,
+                'week_number': week_number,
+                'numbers': numbers,
+                'main_numbers': main,
+                'euro_numbers': euro,
+                'jackpot': jackpot,
+                'currency': currency
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting draw by date: {e}")
+            return {
+                'success': False,
+                'message': f'Eurojackpot: Virhe {str(e)}'
+            }
+    
+    def get_combined_info(self) -> str:
+        """
+        Get combined information showing both latest and next draw.
+        
+        Returns:
+            str: Combined message with latest and next draw info
+        """
+        latest_result = self.get_last_results()
+        next_result = self.get_next_draw_info()
+        
+        if latest_result['success'] and next_result['success']:
+            return f"{latest_result['message']}\n{next_result['message']}"
+        elif latest_result['success']:
+            return latest_result['message']
+        elif next_result['success']:
+            return next_result['message']
+        else:
+            return "Eurojackpot: Tietojen hakeminen epäonnistui."
     
     def get_frequent_numbers(self, limit: int = 10) -> Dict[str, any]:
         """
@@ -255,4 +319,25 @@ def get_eurojackpot_results() -> str:
     service = get_eurojackpot_service()
     result = service.get_last_results()
     return result['message']
+
+
+def eurojackpot_command(arg=None) -> str:
+    """
+    Main Eurojackpot command function matching original eurojackpot.py functionality.
+    
+    Args:
+        arg: Optional argument (date string in DD.MM.YY format)
+        
+    Returns:
+        str: Formatted Eurojackpot information
+    """
+    service = get_eurojackpot_service()
+    
+    if arg is None:
+        # Return combined info (latest + next draw)
+        return service.get_combined_info()
+    else:
+        # Return draw for specific date
+        result = service.get_draw_by_date(arg)
+        return result['message']
 

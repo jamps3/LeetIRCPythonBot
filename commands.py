@@ -911,7 +911,14 @@ def process_message(irc, message, bot_functions):
         # Checks if the message contains a crypto request and fetches price.
         elif re.search(r"!crypto\b", text, re.IGNORECASE):
             parts = text.split()
-            send_crypto_price(irc, target, parts)
+            if len(parts) >= 2:
+                coin = parts[1].lower()
+                currency = parts[2] if len(parts) > 2 else 'eur'
+                price = get_crypto_price(coin, currency)
+                message = f"💸 {coin.capitalize()}: {price} {currency.upper()}"
+                notice_message(message, irc, target)
+            else:
+                notice_message("💸 Usage: !crypto <coin> [currency]. Example: !crypto btc eur", irc, target)
 
         # Show top eka and vika winners
         elif text.startswith("!ekavika"):
@@ -1019,25 +1026,30 @@ def process_message(irc, message, bot_functions):
                 log("!link", "DEBUG")
 
         elif text.startswith("!eurojackpot"):
-            result = get_eurojackpot_numbers()
-
-            if isinstance(result, tuple):
-                latest, frequent = result
-                message = (
-                    f"Latest Eurojackpot: {', '.join(map(str, latest))} | "
-                    f"Most Frequent Numbers: {', '.join(map(str, frequent))}"
-                )
-            else:
-                log(f"Error with !link: {result}", "ERROR")
-                message = result  # Error message
-
-            notice_message(message, irc, target)
+            parts = text.split(" ", 1)
+            arg = parts[1].strip() if len(parts) > 1 else None
+            
+            # Use the new eurojackpot service
+            from services.eurojackpot_service import eurojackpot_command
+            message = eurojackpot_command(arg)
+            
+            # Split message if it contains newlines (combined info)
+            lines = message.split('\n')
+            for line in lines:
+                if line.strip():
+                    notice_message(line, irc, target)
 
         elif text.startswith("!youtube"):
             match = re.search(r"!youtube\s+(.+)", text)
             if match:
                 query_or_url = match.group(1)
-                send_youtube_info(irc, target, query_or_url)
+                # Use search_youtube function from bot_functions
+                try:
+                    response = search_youtube(query_or_url)
+                    notice_message(response, irc, target)
+                except Exception as e:
+                    log(f"YouTube search error: {e}", "ERROR")
+                    notice_message(f"YouTube search error: {str(e)}", irc, target)
 
         elif text.startswith("!join"):
             match = re.search(r"!join\s+(.+)", text)
