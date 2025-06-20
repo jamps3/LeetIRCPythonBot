@@ -5,8 +5,15 @@ Comprehensive tests for the configuration management system.
 """
 
 import os
+import sys
 import tempfile
 import json
+
+# Add the parent directory to Python path to ensure imports work in CI
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
 from test_framework import TestCase, TestSuite, TestRunner
 
 

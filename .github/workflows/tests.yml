@@ -28,8 +28,37 @@ jobs:
         # Install test dependencies if we had a requirements.txt
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     
+    - name: Setup test environment
+      run: |
+        # Create a basic .env file for testing
+        echo "BOT_NAME=TestBot" > .env
+        echo "BOT_VERSION=test" >> .env
+        echo "IRC_NICKNAME=test_bot" >> .env
+        echo "IRC_REALNAME=Test Bot" >> .env
+        echo "IRC_IDENT=testbot" >> .env
+        echo "SERVER_HOST=irc.example.com" >> .env
+        echo "SERVER_PORT=6667" >> .env
+        echo "SERVER_NAME=TestServer" >> .env
+        echo "CHANNELS=#test" >> .env
+        echo "WEATHER_API_KEY=dummy_key_for_testing" >> .env
+        echo "ELECTRICITY_API_KEY=dummy_key_for_testing" >> .env
+        echo "LOG_LEVEL=INFO" >> .env
+        
+        # Debug: Show the environment
+        echo "Current directory: $(pwd)"
+        echo "Python version: $(python --version)"
+        echo "Python path:"
+        python -c "import sys; [print(f'  {p}') for p in sys.path]"
+        echo "Files in current directory:"
+        ls -la
+        echo "Testing basic imports:"
+        python -c "import config; print('config import: OK')" || echo "config import: FAILED"
+        python -c "import irc_client; print('irc_client import: OK')" || echo "irc_client import: FAILED"
+    
     - name: Run tests
       run: |
+        # Set PYTHONPATH to include current directory
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         python test_framework.py
       env:
         # Set dummy environment variables for testing
