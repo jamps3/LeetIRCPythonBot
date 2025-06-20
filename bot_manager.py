@@ -64,9 +64,9 @@ class BotManager:
         else:
             self.logger.info("💬 Using regular PRIVMSGs for channel responses")
 
-        # Load TAMAGOTCHI_ENABLED setting with persistence
-        self.tamagotchi_state_file = "tamagotchi_enabled.json"
-        self.tamagotchi_enabled = self._load_tamagotchi_state()
+        # Load TAMAGOTCHI_ENABLED setting from .env file
+        tamagotchi_setting = os.getenv("TAMAGOTCHI_ENABLED", "true").lower()
+        self.tamagotchi_enabled = tamagotchi_setting in ("true", "1", "yes", "on")
         if self.tamagotchi_enabled:
             self.logger.info("🐣 Tamagotchi responses enabled")
         else:
@@ -838,42 +838,62 @@ class BotManager:
             "tsirp": 0,
         }
 
-    def _load_tamagotchi_state(self) -> bool:
-        """Load tamagotchi enabled state from file, fallback to environment variable."""
+    def _update_env_file(self, key: str, value: str) -> bool:
+        """Update a key-value pair in the .env file."""
+        env_file = ".env"
+        if not os.path.exists(env_file):
+            self.logger.warning("No .env file found, cannot persist tamagotchi setting")
+            return False
+            
         try:
-            import json
-            if os.path.exists(self.tamagotchi_state_file):
-                with open(self.tamagotchi_state_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    return data.get("enabled", True)
-        except (json.JSONDecodeError, IOError) as e:
-            self.logger.warning(f"Could not load tamagotchi state file: {e}")
-        
-        # Fallback to environment variable
-        tamagotchi_setting = os.getenv("TAMAGOTCHI_ENABLED", "true").lower()
-        return tamagotchi_setting in ("true", "1", "yes", "on")
-
-    def _save_tamagotchi_state(self, enabled: bool) -> None:
-        """Save tamagotchi enabled state to file."""
-        try:
-            import json
-            data = {"enabled": enabled}
-            with open(self.tamagotchi_state_file, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
+            # Read current .env file
+            with open(env_file, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            
+            # Find and update the key, or add it if not found
+            key_found = False
+            for i, line in enumerate(lines):
+                # Check if this line contains our key (handle comments and whitespace)
+                stripped = line.strip()
+                if stripped.startswith(f"{key}=") or stripped.startswith(f"#{key}="):
+                    # Replace the line with the new value
+                    lines[i] = f"{key}={value}\n"
+                    key_found = True
+                    break
+            
+            # If key wasn't found, add it
+            if not key_found:
+                lines.append(f"{key}={value}\n")
+            
+            # Write back to .env file
+            with open(env_file, "w", encoding="utf-8") as f:
+                f.writelines(lines)
+            
+            # Update environment variable for current session
+            os.environ[key] = value
+            
+            return True
+            
         except IOError as e:
-            self.logger.error(f"Could not save tamagotchi state: {e}")
+            self.logger.error(f"Could not update .env file: {e}")
+            return False
 
     def toggle_tamagotchi(self, server, target, sender):
-        """Toggle tamagotchi responses on/off with state persistence."""
+        """Toggle tamagotchi responses on/off with .env file persistence."""
         self.tamagotchi_enabled = not self.tamagotchi_enabled
         
-        # Save the new state to file
-        self._save_tamagotchi_state(self.tamagotchi_enabled)
-
+        # Save the new state to .env file
+        new_value = "true" if self.tamagotchi_enabled else "false"
+        success = self._update_env_file("TAMAGOTCHI_ENABLED", new_value)
+        
         status = "enabled" if self.tamagotchi_enabled else "disabled"
         emoji = "🐣" if self.tamagotchi_enabled else "💤"
 
-        response = f"{emoji} Tamagotchi responses are now {status}."
+        if success:
+            response = f"{emoji} Tamagotchi responses are now {status}."
+        else:
+            response = f"{emoji} Tamagotchi responses are now {status} (session only - .env update failed)."
+        
         self._send_response(server, target, response)
 
         # Log the change

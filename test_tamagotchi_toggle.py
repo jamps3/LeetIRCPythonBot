@@ -12,8 +12,8 @@ from bot_manager import BotManager
 
 
 def test_tamagotchi_toggle_persistence():
-    """Test that tamagotchi toggle state persists across bot restarts."""
-    print("🧪 Testing tamagotchi toggle persistence...")
+    """Test that tamagotchi toggle state persists via .env file."""
+    print("🧪 Testing tamagotchi toggle persistence with .env file...")
     
     # Create a temporary directory for testing
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -22,7 +22,19 @@ def test_tamagotchi_toggle_persistence():
         os.chdir(temp_dir)
         
         try:
-            # Mock environment variables to avoid loading real configs
+            # Create initial .env file
+            env_content = '''
+# Test environment
+SERVER1_HOST=test.example.com
+SERVER1_PORT=6667
+SERVER1_CHANNELS=#test
+SERVER1_NICK=testbot
+TAMAGOTCHI_ENABLED=true
+'''
+            with open(".env", "w") as f:
+                f.write(env_content)
+            
+            # Set environment variables
             os.environ["SERVER1_HOST"] = "test.example.com"
             os.environ["SERVER1_PORT"] = "6667"
             os.environ["SERVER1_CHANNELS"] = "#test"
@@ -35,7 +47,7 @@ def test_tamagotchi_toggle_persistence():
             assert bot1.tamagotchi_enabled is True
             print("✅ Initial state is enabled")
             
-            print("📋 Test 2: Toggle to disabled and verify state file is created")
+            print("📋 Test 2: Toggle to disabled and verify .env file is updated")
             # Mock server and target for toggle function
             mock_server = Mock()
             mock_server.config.name = "test_server"
@@ -45,46 +57,48 @@ def test_tamagotchi_toggle_persistence():
             assert bot1.tamagotchi_enabled is False
             print("✅ Tamagotchi toggled to disabled")
             
-            # Check that state file was created
-            state_file = "tamagotchi_enabled.json"
-            assert os.path.exists(state_file)
-            with open(state_file, "r") as f:
-                state_data = json.load(f)
-                assert state_data["enabled"] is False
-            print("✅ State file created with correct disabled state")
+            # Check that .env file was updated
+            with open(".env", "r") as f:
+                env_contents = f.read()
+                assert "TAMAGOTCHI_ENABLED=false" in env_contents
+            print("✅ .env file updated with disabled state")
             
             print("📋 Test 3: Create new bot instance and verify it loads disabled state")
+            # Update environment variable to match .env file
+            os.environ["TAMAGOTCHI_ENABLED"] = "false"
             # Create second bot manager instance (simulating restart)
             bot2 = BotManager("testbot")
             assert bot2.tamagotchi_enabled is False
-            print("✅ New bot instance loaded disabled state from file")
+            print("✅ New bot instance loaded disabled state from .env")
             
-            print("📋 Test 4: Toggle back to enabled and verify persistence")
+            print("📋 Test 4: Toggle back to enabled and verify .env persistence")
             # Toggle tamagotchi back on
             bot2.toggle_tamagotchi(mock_server, "#test", "testuser")
             assert bot2.tamagotchi_enabled is True
             
-            # Verify state file is updated
-            with open(state_file, "r") as f:
-                state_data = json.load(f)
-                assert state_data["enabled"] is True
-            print("✅ Tamagotchi toggled back to enabled and state file updated")
+            # Verify .env file is updated
+            with open(".env", "r") as f:
+                env_contents = f.read()
+                assert "TAMAGOTCHI_ENABLED=true" in env_contents
+            print("✅ Tamagotchi toggled back to enabled and .env file updated")
             
             print("📋 Test 5: Create third bot instance to verify enabled state persists")
+            # Update environment variable to match .env file
+            os.environ["TAMAGOTCHI_ENABLED"] = "true"
             # Create third bot manager instance
             bot3 = BotManager("testbot")
             assert bot3.tamagotchi_enabled is True
-            print("✅ Third bot instance loaded enabled state from file")
+            print("✅ Third bot instance loaded enabled state from .env")
             
-            print("📋 Test 6: Test fallback to environment variable")
-            # Remove state file and test fallback
-            os.remove(state_file)
+            print("📋 Test 6: Test fallback to environment variable when no .env file")
+            # Remove .env file and test fallback
+            os.remove(".env")
             os.environ["TAMAGOTCHI_ENABLED"] = "false"
             bot4 = BotManager("testbot")
             assert bot4.tamagotchi_enabled is False
-            print("✅ Fallback to environment variable works when state file missing")
+            print("✅ Fallback to environment variable works when .env file missing")
             
-            print("🎯 All tests passed! Tamagotchi toggle persistence is working correctly.")
+            print("🎯 All tests passed! Tamagotchi toggle persistence via .env is working correctly.")
             
         finally:
             # Restore original working directory
@@ -162,9 +176,9 @@ if __name__ == "__main__":
         print("🎉 ALL TESTS PASSED!")
         print("✅ Tamagotchi toggle now properly persists state")
         print("✅ Tamagotchi processing respects the enabled/disabled state")
-        print("✅ State is saved to tamagotchi_enabled.json file")
-        print("✅ Bot loads previous state on startup")
-        print("✅ Fallback to environment variable works")
+        print("✅ State is saved to .env file (TAMAGOTCHI_ENABLED setting)")
+        print("✅ Bot loads previous state on startup from .env")
+        print("✅ Fallback to environment variable works when .env missing")
         
     except Exception as e:
         print(f"\n❌ TEST FAILED: {e}")
