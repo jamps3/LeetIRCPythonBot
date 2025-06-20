@@ -1,4 +1,36 @@
-﻿def send_electricity_price(irc=None, channel=None, text=None):
+import os
+import xml.etree.ElementTree as ElementTree
+from datetime import datetime, timedelta
+from io import StringIO
+
+import requests
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+ELECTRICITY_API_KEY = os.getenv("ELECTRICITY_API_KEY")
+
+
+def log(message, level="INFO"):
+    """Simple logging function."""
+    print(f"[{level}] {message}")
+
+
+def send_message(irc, channel, message):
+    """Send message to IRC channel."""
+    if irc and channel:
+        irc.sendall(f"PRIVMSG {channel} :{message}\r\n".encode("utf-8"))
+
+
+def output_message(message, irc, channel):
+    """Output message to IRC or console."""
+    if irc and channel:
+        send_message(irc, channel, message)
+    else:
+        print(message)
+
+
+def send_electricity_price(irc=None, channel=None, text=None):
     # Validate input and set defaults
     date = datetime.now()
     hour = date.hour

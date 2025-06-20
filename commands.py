@@ -1208,7 +1208,13 @@ def process_message(irc, message, bot_functions):
                     response = f"Server {stats['server']}: {stats['total_users']} users, {stats['total_drink_words']} drink words. Top: {', '.join([f'{nick}:{count}' for nick, count in stats['top_users'][:5]])}"
                 elif arg == "global":
                     stats = drink_tracker.get_global_stats()
-                    response = f"Global: {stats['total_users']} users, {stats['total_drink_words']} drink words. Top: {', '.join([f'{u['nick']}@{u['server']}:{u['total']}' for u in stats['top_users'][:5]])}"
+                    top_users_text = ", ".join(
+                        [
+                            f"{u['nick']}@{u['server']}:{u['total']}"
+                            for u in stats["top_users"][:5]
+                        ]
+                    )
+                    response = f"Global: {stats['total_users']} users, {stats['total_drink_words']} drink words. Top: {top_users_text}"
                 else:
                     # Specific nick
                     nick = parts[1].strip()
