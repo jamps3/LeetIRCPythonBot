@@ -349,7 +349,8 @@ def run_tests():
         if result.errors:
             print("\nErrors:")
             for test, traceback in result.errors:
-                print(f"  - {test}: {traceback.split('\\n')[-2]}")
+                error_lines = traceback.split("\n")
+                print(f"  - {test}: {error_lines[-2]}")
 
     print("=" * 60)
     return result.wasSuccessful()
