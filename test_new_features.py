@@ -20,8 +20,7 @@ class TestScheduledMessages(unittest.TestCase):
 
     def test_schedule_message(self):
         """Test scheduling a message."""
-        from services.scheduled_message_service import \
-            get_scheduled_message_service
+        from services.scheduled_message_service import get_scheduled_message_service
 
         service = get_scheduled_message_service()
         mock_irc = Mock()
@@ -56,8 +55,7 @@ class TestScheduledMessages(unittest.TestCase):
 
     def test_cancel_message(self):
         """Test cancelling a scheduled message."""
-        from services.scheduled_message_service import \
-            get_scheduled_message_service
+        from services.scheduled_message_service import get_scheduled_message_service
 
         service = get_scheduled_message_service()
         mock_irc = Mock()
@@ -204,8 +202,10 @@ class TestEurojackpotService(unittest.TestCase):
 
     def test_convenience_functions(self):
         """Test convenience functions for Eurojackpot."""
-        from services.eurojackpot_service import (get_eurojackpot_numbers,
-                                                  get_eurojackpot_results)
+        from services.eurojackpot_service import (
+            get_eurojackpot_numbers,
+            get_eurojackpot_results,
+        )
 
         # These should not crash even without API responses
         try:

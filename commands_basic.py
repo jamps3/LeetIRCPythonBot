@@ -7,8 +7,13 @@ This module contains basic utility commands like help, time, echo, etc.
 import time
 from datetime import datetime
 
-from command_registry import (CommandContext, CommandResponse, CommandScope,
-                              CommandType, command)
+from command_registry import (
+    CommandContext,
+    CommandResponse,
+    CommandScope,
+    CommandType,
+    command,
+)
 from config import get_config
 
 

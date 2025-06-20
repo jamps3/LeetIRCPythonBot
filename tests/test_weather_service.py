@@ -20,8 +20,7 @@ from test_framework import TestCase, TestRunner, TestSuite
 def test_weather_service_creation():
     """Test weather service creation."""
     try:
-        from services.weather_service import (WeatherService,
-                                              create_weather_service)
+        from services.weather_service import WeatherService, create_weather_service
 
         # Test direct instantiation
         service = WeatherService("test_api_key")

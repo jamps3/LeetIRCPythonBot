@@ -43,8 +43,11 @@ def test_command_registry_creation():
 def test_command_registration():
     """Test command registration functionality."""
     try:
-        from command_registry import (CommandInfo, CommandRegistry,
-                                      FunctionCommandHandler)
+        from command_registry import (
+            CommandInfo,
+            CommandRegistry,
+            FunctionCommandHandler,
+        )
 
         registry = CommandRegistry()
 
@@ -73,8 +76,7 @@ def test_command_registration():
 def test_command_execution():
     """Test command execution functionality."""
     try:
-        from command_registry import (CommandContext, CommandInfo,
-                                      CommandRegistry)
+        from command_registry import CommandContext, CommandInfo, CommandRegistry
 
         registry = CommandRegistry()
 
@@ -186,8 +188,12 @@ def test_command_aliases():
 def test_command_error_handling():
     """Test command error handling."""
     try:
-        from command_registry import (CommandContext, CommandInfo,
-                                      CommandRegistry, FunctionCommandHandler)
+        from command_registry import (
+            CommandContext,
+            CommandInfo,
+            CommandRegistry,
+            FunctionCommandHandler,
+        )
 
         registry = CommandRegistry()
 

@@ -59,7 +59,7 @@ jobs:
       run: |
         # Set PYTHONPATH to include current directory
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        python test_framework.py
+        python test_framework.py --ci
       env:
         # Set dummy environment variables for testing
         IRC_NICKNAME: test_bot
@@ -74,6 +74,7 @@ jobs:
         path: |
           test-results.txt
           test-coverage.txt
+        if-no-files-found: warn
         retention-days: 30
 
   lint:

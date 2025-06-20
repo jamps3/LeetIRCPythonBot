@@ -16,18 +16,39 @@ from typing import Any, Dict
 
 from command_loader import load_all_commands
 from config import get_config, get_config_manager
+
 # Import refactored components
 from irc_client import IRCClient, create_irc_client
 from irc_processor import create_message_processor
+
 # Import legacy functions for compatibility
 from main import (  # Core functions; Bot functions; Advanced functions; Configuration; Services
-    BOT_VERSION, DRINK_WORDS, EKAVIKA_FILE, chat_with_gpt, count_kraks,
-    fetch_title, format_counts, get_crypto_price, get_eurojackpot_numbers,
-    handle_ipfs_command, lemmat, load, load_leet_winners, lookup,
-    measure_latency, save, save_leet_winners, search_youtube,
-    send_electricity_price, send_scheduled_message, send_weather,
-    split_message_intelligently, subscriptions, update_kraks,
-    wrap_irc_message_utf8_bytes)
+    BOT_VERSION,
+    DRINK_WORDS,
+    EKAVIKA_FILE,
+    chat_with_gpt,
+    count_kraks,
+    fetch_title,
+    format_counts,
+    get_crypto_price,
+    get_eurojackpot_numbers,
+    handle_ipfs_command,
+    lemmat,
+    load,
+    load_leet_winners,
+    lookup,
+    measure_latency,
+    save,
+    save_leet_winners,
+    search_youtube,
+    send_electricity_price,
+    send_scheduled_message,
+    send_weather,
+    split_message_intelligently,
+    subscriptions,
+    update_kraks,
+    wrap_irc_message_utf8_bytes,
+)
 
 
 class RefactoredBot:
@@ -165,8 +186,7 @@ class RefactoredBot:
                     if user_input.startswith("!"):
                         # Process console commands
                         try:
-                            from command_loader import \
-                                enhanced_process_console_command
+                            from command_loader import enhanced_process_console_command
 
                             enhanced_process_console_command(
                                 user_input, self.bot_functions

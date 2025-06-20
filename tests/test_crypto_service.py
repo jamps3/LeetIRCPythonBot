@@ -13,8 +13,7 @@ from test_framework import TestCase, TestRunner, TestSuite
 def test_crypto_service_creation():
     """Test cryptocurrency service creation."""
     try:
-        from services.crypto_service import (CryptoService,
-                                             create_crypto_service)
+        from services.crypto_service import CryptoService, create_crypto_service
 
         # Test direct instantiation
         service = CryptoService()

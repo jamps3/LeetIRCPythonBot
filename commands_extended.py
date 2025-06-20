@@ -132,8 +132,7 @@ def command_eurojackpot(context, args):
 def command_scheduled(context, args):
     """Manage scheduled messages."""
     try:
-        from services.scheduled_message_service import \
-            get_scheduled_message_service
+        from services.scheduled_message_service import get_scheduled_message_service
 
         service = get_scheduled_message_service()
 
