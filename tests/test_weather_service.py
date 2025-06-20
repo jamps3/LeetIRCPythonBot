@@ -7,6 +7,7 @@ Comprehensive tests for the weather service functionality.
 import os
 import sys
 import json
+from unittest.mock import Mock, patch
 
 # Add the parent directory to Python path to ensure imports work in CI
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
