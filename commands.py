@@ -1118,10 +1118,17 @@ def process_message(irc, message, bot_functions):
                 notice_message(f"JOIN {channel} {key}", irc)
         elif text.startswith("!opzor"):
             # Extracts the nick from the given text after the !opzor command.
-            parts = message.split()
-            if len(parts) == 5 and parts[3] == ":!opzor":
-                irc.send(f"MODE {parts[2]} +o {parts[4]}\r\n".encode("utf-8"))
-                # notice_message(f"MODE {parts[2]} +o {parts[4]}", irc)
+            parts = text.split()
+            if len(parts) >= 2:  # !opzor nick
+                nick_to_op = parts[1]
+                channel = target  # Use the current channel
+                if channel.startswith("#"):  # Only work in channels
+                    irc.send_raw(f"MODE {channel} +o {nick_to_op}")
+                    notice_message(f"Giving ops to {nick_to_op} in {channel}", irc, target)
+                else:
+                    notice_message("!opzor command only works in channels", irc, target)
+            else:
+                notice_message("Usage: !opzor <nick>", irc, target)
         elif text.startswith("!ipfs"):
             # Extracts the command and URL from the given text after the !ipfs command.
             # parts = message.split()
