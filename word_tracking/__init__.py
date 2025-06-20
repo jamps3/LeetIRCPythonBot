@@ -24,10 +24,4 @@ from .data_manager import DataManager
 __version__ = "1.0.0"
 __author__ = "LeetIRCPythonBot"
 
-__all__ = [
-    "DrinkTracker",
-    "GeneralWords", 
-    "TamagotchiBot",
-    "DataManager"
-]
-
+__all__ = ["DrinkTracker", "GeneralWords", "TamagotchiBot", "DataManager"]

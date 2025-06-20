@@ -13,11 +13,16 @@ import openai
 
 class GPTService:
     """Service for handling GPT chat conversations with history."""
-    
-    def __init__(self, api_key: str, history_file: str = "conversation_history.json", history_limit: int = 100):
+
+    def __init__(
+        self,
+        api_key: str,
+        history_file: str = "conversation_history.json",
+        history_limit: int = 100,
+    ):
         """
         Initialize GPT service.
-        
+
         Args:
             api_key: OpenAI API key
             history_file: Path to conversation history file
@@ -26,35 +31,37 @@ class GPTService:
         self.api_key = api_key
         self.history_file = history_file
         self.history_limit = history_limit
-        
+
         # Initialize OpenAI client
         self.client = openai.OpenAI(api_key=api_key)
-        
+
         # Default conversation history with system prompt
         self.default_history = [
             {
                 "role": "system",
-                "content": "You are a helpful assistant who knows about Finnish beer culture. You respond in a friendly, short and tight manner. If you don't know something, just say so. Keep responses brief, we are on IRC."
+                "content": "You are a helpful assistant who knows about Finnish beer culture. You respond in a friendly, short and tight manner. If you don't know something, just say so. Keep responses brief, we are on IRC.",
             }
         ]
-        
+
         # Load existing conversation history
         self.conversation_history = self._load_conversation_history()
-    
+
     def _load_conversation_history(self) -> List[Dict[str, str]]:
         """Load conversation history from file."""
         try:
             if os.path.exists(self.history_file):
-                with open(self.history_file, 'r', encoding='utf-8') as f:
+                with open(self.history_file, "r", encoding="utf-8") as f:
                     history = json.load(f)
                     # Validate history format
                     if isinstance(history, list) and all(
-                        isinstance(msg, dict) and 'role' in msg and 'content' in msg 
+                        isinstance(msg, dict) and "role" in msg and "content" in msg
                         for msg in history
                     ):
                         return history
                     else:
-                        print(f"Invalid history format in {self.history_file}, using default")
+                        print(
+                            f"Invalid history format in {self.history_file}, using default"
+                        )
                         return self.default_history.copy()
             else:
                 print(f"History file {self.history_file} not found, using default")
@@ -62,32 +69,34 @@ class GPTService:
         except (json.JSONDecodeError, IOError) as e:
             print(f"Error loading conversation history: {e}, using default")
             return self.default_history.copy()
-    
+
     def _save_conversation_history(self):
         """Save conversation history to file."""
         try:
             # Keep only the configured limit of messages plus system prompt to avoid growing too large
             # history_limit includes both user and assistant messages, but not the system prompt
             max_total_messages = self.history_limit + 1  # +1 for system prompt
-            
+
             if len(self.conversation_history) > max_total_messages:
                 # Keep system prompt (first message) and last N messages up to limit
                 messages_to_keep = self.history_limit
-                self.conversation_history = [self.conversation_history[0]] + self.conversation_history[-messages_to_keep:]
-            
-            with open(self.history_file, 'w', encoding='utf-8') as f:
+                self.conversation_history = [
+                    self.conversation_history[0]
+                ] + self.conversation_history[-messages_to_keep:]
+
+            with open(self.history_file, "w", encoding="utf-8") as f:
                 json.dump(self.conversation_history, f, indent=2, ensure_ascii=False)
         except IOError as e:
             print(f"Error saving conversation history: {e}")
-    
+
     def chat(self, message: str, sender: str = "user") -> str:
         """
         Send a message to GPT and get a response.
-        
+
         Args:
             message: User message
             sender: Username of the sender (for context)
-            
+
         Returns:
             GPT response string
         """
@@ -95,10 +104,10 @@ class GPTService:
             # Add user message to history
             user_message = {
                 "role": "user",
-                "content": f"{sender}: {message}" if sender != "user" else message
+                "content": f"{sender}: {message}" if sender != "user" else message,
             }
             self.conversation_history.append(user_message)
-            
+
             # Make API call to OpenAI
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
@@ -106,24 +115,21 @@ class GPTService:
                 max_tokens=150,  # Keep responses concise for IRC
                 temperature=0.7,
                 presence_penalty=0.1,
-                frequency_penalty=0.1
+                frequency_penalty=0.1,
             )
-            
+
             # Extract response
             gpt_response = response.choices[0].message.content.strip()
-            
+
             # Add assistant response to history
-            assistant_message = {
-                "role": "assistant",
-                "content": gpt_response
-            }
+            assistant_message = {"role": "assistant", "content": gpt_response}
             self.conversation_history.append(assistant_message)
-            
+
             # Save updated history
             self._save_conversation_history()
-            
+
             return gpt_response
-            
+
         except openai.RateLimitError:
             return "Sorry, I'm currently rate limited. Please try again later."
         except openai.AuthenticationError:
@@ -134,48 +140,58 @@ class GPTService:
         except Exception as e:
             print(f"Unexpected error in GPT chat: {e}")
             return "Sorry, something went wrong with my AI processing."
-    
+
     def reset_conversation(self) -> str:
         """Reset conversation history to default."""
         self.conversation_history = self.default_history.copy()
         self._save_conversation_history()
         return "Conversation history has been reset."
-    
+
     def get_conversation_stats(self) -> Dict[str, Any]:
         """Get statistics about the current conversation."""
         total_messages = len(self.conversation_history) - 1  # Exclude system prompt
-        user_messages = sum(1 for msg in self.conversation_history if msg['role'] == 'user')
-        assistant_messages = sum(1 for msg in self.conversation_history if msg['role'] == 'assistant')
-        
+        user_messages = sum(
+            1 for msg in self.conversation_history if msg["role"] == "user"
+        )
+        assistant_messages = sum(
+            1 for msg in self.conversation_history if msg["role"] == "assistant"
+        )
+
         return {
-            'total_messages': total_messages,
-            'user_messages': user_messages,
-            'assistant_messages': assistant_messages,
-            'history_file': self.history_file
+            "total_messages": total_messages,
+            "user_messages": user_messages,
+            "assistant_messages": assistant_messages,
+            "history_file": self.history_file,
         }
-    
+
     def set_system_prompt(self, prompt: str) -> str:
         """Update the system prompt."""
-        if self.conversation_history and self.conversation_history[0]['role'] == 'system':
-            self.conversation_history[0]['content'] = prompt
+        if (
+            self.conversation_history
+            and self.conversation_history[0]["role"] == "system"
+        ):
+            self.conversation_history[0]["content"] = prompt
         else:
-            self.conversation_history.insert(0, {'role': 'system', 'content': prompt})
-        
+            self.conversation_history.insert(0, {"role": "system", "content": prompt})
+
         self._save_conversation_history()
         return f"System prompt updated: {prompt[:50]}..."
 
 
-def create_gpt_service(api_key: str, history_file: str = "conversation_history.json", history_limit: int = 100) -> GPTService:
+def create_gpt_service(
+    api_key: str,
+    history_file: str = "conversation_history.json",
+    history_limit: int = 100,
+) -> GPTService:
     """
     Factory function to create a GPT service instance.
-    
+
     Args:
         api_key: OpenAI API key
         history_file: Path to conversation history file
         history_limit: Maximum number of messages to keep in conversation history
-        
+
     Returns:
         GPTService instance
     """
     return GPTService(api_key, history_file, history_limit)
-
