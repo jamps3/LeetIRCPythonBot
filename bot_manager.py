@@ -7,6 +7,7 @@ connections and integrates all bot functionality across servers.
 
 import os
 import signal
+import socket
 import sys
 import threading
 import time
@@ -158,10 +159,13 @@ class BotManager:
     def _setup_signal_handlers(self):
         """Setup signal handlers for graceful shutdown."""
         self._shutdown_count = 0
+        self._shutdown_in_progress = False
 
         def signal_handler(sig, frame):
             self._shutdown_count += 1
-            if self._shutdown_count == 1:
+            
+            if self._shutdown_count == 1 and not self._shutdown_in_progress:
+                self._shutdown_in_progress = True
                 self.logger.info(f"Received signal {sig}, shutting down gracefully...")
                 # Start graceful shutdown in a separate thread
                 shutdown_thread = threading.Thread(target=self._graceful_shutdown, daemon=True)
@@ -173,21 +177,39 @@ class BotManager:
                 self.logger.error("Multiple signals received, terminating immediately!")
                 os._exit(1)
 
+        # Register signal handlers
         signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
+        # Only register SIGTERM if it's available (not available on all Windows versions)
+        try:
+            signal.signal(signal.SIGTERM, signal_handler)
+        except (AttributeError, OSError):
+            self.logger.debug("SIGTERM not available on this platform")
 
     def _graceful_shutdown(self):
-        """Perform graceful shutdown with timeout."""
+        """Perform graceful shutdown with short timeout."""
         try:
+            self.logger.info("Starting graceful shutdown...")
+            
+            # Force close all sockets immediately to break blocking operations
+            for server in self.servers.values():
+                if server.socket:
+                    try:
+                        server.socket.settimeout(0.1)  # Very short timeout
+                        server.socket.shutdown(socket.SHUT_RDWR)
+                        server.socket.close()
+                    except Exception:
+                        pass
+            
             self.stop()
-            # Wait for shutdown to complete, but not more than 10 seconds
+            
+            # Wait for shutdown to complete, but not more than 1 second for faster exit
             start_time = time.time()
             while any(thread.is_alive() for thread in self.server_threads.values()):
-                if time.time() - start_time > 10:
-                    self.logger.warning("Graceful shutdown timeout, forcing exit...")
+                if time.time() - start_time > 1.0:
+                    self.logger.warning("Graceful shutdown timeout (1s), forcing exit...")
                     self._force_shutdown()
                     return
-                time.sleep(0.1)
+                time.sleep(0.02)  # Check even more frequently for faster response
             
             self.logger.info("Graceful shutdown completed")
             sys.exit(0)
@@ -517,10 +539,14 @@ class BotManager:
         """Wait for all server threads to complete."""
         try:
             while any(thread.is_alive() for thread in self.server_threads.values()):
-                time.sleep(1)
+                # Check if shutdown was requested
+                if self.stop_event.is_set():
+                    break
+                time.sleep(0.1)  # Check more frequently for faster response
         except KeyboardInterrupt:
-            self.logger.info("Keyboard interrupt received")
-            self.stop()
+            # Don't handle KeyboardInterrupt here - let it propagate up
+            # The signal handler will take care of graceful shutdown
+            raise
 
     def get_server_by_name(self, name: str) -> Optional[Server]:
         """Get a server instance by name."""
