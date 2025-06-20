@@ -6,10 +6,11 @@ This service handles Eurojackpot lottery information using the Magayo API.
 Integrated from eurojackpot.py functionality.
 """
 
+import json
 import logging
 import os
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import requests
 from dotenv import load_dotenv
@@ -26,6 +27,7 @@ class EurojackpotService:
         self.next_draw_url = "https://www.magayo.com/api/next_draw.php"
         self.jackpot_url = "https://www.magayo.com/api/jackpot.php"
         self.results_url = "https://www.magayo.com/api/results.php"
+        self.db_file = "eurojackpot.json"
 
     def get_week_number(self, date_str: str) -> int:
         """Get ISO week number from date string."""
@@ -47,18 +49,110 @@ class EurojackpotService:
             self.logger.error(f"JSON decode error for {url}: {e}")
             return None
 
+    def _load_database(self) -> Dict[str, any]:
+        """Load draw data from JSON database file."""
+        try:
+            if os.path.exists(self.db_file):
+                with open(self.db_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return {"draws": [], "last_updated": None}
+        except Exception as e:
+            self.logger.error(f"Error loading database: {e}")
+            return {"draws": [], "last_updated": None}
+
+    def _save_database(self, data: Dict[str, any]) -> None:
+        """Save draw data to JSON database file."""
+        try:
+            with open(self.db_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            self.logger.debug(f"Database saved to {self.db_file}")
+        except Exception as e:
+            self.logger.error(f"Error saving database: {e}")
+
+    def _save_draw_to_database(self, draw_data: Dict[str, any]) -> None:
+        """Save a draw result to the database."""
+        try:
+            db = self._load_database()
+            
+            # Check if draw already exists (by date)
+            draw_date_iso = draw_data.get("date_iso")
+            if draw_date_iso:
+                # Remove existing draw with same date
+                db["draws"] = [d for d in db["draws"] if d.get("date_iso") != draw_date_iso]
+                
+                # Add new draw
+                db["draws"].append(draw_data)
+                
+                # Sort by date (newest first)
+                db["draws"].sort(key=lambda x: x.get("date_iso", ""), reverse=True)
+                
+                # Keep only last 50 draws to prevent database from growing too large
+                db["draws"] = db["draws"][:50]
+                
+                # Update timestamp
+                db["last_updated"] = datetime.now().isoformat()
+                
+                self._save_database(db)
+                self.logger.debug(f"Saved draw data for {draw_date_iso} to database")
+        except Exception as e:
+            self.logger.error(f"Error saving draw to database: {e}")
+
+    def _get_latest_draw_from_database(self) -> Optional[Dict[str, any]]:
+        """Get the latest draw from the database."""
+        try:
+            db = self._load_database()
+            if db["draws"]:
+                return db["draws"][0]  # First item is newest (sorted by date desc)
+            return None
+        except Exception as e:
+            self.logger.error(f"Error getting latest draw from database: {e}")
+            return None
+
+    def _get_draw_by_date_from_database(self, date_iso: str) -> Optional[Dict[str, any]]:
+        """Get a specific draw by date from the database."""
+        try:
+            db = self._load_database()
+            for draw in db["draws"]:
+                if draw.get("date_iso") == date_iso:
+                    return draw
+            return None
+        except Exception as e:
+            self.logger.error(f"Error getting draw by date from database: {e}")
+            return None
+
     def get_next_draw_info(self) -> Dict[str, any]:
         """
         Get information about the next Eurojackpot draw using Magayo API.
+        Falls back to mock data if no API key is configured.
 
         Returns:
             Dict with draw date, time and jackpot amount
         """
         try:
             if not self.api_key:
+                # Return mock data for development/testing
+                from datetime import timedelta
+                
+                # Calculate next Friday (Eurojackpot draws are on Fridays)
+                today = datetime.now()
+                days_ahead = 4 - today.weekday()  # Friday is 4 (0=Monday)
+                if days_ahead <= 0:  # Target day already happened this week
+                    days_ahead += 7
+                
+                next_friday = today + timedelta(days=days_ahead)
+                draw_date = next_friday.strftime("%d.%m.%Y")
+                week_number = next_friday.isocalendar()[1]
+                
+                success_message = f"Seuraava Eurojackpot-arvonta: {draw_date} (viikko {week_number}) | Päävoitto: 15000000 EUR (demo-data)"
+                
                 return {
-                    "success": False,
-                    "message": "EUROJACKPOT_API_KEY not configured",
+                    "success": True,
+                    "message": success_message,
+                    "date": draw_date,
+                    "week_number": week_number,
+                    "jackpot": "15000000",
+                    "currency": "EUR",
+                    "is_demo": True,
                 }
 
             # Get next draw information
@@ -66,16 +160,32 @@ class EurojackpotService:
             draw_data = self._make_request(self.next_draw_url, params)
             jackpot_data = self._make_request(self.jackpot_url, params)
 
-            if not draw_data or not jackpot_data:
+            if not draw_data or not jackpot_data or draw_data.get("error") != 0 or jackpot_data.get("error") != 0:
+                # API failed, fall back to mock data with warning
+                self.logger.warning(f"API failed (error {draw_data.get('error') if draw_data else 'null'}), using mock data")
+                
+                from datetime import timedelta
+                
+                # Calculate next Friday (Eurojackpot draws are on Fridays)
+                today = datetime.now()
+                days_ahead = 4 - today.weekday()  # Friday is 4 (0=Monday)
+                if days_ahead <= 0:  # Target day already happened this week
+                    days_ahead += 7
+                
+                next_friday = today + timedelta(days=days_ahead)
+                draw_date = next_friday.strftime("%d.%m.%Y")
+                week_number = next_friday.isocalendar()[1]
+                
+                success_message = f"Seuraava Eurojackpot-arvonta: {draw_date} (viikko {week_number}) | Päävoitto: 15000000 EUR (demo-data - API ei saatavilla)"
+                
                 return {
-                    "success": False,
-                    "message": "Could not fetch next draw information",
-                }
-
-            if draw_data.get("error") != 0 or jackpot_data.get("error") != 0:
-                return {
-                    "success": False,
-                    "message": "Eurojackpot: Virhe seuraavan arvonnan tietojen hakemisessa.",
+                    "success": True,
+                    "message": success_message,
+                    "date": draw_date,
+                    "week_number": week_number,
+                    "jackpot": "15000000",
+                    "currency": "EUR",
+                    "is_demo": True,
                 }
 
             # Extract and format information
@@ -105,34 +215,69 @@ class EurojackpotService:
     def get_last_results(self) -> Dict[str, any]:
         """
         Get the last drawn Eurojackpot numbers and results using Magayo API.
+        Falls back to database if API is unavailable.
 
         Returns:
             Dict with last draw results
         """
         try:
             if not self.api_key:
-                return {
-                    "success": False,
-                    "message": "EUROJACKPOT_API_KEY not configured",
-                }
+                # No API key - try database fallback
+                db_draw = self._get_latest_draw_from_database()
+                if db_draw:
+                    self.logger.info("Using cached draw data from database (no API key)")
+                    success_message = f"Viimeisin Eurojackpot-arvonta: {db_draw['date']} (viikko {db_draw['week_number']}) | Numerot: {db_draw['main_numbers']} + {db_draw['euro_numbers']} | Suurin voitto: {db_draw['jackpot']} {db_draw['currency']} (tallennettu data)"
+                    
+                    return {
+                        "success": True,
+                        "message": success_message,
+                        "date": db_draw["date"],
+                        "week_number": db_draw["week_number"],
+                        "numbers": db_draw["numbers"],
+                        "main_numbers": db_draw["main_numbers"],
+                        "euro_numbers": db_draw["euro_numbers"],
+                        "jackpot": db_draw["jackpot"],
+                        "currency": db_draw["currency"],
+                        "is_cached": True,
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": "Eurojackpot: Ei API-avainta eikä tallennettua dataa saatavilla.",
+                    }
 
-            # Get latest draw results
+            # Get latest draw results from API
             params = {"api_key": self.api_key, "game": "eurojackpot", "format": "json"}
             data = self._make_request(self.results_url, params)
 
-            if not data:
-                return {
-                    "success": False,
-                    "message": "Could not fetch latest draw results",
-                }
+            if not data or data.get("error") != 0:
+                # API failed, try database fallback
+                self.logger.warning(f"API failed (error {data.get('error') if data else 'null'}), trying database fallback")
+                
+                db_draw = self._get_latest_draw_from_database()
+                if db_draw:
+                    self.logger.info("Using cached draw data from database (API unavailable)")
+                    success_message = f"Viimeisin Eurojackpot-arvonta: {db_draw['date']} (viikko {db_draw['week_number']}) | Numerot: {db_draw['main_numbers']} + {db_draw['euro_numbers']} | Suurin voitto: {db_draw['jackpot']} {db_draw['currency']} (tallennettu data - API ei saatavilla)"
+                    
+                    return {
+                        "success": True,
+                        "message": success_message,
+                        "date": db_draw["date"],
+                        "week_number": db_draw["week_number"],
+                        "numbers": db_draw["numbers"],
+                        "main_numbers": db_draw["main_numbers"],
+                        "euro_numbers": db_draw["euro_numbers"],
+                        "jackpot": db_draw["jackpot"],
+                        "currency": db_draw["currency"],
+                        "is_cached": True,
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": "Eurojackpot: API ei saatavilla eikä tallennettua dataa löytynyt.",
+                    }
 
-            if data.get("error") != 0:
-                return {
-                    "success": False,
-                    "message": f"Eurojackpot: Virhe {data.get('error')}.",
-                }
-
-            # Extract and format information
+            # Extract and format information from API response
             draw_date_iso = data["draw"]
             draw_date = datetime.strptime(draw_date_iso, "%Y-%m-%d").strftime(
                 "%d.%m.%Y"
@@ -145,6 +290,21 @@ class EurojackpotService:
             currency = data.get("currency", "")
 
             success_message = f"Viimeisin Eurojackpot-arvonta: {draw_date} (viikko {week_number}) | Numerot: {main} + {euro} | Suurin voitto: {jackpot} {currency}"
+
+            # Save successful API response to database
+            draw_db_data = {
+                "date_iso": draw_date_iso,
+                "date": draw_date,
+                "week_number": week_number,
+                "numbers": numbers,
+                "main_numbers": main,
+                "euro_numbers": euro,
+                "jackpot": jackpot,
+                "currency": currency,
+                "type": "latest_result",
+                "saved_at": datetime.now().isoformat()
+            }
+            self._save_draw_to_database(draw_db_data)
 
             return {
                 "success": True,
@@ -175,10 +335,54 @@ class EurojackpotService:
         """
         try:
             if not self.api_key:
-                return {
-                    "success": False,
-                    "message": "EUROJACKPOT_API_KEY not configured",
-                }
+                # No API key - parse date and check database first
+                query_date = None
+                date_formats = ["%d.%m.%y", "%d.%m.%Y", "%Y-%m-%d"]
+                
+                for fmt in date_formats:
+                    try:
+                        query_date = datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
+                        break
+                    except ValueError:
+                        continue
+                
+                if query_date:
+                    db_draw = self._get_draw_by_date_from_database(query_date)
+                    if db_draw:
+                        self.logger.info(f"Using cached draw data from database for {query_date} (no API key)")
+                        success_message = f"Eurojackpot-arvonta {db_draw['date']} (viikko {db_draw['week_number']}): {db_draw['main_numbers']} + {db_draw['euro_numbers']} | Suurin voitto: {db_draw['jackpot']} {db_draw['currency']} (tallennettu data)"
+                        
+                        return {
+                            "success": True,
+                            "message": success_message,
+                            "date": db_draw["date"],
+                            "week_number": db_draw["week_number"],
+                            "numbers": db_draw["numbers"],
+                            "main_numbers": db_draw["main_numbers"],
+                            "euro_numbers": db_draw["euro_numbers"],
+                            "jackpot": db_draw["jackpot"],
+                            "currency": db_draw["currency"],
+                            "is_cached": True,
+                        }
+                
+                # No API key and no cached data - show next draw + frequent numbers
+                next_draw = self.get_next_draw_info()
+                frequent = self.get_frequent_numbers()
+                
+                if next_draw["success"] and frequent["success"]:
+                    message = f"Eurojackpot: Arvontaa ei löytynyt päivämäärälle {date_str} (ei API-avainta).\n{next_draw['message']}\n{frequent['message']}"
+                    return {
+                        "success": True,
+                        "message": message,
+                        "next_draw": next_draw,
+                        "frequent_numbers": frequent,
+                        "is_demo": True
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": f"Eurojackpot: Ei API-avainta eikä tallennettua dataa päivämäärälle {date_str}.",
+                    }
 
             # Parse and validate date - support multiple formats
             query_date = None
@@ -210,7 +414,26 @@ class EurojackpotService:
                 return {"success": False, "message": "Could not fetch draw results"}
 
             if data.get("error") != 0:
-                # No draw found for this date - show next draw + frequent numbers
+                # No draw found for this date via API - try database first
+                db_draw = self._get_draw_by_date_from_database(query_date)
+                if db_draw:
+                    self.logger.info(f"Using cached draw data from database for {query_date}")
+                    success_message = f"Eurojackpot-arvonta {db_draw['date']} (viikko {db_draw['week_number']}): {db_draw['main_numbers']} + {db_draw['euro_numbers']} | Suurin voitto: {db_draw['jackpot']} {db_draw['currency']} (tallennettu data)"
+                    
+                    return {
+                        "success": True,
+                        "message": success_message,
+                        "date": db_draw["date"],
+                        "week_number": db_draw["week_number"],
+                        "numbers": db_draw["numbers"],
+                        "main_numbers": db_draw["main_numbers"],
+                        "euro_numbers": db_draw["euro_numbers"],
+                        "jackpot": db_draw["jackpot"],
+                        "currency": db_draw["currency"],
+                        "is_cached": True,
+                    }
+                
+                # No draw found in API or database - show next draw + frequent numbers
                 next_draw = self.get_next_draw_info()
                 frequent = self.get_frequent_numbers()
                 
@@ -228,7 +451,7 @@ class EurojackpotService:
                         "message": f"Eurojackpot: Arvontaa ei löytynyt päivämäärälle {date_str} tai sen jälkeen.",
                     }
 
-            # Extract and format information
+            # Extract and format information from API response
             draw_date_iso = data["draw"]
             draw_date = datetime.strptime(draw_date_iso, "%Y-%m-%d").strftime(
                 "%d.%m.%Y"
@@ -241,6 +464,21 @@ class EurojackpotService:
             currency = data.get("currency", "")
 
             success_message = f"Eurojackpot-arvonta {draw_date} (viikko {week_number}): {main} + {euro} | Suurin voitto: {jackpot} {currency}"
+
+            # Save successful API response to database
+            draw_db_data = {
+                "date_iso": draw_date_iso,
+                "date": draw_date,
+                "week_number": week_number,
+                "numbers": numbers,
+                "main_numbers": main,
+                "euro_numbers": euro,
+                "jackpot": jackpot,
+                "currency": currency,
+                "type": "date_specific",
+                "saved_at": datetime.now().isoformat()
+            }
+            self._save_draw_to_database(draw_db_data)
 
             return {
                 "success": True,

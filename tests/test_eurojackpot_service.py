@@ -5,13 +5,13 @@ Tests for Eurojackpot Service
 
 import json
 import os
+import tempfile
 import unittest
 from unittest.mock import Mock, patch
 from datetime import datetime
 
 # Add the parent directory to sys.path to import our modules
 import sys
-import tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from services.eurojackpot_service import EurojackpotService, eurojackpot_command
@@ -22,9 +22,19 @@ class TestEurojackpotService(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        # Create service with temporary database file
         self.service = EurojackpotService()
-        
-        # Mock API responses
+        self.temp_db_file = tempfile.mktemp(suffix=".json")
+        self.service.db_file = self.temp_db_file
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        # Remove temporary database file if it exists
+        if os.path.exists(self.temp_db_file):
+            os.unlink(self.temp_db_file)
+
+    def _get_mock_responses(self):
+        """Get mock API responses for testing."""
         self.mock_next_draw_response = {
             "error": 0,
             "next_draw": "2025-06-27"
@@ -85,17 +95,19 @@ class TestEurojackpotService(unittest.TestCase):
 
     @patch('services.eurojackpot_service.requests.get')
     def test_get_next_draw_info_no_api_key(self, mock_get):
-        """Test next draw info without API key."""
+        """Test next draw info without API key falls back to demo data."""
         self.service.api_key = None
         
         result = self.service.get_next_draw_info()
-        self.assertFalse(result["success"])
-        self.assertIn("not configured", result["message"])
+        self.assertTrue(result["success"])
+        self.assertIn("demo-data", result["message"])
+        self.assertTrue(result.get("is_demo", False))
 
     @patch('services.eurojackpot_service.requests.get')
     def test_get_next_draw_info_success(self, mock_get):
         """Test successful next draw info retrieval."""
         self.service.api_key = "test_key"
+        self._get_mock_responses()
         
         # Mock both API calls
         responses = [
@@ -114,6 +126,7 @@ class TestEurojackpotService(unittest.TestCase):
     def test_get_last_results_success(self, mock_get):
         """Test successful last results retrieval."""
         self.service.api_key = "test_key"
+        self._get_mock_responses()
         
         mock_response = Mock()
         mock_response.json.return_value = self.mock_last_results_response
@@ -130,6 +143,7 @@ class TestEurojackpotService(unittest.TestCase):
     def test_get_draw_by_date_success(self, mock_get):
         """Test successful draw retrieval by date."""
         self.service.api_key = "test_key"
+        self._get_mock_responses()
         
         mock_response = Mock()
         mock_response.json.return_value = self.mock_draw_by_date_response
@@ -152,6 +166,7 @@ class TestEurojackpotService(unittest.TestCase):
     def test_get_draw_by_date_not_found_fallback(self, mock_get):
         """Test draw retrieval fallback when date not found."""
         self.service.api_key = "test_key"
+        self._get_mock_responses()
         
         # First call returns no draw found, then successful calls for fallback
         responses = [
@@ -201,6 +216,7 @@ class TestEurojackpotService(unittest.TestCase):
     def test_get_combined_info(self, mock_get):
         """Test combined info retrieval."""
         self.service.api_key = "test_key"
+        self._get_mock_responses()
         
         # Mock responses for both calls
         responses = [
@@ -256,8 +272,8 @@ class TestEurojackpotIntegration(unittest.TestCase):
         from services.eurojackpot_service import eurojackpot_command
         self.assertTrue(callable(eurojackpot_command))
 
-    def test_error_handling_without_api_key(self):
-        """Test error handling when no API key is provided."""
+    def test_demo_data_without_api_key(self):
+        """Test demo data is provided when no API key is configured."""
         # Temporarily remove API key
         original_key = os.environ.get("EUROJACKPOT_API_KEY")
         if "EUROJACKPOT_API_KEY" in os.environ:
@@ -265,9 +281,17 @@ class TestEurojackpotIntegration(unittest.TestCase):
         
         try:
             service = EurojackpotService()
+            # Create temporary db file for this test
+            service.db_file = tempfile.mktemp(suffix=".json")
+            
             result = service.get_next_draw_info()
-            self.assertFalse(result["success"])
-            self.assertIn("not configured", result["message"])
+            self.assertTrue(result["success"])
+            self.assertIn("demo-data", result["message"])
+            self.assertTrue(result.get("is_demo", False))
+            
+            # Clean up temp file
+            if os.path.exists(service.db_file):
+                os.unlink(service.db_file)
         finally:
             # Restore original key if it existed
             if original_key:
@@ -287,10 +311,10 @@ def test_command_function_exists():
     test_instance.test_command_function_exists()
     return True
 
-def test_error_handling_no_api_key():
-    """Test error handling without API key."""
+def test_demo_data_no_api_key():
+    """Test demo data without API key."""
     test_instance = TestEurojackpotIntegration()
-    test_instance.test_error_handling_without_api_key()
+    test_instance.test_demo_data_without_api_key()
     return True
 
 def test_week_number_calculation():
@@ -332,9 +356,9 @@ def register_eurojackpot_service_tests(runner):
             category="eurojackpot",
         ),
         TestCase(
-            name="error_handling_no_api_key",
-            description="Test error handling without API key",
-            test_func=test_error_handling_no_api_key,
+            name="demo_data_no_api_key",
+            description="Test demo data without API key",
+            test_func=test_demo_data_no_api_key,
             category="eurojackpot",
         ),
         TestCase(
