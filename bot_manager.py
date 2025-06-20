@@ -157,14 +157,63 @@ class BotManager:
 
     def _setup_signal_handlers(self):
         """Setup signal handlers for graceful shutdown."""
+        self._shutdown_count = 0
 
         def signal_handler(sig, frame):
-            self.logger.info(f"Received signal {sig}, shutting down...")
-            self.stop()
-            sys.exit(0)
+            self._shutdown_count += 1
+            if self._shutdown_count == 1:
+                self.logger.info(f"Received signal {sig}, shutting down gracefully...")
+                # Start graceful shutdown in a separate thread
+                shutdown_thread = threading.Thread(target=self._graceful_shutdown, daemon=True)
+                shutdown_thread.start()
+            elif self._shutdown_count == 2:
+                self.logger.warning("Second signal received, forcing immediate shutdown...")
+                self._force_shutdown()
+            else:
+                self.logger.error("Multiple signals received, terminating immediately!")
+                os._exit(1)
 
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
+
+    def _graceful_shutdown(self):
+        """Perform graceful shutdown with timeout."""
+        try:
+            self.stop()
+            # Wait for shutdown to complete, but not more than 10 seconds
+            start_time = time.time()
+            while any(thread.is_alive() for thread in self.server_threads.values()):
+                if time.time() - start_time > 10:
+                    self.logger.warning("Graceful shutdown timeout, forcing exit...")
+                    self._force_shutdown()
+                    return
+                time.sleep(0.1)
+            
+            self.logger.info("Graceful shutdown completed")
+            sys.exit(0)
+        except Exception as e:
+            self.logger.error(f"Error during graceful shutdown: {e}")
+            self._force_shutdown()
+
+    def _force_shutdown(self):
+        """Force immediate shutdown."""
+        self.logger.warning("Forcing immediate shutdown...")
+        # Force close all sockets
+        for server in self.servers.values():
+            if server.socket:
+                try:
+                    server.socket.close()
+                except Exception:
+                    pass
+        
+        # Stop services forcefully
+        try:
+            self.fmi_warning_service.stop()
+            self.otiedote_service.stop()
+        except Exception:
+            pass
+            
+        os._exit(1)
 
     def load_configurations(self) -> bool:
         """
