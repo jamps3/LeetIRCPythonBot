@@ -21,7 +21,9 @@ from nanoleet_detector import create_nanoleet_detector
 from server import Server
 from services.crypto_service import create_crypto_service
 from services.electricity_service import create_electricity_service
+from services.fmi_warning_service import create_fmi_warning_service
 from services.gpt_service import GPTService
+from services.otiedote_service import create_otiedote_service
 from services.weather_service import WeatherService
 from services.youtube_service import create_youtube_service
 from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
@@ -129,6 +131,18 @@ class BotManager:
         # Initialize nanoleet detector
         self.nanoleet_detector = create_nanoleet_detector()
         self.logger.info("🎯 Nanosecond leet detector initialized")
+
+        # Initialize FMI warning service
+        self.fmi_warning_service = create_fmi_warning_service(
+            callback=self._handle_fmi_warnings
+        )
+        self.logger.info("⚠️ FMI warning service initialized")
+
+        # Initialize Otiedote service
+        self.otiedote_service = create_otiedote_service(
+            callback=self._handle_otiedote_release
+        )
+        self.logger.info("📢 Otiedote monitoring service initialized")
 
         # Initialize lemmatizer with graceful fallback
         try:
@@ -363,6 +377,10 @@ class BotManager:
         if not self.data_manager.migrate_from_pickle():
             self.logger.warning("Data migration failed, but continuing...")
 
+        # Start monitoring services
+        self.fmi_warning_service.start()
+        self.otiedote_service.start()
+
         # Start each server in its own thread
         for server_name, server in self.servers.items():
             thread = threading.Thread(
@@ -375,9 +393,54 @@ class BotManager:
         self.logger.info(f"Bot manager started with {len(self.servers)} servers")
         return True
 
+    def _handle_fmi_warnings(self, warnings: List[str]):
+        """Handle new FMI weather warnings."""
+        for warning in warnings:
+            # Send warnings to all servers and channels configured for weather notifications
+            # You might want to make this configurable per server/channel
+            for server_name, server in self.servers.items():
+                try:
+                    # Get first channel from the server configuration
+                    # You might want to make this more configurable
+                    channels = server.config.channels
+                    if channels:
+                        target_channel = channels[0]
+                        self._send_response(server, target_channel, warning)
+                        self.logger.info(f"Sent FMI warning to {server_name}#{target_channel}")
+                except Exception as e:
+                    self.logger.error(f"Error sending FMI warning to {server_name}: {e}")
+
+    def _handle_otiedote_release(self, title: str, url: str):
+        """Handle new Otiedote press release."""
+        message = f"📢 Uusi tiedote: {title} | {url}"
+        
+        # Send to all servers and channels configured for news notifications
+        for server_name, server in self.servers.items():
+            try:
+                # Get first channel from the server configuration
+                # You might want to make this more configurable
+                channels = server.config.channels
+                if channels:
+                    target_channel = channels[0]
+                    self._send_response(server, target_channel, message)
+                    self.logger.info(f"Sent Otiedote release to {server_name}#{target_channel}")
+            except Exception as e:
+                self.logger.error(f"Error sending Otiedote release to {server_name}: {e}")
+
     def stop(self):
         """Stop all servers and bot functionality gracefully."""
         self.logger.info("Shutting down bot manager...")
+
+        # Stop monitoring services
+        try:
+            self.fmi_warning_service.stop()
+        except Exception as e:
+            self.logger.error(f"Error stopping FMI warning service: {e}")
+        
+        try:
+            self.otiedote_service.stop()
+        except Exception as e:
+            self.logger.error(f"Error stopping Otiedote service: {e}")
 
         # Set stop event
         self.stop_event.set()
