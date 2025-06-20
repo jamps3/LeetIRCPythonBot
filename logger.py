@@ -4,9 +4,13 @@ High-precision logging utility for the IRC bot.
 Provides consistent, accurate timestamps across all bot components.
 """
 
+import os
 import time
 from datetime import datetime
 from typing import Optional
+
+# Load debug mode setting
+_debug_mode = os.getenv("DEBUG_MODE", "true").lower() in ("true", "1", "yes", "on")
 
 
 class PrecisionLogger:
@@ -76,8 +80,9 @@ class PrecisionLogger:
         self.log(message, "WARNING", extra_context)
 
     def debug(self, message: str, extra_context: str = ""):
-        """Log a debug message."""
-        self.log(message, "DEBUG", extra_context)
+        """Log a debug message (only if DEBUG_MODE is enabled)."""
+        if _debug_mode:
+            self.log(message, "DEBUG", extra_context)
 
     def msg(self, message: str, extra_context: str = ""):
         """Log a message event."""
