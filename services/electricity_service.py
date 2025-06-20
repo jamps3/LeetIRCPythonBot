@@ -71,8 +71,13 @@ class ElectricityService:
             }
 
             # Add today's price if available
-            if not today_prices.get("error") and hour + 1 in today_prices["prices"]:
-                price_eur_mwh = today_prices["prices"][hour + 1]
+            # CRITICAL FIX: Based on comparison with liukuri.fi data:
+            # Position 22 shows 4.39 snt/kWh, which matches liukuri.fi for hour 22
+            # So the mapping should be: hour 22 -> position 22 (direct mapping)
+            # This means: position = hour (but handle hour 0 specially)
+            position = hour if hour > 0 else 24  # Hour 0 maps to position 24
+            if not today_prices.get("error") and position in today_prices["prices"]:
+                price_eur_mwh = today_prices["prices"][position]
                 price_snt_kwh = self._convert_price(price_eur_mwh)
                 result["today_price"] = {
                     "eur_per_mwh": price_eur_mwh,
@@ -85,11 +90,13 @@ class ElectricityService:
                 tomorrow_date = date + timedelta(days=1)
                 tomorrow_prices = self._fetch_daily_prices(tomorrow_date)
 
+                # Use same position mapping for tomorrow as today
+                tomorrow_position = hour if hour > 0 else 24
                 if (
                     not tomorrow_prices.get("error")
-                    and hour + 1 in tomorrow_prices["prices"]
+                    and tomorrow_position in tomorrow_prices["prices"]
                 ):
-                    price_eur_mwh = tomorrow_prices["prices"][hour + 1]
+                    price_eur_mwh = tomorrow_prices["prices"][tomorrow_position]
                     price_snt_kwh = self._convert_price(price_eur_mwh)
                     result["tomorrow_price"] = {
                         "eur_per_mwh": price_eur_mwh,
@@ -179,15 +186,27 @@ class ElectricityService:
     def _fetch_daily_prices(self, date: datetime) -> Dict[str, Any]:
         """
         Fetch electricity prices for a specific date.
+        
+        The ENTSO-E API returns data in UTC time periods from 22:00 UTC to 22:00 UTC.
+        For Finnish time (UTC+2 in winter, UTC+3 in summer), this means:
+        - The data period actually covers from midnight Finnish time to midnight Finnish time.
+        - Position 1 = 00:00-01:00 Finnish time
+        - Position 23 = 22:00-23:00 Finnish time
+        
+        To get the correct data for a Finnish date, we need to request the previous day
+        from the API, because their "day" starts at 22:00 UTC of the previous day.
 
         Args:
-            date: Date to fetch prices for
+            date: Date to fetch prices for (in Finnish time)
 
         Returns:
             Dictionary containing daily prices or error details
         """
         try:
-            date_str = date.strftime("%Y%m%d")
+            # CRITICAL FIX: For Finnish local time, we need to request the previous day
+            # from the ENTSO-E API because their day starts at 22:00 UTC (midnight Finnish time)
+            api_date = date - timedelta(days=1)
+            date_str = api_date.strftime("%Y%m%d")
 
             url = f"{self.base_url}"
             params = {
