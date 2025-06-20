@@ -7,7 +7,8 @@ Provides AI chat functionality using OpenAI's GPT models with conversation histo
 import json
 import os
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 import openai
 
 

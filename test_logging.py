@@ -3,7 +3,7 @@
 Test script for high-precision logging functionality.
 """
 
-from logger import get_logger, log, info, error, warning, debug, msg, server
+from logger import debug, error, get_logger, info, log, msg, server, warning
 
 
 def test_high_precision_logging():

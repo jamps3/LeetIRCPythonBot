@@ -1,7 +1,7 @@
 import json
 import os
-import sys
 import re
+import sys
 from collections import defaultdict
 
 # Try to import Voikko with proper error handling

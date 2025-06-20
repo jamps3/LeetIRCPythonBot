@@ -6,15 +6,11 @@ the new command registry system and the existing bot infrastructure.
 """
 
 import asyncio
-from typing import Dict, Any, Optional
-from command_registry import (
-    get_command_registry,
-    process_command_message,
-    CommandContext,
-    CommandResponse,
-    CommandType,
-    CommandScope,
-)
+from typing import Any, Dict, Optional
+
+from command_registry import (CommandContext, CommandResponse, CommandScope,
+                              CommandType, get_command_registry,
+                              process_command_message)
 from config import get_config
 
 
@@ -22,8 +18,8 @@ def load_all_commands():
     """Load all command modules to register their commands."""
     try:
         # Import all command modules to trigger registration
-        import commands_basic
         import commands_admin
+        import commands_basic
         import commands_extended  # Add new extended commands
 
         # Additional command modules can be imported here

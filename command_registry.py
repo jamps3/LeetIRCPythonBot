@@ -10,8 +10,8 @@ import inspect
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Callable, Any, Union
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Union
 
 
 class CommandType(Enum):

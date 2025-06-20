@@ -5,14 +5,15 @@ Tests electricity price functionality including API integration,
 command parsing, and message formatting.
 """
 
-import unittest
-from unittest.mock import patch, Mock
 import json
 import os
+import unittest
 from datetime import datetime, timedelta
 from io import StringIO
+from unittest.mock import Mock, patch
 
-from services.electricity_service import ElectricityService, create_electricity_service
+from services.electricity_service import (ElectricityService,
+                                          create_electricity_service)
 
 
 class TestElectricityService(unittest.TestCase):

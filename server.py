@@ -6,12 +6,12 @@ related to a single IRC server connection, including connection management,
 reconnection logic, message handling, and maintaining the connection lifecycle.
 """
 
+import re
 import socket
 import threading
 import time
-import re
 from datetime import datetime
-from typing import List, Tuple, Optional, Callable, Dict, Any
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from config import ServerConfig
 from logger import get_logger

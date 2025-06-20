@@ -9,7 +9,7 @@ import json
 import os
 import random
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 from .data_manager import DataManager
 

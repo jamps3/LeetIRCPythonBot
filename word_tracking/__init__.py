@@ -16,10 +16,10 @@ Modules:
     - data_manager: Unified data management with JSON storage
 """
 
+from .data_manager import DataManager
 from .drink_tracker import DrinkTracker
 from .general_words import GeneralWords
 from .tamagotchi_bot import TamagotchiBot
-from .data_manager import DataManager
 
 __version__ = "1.0.0"
 __author__ = "LeetIRCPythonBot"

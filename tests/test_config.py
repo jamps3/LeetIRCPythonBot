@@ -4,23 +4,23 @@ Configuration System Tests
 Comprehensive tests for the configuration management system.
 """
 
+import json
 import os
 import sys
 import tempfile
-import json
 
 # Add the parent directory to Python path to ensure imports work in CI
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from test_framework import TestCase, TestSuite, TestRunner
+from test_framework import TestCase, TestRunner, TestSuite
 
 
 def test_config_loading():
     """Test basic configuration loading."""
     try:
-        from config import get_config_manager, get_config
+        from config import get_config, get_config_manager
 
         config_manager = get_config_manager()
         config = get_config()
@@ -87,8 +87,9 @@ def test_server_config_parsing():
 def test_environment_variable_handling():
     """Test environment variable handling."""
     try:
-        from config import ConfigManager
         import os
+
+        from config import ConfigManager
 
         # Save current environment state
         original_bot_name = os.environ.get("BOT_NAME")

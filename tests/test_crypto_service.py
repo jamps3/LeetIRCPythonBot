@@ -6,13 +6,15 @@ Comprehensive tests for the cryptocurrency service functionality.
 
 import json
 from unittest.mock import Mock, patch
-from test_framework import TestCase, TestSuite, TestRunner
+
+from test_framework import TestCase, TestRunner, TestSuite
 
 
 def test_crypto_service_creation():
     """Test cryptocurrency service creation."""
     try:
-        from services.crypto_service import CryptoService, create_crypto_service
+        from services.crypto_service import (CryptoService,
+                                             create_crypto_service)
 
         # Test direct instantiation
         service = CryptoService()
@@ -135,8 +137,9 @@ def test_crypto_api_error():
 def test_crypto_timeout_handling():
     """Test cryptocurrency API timeout handling."""
     try:
-        from services.crypto_service import CryptoService
         import requests
+
+        from services.crypto_service import CryptoService
 
         service = CryptoService()
 

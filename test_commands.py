@@ -4,12 +4,10 @@ Test script for the new command system.
 """
 
 import asyncio
-from command_registry import (
-    get_command_registry,
-    CommandContext,
-    process_command_message,
-)
+
 import command_loader  # This loads all commands
+from command_registry import (CommandContext, get_command_registry,
+                              process_command_message)
 
 
 async def test_commands():

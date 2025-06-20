@@ -4,6 +4,7 @@ Test demonstrating the improved timestamp accuracy for nanoleet detection.
 """
 
 import time
+
 from nanoleet_detector import create_nanoleet_detector
 
 

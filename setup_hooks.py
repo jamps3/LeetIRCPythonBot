@@ -6,9 +6,9 @@ This script sets up git pre-commit hooks to run tests automatically before commi
 """
 
 import os
-import sys
 import stat
 import subprocess
+import sys
 from pathlib import Path
 
 

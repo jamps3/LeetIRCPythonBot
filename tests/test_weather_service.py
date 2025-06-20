@@ -4,9 +4,9 @@ Weather Service Tests
 Comprehensive tests for the weather service functionality.
 """
 
+import json
 import os
 import sys
-import json
 from unittest.mock import Mock, patch
 
 # Add the parent directory to Python path to ensure imports work in CI
@@ -14,13 +14,14 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from test_framework import TestCase, TestSuite, TestRunner
+from test_framework import TestCase, TestRunner, TestSuite
 
 
 def test_weather_service_creation():
     """Test weather service creation."""
     try:
-        from services.weather_service import WeatherService, create_weather_service
+        from services.weather_service import (WeatherService,
+                                              create_weather_service)
 
         # Test direct instantiation
         service = WeatherService("test_api_key")
@@ -117,8 +118,9 @@ def test_weather_api_error():
 def test_weather_timeout_handling():
     """Test weather API timeout handling."""
     try:
-        from services.weather_service import WeatherService
         import requests
+
+        from services.weather_service import WeatherService
 
         service = WeatherService("test_key")
 

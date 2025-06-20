@@ -6,11 +6,11 @@ This tests the new IRC client and message processing system
 without depending on all legacy functions.
 """
 
-from config import get_config_manager, get_config
-from irc_client import create_irc_client, IRCMessageType
-from irc_processor import create_message_processor
-from command_registry import get_command_registry
 import command_loader
+from command_registry import get_command_registry
+from config import get_config, get_config_manager
+from irc_client import IRCMessageType, create_irc_client
+from irc_processor import create_message_processor
 
 
 def test_configuration():

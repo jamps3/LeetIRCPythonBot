@@ -4,11 +4,12 @@ Weather Service Module
 Provides weather information using OpenWeatherMap API.
 """
 
-import requests
-import urllib.parse
 import random
+import urllib.parse
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
+import requests
 
 
 class WeatherService:

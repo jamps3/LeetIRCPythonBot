@@ -5,9 +5,10 @@ Extended Commands for LeetIRC Bot
 Additional commands including scheduled messages, IPFS, and Eurojackpot functionality.
 """
 
-import re
 import os
-from command_registry import command, CommandType
+import re
+
+from command_registry import CommandType, command
 
 
 @command(
@@ -131,7 +132,8 @@ def command_eurojackpot(context, args):
 def command_scheduled(context, args):
     """Manage scheduled messages."""
     try:
-        from services.scheduled_message_service import get_scheduled_message_service
+        from services.scheduled_message_service import \
+            get_scheduled_message_service
 
         service = get_scheduled_message_service()
 

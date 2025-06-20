@@ -34,12 +34,12 @@ import os
 import sys
 from datetime import datetime
 
+# Import existing components that are still needed
+from dotenv import load_dotenv
+
 # Import our new multi-server architecture
 from bot_manager import BotManager
 from config import load_env_file
-
-# Import existing components that are still needed
-from dotenv import load_dotenv
 
 
 def setup_environment():

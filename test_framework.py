@@ -7,15 +7,15 @@ after every commit or on-demand. It includes unit tests, integration tests,
 and functional tests for all components.
 """
 
-import sys
+import importlib.util
 import os
+import subprocess
+import sys
 import time
 import traceback
-import subprocess
-from typing import List, Dict, Any, Callable, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
-import importlib.util
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 class TestResult(Enum):

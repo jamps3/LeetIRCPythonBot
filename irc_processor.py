@@ -5,19 +5,16 @@ This module provides event-driven message processing that integrates
 with the command registry and handles various IRC events.
 """
 
-import os
 import asyncio
+import os
 import re
-from typing import Dict, List, Optional, Callable, Any
 from dataclasses import dataclass
-from irc_client import IRCClient, IRCMessage, IRCMessageType
-from command_registry import (
-    CommandContext,
-    process_command_message,
-    CommandResponse,
-    get_command_registry,
-)
+from typing import Any, Callable, Dict, List, Optional
+
+from command_registry import (CommandContext, CommandResponse,
+                              get_command_registry, process_command_message)
 from config import get_config
+from irc_client import IRCClient, IRCMessage, IRCMessageType
 
 
 @dataclass
