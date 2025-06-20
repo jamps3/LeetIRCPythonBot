@@ -60,8 +60,7 @@ youtube = (
 _logger = get_logger("Commands")
 
 # Import new word tracking system
-from word_tracking import (DataManager, DrinkTracker, GeneralWords,
-                           TamagotchiBot)
+from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
 
 # Initialize word tracking system
 data_manager = DataManager()

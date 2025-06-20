@@ -11,8 +11,12 @@ import re
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
-from command_registry import (CommandContext, CommandResponse,
-                              get_command_registry, process_command_message)
+from command_registry import (
+    CommandContext,
+    CommandResponse,
+    get_command_registry,
+    process_command_message,
+)
 from config import get_config
 from irc_client import IRCClient, IRCMessage, IRCMessageType
 

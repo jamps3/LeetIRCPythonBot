@@ -24,8 +24,7 @@ from services.electricity_service import create_electricity_service
 from services.gpt_service import GPTService
 from services.weather_service import WeatherService
 from services.youtube_service import create_youtube_service
-from word_tracking import (DataManager, DrinkTracker, GeneralWords,
-                           TamagotchiBot)
+from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
 
 
 class BotManager:
@@ -579,8 +578,7 @@ class BotManager:
     ):
         """Send scheduled message."""
         try:
-            from services.scheduled_message_service import \
-                send_scheduled_message
+            from services.scheduled_message_service import send_scheduled_message
 
             message_id = send_scheduled_message(
                 irc_client, channel, message, hour, minute, second, microsecond

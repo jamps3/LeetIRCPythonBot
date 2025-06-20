@@ -69,8 +69,9 @@ class TestReport:
 class TestRunner:
     """Main test runner with comprehensive reporting."""
 
-    def __init__(self, verbose: bool = True):
+    def __init__(self, verbose: bool = True, ci_mode: bool = False):
         self.verbose = verbose
+        self.ci_mode = ci_mode
         self.reports: List[TestReport] = []
         self.suites: List[TestSuite] = []
 
@@ -94,7 +95,7 @@ class TestRunner:
             overall_success = overall_success and success
 
         # Generate summary report
-        self._print_summary()
+        self._print_summary(write_files=self.ci_mode)
 
         return overall_success
 
@@ -225,8 +226,8 @@ class TestRunner:
         except Exception:
             return False
 
-    def _print_summary(self):
-        """Print comprehensive test summary."""
+    def _print_summary(self, write_files=False):
+        """Print comprehensive test summary and optionally write to files."""
         print("=" * 60)
         print("Stats: TEST SUMMARY")
         print("=" * 60)
@@ -278,6 +279,69 @@ class TestRunner:
         else:
             print("[WARNING] SOME TESTS FAILED!")
         print("=" * 60)
+
+        # Write results to files if requested (for CI)
+        if write_files:
+            self._write_test_results_file(
+                total, passed, failed, errors, skipped, total_time, overall_success
+            )
+            self._write_coverage_file()
+
+    def _write_test_results_file(
+        self, total, passed, failed, errors, skipped, total_time, overall_success
+    ):
+        """Write test results to test-results.txt for CI artifacts."""
+        try:
+            with open("test-results.txt", "w") as f:
+                f.write("LeetIRC Bot Test Results\n")
+                f.write("=" * 40 + "\n")
+                f.write(f"Total Tests: {total}\n")
+                f.write(f"Passed: {passed}\n")
+                f.write(f"Failed: {failed}\n")
+                f.write(f"Errors: {errors}\n")
+                f.write(f"Skipped: {skipped}\n")
+                if total > 0:
+                    success_rate = (passed / total) * 100
+                    f.write(f"Success Rate: {success_rate:.1f}%\n")
+                f.write(f"Total Time: {total_time:.3f}s\n")
+                f.write(f"Overall: {'PASS' if overall_success else 'FAIL'}\n")
+
+                # Write detailed results
+                f.write("\nDetailed Results:\n")
+                for report in self.reports:
+                    status = report.result.value
+                    f.write(
+                        f"{status}: {report.suite_name}.{report.test_name} ({report.duration:.3f}s)\n"
+                    )
+                    if report.message:
+                        f.write(f"  Message: {report.message}\n")
+        except Exception as e:
+            print(f"Warning: Could not write test-results.txt: {e}")
+
+    def _write_coverage_file(self):
+        """Write basic coverage info to test-coverage.txt for CI artifacts."""
+        try:
+            with open("test-coverage.txt", "w") as f:
+                f.write("LeetIRC Bot Test Coverage\n")
+                f.write("=" * 40 + "\n")
+                f.write(
+                    "Note: This is a basic test framework without coverage analysis.\n"
+                )
+                f.write(
+                    "For detailed coverage, consider integrating with pytest and coverage.py\n"
+                )
+                f.write(f"Tests run: {len(self.reports)}\n")
+
+                # Basic "coverage" based on test suites
+                test_suites = set(report.suite_name for report in self.reports)
+                f.write(f"Test suites covered: {len(test_suites)}\n")
+                for suite in sorted(test_suites):
+                    suite_tests = [r for r in self.reports if r.suite_name == suite]
+                    passed = sum(1 for r in suite_tests if r.result == TestResult.PASS)
+                    total = len(suite_tests)
+                    f.write(f"  {suite}: {passed}/{total} tests passed\n")
+        except Exception as e:
+            print(f"Warning: Could not write test-coverage.txt: {e}")
 
 
 def create_git_hook():
@@ -399,7 +463,7 @@ def main():
         return 0
 
     # Import and register all test suites
-    runner = TestRunner(verbose=args.verbose or not args.ci)
+    runner = TestRunner(verbose=args.verbose or not args.ci, ci_mode=args.ci)
 
     # Register test suites (will be implemented in separate files)
     try:

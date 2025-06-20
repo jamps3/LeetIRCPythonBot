@@ -8,9 +8,14 @@ the new command registry system and the existing bot infrastructure.
 import asyncio
 from typing import Any, Dict, Optional
 
-from command_registry import (CommandContext, CommandResponse, CommandScope,
-                              CommandType, get_command_registry,
-                              process_command_message)
+from command_registry import (
+    CommandContext,
+    CommandResponse,
+    CommandScope,
+    CommandType,
+    get_command_registry,
+    process_command_message,
+)
 from config import get_config
 
 
