@@ -9,6 +9,7 @@ from test_framework import TestRunner
 from .test_command_registry import register_command_registry_tests
 from .test_config import register_config_tests
 from .test_crypto_service import register_crypto_service_tests
+from .test_eurojackpot_service import register_eurojackpot_service_tests
 from .test_irc_client import register_irc_client_tests
 from .test_weather_service import register_weather_service_tests
 
@@ -36,6 +37,7 @@ def register_all_test_suites(runner: TestRunner, quick_mode: bool = False):
     if not quick_mode:
         register_weather_service_tests(runner)
         register_crypto_service_tests(runner)
+        register_eurojackpot_service_tests(runner)
         # TODO: Add other service tests when created
 
     # Integration tests (typically the slowest)
