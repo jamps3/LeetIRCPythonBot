@@ -6,26 +6,34 @@ This module contains basic utility commands like help, time, echo, etc.
 
 import time
 from datetime import datetime
-from command_registry import command, CommandType, CommandScope, CommandContext, CommandResponse
+from command_registry import (
+    command,
+    CommandType,
+    CommandScope,
+    CommandContext,
+    CommandResponse,
+)
 from config import get_config
 
 
-@command("help", 
-         description="Show available commands",
-         usage="!help [command]",
-         examples=["!help", "!help weather"])
+@command(
+    "help",
+    description="Show available commands",
+    usage="!help [command]",
+    examples=["!help", "!help weather"],
+)
 def help_command(context: CommandContext, bot_functions):
     """Show help for commands."""
     from command_registry import get_command_registry
-    
+
     registry = get_command_registry()
-    
+
     # If specific command requested
     if context.args:
         command_name = context.args[0]
         help_text = registry.generate_help(specific_command=command_name)
         return CommandResponse.success_msg(help_text)
-    
+
     # General help - show all applicable commands
     if context.is_console:
         # For console, show console and both-scope commands
@@ -42,10 +50,7 @@ def help_command(context: CommandContext, bot_functions):
     return CommandResponse.success_msg(help_text)
 
 
-@command("aika", 
-         aliases=["time"],
-         description="Show current time",
-         usage="!aika")
+@command("aika", aliases=["time"], description="Show current time", usage="!aika")
 def time_command(context: CommandContext, bot_functions):
     """Show current time with nanosecond precision."""
     now_ns = time.time_ns()
@@ -55,12 +60,14 @@ def time_command(context: CommandContext, bot_functions):
     return f"Nykyinen aika: {formatted_time}"
 
 
-@command("kaiku", 
-         aliases=["echo"],
-         description="Echo back the message",
-         usage="!kaiku <message>",
-         examples=["!kaiku Hello world!"],
-         requires_args=True)
+@command(
+    "kaiku",
+    aliases=["echo"],
+    description="Echo back the message",
+    usage="!kaiku <message>",
+    examples=["!kaiku Hello world!"],
+    requires_args=True,
+)
 def echo_command(context: CommandContext, bot_functions):
     """Echo back the provided message."""
     if context.is_console:
@@ -69,31 +76,27 @@ def echo_command(context: CommandContext, bot_functions):
         return f"{context.sender}: {context.args_text}"
 
 
-@command("version", 
-         description="Show bot version",
-         usage="!version")
+@command("version", description="Show bot version", usage="!version")
 def version_command(context: CommandContext, bot_functions):
     """Show the bot version."""
     config = get_config()
     return f"Bot version: {config.version}"
 
 
-@command("ping", 
-         description="Check if bot is responsive",
-         usage="!ping")
+@command("ping", description="Check if bot is responsive", usage="!ping")
 def ping_command(context: CommandContext, bot_functions):
     """Simple ping command to check bot responsiveness."""
     return "Pong! 🏓"
 
 
-@command("about", 
-         description="Show information about the bot",
-         usage="!about")
+@command("about", description="Show information about the bot", usage="!about")
 def about_command(context: CommandContext, bot_functions):
     """Show information about the bot."""
     config = get_config()
-    return (f"LeetIRC Bot v{config.version} - A Finnish IRC bot with word tracking, "
-           f"weather, drink statistics, and more! Type !help for commands.")
+    return (
+        f"LeetIRC Bot v{config.version} - A Finnish IRC bot with word tracking, "
+        f"weather, drink statistics, and more! Type !help for commands."
+    )
 
 
 # Import this module to register the commands
@@ -101,6 +104,6 @@ def register_basic_commands():
     """Register all basic commands. Called automatically when module is imported."""
     pass
 
+
 # Auto-register when imported
 register_basic_commands()
-

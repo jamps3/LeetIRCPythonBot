@@ -7,6 +7,7 @@ from collections import defaultdict
 # Try to import Voikko with proper error handling
 try:
     import libvoikko
+
     VOIKKO_AVAILABLE = True
 except ImportError:
     VOIKKO_AVAILABLE = False
@@ -19,7 +20,7 @@ class Lemmatizer:
         self.v = None
         self.data_dir = data_dir
         os.makedirs(self.data_dir, exist_ok=True)
-        
+
         # Try to initialize Voikko if available
         if VOIKKO_AVAILABLE:
             try:
@@ -30,12 +31,12 @@ class Lemmatizer:
                         voikko_path = os.path.join(base_dir, "voikko")
                         if os.path.exists(voikko_path):
                             os.add_dll_directory(voikko_path)
-                
+
                 # Try to initialize Voikko
                 self.v = libvoikko.Voikko("fi")
                 self.voikko_enabled = True
                 print("✅ Voikko lemmatizer initialized successfully")
-                
+
             except Exception as e:
                 print(f"⚠️  Voikko initialization failed: {e}")
                 print("📝 Using simple word normalization instead")
@@ -55,37 +56,37 @@ class Lemmatizer:
         else:
             # Use simple normalization when Voikko is not available
             return self._simple_normalize(word)
-    
+
     def _simple_normalize(self, word):
         """Simple word normalization for Finnish text when Voikko is not available."""
         word = word.lower().strip()
-        
+
         # Skip very short words or numbers
         if len(word) < 2 or word.isdigit():
             return word
-        
+
         # Basic Finnish plural and case ending removal
         # This is a simplified approach, not as accurate as Voikko
-        
+
         # Remove common plural endings
-        if word.endswith(('ien', 'jen', 'ten', 'den', 'nen')):
+        if word.endswith(("ien", "jen", "ten", "den", "nen")):
             if len(word) > 5:
                 word = word[:-3]
-        elif word.endswith(('it', 'at', 'et', 'ut', 'yt', 'öt', 'ät')):
+        elif word.endswith(("it", "at", "et", "ut", "yt", "öt", "ät")):
             if len(word) > 4:
                 word = word[:-2]
-        
+
         # Remove common case endings (simplified)
-        if word.endswith(('lla', 'llä', 'ssa', 'ssä', 'sta', 'stä', 'aan', 'ään')):
+        if word.endswith(("lla", "llä", "ssa", "ssä", "sta", "stä", "aan", "ään")):
             if len(word) > 5:
                 word = word[:-3]
-        elif word.endswith(('na', 'nä', 'ta', 'tä', 'la', 'lä', 'ra', 'rä')):
+        elif word.endswith(("na", "nä", "ta", "tä", "la", "lä", "ra", "rä")):
             if len(word) > 4:
                 word = word[:-2]
-        elif word.endswith(('n', 'a', 'ä', 'i')):
+        elif word.endswith(("n", "a", "ä", "i")):
             if len(word) > 3:
                 word = word[:-1]
-        
+
         return word
 
     def _get_filename(self, server_name):

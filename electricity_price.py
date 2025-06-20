@@ -36,8 +36,9 @@
             xml_data = ElementTree.parse(StringIO(response.text))
             ns = {"ns": "urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3"}
             prices = {
-                int(point.find("ns:position", ns).text): 
-                float(point.find("ns:price.amount", ns).text)
+                int(point.find("ns:position", ns).text): float(
+                    point.find("ns:price.amount", ns).text
+                )
                 for point in xml_data.findall(".//ns:Point", ns)
             }
             return prices
@@ -55,16 +56,26 @@
 
     if hour_position in prices_today:
         price_eur_per_mwh = prices_today[hour_position]
-        price_snt_per_kwh = (price_eur_per_mwh / 10) * 1.255  # Convert to cents and add VAT 25.5%
-        result_parts.append(f"Tänään klo {hour}: {price_snt_per_kwh:.2f} snt/kWh (ALV 25,5%)")
+        price_snt_per_kwh = (
+            price_eur_per_mwh / 10
+        ) * 1.255  # Convert to cents and add VAT 25.5%
+        result_parts.append(
+            f"Tänään klo {hour}: {price_snt_per_kwh:.2f} snt/kWh (ALV 25,5%)"
+        )
 
     if hour_position in prices_tomorrow:
         price_eur_per_mwh = prices_tomorrow[hour_position]
         price_snt_per_kwh = (price_eur_per_mwh / 10) * 1.255
-        result_parts.append(f"Huomenna klo {hour}: {price_snt_per_kwh:.2f} snt/kWh (ALV 25,5%)")
+        result_parts.append(
+            f"Huomenna klo {hour}: {price_snt_per_kwh:.2f} snt/kWh (ALV 25,5%)"
+        )
 
     # Send the results
     if result_parts:
         output_message(", ".join(result_parts), irc, channel)
     else:
-        output_message(f"Sähkön hintatietoja ei saatavilla tunneille {hour}. https://sahko.tk", irc, channel)
+        output_message(
+            f"Sähkön hintatietoja ei saatavilla tunneille {hour}. https://sahko.tk",
+            irc,
+            channel,
+        )
