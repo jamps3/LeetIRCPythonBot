@@ -343,9 +343,8 @@ def run_tests():
         if result.failures:
             print("\nFailures:")
             for test, traceback in result.failures:
-                print(
-                    f"  - {test}: {traceback.split('AssertionError: ')[-1].split('\\n')[0]}"
-                )
+                error_msg = traceback.split("AssertionError: ")[-1].split("\n")[0]
+                print(f"  - {test}: {error_msg}")
 
         if result.errors:
             print("\nErrors:")
