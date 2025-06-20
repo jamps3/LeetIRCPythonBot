@@ -221,10 +221,11 @@ class Server:
     def _keepalive_ping(self):
         """Send periodic pings to keep the connection alive."""
         while not self.stop_event.is_set() and self.connected:
-            time.sleep(2)  # Check frequently for stop event
-
-            if self.stop_event.is_set():
-                break
+            # Check stop event more frequently for faster shutdown
+            for _ in range(20):  # 20 * 0.1s = 2s total, but check stop event every 0.1s
+                if self.stop_event.is_set():
+                    return
+                time.sleep(0.1)
 
             if time.time() - self.last_ping > 120:
                 try:
@@ -239,7 +240,7 @@ class Server:
         """Read and process messages from the server."""
         # Set socket timeout to allow frequent checking of stop_event
         if self.socket:
-            self.socket.settimeout(1.0)  # 1 second timeout
+            self.socket.settimeout(0.5)  # Shorter timeout for faster shutdown response
             
         while not self.stop_event.is_set() and self.connected:
             try:
@@ -363,9 +364,9 @@ class Server:
                 read_thread.start()
                 self.threads.append(read_thread)
 
-                # Wait for either thread to exit
+                # Wait for either thread to exit (check stop event frequently)
                 while self.connected and not self.stop_event.is_set():
-                    time.sleep(1)
+                    time.sleep(0.1)  # Check stop event more frequently for faster shutdown
 
                 # If we're still connected but stop event is set, send QUIT
                 if self.connected and self.stop_event.is_set():
@@ -413,27 +414,27 @@ class Server:
         if self.connected:
             try:
                 self.logger.info("Stopping server connection...")
-                # Send quit message if connected
-                self.quit("Bot shutting down")
-                self.logger.debug("Quit message sent")
+                
+                # Close socket immediately to break any blocking operations
+                if self.socket:
+                    try:
+                        self.socket.settimeout(0.1)  # Very short timeout
+                        self.socket.shutdown(socket.SHUT_RDWR)
+                        self.socket.close()
+                        self.logger.debug("Socket connection closed immediately")
+                    except Exception as e:
+                        self.logger.debug(f"Socket close error (expected): {e}")
 
-                # Wait for threads to finish with timeout
-                timeout_per_thread = 5  # seconds
+                # Wait for threads to finish with short timeout
+                timeout_per_thread = 1.0  # Much shorter timeout
                 for thread in self.threads:
                     self.logger.debug(f"Waiting for thread {thread.name} to finish...")
                     thread.join(timeout=timeout_per_thread)
                     if thread.is_alive():
-                        self.logger.warning(
-                            f"Thread {thread.name} did not finish within timeout"
+                        self.logger.debug(
+                            f"Thread {thread.name} did not finish within {timeout_per_thread}s timeout"
                         )
 
-                # Ensure socket is closed
-                if self.socket:
-                    try:
-                        self.socket.close()
-                        self.logger.info("Socket connection closed")
-                    except Exception as e:
-                        self.logger.error(f"Error closing socket: {e}")
             except Exception as e:
                 self.logger.error(f"Error during server shutdown: {e}")
             finally:

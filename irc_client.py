@@ -577,7 +577,7 @@ class IRCClient:
             ):
                 try:
                     self.read_messages()
-                    time.sleep(0.1)  # Small delay to prevent busy waiting
+                    time.sleep(0.05)  # Shorter delay for faster shutdown response
                 except socket.timeout:
                     continue
                 except Exception as e:
