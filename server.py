@@ -237,6 +237,10 @@ class Server:
 
     def _read_messages(self):
         """Read and process messages from the server."""
+        # Set socket timeout to allow frequent checking of stop_event
+        if self.socket:
+            self.socket.settimeout(1.0)  # 1 second timeout
+            
         while not self.stop_event.is_set() and self.connected:
             try:
                 response = self.socket.recv(4096).decode("utf-8", errors="ignore")
