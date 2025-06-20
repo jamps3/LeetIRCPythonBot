@@ -4,11 +4,12 @@ Electricity Service Module
 Provides Finnish electricity price information using ENTSO-E API.
 """
 
-import requests
 import xml.etree.ElementTree as ElementTree
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
 from io import StringIO
+from typing import Any, Dict, List, Optional
+
+import requests
 
 
 class ElectricityService:

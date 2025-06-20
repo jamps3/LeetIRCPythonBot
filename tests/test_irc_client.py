@@ -13,7 +13,7 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from test_framework import TestCase, TestSuite, TestRunner
+from test_framework import TestCase, TestRunner, TestSuite
 
 
 def test_irc_client_creation():
@@ -36,7 +36,7 @@ def test_irc_client_creation():
 def test_irc_message_parsing():
     """Test IRC message parsing functionality."""
     try:
-        from irc_client import create_irc_client, IRCMessageType
+        from irc_client import IRCMessageType, create_irc_client
 
         client = create_irc_client("SERVER1", "testbot")
 
@@ -111,7 +111,7 @@ def test_irc_message_properties():
 def test_irc_connection_states():
     """Test IRC connection state management."""
     try:
-        from irc_client import create_irc_client, IRCConnectionState
+        from irc_client import IRCConnectionState, create_irc_client
 
         client = create_irc_client("SERVER1", "testbot")
 
@@ -141,7 +141,7 @@ def test_irc_connection_states():
 def test_irc_handler_system():
     """Test IRC message handler registration system."""
     try:
-        from irc_client import create_irc_client, IRCMessageType
+        from irc_client import IRCMessageType, create_irc_client
 
         client = create_irc_client("SERVER1", "testbot")
 

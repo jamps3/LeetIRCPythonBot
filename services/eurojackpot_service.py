@@ -6,11 +6,12 @@ This service handles Eurojackpot lottery information using the Magayo API.
 Integrated from eurojackpot.py functionality.
 """
 
-import requests
+import logging
 import os
 from datetime import datetime
 from typing import Dict, Optional
-import logging
+
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()

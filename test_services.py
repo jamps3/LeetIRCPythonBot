@@ -4,6 +4,7 @@ Test script for YouTube and crypto services functionality.
 """
 
 import os
+
 from dotenv import load_dotenv
 
 # Load environment variables

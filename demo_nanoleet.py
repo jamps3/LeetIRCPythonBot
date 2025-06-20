@@ -3,8 +3,9 @@
 Demo script showing the nanosecond leet detection system in action.
 """
 
-from nanoleet_detector import create_nanoleet_detector
 import time
+
+from nanoleet_detector import create_nanoleet_detector
 
 
 def demo_nanoleet_detection():

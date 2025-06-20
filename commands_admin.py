@@ -5,13 +5,9 @@ This module contains administrative commands that require password authenticatio
 """
 
 import os
-from command_registry import (
-    command,
-    CommandType,
-    CommandScope,
-    CommandContext,
-    CommandResponse,
-)
+
+from command_registry import (CommandContext, CommandResponse, CommandScope,
+                              CommandType, command)
 from config import get_config
 
 

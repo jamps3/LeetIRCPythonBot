@@ -6,11 +6,11 @@ This service handles the scheduling and execution of messages at specific times
 with microsecond precision.
 """
 
+import logging
 import threading
 import time
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Callable
-import logging
+from typing import Callable, Dict, Optional
 
 
 class ScheduledMessageService:

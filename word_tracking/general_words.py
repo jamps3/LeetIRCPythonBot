@@ -6,9 +6,9 @@ Provides server-specific word tracking and statistics.
 """
 
 import re
-from datetime import datetime
-from typing import Dict, List, Any
 from collections import Counter
+from datetime import datetime
+from typing import Any, Dict, List
 
 from .data_manager import DataManager
 

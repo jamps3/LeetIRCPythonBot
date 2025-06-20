@@ -12,47 +12,22 @@ import signal
 import sys
 import threading
 import time
-from typing import Dict, Any
+from typing import Any, Dict
 
-# Import refactored components
-from irc_client import create_irc_client, IRCClient
-from irc_processor import create_message_processor
 from command_loader import load_all_commands
 from config import get_config, get_config_manager
-
+# Import refactored components
+from irc_client import IRCClient, create_irc_client
+from irc_processor import create_message_processor
 # Import legacy functions for compatibility
-from main import (
-    # Core functions
-    load,
-    save,
-    update_kraks,
-    load_leet_winners,
-    save_leet_winners,
-    # Bot functions
-    send_weather,
-    send_electricity_price,
-    fetch_title,
-    handle_ipfs_command,
-    chat_with_gpt,
-    wrap_irc_message_utf8_bytes,
-    split_message_intelligently,
-    get_crypto_price,
-    measure_latency,
-    count_kraks,
-    # Advanced functions
-    search_youtube,
-    get_eurojackpot_numbers,
-    send_scheduled_message,
-    format_counts,
-    lookup,
-    # Configuration
-    DRINK_WORDS,
-    EKAVIKA_FILE,
-    BOT_VERSION,
-    # Services
-    lemmat,
-    subscriptions,
-)
+from main import (  # Core functions; Bot functions; Advanced functions; Configuration; Services
+    BOT_VERSION, DRINK_WORDS, EKAVIKA_FILE, chat_with_gpt, count_kraks,
+    fetch_title, format_counts, get_crypto_price, get_eurojackpot_numbers,
+    handle_ipfs_command, lemmat, load, load_leet_winners, lookup,
+    measure_latency, save, save_leet_winners, search_youtube,
+    send_electricity_price, send_scheduled_message, send_weather,
+    split_message_intelligently, subscriptions, update_kraks,
+    wrap_irc_message_utf8_bytes)
 
 
 class RefactoredBot:
@@ -190,7 +165,8 @@ class RefactoredBot:
                     if user_input.startswith("!"):
                         # Process console commands
                         try:
-                            from command_loader import enhanced_process_console_command
+                            from command_loader import \
+                                enhanced_process_console_command
 
                             enhanced_process_console_command(
                                 user_input, self.bot_functions

@@ -4,9 +4,10 @@ Cryptocurrency Service Module
 Provides cryptocurrency price information using CoinGecko API.
 """
 
-import requests
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import requests
 
 
 class CryptoService:

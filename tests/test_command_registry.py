@@ -12,7 +12,7 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from test_framework import TestCase, TestSuite, TestRunner
+from test_framework import TestCase, TestRunner, TestSuite
 
 
 def test_command_registry_creation():
@@ -43,11 +43,8 @@ def test_command_registry_creation():
 def test_command_registration():
     """Test command registration functionality."""
     try:
-        from command_registry import (
-            CommandRegistry,
-            CommandInfo,
-            FunctionCommandHandler,
-        )
+        from command_registry import (CommandInfo, CommandRegistry,
+                                      FunctionCommandHandler)
 
         registry = CommandRegistry()
 
@@ -76,7 +73,8 @@ def test_command_registration():
 def test_command_execution():
     """Test command execution functionality."""
     try:
-        from command_registry import CommandRegistry, CommandInfo, CommandContext
+        from command_registry import (CommandContext, CommandInfo,
+                                      CommandRegistry)
 
         registry = CommandRegistry()
 
@@ -107,7 +105,7 @@ def test_command_execution():
 def test_command_metadata():
     """Test command metadata handling."""
     try:
-        from command_registry import CommandRegistry, CommandInfo
+        from command_registry import CommandInfo, CommandRegistry
 
         registry = CommandRegistry()
 
@@ -133,7 +131,7 @@ def test_command_metadata():
 def test_help_command():
     """Test built-in help command functionality."""
     try:
-        from command_registry import CommandRegistry, CommandInfo
+        from command_registry import CommandInfo, CommandRegistry
 
         registry = CommandRegistry()
 
@@ -188,12 +186,8 @@ def test_command_aliases():
 def test_command_error_handling():
     """Test command error handling."""
     try:
-        from command_registry import (
-            CommandRegistry,
-            CommandInfo,
-            CommandContext,
-            FunctionCommandHandler,
-        )
+        from command_registry import (CommandContext, CommandInfo,
+                                      CommandRegistry, FunctionCommandHandler)
 
         registry = CommandRegistry()
 
@@ -215,7 +209,7 @@ def test_command_error_handling():
 def test_command_listing():
     """Test command listing functionality."""
     try:
-        from command_registry import CommandRegistry, CommandInfo
+        from command_registry import CommandInfo, CommandRegistry
 
         registry = CommandRegistry()
 

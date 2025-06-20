@@ -3,9 +3,10 @@
 Test script for the new IRC client system.
 """
 
-import time
 import threading
-from irc_client import create_irc_client, IRCMessageType
+import time
+
+from irc_client import IRCMessageType, create_irc_client
 from irc_processor import create_message_processor
 
 

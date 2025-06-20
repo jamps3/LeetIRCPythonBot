@@ -5,15 +5,16 @@ This module provides a clean abstraction for IRC protocol handling,
 replacing the scattered IRC code in main.py with a proper class-based approach.
 """
 
-import socket
-import time
-import threading
 import re
+import socket
+import threading
+import time
 import traceback
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Callable, Any, Tuple
 from enum import Enum
-from config import get_config, ServerConfig
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+from config import ServerConfig, get_config
 
 
 class IRCMessageType(Enum):

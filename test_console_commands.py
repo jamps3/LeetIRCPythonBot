@@ -4,6 +4,7 @@ Test console commands for bot functionality.
 """
 
 import os
+
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -17,8 +18,8 @@ def test_console_command():
     try:
         # Create a mock bot_functions dictionary with working services
         from services.crypto_service import create_crypto_service
-        from services.weather_service import WeatherService
         from services.electricity_service import create_electricity_service
+        from services.weather_service import WeatherService
         from services.youtube_service import create_youtube_service
 
         # Initialize services

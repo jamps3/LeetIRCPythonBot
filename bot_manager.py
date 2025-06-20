@@ -6,25 +6,26 @@ connections and integrates all bot functionality across servers.
 """
 
 import os
-import threading
-import time
 import signal
 import sys
-from typing import List, Dict, Any, Optional
+import threading
+import time
 from functools import partial
+from typing import Any, Dict, List, Optional
 
-from config import get_server_configs, load_env_file, get_api_key
-from server import Server
-from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
-from lemmatizer import Lemmatizer
-from services.weather_service import WeatherService
-from services.gpt_service import GPTService
-from services.electricity_service import create_electricity_service
-from services.youtube_service import create_youtube_service
-from services.crypto_service import create_crypto_service
-from nanoleet_detector import create_nanoleet_detector
-from logger import get_logger
 import commands
+from config import get_api_key, get_server_configs, load_env_file
+from lemmatizer import Lemmatizer
+from logger import get_logger
+from nanoleet_detector import create_nanoleet_detector
+from server import Server
+from services.crypto_service import create_crypto_service
+from services.electricity_service import create_electricity_service
+from services.gpt_service import GPTService
+from services.weather_service import WeatherService
+from services.youtube_service import create_youtube_service
+from word_tracking import (DataManager, DrinkTracker, GeneralWords,
+                           TamagotchiBot)
 
 
 class BotManager:
@@ -578,7 +579,8 @@ class BotManager:
     ):
         """Send scheduled message."""
         try:
-            from services.scheduled_message_service import send_scheduled_message
+            from services.scheduled_message_service import \
+                send_scheduled_message
 
             message_id = send_scheduled_message(
                 irc_client, channel, message, hour, minute, second, microsecond
@@ -717,6 +719,7 @@ class BotManager:
     def _fetch_title(self, irc, target, text):
         """Fetch and display URL titles."""
         import re
+
         import requests
         from bs4 import BeautifulSoup
 

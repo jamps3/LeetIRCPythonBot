@@ -5,10 +5,11 @@ Detects "1337" patterns in high-precision timestamps and awards different
 levels of leet achievements based on the position and frequency of occurrence.
 """
 
-import time
 import re
+import time
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
+
 from logger import get_logger
 
 

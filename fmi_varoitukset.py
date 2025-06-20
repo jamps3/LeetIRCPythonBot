@@ -1,9 +1,10 @@
-import feedparser
 import hashlib
 import json
 import os
 import threading
 import time
+
+import feedparser
 
 FEED_URL = "https://alerts.fmi.fi/cap/feed/rss_fi-FI.rss"
 STATE_FILE = "last_warning.json"

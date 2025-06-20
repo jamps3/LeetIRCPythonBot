@@ -5,23 +5,25 @@ This module contains the main command processing functions extracted from main.p
 for better code organization and maintainability.
 """
 
+import html
+import json
+import os
+import platform
 import re
 import time
-import json
-import platform
-import requests
-import xml.etree.ElementTree as ElementTree
-from datetime import datetime
-from collections import Counter
 import urllib.parse
-import html
+import xml.etree.ElementTree as ElementTree
+from collections import Counter
+from datetime import datetime
+from io import StringIO
+
+import requests
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 from googleapiclient.discovery import build
-import os
+
 import commands
 from logger import get_logger
-from dotenv import load_dotenv
-from io import StringIO
 
 # Load environment variables
 load_dotenv()
@@ -58,7 +60,8 @@ youtube = (
 _logger = get_logger("Commands")
 
 # Import new word tracking system
-from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
+from word_tracking import (DataManager, DrinkTracker, GeneralWords,
+                           TamagotchiBot)
 
 # Initialize word tracking system
 data_manager = DataManager()
