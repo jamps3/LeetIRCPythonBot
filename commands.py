@@ -753,7 +753,7 @@ def process_message(irc, message, bot_functions):
                 "🍺 Drinks: !drinkstats [nick|server|global], !drinkword <word>, !drink <specific>, !drinktop, !antikrak\n"
                 "🐣 Tamagotchi: !tamagotchi, !feed [food], !pet\n"
                 "🎯 Other: !aika, !kaiku, !euribor, !leetwinners, !crypto [coin], !version\n"
-                "🎰 Games: !eurojackpot, !youtube <query>\n"
+                "🎰 Games: !eurojackpot [date|scrape|stats], !youtube <query>\n"
                 "⚙️ Advanced: !leet, !get_total_counts, !tilaa, !url <url>, !ipfs add <url>\n"
                 "🔒 Admin*: !join*, !part*, !nick*, !quit*, !raw*\n"
                 "💬 Chat: Mention bot name or send private message for AI chat\n"
@@ -1077,19 +1077,40 @@ def process_message(irc, message, bot_functions):
                 log("!link", "DEBUG")
 
         elif text.startswith("!eurojackpot"):
-            parts = text.split(" ", 1)
-            arg = parts[1].strip() if len(parts) > 1 else None
+            parts = text.split()
+            command = parts[1] if len(parts) > 1 else None
+            arg = parts[2] if len(parts) > 2 else None
 
-            # Use the new eurojackpot service
-            from services.eurojackpot_service import eurojackpot_command
+            # Import the service
+            from services.eurojackpot_service import get_eurojackpot_service
+            service = get_eurojackpot_service()
 
-            message = eurojackpot_command(arg)
-
-            # Split message if it contains newlines (combined info)
-            lines = message.split("\n")
-            for line in lines:
-                if line.strip():
-                    notice_message(line, irc, target)
+            if command == "scrape":
+                # Handle scrape command
+                result = service.scrape_all_draws()
+                notice_message(result["message"], irc, target)
+            elif command == "stats":
+                # Handle stats command
+                result = service.get_database_stats()
+                notice_message(result["message"], irc, target)
+            elif command and command not in ["scrape", "stats"]:
+                # Date-specific query
+                result = service.get_draw_by_date(command)
+                message = result["message"]
+                # Split message if it contains newlines
+                lines = message.split("\n")
+                for line in lines:
+                    if line.strip():
+                        notice_message(line, irc, target)
+            else:
+                # Default: show combined info (latest + next draw)
+                from services.eurojackpot_service import eurojackpot_command
+                message = eurojackpot_command(arg)
+                # Split message if it contains newlines (combined info)
+                lines = message.split("\n")
+                for line in lines:
+                    if line.strip():
+                        notice_message(line, irc, target)
 
         elif text.startswith("!youtube"):
             match = re.search(r"!youtube\s+(.+)", text)
