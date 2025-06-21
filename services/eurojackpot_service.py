@@ -325,13 +325,13 @@ class EurojackpotService:
     def get_draw_by_date(self, date_str: str) -> Dict[str, any]:
         """
         Get Eurojackpot draw results for a specific date.
-        If no draw found for that date, return next draw info + frequent numbers.
+        If no draw found for that date, find the next draw from that date onwards.
 
         Args:
             date_str: Date string in format DD.MM.YY
 
         Returns:
-            Dict with draw results for the specified date or next draw info
+            Dict with draw results for the specified date or next available draw
         """
         try:
             if not self.api_key:
@@ -549,6 +549,195 @@ class EurojackpotService:
             return {
                 "success": False,
                 "message": "📊 Virhe yleisimpien numeroiden haussa",
+            }
+
+    def scrape_all_draws(self, start_year: int = 2012, max_draws: int = 200) -> Dict[str, any]:
+        """
+        Scrape all historical Eurojackpot draws from the API and save to database.
+        
+        Args:
+            start_year: Year to start scraping from (Eurojackpot started in 2012)
+            max_draws: Maximum number of draws to fetch (to prevent excessive API calls)
+            
+        Returns:
+            Dict with scraping results and statistics
+        """
+        try:
+            if not self.api_key:
+                return {
+                    "success": False,
+                    "message": "📥 Scrape-toiminto vaatii API-avaimen. Aseta EUROJACKPOT_API_KEY .env-tiedostoon.",
+                }
+            
+            self.logger.info(f"Starting scrape of Eurojackpot draws from {start_year}")
+            
+            # Load existing database
+            db = self._load_database()
+            initial_count = len(db["draws"])
+            
+            # Get all available draws using multiple API requests
+            # The Magayo API typically returns draws in reverse chronological order
+            new_draws = 0
+            updated_draws = 0
+            
+            # Get recent draws first (they're more likely to be new)
+            params = {
+                "api_key": self.api_key,
+                "game": "eurojackpot",
+                "format": "json",
+                "number": str(min(max_draws, 50))  # API typically limits to 50 results per request
+            }
+            
+            data = self._make_request(self.results_url, params)
+            
+            if not data or data.get("error") != 0:
+                return {
+                    "success": False,
+                    "message": f"📥 API-virhe scrape-toiminnossa: {data.get('error') if data else 'null'}",
+                }
+            
+            # Process the results - API might return single draw or array of draws
+            draws_data = data.get("draws", [])
+            if not draws_data and "draw" in data:
+                # Single draw response
+                draws_data = [data]
+            
+            for draw_data in draws_data:
+                try:
+                    # Extract draw information
+                    draw_date_iso = draw_data.get("draw")
+                    if not draw_date_iso:
+                        continue
+                        
+                    # Check if draw is from our target year range
+                    draw_year = int(draw_date_iso[:4])
+                    if draw_year < start_year:
+                        continue
+                    
+                    draw_date = datetime.strptime(draw_date_iso, "%Y-%m-%d").strftime("%d.%m.%Y")
+                    week_number = self.get_week_number(draw_date_iso)
+                    
+                    numbers = draw_data.get("results", "").split(",")
+                    if len(numbers) < 7:  # Need at least 5 main + 2 euro numbers
+                        continue
+                        
+                    main = " ".join(numbers[:5])
+                    euro = " ".join(numbers[5:])
+                    jackpot = draw_data.get("jackpot", "Tuntematon")
+                    currency = draw_data.get("currency", "EUR")
+                    
+                    # Create database entry
+                    draw_db_data = {
+                        "date_iso": draw_date_iso,
+                        "date": draw_date,
+                        "week_number": week_number,
+                        "numbers": numbers,
+                        "main_numbers": main,
+                        "euro_numbers": euro,
+                        "jackpot": jackpot,
+                        "currency": currency,
+                        "type": "scraped",
+                        "saved_at": datetime.now().isoformat()
+                    }
+                    
+                    # Check if draw already exists
+                    existing = self._get_draw_by_date_from_database(draw_date_iso)
+                    if existing:
+                        updated_draws += 1
+                        self.logger.debug(f"Updated existing draw for {draw_date_iso}")
+                    else:
+                        new_draws += 1
+                        self.logger.debug(f"Added new draw for {draw_date_iso}")
+                    
+                    # Save/update the draw
+                    self._save_draw_to_database(draw_db_data)
+                    
+                except Exception as e:
+                    self.logger.error(f"Error processing draw data: {e}")
+                    continue
+            
+            # Get final database stats
+            final_db = self._load_database()
+            final_count = len(final_db["draws"])
+            
+            # Calculate date range of scraped data
+            if final_db["draws"]:
+                sorted_draws = sorted(final_db["draws"], key=lambda x: x.get("date_iso", ""))
+                oldest_date = sorted_draws[0].get("date", "Tuntematon")
+                newest_date = sorted_draws[-1].get("date", "Tuntematon")
+                date_range = f"{oldest_date} - {newest_date}"
+            else:
+                date_range = "Ei dataa"
+            
+            success_message = f"📥 Scrape valmis! Uusia arvontoja: {new_draws}, päivitettyjä: {updated_draws}. Yhteensä tietokannassa: {final_count} arvontaa ({date_range})"
+            
+            self.logger.info(f"Scrape completed: {new_draws} new, {updated_draws} updated, {final_count} total draws")
+            
+            return {
+                "success": True,
+                "message": success_message,
+                "new_draws": new_draws,
+                "updated_draws": updated_draws,
+                "total_draws": final_count,
+                "date_range": date_range,
+                "initial_count": initial_count,
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error in scrape_all_draws: {e}")
+            return {
+                "success": False,
+                "message": f"📥 Scrape-virhe: {str(e)}",
+            }
+    
+    def get_database_stats(self) -> Dict[str, any]:
+        """
+        Get statistics about the local database.
+        
+        Returns:
+            Dict with database statistics
+        """
+        try:
+            db = self._load_database()
+            total_draws = len(db["draws"])
+            
+            if total_draws == 0:
+                return {
+                    "success": True,
+                    "message": "📊 Tietokanta on tyhjä. Käytä !eurojackpot scrape hakemaan historiatietoja.",
+                    "total_draws": 0,
+                }
+            
+            # Calculate date range
+            sorted_draws = sorted(db["draws"], key=lambda x: x.get("date_iso", ""))
+            oldest_date = sorted_draws[0].get("date", "Tuntematon")
+            newest_date = sorted_draws[-1].get("date", "Tuntematon")
+            
+            # Get last update time
+            last_updated = db.get("last_updated", "Tuntematon")
+            if last_updated != "Tuntematon":
+                try:
+                    last_updated_dt = datetime.fromisoformat(last_updated)
+                    last_updated = last_updated_dt.strftime("%d.%m.%Y %H:%M")
+                except:
+                    pass
+            
+            message = f"📊 Tietokanta: {total_draws} arvontaa ({oldest_date} - {newest_date}). Päivitetty: {last_updated}"
+            
+            return {
+                "success": True,
+                "message": message,
+                "total_draws": total_draws,
+                "oldest_date": oldest_date,
+                "newest_date": newest_date,
+                "last_updated": last_updated,
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting database stats: {e}")
+            return {
+                "success": False,
+                "message": f"📊 Virhe tietokannan tilastoissa: {str(e)}",
             }
 
 
