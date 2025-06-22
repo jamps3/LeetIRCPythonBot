@@ -371,6 +371,15 @@ class BotManager:
         self.fmi_warning_service.start()
         self.otiedote_service.start()
 
+        # Start console listener thread
+        self.console_thread = threading.Thread(
+            target=self._listen_for_console_commands,
+            daemon=True,
+            name="Console-Listener",
+        )
+        self.console_thread.start()
+        self.logger.info("Started console input listener")
+
         # Start each server in its own thread
         for server_name, server in self.servers.items():
             thread = threading.Thread(
@@ -381,6 +390,11 @@ class BotManager:
             self.logger.info(f"Started server thread for {server_name}")
 
         self.logger.info(f"Bot manager started with {len(self.servers)} servers")
+        print("\n💬 Console is ready! Type commands (!help) or chat messages.")
+        print("🔧 Commands: !help, !version, !s <location>, !ping, etc.")
+        print("🗣️  Chat: Type any message (without !) to chat with AI")
+        print("🛑 Exit: Type 'quit' or 'exit' or press Ctrl+C")
+        print("-" * 60)
         return True
 
     def _handle_fmi_warnings(self, warnings: List[str]):
@@ -452,6 +466,11 @@ class BotManager:
                     f"Server thread {server_name} did not finish cleanly within 3s timeout"
                 )
 
+        # Stop console thread if it exists
+        if hasattr(self, 'console_thread') and self.console_thread.is_alive():
+            self.logger.info("Stopping console listener...")
+            # Console thread will stop when stop_event is set
+        
         self.logger.info("Bot manager shut down complete")
 
     def wait_for_shutdown(self):
@@ -475,8 +494,105 @@ class BotManager:
             except Exception as e:
                 self.logger.error(f"Error during immediate quit: {e}")
             
-            # Re-raise to let main.py handle the shutdown message
+        # Re-raise to let main.py handle the shutdown message
             raise
+
+    def _listen_for_console_commands(self):
+        """Listen for console commands in a separate thread."""
+        try:
+            while not self.stop_event.is_set():
+                try:
+                    # Display a simple prompt
+                    user_input = input()
+                    if not user_input:
+                        continue
+
+                    if user_input.lower() in ("quit", "exit"):
+                        self.logger.info("Console quit command received")
+                        print("🛑 Shutting down bot...")
+                        self.stop_event.set()
+                        break
+
+                    if user_input.startswith("!"):
+                        # Process console commands
+                        try:
+                            from command_loader import enhanced_process_console_command
+                            
+                            # Create bot functions for console use
+                            bot_functions = self._create_console_bot_functions()
+                            enhanced_process_console_command(user_input, bot_functions)
+                        except Exception as e:
+                            self.logger.error(f"Console command error: {e}")
+                            print(f"❌ Command error: {e}")
+                    else:
+                        # Send to AI chat
+                        try:
+                            if self.gpt_service:
+                                response = self.gpt_service.chat(user_input, "Console")
+                                if response:
+                                    print(f"🤖 AI: {response}")
+                            else:
+                                print("🤖 AI service not available (no OpenAI API key configured)")
+                        except Exception as e:
+                            self.logger.error(f"AI chat error: {e}")
+                            print(f"❌ AI chat error: {e}")
+
+                except (EOFError, KeyboardInterrupt):
+                    print("\n🛑 Console input interrupted")
+                    self.stop_event.set()
+                    break
+        except Exception as e:
+            self.logger.error(f"Console listener error: {e}")
+            print(f"❌ Console listener error: {e}")
+
+    def _create_console_bot_functions(self):
+        """Create bot functions dictionary for console commands."""
+        return {
+            # Core functions
+            "notice_message": lambda msg, irc=None, target=None: print(f"✅ {msg}"),
+            "log": self.logger.info,
+            "send_weather": self._console_weather,
+            "send_electricity_price": self._console_electricity,
+            "get_crypto_price": self._get_crypto_price,
+            "send_scheduled_message": self._send_scheduled_message,
+            "get_eurojackpot_numbers": self._get_eurojackpot_numbers,
+            "get_eurojackpot_results": self._get_eurojackpot_results,
+            "search_youtube": self._search_youtube,
+            "handle_ipfs_command": self._handle_ipfs_command,
+            "chat_with_gpt": lambda msg, sender="Console": self.gpt_service.chat(msg, sender) if self.gpt_service else "AI not available",
+            "load": self._load_legacy_data,
+            "save": self._save_legacy_data,
+            "BOT_VERSION": "2.0.0",
+            "server_name": "console",
+        }
+
+    def _console_weather(self, irc, channel, location):
+        """Console weather command."""
+        if not self.weather_service:
+            print("☁️ Weather service not available (no WEATHER_API_KEY)")
+            return
+        
+        try:
+            weather_data = self.weather_service.get_weather(location)
+            response = self.weather_service.format_weather_message(weather_data)
+            print(f"🌤️ {response}")
+        except Exception as e:
+            print(f"❌ Weather error: {e}")
+
+    def _console_electricity(self, irc, channel, args):
+        """Console electricity price command."""
+        if not self.electricity_service:
+            print("⚡ Electricity service not available (no ELECTRICITY_API_KEY)")
+            return
+        
+        try:
+            import datetime
+            current_hour = datetime.datetime.now().hour
+            price_data = self.electricity_service.get_electricity_price(hour=current_hour)
+            response = self.electricity_service.format_price_message(price_data)
+            print(f"⚡ {response}")
+        except Exception as e:
+            print(f"❌ Electricity error: {e}")
 
     def get_server_by_name(self, name: str) -> Optional[Server]:
         """Get a server instance by name."""

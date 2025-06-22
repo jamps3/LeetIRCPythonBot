@@ -12,6 +12,9 @@ from .test_crypto_service import register_crypto_service_tests
 from .test_eurojackpot_service import register_eurojackpot_service_tests
 from .test_irc_client import register_irc_client_tests
 from .test_weather_service import register_weather_service_tests
+from .test_console_commands import register_console_command_tests
+from .test_new_features import register_new_features_tests
+from .test_bot_functionality import register_bot_functionality_tests
 
 # TODO: Add these when they are created
 # from .test_commands import register_command_tests
@@ -32,12 +35,15 @@ def register_all_test_suites(runner: TestRunner, quick_mode: bool = False):
     register_config_tests(runner)
     register_irc_client_tests(runner)
     register_command_registry_tests(runner)
+    register_console_command_tests(runner)
 
     # Service tests (may be slower)
     if not quick_mode:
         register_weather_service_tests(runner)
         register_crypto_service_tests(runner)
         register_eurojackpot_service_tests(runner)
+        register_new_features_tests(runner)
+        register_bot_functionality_tests(runner)
         # TODO: Add other service tests when created
 
     # Integration tests (typically the slowest)
