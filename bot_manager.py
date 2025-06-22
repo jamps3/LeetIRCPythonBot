@@ -783,7 +783,7 @@ class BotManager:
         self.logger.log(message, level)
 
     def _fetch_title(self, irc, target, text):
-        """Fetch and display URL titles."""
+        """Fetch and display URL titles (excluding YouTube URLs which are handled separately)."""
         import re
 
         import requests
@@ -796,6 +796,10 @@ class BotManager:
         )
 
         for url in urls:
+            # Skip YouTube URLs as they are already handled by the YouTube service
+            if self._is_youtube_url(url):
+                continue
+                
             try:
                 response = requests.get(
                     url, timeout=10, headers={"User-Agent": "Mozilla/5.0"}
@@ -813,6 +817,24 @@ class BotManager:
                             self.logger.info(f"Title: {title.string.strip()}")
             except Exception as e:
                 self.logger.error(f"Error fetching title for {url}: {e}")
+
+    def _is_youtube_url(self, url: str) -> bool:
+        """Check if a URL is a YouTube URL."""
+        import re
+        
+        youtube_patterns = [
+            r'(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([\w\-_]*)',  # Allow empty video ID
+            r'(?:https?://)?(?:www\.)?youtu\.be/([\w\-_]+)',
+            r'(?:https?://)?(?:www\.)?youtube\.com/embed/([\w\-_]*)',
+            r'(?:https?://)?(?:www\.)?youtube\.com/v/([\w\-_]*)',
+            r'(?:https?://)?(?:m\.)?youtube\.com/watch\?v=([\w\-_]*)',
+            r'(?:https?://)?(?:music\.)?youtube\.com/watch\?v=([\w\-_]*)'
+        ]
+        
+        for pattern in youtube_patterns:
+            if re.search(pattern, url, re.IGNORECASE):
+                return True
+        return False
 
     def _get_subscriptions_module(self):
         """Get subscriptions module."""
