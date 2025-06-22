@@ -603,15 +603,21 @@ class EurojackpotService:
 
     def get_frequent_numbers(self, limit: int = 10) -> Dict[str, any]:
         """
-        Get most frequently drawn numbers based on historical analysis.
-
-        Note: This uses statistically common Eurojackpot numbers based on historical data.
-        These are the numbers that have been drawn most frequently since 2012.
+        Get most frequently drawn numbers based on database analysis.
+        If no database data is available, falls back to historical statistics.
 
         Returns:
             Dict with frequently drawn numbers
         """
         try:
+            # Try to calculate from actual database first
+            db_stats = self._calculate_frequency_from_database()
+            if db_stats["success"]:
+                return db_stats
+            
+            # Fall back to historical statistics if no database data
+            self.logger.info("No database data available, using historical statistics")
+            
             # Most frequent primary numbers (1-50) based on historical Eurojackpot data
             # These are actual statistics from Eurojackpot draws 2012-2023
             frequent_primary = [19, 35, 5, 16, 23]  # Top 5 most frequent
@@ -621,7 +627,7 @@ class EurojackpotService:
             primary_str = " ".join(f"{num:02d}" for num in frequent_primary)
             secondary_str = " ".join(f"{num:02d}" for num in frequent_secondary)
 
-            message = f"📊 Yleisimmät numerot (2012-2023): {primary_str} + {secondary_str}"
+            message = f"📊 Yleisimmät numerot (2012-2023): {primary_str} + {secondary_str} (historiallinen data)"
 
             return {
                 "success": True,
@@ -629,12 +635,112 @@ class EurojackpotService:
                 "primary_numbers": frequent_primary,
                 "secondary_numbers": frequent_secondary,
                 "note": "Based on historical Eurojackpot frequency analysis 2012-2023",
+                "source": "historical"
             }
         except Exception as e:
             self.logger.error(f"Error getting frequent numbers: {e}")
             return {
                 "success": False,
                 "message": "📊 Virhe yleisimpien numeroiden haussa",
+            }
+    
+    def _calculate_frequency_from_database(self) -> Dict[str, any]:
+        """
+        Calculate most frequent numbers from the local database.
+        
+        Returns:
+            Dict with frequency analysis results
+        """
+        try:
+            db = self._load_database()
+            draws = db.get("draws", [])
+            
+            if len(draws) < 5:  # Need at least 5 draws for meaningful statistics
+                return {
+                    "success": False,
+                    "message": f"📊 Liian vähän dataa tilastoihin ({len(draws)} arvontaa). Tarvitaan vähintään 5.",
+                }
+            
+            # Count frequency of each number
+            main_number_counts = {}  # 1-50
+            euro_number_counts = {}  # 1-12
+            
+            date_range = {
+                "oldest": None,
+                "newest": None
+            }
+            
+            for draw in draws:
+                numbers = draw.get("numbers", [])
+                if len(numbers) >= 7:  # Must have 5 main + 2 euro numbers
+                    # Main numbers (first 5)
+                    for i in range(5):
+                        try:
+                            num = int(numbers[i])
+                            main_number_counts[num] = main_number_counts.get(num, 0) + 1
+                        except (ValueError, IndexError):
+                            continue
+                    
+                    # Euro numbers (last 2)
+                    for i in range(5, 7):
+                        try:
+                            num = int(numbers[i])
+                            euro_number_counts[num] = euro_number_counts.get(num, 0) + 1
+                        except (ValueError, IndexError):
+                            continue
+                
+                # Track date range
+                draw_date = draw.get("date_iso")
+                if draw_date:
+                    if date_range["oldest"] is None or draw_date < date_range["oldest"]:
+                        date_range["oldest"] = draw_date
+                    if date_range["newest"] is None or draw_date > date_range["newest"]:
+                        date_range["newest"] = draw_date
+            
+            # Get top 5 main numbers and top 2 euro numbers
+            top_main = sorted(main_number_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+            top_euro = sorted(euro_number_counts.items(), key=lambda x: x[1], reverse=True)[:2]
+            
+            if not top_main or not top_euro:
+                return {
+                    "success": False,
+                    "message": "📊 Ei tarpeeksi numerodataa tilastoihin.",
+                }
+            
+            # Format results
+            frequent_primary = [num for num, count in top_main]
+            frequent_secondary = [num for num, count in top_euro]
+            
+            primary_str = " ".join(f"{num:02d}" for num in frequent_primary)
+            secondary_str = " ".join(f"{num:02d}" for num in frequent_secondary)
+            
+            # Format date range
+            if date_range["oldest"] and date_range["newest"]:
+                oldest_year = datetime.strptime(date_range["oldest"], "%Y-%m-%d").year
+                newest_year = datetime.strptime(date_range["newest"], "%Y-%m-%d").year
+                date_range_str = f"{oldest_year}-{newest_year}" if oldest_year != newest_year else str(newest_year)
+            else:
+                date_range_str = "tuntematon ajanjakso"
+            
+            message = f"📊 Yleisimmät numerot ({date_range_str}): {primary_str} + {secondary_str} ({len(draws)} arvontaa)"
+            
+            return {
+                "success": True,
+                "message": message,
+                "primary_numbers": frequent_primary,
+                "secondary_numbers": frequent_secondary,
+                "primary_counts": dict(top_main),
+                "secondary_counts": dict(top_euro),
+                "total_draws": len(draws),
+                "date_range": date_range_str,
+                "source": "database"
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating frequency from database: {e}")
+            return {
+                "success": False,
+                "message": f"📊 Virhe laskettaessa tilastoja: {str(e)}",
             }
 
     def scrape_all_draws(self, start_year: int = 2012, max_api_calls: int = 10) -> Dict[str, any]:

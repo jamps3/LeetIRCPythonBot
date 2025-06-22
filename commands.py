@@ -292,7 +292,7 @@ def process_console_command(command_text, bot_functions):
             "🍺 Drinks: !drinkstats [nick|server|global], !drinkword <word>, !drink <specific>, !drinktop, !antikrak\n"
             "🐣 Tamagotchi: !tamagotchi, !feed [food], !pet\n"
             "🎯 Other: !aika, !kaiku, !euribor, !leetwinners, !crypto [coin], !version\n"
-            "🎰 Games: !eurojackpot, !youtube <query>\n"
+                "🎰 Games: !eurojackpot [date|scrape|stats|frequent], !youtube <query>\n"
             "⚙️ Advanced: !leet, !get_total_counts, !tilaa, !url <url>, !ipfs add <url>\n"
             "🔒 Admin*: !join*, !part*, !nick*, !quit*, !raw*\n"
             "💬 Chat: Any message not starting with ! will be sent to AI\n"
@@ -521,6 +521,84 @@ def process_console_command(command_text, bot_functions):
         console_server = "console"
         response = tamagotchi_bot.pet(console_server)
         notice_message(response)
+
+    elif command == "!eurojackpot":
+        # Handle eurojackpot command in console
+        log(f"Console eurojackpot command received: {command_text}", "DEBUG")
+        parts = command_text.split()
+        sub_command = parts[1] if len(parts) > 1 else None
+        arg = parts[2] if len(parts) > 2 else None
+        log(f"Parsed sub_command: {sub_command}, arg: {arg}", "DEBUG")
+        
+        # Import the service
+        from services.eurojackpot_service import get_eurojackpot_service
+        service = get_eurojackpot_service()
+        log("Eurojackpot service imported and initialized", "DEBUG")
+        
+        try:
+            if sub_command == "frequent" or sub_command == "tilastot":
+                # Handle frequent numbers command
+                log("Executing frequent numbers command from console", "DEBUG")
+                result = service.get_frequent_numbers()
+                log(f"Frequent numbers result: {result}", "DEBUG")
+                notice_message(result["message"])
+            elif sub_command == "stats":
+                # Handle stats command
+                log("Executing stats command from console", "DEBUG")
+                result = service.get_database_stats()
+                log(f"Stats result: {result}", "DEBUG")
+                notice_message(result["message"])
+            elif sub_command == "scrape":
+                # Handle scrape command
+                log("Executing scrape command from console", "DEBUG")
+                result = service.scrape_all_draws()
+                log(f"Scrape result: {result}", "DEBUG")
+                notice_message(result["message"])
+            elif sub_command == "add":
+                # Handle manual add command
+                log("Executing add command from console", "DEBUG")
+                # Parse remaining arguments: date, numbers, [jackpot]
+                remaining_parts = command_text.split()[2:]  # Skip "!eurojackpot" and "add"
+                
+                if len(remaining_parts) < 2:
+                    notice_message("❌ Käyttö: !eurojackpot add PP.KK.VVVV 1,2,3,4,5,6,7 [päävoitto]")
+                    notice_message("Esim: !eurojackpot add 20.12.2024 1,5,12,25,35,3,8 15000000")
+                else:
+                    date_str = remaining_parts[0]
+                    numbers_str = remaining_parts[1]
+                    jackpot_str = remaining_parts[2] if len(remaining_parts) > 2 else "Tuntematon"
+                    
+                    log(f"Adding draw manually from console: date={date_str}, numbers={numbers_str}, jackpot={jackpot_str}", "DEBUG")
+                    result = service.add_draw_manually(date_str, numbers_str, jackpot_str)
+                    log(f"Add result: {result}", "DEBUG")
+                    notice_message(result["message"])
+            elif sub_command and sub_command not in ["frequent", "tilastot", "stats", "scrape", "add"]:
+                # Date-specific query
+                log(f"Executing date-specific query for: {sub_command} from console", "DEBUG")
+                result = service.get_draw_by_date(sub_command)
+                log(f"Date query result: {result}", "DEBUG")
+                message = result["message"]
+                # Split message if it contains newlines
+                lines = message.split("\n")
+                for line in lines:
+                    if line.strip():
+                        notice_message(line)
+            else:
+                # Default: show combined info (latest + next draw)
+                log("Executing default combined info command from console", "DEBUG")
+                from services.eurojackpot_service import eurojackpot_command
+                message = eurojackpot_command(arg)
+                log(f"Combined info result: {message}", "DEBUG")
+                # Split message if it contains newlines (combined info)
+                lines = message.split("\n")
+                for line in lines:
+                    if line.strip():
+                        notice_message(line)
+        except Exception as e:
+            log(f"Error in console eurojackpot command handling: {e}", "ERROR")
+            import traceback
+            log(f"Console Eurojackpot exception traceback: {traceback.format_exc()}", "DEBUG")
+            notice_message(f"Eurojackpot: Virhe - {str(e)}")
 
     elif command == "!version":
         notice_message(f"Bot version: {BOT_VERSION}")
@@ -1096,6 +1174,12 @@ def process_message(irc, message, bot_functions):
                     log("Executing stats command", "DEBUG")
                     result = service.get_database_stats()
                     log(f"Stats result: {result}", "DEBUG")
+                    notice_message(result["message"], irc, target)
+                elif command == "frequent" or command == "tilastot":
+                    # Handle frequent numbers command
+                    log("Executing frequent numbers command", "DEBUG")
+                    result = service.get_frequent_numbers()
+                    log(f"Frequent numbers result: {result}", "DEBUG")
                     notice_message(result["message"], irc, target)
                 elif command == "add":
                     # Handle manual add command
