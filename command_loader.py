@@ -187,39 +187,59 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
 
     This function bridges the old and new command systems during the transition.
     """
-    # Try new command system first
+    log_func = bot_functions.get("log")
+    
+    # Try new command system first - but with better error handling
+    new_system_worked = False
     try:
-        # Run async command processing
-        loop = None
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+        # Check if new command system functions are available
+        if "process_console_command_new" in globals():
+            # Run async command processing
+            loop = None
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_closed():
+                    raise RuntimeError("Event loop is closed")
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
 
-        processed = loop.run_until_complete(
-            process_console_command_new(command_text, bot_functions)
-        )
+            processed = loop.run_until_complete(
+                process_console_command_new(command_text, bot_functions)
+            )
 
-        if processed:
-            return  # Command was handled by new system
+            if processed:
+                new_system_worked = True
+                if log_func:
+                    log_func(f"Command '{command_text}' processed by new system", "DEBUG")
+                return  # Command was handled by new system
+        else:
+            # New system not available, skip to legacy
+            if log_func:
+                log_func(f"New command system not available, using legacy for '{command_text}'", "DEBUG")
 
     except Exception as e:
-        log_func = bot_functions.get("log")
         if log_func:
-            log_func(f"New command system failed for '{command_text}': {e}", "WARNING")
+            log_func(f"New command system failed for '{command_text}': {e}", "DEBUG")
+        # Continue to legacy system
 
     # Fall back to legacy command system
     try:
         from commands import process_console_command
 
         process_console_command(command_text, bot_functions)
-    except Exception as e:
-        log_func = bot_functions.get("log")
+        
+    except ImportError as e:
         if log_func:
-            log_func(
-                f"Legacy command system also failed for '{command_text}': {e}", "ERROR"
-            )
+            log_func(f"Could not import legacy command processor: {e}", "ERROR")
+        else:
+            print(f"ERROR: Could not import legacy command processor: {e}")
+            
+    except Exception as e:
+        if log_func:
+            log_func(f"Legacy command system also failed for '{command_text}': {e}", "ERROR")
+        else:
+            print(f"ERROR: Legacy command system failed for '{command_text}': {e}")
 
 
 def enhanced_process_irc_message(irc, message, bot_functions):

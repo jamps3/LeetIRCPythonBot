@@ -90,6 +90,34 @@ def ping_command(context: CommandContext, bot_functions):
     return "Pong! 🏓"
 
 
+@command(
+    "s",
+    aliases=["sää", "weather"],
+    description="Get weather information",
+    usage="!s [location]",
+    examples=["!s", "!s Helsinki", "!s Joensuu"],
+)
+def weather_command(context: CommandContext, bot_functions):
+    """Get weather information for a location."""
+    location = context.args_text.strip() if context.args_text else "Joensuu"
+    
+    # Call the weather function from bot_functions
+    send_weather = bot_functions.get("send_weather")
+    if send_weather:
+        # For console, we need to handle the response differently
+        if context.is_console:
+            # Import logging to track console calls
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Getting weather for {location} from console")
+        
+        # Call the weather service
+        send_weather(None, context.target, location)
+        return CommandResponse.no_response()  # Weather service handles the output
+    else:
+        return "Weather service not available"
+
+
 @command("about", description="Show information about the bot", usage="!about")
 def about_command(context: CommandContext, bot_functions):
     """Show information about the bot."""
