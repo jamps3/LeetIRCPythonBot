@@ -89,7 +89,7 @@ def fetch_title_improved(
 
         # Special handling for YouTube URLs to get more information
         youtube_pattern = re.compile(
-            r"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?([a-zA-Z0-9_-]{11})"
+            r"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|shorts\/|embed\/)?([a-zA-Z0-9_-]{11})"
         )
         youtube_match = youtube_pattern.search(url)
 
