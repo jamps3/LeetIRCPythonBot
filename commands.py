@@ -660,15 +660,11 @@ def process_message(irc, message, bot_functions):
             # Drink words tracking with privacy controls
             drink_matches = drink_tracker.process_message(server_name, sender, text)
 
-            # Tamagotchi bot interaction
-            should_respond, tamagotchi_response = tamagotchi_bot.process_message(
-                server_name, sender, text
-            )
-            if should_respond and tamagotchi_response:
-                notice_message(tamagotchi_response, irc, target)
+            # Note: Tamagotchi interaction is now handled by bot_manager._track_words()
+            # which properly respects the tamagotchi_enabled toggle setting
 
-            # Keep legacy tamagotchi call for now (will be deprecated)
-            tamagotchi(text, irc, target)
+            # Legacy tamagotchi call removed - now handled by bot_manager._track_words()
+            # with proper toggle support
 
         # Process each message sent to the channel and detect drinking words.
         # Regex pattern to find words in the format "word (beverage)"
