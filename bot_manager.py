@@ -837,7 +837,8 @@ class BotManager:
             r'(?:https?://)?(?:www\.)?youtube\.com/embed/([\w\-_]*)',
             r'(?:https?://)?(?:www\.)?youtube\.com/v/([\w\-_]*)',
             r'(?:https?://)?(?:m\.)?youtube\.com/watch\?v=([\w\-_]*)',
-            r'(?:https?://)?(?:music\.)?youtube\.com/watch\?v=([\w\-_]*)'
+            r'(?:https?://)?(?:music\.)?youtube\.com/watch\?v=([\w\-_]*)',
+            r'(?:https?://)?(?:www\.)?youtube\.com/shorts/([\w\-_]+)'  # YouTube Shorts
         ]
         
         for pattern in youtube_patterns:
