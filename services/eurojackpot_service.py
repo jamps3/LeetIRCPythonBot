@@ -203,15 +203,23 @@ class EurojackpotService:
                 # Return mock data for development/testing
                 from datetime import timedelta
                 
-                # Calculate next Friday (Eurojackpot draws are on Fridays)
+                # Calculate next draw day (Eurojackpot draws are on Tuesdays and Fridays)
                 today = datetime.now()
-                days_ahead = 4 - today.weekday()  # Friday is 4 (0=Monday)
-                if days_ahead <= 0:  # Target day already happened this week
-                    days_ahead += 7
                 
-                next_friday = today + timedelta(days=days_ahead)
-                draw_date = next_friday.strftime("%d.%m.%Y")
-                week_number = next_friday.isocalendar()[1]
+                # Check for next Tuesday (1) or Friday (4)
+                next_tuesday = today + timedelta(days=(1 - today.weekday()) % 7)
+                next_friday = today + timedelta(days=(4 - today.weekday()) % 7)
+                
+                # If both are in the past, get the next ones
+                if next_tuesday <= today:
+                    next_tuesday += timedelta(days=7)
+                if next_friday <= today:
+                    next_friday += timedelta(days=7)
+                
+                # Choose the earlier one
+                next_draw = min(next_tuesday, next_friday)
+                draw_date = next_draw.strftime("%d.%m.%Y")
+                week_number = next_draw.isocalendar()[1]
                 
                 success_message = f"Seuraava Eurojackpot-arvonta: {draw_date} (viikko {week_number}) | Päävoitto: 15000000 EUR (demo-data)"
                 
@@ -236,15 +244,23 @@ class EurojackpotService:
                 
                 from datetime import timedelta
                 
-                # Calculate next Friday (Eurojackpot draws are on Fridays)
+                # Calculate next draw day (Eurojackpot draws are on Tuesdays and Fridays)
                 today = datetime.now()
-                days_ahead = 4 - today.weekday()  # Friday is 4 (0=Monday)
-                if days_ahead <= 0:  # Target day already happened this week
-                    days_ahead += 7
                 
-                next_friday = today + timedelta(days=days_ahead)
-                draw_date = next_friday.strftime("%d.%m.%Y")
-                week_number = next_friday.isocalendar()[1]
+                # Check for next Tuesday (1) or Friday (4)
+                next_tuesday = today + timedelta(days=(1 - today.weekday()) % 7)
+                next_friday = today + timedelta(days=(4 - today.weekday()) % 7)
+                
+                # If both are in the past, get the next ones
+                if next_tuesday <= today:
+                    next_tuesday += timedelta(days=7)
+                if next_friday <= today:
+                    next_friday += timedelta(days=7)
+                
+                # Choose the earlier one
+                next_draw = min(next_tuesday, next_friday)
+                draw_date = next_draw.strftime("%d.%m.%Y")
+                week_number = next_draw.isocalendar()[1]
                 
                 success_message = f"Seuraava Eurojackpot-arvonta: {draw_date} (viikko {week_number}) | Päävoitto: 15000000 EUR (demo-data - API ei saatavilla)"
                 
@@ -659,12 +675,12 @@ class EurojackpotService:
             start_date = date(2012, 3, 23)  # First Eurojackpot draw
             today = date.today()
             
-            # Generate all Friday dates from start_date to today
+            # Generate all Tuesday and Friday dates from start_date to today
             missing_dates = []
             current_date = start_date
             while current_date <= today:
-                # Check if it's a Friday (4 = Friday)
-                if current_date.weekday() == 4:  # Friday
+                # Check if it's a Tuesday (1) or Friday (4)
+                if current_date.weekday() in [1, 4]:  # Tuesday or Friday
                     date_iso = current_date.strftime("%Y-%m-%d")
                     if date_iso not in existing_dates and current_date.year >= start_year:
                         missing_dates.append(date_iso)
@@ -902,13 +918,13 @@ class EurojackpotService:
                     "message": "❌ Virheellinen päivämäärä. Käytä muotoa PP.KK.VVVV tai VVVV-KK-PP.",
                 }
             
-            # Validate that the date is a Friday (Eurojackpot draw day)
+            # Validate that the date is a Tuesday or Friday (Eurojackpot draw days)
             draw_date_obj = datetime.strptime(date_iso, "%Y-%m-%d")
-            if draw_date_obj.weekday() != 4:  # 4 = Friday
+            if draw_date_obj.weekday() not in [1, 4]:  # 1 = Tuesday, 4 = Friday
                 day_name = ['maanantai', 'tiistai', 'keskiviikko', 'torstai', 'perjantai', 'lauantai', 'sunnuntai'][draw_date_obj.weekday()]
                 return {
                     "success": False,
-                    "message": f"⚠️ Eurojackpot-arvonnat ovat perjantaisin. {date_str} on {day_name}.",
+                    "message": f"⚠️ Eurojackpot-arvonnat ovat tiistaisin ja perjantaisin. {date_str} on {day_name}.",
                 }
             
             # Parse and validate numbers
