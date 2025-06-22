@@ -128,32 +128,48 @@ def test_console_help_command():
 def test_bot_manager_console_integration():
     """Test BotManager console integration."""
     try:
-        from bot_manager import BotManager
+        import os
+        import sys
+        from io import StringIO
         
-        # Create bot manager
-        bot_manager = BotManager("TestBot")
+        # Capture stdout/stderr to avoid encoding issues during testing
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        sys.stdout = StringIO()
+        sys.stderr = StringIO()
         
-        # Check if console listener method exists
-        if not hasattr(bot_manager, '_listen_for_console_commands'):
-            return False
-        
-        # Check if console bot functions method exists
-        if not hasattr(bot_manager, '_create_console_bot_functions'):
-            return False
+        try:
+            from bot_manager import BotManager
             
-        # Test console bot functions creation
-        bot_functions = bot_manager._create_console_bot_functions()
-        
-        required_functions = [
-            'notice_message', 'log', 'send_weather', 
-            'send_electricity_price', 'get_crypto_price'
-        ]
-        
-        for func_name in required_functions:
-            if func_name not in bot_functions:
+            # Create bot manager
+            bot_manager = BotManager("TestBot")
+            
+            # Check if console listener method exists
+            if not hasattr(bot_manager, '_listen_for_console_commands'):
                 return False
-        
-        return True
+            
+            # Check if console bot functions method exists
+            if not hasattr(bot_manager, '_create_console_bot_functions'):
+                return False
+                
+            # Test console bot functions creation
+            bot_functions = bot_manager._create_console_bot_functions()
+            
+            required_functions = [
+                'notice_message', 'log', 'send_weather', 
+                'send_electricity_price', 'get_crypto_price'
+            ]
+            
+            for func_name in required_functions:
+                if func_name not in bot_functions:
+                    return False
+            
+            return True
+            
+        finally:
+            # Always restore stdout/stderr
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
         
     except Exception as e:
         print(f"BotManager console integration test failed: {e}")
@@ -174,10 +190,10 @@ def test_console_command_with_services():
         
         # Mock service functions
         def mock_send_weather(irc, target, location):
-            mock_notice(f"🌤️ Weather for {location}: Sunny, 20°C")
+            mock_notice(f"Weather for {location}: Sunny, 20°C")
         
         def mock_send_electricity(irc, target, args):
-            mock_notice("⚡ Current electricity price: 5.2 snt/kWh")
+            mock_notice("Current electricity price: 5.2 snt/kWh")
         
         bot_functions = {
             "notice_message": mock_notice,
@@ -236,7 +252,7 @@ def test_legacy_console_commands():
                 responses.append(f"The current price of {coin.capitalize()} is 1000 €.")
         
         def mock_send_electricity_price(irc, channel, parts):
-            responses.append("⚡ Electricity price: 5.2 snt/kWh")
+            responses.append("Electricity price: 5.2 snt/kWh")
         
         bot_functions = {
             "notice_message": mock_notice,
