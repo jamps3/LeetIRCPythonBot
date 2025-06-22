@@ -156,8 +156,8 @@ class EurojackpotService:
                 # Sort by date (newest first)
                 db["draws"].sort(key=lambda x: x.get("date_iso", ""), reverse=True)
                 
-                # Keep only last 50 draws to prevent database from growing too large
-                db["draws"] = db["draws"][:50]
+                # Keep only last 500 draws to allow for historical data while preventing excessive growth
+                db["draws"] = db["draws"][:500]
                 
                 # Update timestamp
                 db["last_updated"] = datetime.now().isoformat()
