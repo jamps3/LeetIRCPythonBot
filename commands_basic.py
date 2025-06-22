@@ -128,6 +128,28 @@ def about_command(context: CommandContext, bot_functions):
     )
 
 
+@command(
+    "exit",
+    description="Exit the bot from console",
+    usage="!exit",
+    examples=["!exit"],
+    scope=CommandScope.CONSOLE_ONLY,
+)
+def exit_command(context: CommandContext, bot_functions):
+    """Exit the bot when used from console."""
+    if context.is_console:
+        # Try to get the stop event from bot functions and trigger it
+        stop_event = bot_functions.get("stop_event")
+        if stop_event:
+            stop_event.set()
+            return "🛑 Shutting down bot..."
+        else:
+            # Fallback - just return a quit message
+            return "🛑 Exit command received - bot shutting down"
+    else:
+        return "This command only works from console"
+
+
 # Import this module to register the commands
 def register_basic_commands():
     """Register all basic commands. Called automatically when module is imported."""

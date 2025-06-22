@@ -141,7 +141,6 @@ def nick_command(context: CommandContext, bot_functions):
     examples=["!quit mypass", "!quit mypass Goodbye everyone!"],
     admin_only=True,
     requires_args=True,
-    scope=CommandScope.IRC_ONLY,
 )
 def quit_command(context: CommandContext, bot_functions):
     """Quit IRC with an optional message."""
@@ -150,20 +149,24 @@ def quit_command(context: CommandContext, bot_functions):
 
     quit_message = " ".join(context.args[1:]) if len(context.args) > 1 else "Admin quit"
 
-    # Send IRC command
-    irc = bot_functions.get("irc")
-    if irc:
-        irc.sendall(f"QUIT :{quit_message}\r\n".encode("utf-8"))
-
-        log_func = bot_functions.get("log")
-        if log_func:
-            log_func(f"Admin quit with message: {quit_message}", "INFO")
-
-        return (
-            CommandResponse.no_response()
-        )  # Don't send a response since we're quitting
+    if context.is_console:
+        # For console, trigger bot shutdown
+        return f"Console quit command: {quit_message}"
     else:
-        return CommandResponse.error_msg("IRC connection not available")
+        # Send IRC command
+        irc = bot_functions.get("irc")
+        if irc:
+            irc.sendall(f"QUIT :{quit_message}\r\n".encode("utf-8"))
+
+            log_func = bot_functions.get("log")
+            if log_func:
+                log_func(f"Admin quit with message: {quit_message}", "INFO")
+
+            return (
+                CommandResponse.no_response()
+            )  # Don't send a response since we're quitting
+        else:
+            return CommandResponse.error_msg("IRC connection not available")
 
 
 @command(

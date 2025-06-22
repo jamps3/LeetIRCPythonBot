@@ -564,6 +564,7 @@ class BotManager:
             "save": self._save_legacy_data,
             "BOT_VERSION": "2.0.0",
             "server_name": "console",
+            "stop_event": self.stop_event,  # Allow console commands to trigger shutdown
         }
 
     def _console_weather(self, irc, channel, location):
