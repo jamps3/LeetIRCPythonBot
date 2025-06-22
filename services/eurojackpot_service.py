@@ -39,15 +39,85 @@ class EurojackpotService:
     ) -> Optional[Dict]:
         """Make HTTP request with Magayo API parameters and return JSON response."""
         try:
-            response = requests.get(url, params=params, timeout=timeout)
-            response.raise_for_status()
-            return response.json()
+            self.logger.debug(f"Making request to {url} with params: {params}")
+            
+            # Try multiple approaches to handle the API
+            approaches = [
+                # Approach 1: Standard session with modern headers
+                {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                    'Accept': 'application/json, text/html, */*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Referer': 'https://www.magayo.com/',
+                    'Cache-Control': 'no-cache'
+                },
+                # Approach 2: Minimal headers (sometimes APIs prefer this)
+                {
+                    'User-Agent': 'Python-requests/2.31.0',
+                    'Accept': 'application/json'
+                },
+                # Approach 3: Legacy browser headers
+                {
+                    'User-Agent': 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1)',
+                    'Accept': 'application/json, text/html'
+                }
+            ]
+            
+            for i, headers in enumerate(approaches):
+                try:
+                    self.logger.debug(f"Trying approach {i+1} with headers: {list(headers.keys())}")
+                    
+                    session = requests.Session()
+                    session.headers.update(headers)
+                    
+                    response = session.get(url, params=params, timeout=timeout, allow_redirects=True)
+                    self.logger.debug(f"Approach {i+1} - Response status: {response.status_code}, URL: {response.url}")
+                    
+                    if response.status_code == 303:
+                        self.logger.warning(f"Approach {i+1} - Got 303 redirect, following to: {response.headers.get('Location', 'unknown')}")
+                        continue  # Try next approach
+                    
+                    response.raise_for_status()
+                    
+                    # Log response content for debugging
+                    self.logger.debug(f"Approach {i+1} - Response content preview: {response.text[:200]}...")
+                    
+                    json_data = response.json()
+                    self.logger.debug(f"Approach {i+1} - Parsed JSON response: {json_data}")
+                    
+                    # Check if the API returned an error in the JSON (common with Magayo API)
+                    if isinstance(json_data, dict) and json_data.get('error') == 303:
+                        self.logger.warning(f"Approach {i+1} - API returned error 303 in JSON response")
+                        if i < len(approaches) - 1:  # Not the last approach
+                            continue  # Try next approach
+                    
+                    return json_data
+                    
+                except requests.RequestException as e:
+                    self.logger.warning(f"Approach {i+1} failed with request error: {e}")
+                    if i == len(approaches) - 1:  # Last approach
+                        raise
+                    continue
+                except json.JSONDecodeError as e:
+                    self.logger.warning(f"Approach {i+1} failed with JSON decode error: {e}")
+                    if i == len(approaches) - 1:  # Last approach
+                        raise
+                    continue
+            
+            # If we get here, all approaches failed
+            return {"error": 303, "message": "All API request approaches failed"}
+            
         except requests.RequestException as e:
             self.logger.error(f"Request error for {url}: {e}")
-            return None
-        except Exception as e:
+            self.logger.debug(f"Request params were: {params}")
+            return {"error": getattr(e.response, 'status_code', 999) if hasattr(e, 'response') and e.response else 999, "message": str(e)}
+        except json.JSONDecodeError as e:
             self.logger.error(f"JSON decode error for {url}: {e}")
-            return None
+            self.logger.debug(f"Response was: {response.text if 'response' in locals() else 'No response'}")
+            return {"error": 998, "message": f"Invalid JSON response: {str(e)}"}
+        except Exception as e:
+            self.logger.error(f"Unexpected error for {url}: {e}")
+            return {"error": 997, "message": f"Unexpected error: {str(e)}"}
 
     def _load_database(self) -> Dict[str, any]:
         """Load draw data from JSON database file."""
@@ -551,13 +621,16 @@ class EurojackpotService:
                 "message": "📊 Virhe yleisimpien numeroiden haussa",
             }
 
-    def scrape_all_draws(self, start_year: int = 2012, max_draws: int = 200) -> Dict[str, any]:
+    def scrape_all_draws(self, start_year: int = 2012, max_api_calls: int = 10) -> Dict[str, any]:
         """
-        Scrape all historical Eurojackpot draws from the API and save to database.
+        Scrape historical Eurojackpot draws from the API and save to database.
+        
+        This function respects API limits (10 calls per month) and only fetches
+        draws that we don't already have in the database.
         
         Args:
             start_year: Year to start scraping from (Eurojackpot started in 2012)
-            max_draws: Maximum number of draws to fetch (to prevent excessive API calls)
+            max_api_calls: Maximum API calls to make (default 10 = monthly limit)
             
         Returns:
             Dict with scraping results and statistics
@@ -569,62 +642,108 @@ class EurojackpotService:
                     "message": "📥 Scrape-toiminto vaatii API-avaimen. Aseta EUROJACKPOT_API_KEY .env-tiedostoon.",
                 }
             
-            self.logger.info(f"Starting scrape of Eurojackpot draws from {start_year}")
+            self.logger.info(f"Starting smart scrape of Eurojackpot draws from {start_year} (max {max_api_calls} API calls)")
             
             # Load existing database
             db = self._load_database()
             initial_count = len(db["draws"])
+            existing_dates = {draw.get("date_iso") for draw in db["draws"] if draw.get("date_iso")}
             
-            # Get all available draws using multiple API requests
-            # The Magayo API typically returns draws in reverse chronological order
-            new_draws = 0
-            updated_draws = 0
+            self.logger.info(f"Database has {initial_count} existing draws, skipping those to save API calls")
             
-            # Get recent draws first (they're more likely to be new)
-            params = {
-                "api_key": self.api_key,
-                "game": "eurojackpot",
-                "format": "json",
-                "number": str(min(max_draws, 50))  # API typically limits to 50 results per request
-            }
+            # Calculate date range to scrape (only missing dates)
+            # Eurojackpot draws are on Fridays, so we generate all Friday dates and check which are missing
+            from datetime import timedelta, date
             
-            data = self._make_request(self.results_url, params)
+            # Start from the first Eurojackpot draw (March 23, 2012)
+            start_date = date(2012, 3, 23)  # First Eurojackpot draw
+            today = date.today()
             
-            if not data or data.get("error") != 0:
+            # Generate all Friday dates from start_date to today
+            missing_dates = []
+            current_date = start_date
+            while current_date <= today:
+                # Check if it's a Friday (4 = Friday)
+                if current_date.weekday() == 4:  # Friday
+                    date_iso = current_date.strftime("%Y-%m-%d")
+                    if date_iso not in existing_dates and current_date.year >= start_year:
+                        missing_dates.append(date_iso)
+                current_date += timedelta(days=1)
+            
+            missing_dates.sort(reverse=True)  # Newest first
+            total_missing = len(missing_dates)
+            
+            if total_missing == 0:
                 return {
-                    "success": False,
-                    "message": f"📥 API-virhe scrape-toiminnossa: {data.get('error') if data else 'null'}",
+                    "success": True,
+                    "message": f"📥 Kaikki arvonnat on jo tallennettu! Tietokannassa: {initial_count} arvontaa. Ei API-kutsuja tarvittu.",
+                    "new_draws": 0,
+                    "api_calls_used": 0,
+                    "total_missing": 0,
                 }
             
-            # Process the results - API might return single draw or array of draws
-            draws_data = data.get("draws", [])
-            if not draws_data and "draw" in data:
-                # Single draw response
-                draws_data = [data]
+            self.logger.info(f"Found {total_missing} missing draws, will fetch up to {max_api_calls} of them")
             
-            for draw_data in draws_data:
+            # Limit the dates to scrape based on max_api_calls
+            dates_to_scrape = missing_dates[:max_api_calls]
+            
+            new_draws = 0
+            api_calls_used = 0
+            failed_calls = 0
+            
+            for i, date_iso in enumerate(dates_to_scrape, 1):
                 try:
-                    # Extract draw information
-                    draw_date_iso = draw_data.get("draw")
-                    if not draw_date_iso:
-                        continue
-                        
-                    # Check if draw is from our target year range
-                    draw_year = int(draw_date_iso[:4])
-                    if draw_year < start_year:
+                    self.logger.info(f"Scraping draw {i}/{len(dates_to_scrape)}: {date_iso}")
+                    
+                    # Make API call for specific date
+                    params = {
+                        "api_key": self.api_key,
+                        "game": "eurojackpot",
+                        "draw": date_iso,
+                        "format": "json",
+                    }
+                    
+                    data = self._make_request(self.results_url, params)
+                    api_calls_used += 1
+                    
+                    if not data:
+                        self.logger.warning(f"No response for {date_iso}")
+                        failed_calls += 1
                         continue
                     
+                    if data.get("error") == 303:
+                        self.logger.warning(f"API limit reached (303) after {api_calls_used} calls")
+                        break  # Stop scraping if we hit the limit
+                    
+                    if data.get("error") != 0:
+                        self.logger.warning(f"API error {data.get('error')} for {date_iso}")
+                        failed_calls += 1
+                        continue
+                    
+                    # Process the draw data
+                    draw_date_iso = data.get("draw")
+                    if not draw_date_iso or draw_date_iso == "-":
+                        self.logger.info(f"No draw found for {date_iso} (probably no draw that day)")
+                        continue
+                    
+                    results = data.get("results", "")
+                    if not results or results == "-":
+                        self.logger.info(f"No results found for {date_iso}")
+                        continue
+                    
+                    # Parse the draw data
                     draw_date = datetime.strptime(draw_date_iso, "%Y-%m-%d").strftime("%d.%m.%Y")
                     week_number = self.get_week_number(draw_date_iso)
                     
-                    numbers = draw_data.get("results", "").split(",")
+                    numbers = results.split(",")
                     if len(numbers) < 7:  # Need at least 5 main + 2 euro numbers
+                        self.logger.warning(f"Invalid number format for {date_iso}: {results}")
                         continue
-                        
+                    
                     main = " ".join(numbers[:5])
                     euro = " ".join(numbers[5:])
-                    jackpot = draw_data.get("jackpot", "Tuntematon")
-                    currency = draw_data.get("currency", "EUR")
+                    jackpot = data.get("jackpot", "Tuntematon")
+                    currency = data.get("currency", "EUR")
                     
                     # Create database entry
                     draw_db_data = {
@@ -640,46 +759,51 @@ class EurojackpotService:
                         "saved_at": datetime.now().isoformat()
                     }
                     
-                    # Check if draw already exists
-                    existing = self._get_draw_by_date_from_database(draw_date_iso)
-                    if existing:
-                        updated_draws += 1
-                        self.logger.debug(f"Updated existing draw for {draw_date_iso}")
-                    else:
-                        new_draws += 1
-                        self.logger.debug(f"Added new draw for {draw_date_iso}")
-                    
-                    # Save/update the draw
+                    # Save the draw
                     self._save_draw_to_database(draw_db_data)
+                    new_draws += 1
+                    
+                    self.logger.info(f"✓ Saved draw {draw_date}: {main} + {euro}")
                     
                 except Exception as e:
-                    self.logger.error(f"Error processing draw data: {e}")
+                    self.logger.error(f"Error processing draw for {date_iso}: {e}")
+                    failed_calls += 1
                     continue
             
             # Get final database stats
             final_db = self._load_database()
             final_count = len(final_db["draws"])
             
-            # Calculate date range of scraped data
-            if final_db["draws"]:
-                sorted_draws = sorted(final_db["draws"], key=lambda x: x.get("date_iso", ""))
-                oldest_date = sorted_draws[0].get("date", "Tuntematon")
-                newest_date = sorted_draws[-1].get("date", "Tuntematon")
-                date_range = f"{oldest_date} - {newest_date}"
+            # Calculate progress
+            remaining_missing = total_missing - new_draws
+            progress_pct = ((total_missing - remaining_missing) / total_missing * 100) if total_missing > 0 else 100
+            
+            # Build status message
+            if api_calls_used == 0:
+                message = f"📥 Ei API-kutsuja tehty. Tietokannassa: {final_count} arvontaa."
             else:
-                date_range = "Ei dataa"
+                message = f"📥 Scrape valmis! Haettu {new_draws} uutta arvontaa ({api_calls_used} API-kutsua). "
+                message += f"Tietokannassa nyt: {final_count} arvontaa. "
+                if remaining_missing > 0:
+                    message += f"Puuttuu vielä: {remaining_missing} arvontaa ({progress_pct:.1f}% valmis)."
+                else:
+                    message += "Kaikki arvonnat tallennettu! 🎉"
+                
+                if failed_calls > 0:
+                    message += f" Epäonnistui: {failed_calls} kutsua."
             
-            success_message = f"📥 Scrape valmis! Uusia arvontoja: {new_draws}, päivitettyjä: {updated_draws}. Yhteensä tietokannassa: {final_count} arvontaa ({date_range})"
-            
-            self.logger.info(f"Scrape completed: {new_draws} new, {updated_draws} updated, {final_count} total draws")
+            self.logger.info(f"Scrape completed: {new_draws} new draws, {api_calls_used} API calls used")
             
             return {
                 "success": True,
-                "message": success_message,
+                "message": message,
                 "new_draws": new_draws,
-                "updated_draws": updated_draws,
+                "api_calls_used": api_calls_used,
+                "failed_calls": failed_calls,
                 "total_draws": final_count,
-                "date_range": date_range,
+                "total_missing": total_missing,
+                "remaining_missing": remaining_missing,
+                "progress_percent": progress_pct,
                 "initial_count": initial_count,
             }
             
@@ -738,6 +862,158 @@ class EurojackpotService:
             return {
                 "success": False,
                 "message": f"📊 Virhe tietokannan tilastoissa: {str(e)}",
+            }
+    
+    def add_draw_manually(self, date_str: str, numbers_str: str, jackpot_str: str = "Tuntematon", currency: str = "EUR") -> Dict[str, any]:
+        """
+        Manually add a draw to the database.
+        
+        Args:
+            date_str: Date in format DD.MM.YYYY or YYYY-MM-DD
+            numbers_str: Numbers in format "1,2,3,4,5,6,7" (5 main + 2 euro)
+            jackpot_str: Jackpot amount (optional)
+            currency: Currency (default EUR)
+            
+        Returns:
+            Dict with operation result
+        """
+        try:
+            # Parse and validate date
+            date_iso = None
+            date_formats = ["%d.%m.%Y", "%Y-%m-%d", "%d.%m.%y"]
+            
+            for fmt in date_formats:
+                try:
+                    if fmt == "%d.%m.%y":
+                        # Handle 2-digit years (assume 20xx)
+                        parsed_date = datetime.strptime(date_str, fmt)
+                        if parsed_date.year < 2000:
+                            parsed_date = parsed_date.replace(year=parsed_date.year + 100)
+                        date_iso = parsed_date.strftime("%Y-%m-%d")
+                    else:
+                        date_iso = datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
+                    break
+                except ValueError:
+                    continue
+            
+            if not date_iso:
+                return {
+                    "success": False,
+                    "message": "❌ Virheellinen päivämäärä. Käytä muotoa PP.KK.VVVV tai VVVV-KK-PP.",
+                }
+            
+            # Validate that the date is a Friday (Eurojackpot draw day)
+            draw_date_obj = datetime.strptime(date_iso, "%Y-%m-%d")
+            if draw_date_obj.weekday() != 4:  # 4 = Friday
+                day_name = ['maanantai', 'tiistai', 'keskiviikko', 'torstai', 'perjantai', 'lauantai', 'sunnuntai'][draw_date_obj.weekday()]
+                return {
+                    "success": False,
+                    "message": f"⚠️ Eurojackpot-arvonnat ovat perjantaisin. {date_str} on {day_name}.",
+                }
+            
+            # Parse and validate numbers
+            try:
+                numbers = [n.strip() for n in numbers_str.split(",")]
+                if len(numbers) != 7:
+                    return {
+                        "success": False,
+                        "message": "❌ Tarvitaan täsmälleen 7 numeroa (5 pääsarjan + 2 euronumeroa). Esim: 1,5,12,25,35,3,8",
+                    }
+                
+                # Validate number ranges
+                main_numbers = [int(n) for n in numbers[:5]]
+                euro_numbers = [int(n) for n in numbers[5:]]
+                
+                # Check main numbers (1-50)
+                for num in main_numbers:
+                    if not (1 <= num <= 50):
+                        return {
+                            "success": False,
+                            "message": f"❌ Pääsarjan numero {num} ei ole välillä 1-50.",
+                        }
+                
+                # Check euro numbers (1-12)
+                for num in euro_numbers:
+                    if not (1 <= num <= 12):
+                        return {
+                            "success": False,
+                            "message": f"❌ Euronumero {num} ei ole välillä 1-12.",
+                        }
+                
+                # Check for duplicates in main numbers
+                if len(set(main_numbers)) != 5:
+                    return {
+                        "success": False,
+                        "message": "❌ Pääsarjan numeroiden tulee olla eri numeroita.",
+                    }
+                
+                # Check for duplicates in euro numbers
+                if len(set(euro_numbers)) != 2:
+                    return {
+                        "success": False,
+                        "message": "❌ Euronumeroiden tulee olla eri numeroita.",
+                    }
+                
+            except ValueError:
+                return {
+                    "success": False,
+                    "message": "❌ Kaikki numerot tulee olla kokonaislukuja.",
+                }
+            
+            # Format the numbers
+            main_formatted = " ".join(f"{num:02d}" for num in main_numbers)
+            euro_formatted = " ".join(f"{num:02d}" for num in euro_numbers)
+            
+            # Create draw data
+            draw_date = draw_date_obj.strftime("%d.%m.%Y")
+            week_number = self.get_week_number(date_iso)
+            
+            draw_data = {
+                "date_iso": date_iso,
+                "date": draw_date,
+                "week_number": week_number,
+                "numbers": [str(n) for n in numbers],
+                "main_numbers": main_formatted,
+                "euro_numbers": euro_formatted,
+                "jackpot": jackpot_str,
+                "currency": currency,
+                "type": "manual",
+                "saved_at": datetime.now().isoformat()
+            }
+            
+            # Check if draw already exists
+            existing = self._get_draw_by_date_from_database(date_iso)
+            action = "päivitetty" if existing else "lisätty"
+            
+            # Save to database
+            self._save_draw_to_database(draw_data)
+            
+            # Get final count
+            db = self._load_database()
+            total_count = len(db["draws"])
+            
+            success_message = f"✅ Arvonta {action}! {draw_date} (viikko {week_number}): {main_formatted} + {euro_formatted} | Päävoitto: {jackpot_str} {currency}. Tietokannassa nyt: {total_count} arvontaa."
+            
+            self.logger.info(f"Manually {action} draw for {date_iso}: {main_formatted} + {euro_formatted}")
+            
+            return {
+                "success": True,
+                "message": success_message,
+                "action": action,
+                "date": draw_date,
+                "numbers": numbers,
+                "main_numbers": main_formatted,
+                "euro_numbers": euro_formatted,
+                "jackpot": jackpot_str,
+                "currency": currency,
+                "total_draws": total_count,
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error adding draw manually: {e}")
+            return {
+                "success": False,
+                "message": f"❌ Virhe arvonnan lisäämisessä: {str(e)}",
             }
 
 

@@ -1073,40 +1073,75 @@ def process_message(irc, message, bot_functions):
                 log("!link", "DEBUG")
 
         elif text.startswith("!eurojackpot"):
+            log(f"Eurojackpot command received: {text}", "DEBUG")
             parts = text.split()
             command = parts[1] if len(parts) > 1 else None
             arg = parts[2] if len(parts) > 2 else None
+            log(f"Parsed command: {command}, arg: {arg}", "DEBUG")
 
             # Import the service
             from services.eurojackpot_service import get_eurojackpot_service
             service = get_eurojackpot_service()
+            log("Eurojackpot service imported and initialized", "DEBUG")
 
-            if command == "scrape":
-                # Handle scrape command
-                result = service.scrape_all_draws()
-                notice_message(result["message"], irc, target)
-            elif command == "stats":
-                # Handle stats command
-                result = service.get_database_stats()
-                notice_message(result["message"], irc, target)
-            elif command and command not in ["scrape", "stats"]:
-                # Date-specific query
-                result = service.get_draw_by_date(command)
-                message = result["message"]
-                # Split message if it contains newlines
-                lines = message.split("\n")
-                for line in lines:
-                    if line.strip():
-                        notice_message(line, irc, target)
-            else:
-                # Default: show combined info (latest + next draw)
-                from services.eurojackpot_service import eurojackpot_command
-                message = eurojackpot_command(arg)
-                # Split message if it contains newlines (combined info)
-                lines = message.split("\n")
-                for line in lines:
-                    if line.strip():
-                        notice_message(line, irc, target)
+            try:
+                if command == "scrape":
+                    # Handle scrape command
+                    log("Executing scrape command", "DEBUG")
+                    result = service.scrape_all_draws()
+                    log(f"Scrape result: {result}", "DEBUG")
+                    notice_message(result["message"], irc, target)
+                elif command == "stats":
+                    # Handle stats command
+                    log("Executing stats command", "DEBUG")
+                    result = service.get_database_stats()
+                    log(f"Stats result: {result}", "DEBUG")
+                    notice_message(result["message"], irc, target)
+                elif command == "add":
+                    # Handle manual add command
+                    log("Executing add command", "DEBUG")
+                    # Parse remaining arguments: date, numbers, [jackpot]
+                    remaining_parts = text.split()[2:]  # Skip "!eurojackpot" and "add"
+                    
+                    if len(remaining_parts) < 2:
+                        notice_message("❌ Käyttö: !eurojackpot add PP.KK.VVVV 1,2,3,4,5,6,7 [päävoitto]", irc, target)
+                        notice_message("Esim: !eurojackpot add 20.12.2024 1,5,12,25,35,3,8 15000000", irc, target)
+                    else:
+                        date_str = remaining_parts[0]
+                        numbers_str = remaining_parts[1]
+                        jackpot_str = remaining_parts[2] if len(remaining_parts) > 2 else "Tuntematon"
+                        
+                        log(f"Adding draw manually: date={date_str}, numbers={numbers_str}, jackpot={jackpot_str}", "DEBUG")
+                        result = service.add_draw_manually(date_str, numbers_str, jackpot_str)
+                        log(f"Add result: {result}", "DEBUG")
+                        notice_message(result["message"], irc, target)
+                elif command and command not in ["scrape", "stats", "add"]:
+                    # Date-specific query
+                    log(f"Executing date-specific query for: {command}", "DEBUG")
+                    result = service.get_draw_by_date(command)
+                    log(f"Date query result: {result}", "DEBUG")
+                    message = result["message"]
+                    # Split message if it contains newlines
+                    lines = message.split("\n")
+                    for line in lines:
+                        if line.strip():
+                            notice_message(line, irc, target)
+                else:
+                    # Default: show combined info (latest + next draw)
+                    log("Executing default combined info command", "DEBUG")
+                    from services.eurojackpot_service import eurojackpot_command
+                    message = eurojackpot_command(arg)
+                    log(f"Combined info result: {message}", "DEBUG")
+                    # Split message if it contains newlines (combined info)
+                    lines = message.split("\n")
+                    for line in lines:
+                        if line.strip():
+                            notice_message(line, irc, target)
+            except Exception as e:
+                log(f"Error in eurojackpot command handling: {e}", "ERROR")
+                import traceback
+                log(f"Eurojackpot exception traceback: {traceback.format_exc()}", "DEBUG")
+                notice_message(f"Eurojackpot: Virhe - {str(e)}", irc, target)
 
         elif text.startswith("!youtube"):
             match = re.search(r"!youtube\s+(.+)", text)
