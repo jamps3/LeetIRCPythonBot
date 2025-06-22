@@ -69,9 +69,9 @@ class TestYouTubeURLDetection(unittest.TestCase):
                 self.assertEqual(result, should_be_youtube, 
                     f"URL '{url}' should {'be' if should_be_youtube else 'not be'} detected as YouTube")
 
-    def test_fetch_title_skips_youtube_urls(self):
-        """Test that _fetch_title skips YouTube URLs and processes other URLs."""
-        print("\n=== Testing title fetching behavior ===")
+    def test_fetch_title_skips_blacklisted_urls(self):
+        """Test that _fetch_title skips blacklisted URLs and processes allowed URLs."""
+        print("\n=== Testing title fetching blacklist behavior ===")
         
         # Mock IRC and target
         mock_irc = Mock()
@@ -86,40 +86,59 @@ class TestYouTubeURLDetection(unittest.TestCase):
         
         self.bot_manager._send_response = mock_send_response
         
-        # Test text with both YouTube and non-YouTube URLs
-        test_text = "Check this out: https://www.youtube.com/watch?v=5nM6T3KCVfM and also https://example.com"
-        
-        # Mock requests.get for the non-YouTube URL
-        with patch('requests.get') as mock_get:
-            # Set up mock response for example.com
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.content = "<html><head><title>Example Website</title></head></html>"
-            mock_get.return_value = mock_response
+        # Test text with blacklisted and allowed URLs
+        test_cases = [
+            # Should be skipped (blacklisted domains)
+            "Check YouTube: https://www.youtube.com/watch?v=5nM6T3KCVfM",
+            "Facebook link: https://facebook.com/somepost", 
+            "Twitter: https://x.com/sometweet",
+            "Image file: https://example.com/photo.jpg",
+            "PDF file: https://example.com/document.pdf",
             
-            # Mock BeautifulSoup in the correct module
-            with patch('bs4.BeautifulSoup') as mock_soup:
-                mock_title = Mock()
-                mock_title.string = "Example Website"
-                mock_soup.return_value.find.return_value = mock_title
+            # Should be processed (allowed)
+            "Regular website: https://example.com",
+            "News site: https://news.example.com/article"
+        ]
+        
+        for test_text in test_cases:
+            print(f"\nTesting: {test_text}")
+            sent_messages.clear()
+            
+            # Mock requests.get for non-blacklisted URLs
+            with patch('requests.get') as mock_get:
+                # Set up mock response
+                mock_response = Mock()
+                mock_response.status_code = 200
+                mock_response.headers = {'Content-Type': 'text/html'}
+                mock_response.content = "<html><head><title>Test Website</title></head></html>"
+                mock_get.return_value = mock_response
                 
-                # Call _fetch_title
-                try:
-                    self.bot_manager._fetch_title(mock_irc, mock_target, test_text)
-                except ImportError:
-                    print("ℹ️  BeautifulSoup not installed, test will skip title fetching")
-        
-        print(f"Messages sent: {sent_messages}")
-        
-        # Verify behavior
-        if sent_messages:
-            # Should only have title for non-YouTube URL
-            self.assertEqual(len(sent_messages), 1)
-            self.assertIn("Example Website", sent_messages[0])
-            self.assertIn("📄", sent_messages[0])  # Title emoji
-            print("✓ Title fetching correctly skipped YouTube URL and processed other URL")
-        else:
-            print("ℹ️  No title messages sent (which is also correct if mocking doesn't work)")
+                # Mock BeautifulSoup
+                with patch('bs4.BeautifulSoup') as mock_soup:
+                    mock_title = Mock()
+                    mock_title.string = "Test Website"
+                    mock_soup.return_value.find.return_value = mock_title
+                    
+                    # Call _fetch_title
+                    try:
+                        self.bot_manager._fetch_title(mock_irc, mock_target, test_text)
+                    except ImportError:
+                        print("ℹ️  BeautifulSoup not installed, test will skip title fetching")
+                        continue
+            
+            # Check results
+            if "youtube.com" in test_text or "facebook.com" in test_text or "x.com" in test_text or ".jpg" in test_text or ".pdf" in test_text:
+                # Should be blacklisted
+                self.assertEqual(len(sent_messages), 0, f"Blacklisted URL should not generate title: {test_text}")
+                print(f"✓ Correctly skipped blacklisted URL")
+            else:
+                # Should be processed
+                if sent_messages:
+                    self.assertEqual(len(sent_messages), 1, f"Allowed URL should generate exactly one title: {test_text}")
+                    self.assertIn("Test Website", sent_messages[0])
+                    print(f"✓ Correctly processed allowed URL")
+                else:
+                    print(f"ℹ️  No title sent (mocking may not be working)")
 
     def test_youtube_url_variations(self):
         """Test edge cases and variations of YouTube URLs."""

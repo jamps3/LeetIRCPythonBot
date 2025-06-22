@@ -783,7 +783,7 @@ class BotManager:
         self.logger.log(message, level)
 
     def _fetch_title(self, irc, target, text):
-        """Fetch and display URL titles (excluding YouTube URLs which are handled separately)."""
+        """Fetch and display URL titles (excluding blacklisted URLs and file types)."""
         import re
 
         import requests
@@ -796,8 +796,8 @@ class BotManager:
         )
 
         for url in urls:
-            # Skip YouTube URLs as they are already handled by the YouTube service
-            if self._is_youtube_url(url):
+            # Skip blacklisted URLs
+            if self._is_url_blacklisted(url):
                 continue
                 
             try:
@@ -805,16 +805,25 @@ class BotManager:
                     url, timeout=10, headers={"User-Agent": "Mozilla/5.0"}
                 )
                 if response.status_code == 200:
+                    # Check content type before processing
+                    content_type = response.headers.get("Content-Type", "").lower()
+                    if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
+                        self.logger.debug(f"Skipping non-HTML content: {content_type}")
+                        continue
+                        
                     soup = BeautifulSoup(response.content, "html.parser")
                     title = soup.find("title")
                     if title and title.string:
+                        # Clean the title
+                        cleaned_title = re.sub(r"\s+", " ", title.string.strip())
+                        
                         # Send title to IRC if we have a proper server object
                         if hasattr(irc, "send_message"):
                             self._send_response(
-                                irc, target, f"📄 {title.string.strip()}"
+                                irc, target, f"📄 {cleaned_title}"
                             )
                         else:
-                            self.logger.info(f"Title: {title.string.strip()}")
+                            self.logger.info(f"Title: {cleaned_title}")
             except Exception as e:
                 self.logger.error(f"Error fetching title for {url}: {e}")
 
@@ -834,6 +843,42 @@ class BotManager:
         for pattern in youtube_patterns:
             if re.search(pattern, url, re.IGNORECASE):
                 return True
+        return False
+
+    def _is_url_blacklisted(self, url: str) -> bool:
+        """Check if a URL should be blacklisted from title fetching."""
+        # Skip YouTube URLs as they are already handled by the YouTube service
+        if self._is_youtube_url(url):
+            return True
+            
+        # Get blacklisted domains from environment
+        blacklisted_domains = os.getenv(
+            "TITLE_BLACKLIST_DOMAINS", 
+            "youtube.com,youtu.be,facebook.com,fb.com,x.com,twitter.com,instagram.com,tiktok.com,discord.com,reddit.com,imgur.com"
+        ).split(",")
+        
+        # Get blacklisted extensions from environment
+        blacklisted_extensions = os.getenv(
+            "TITLE_BLACKLIST_EXTENSIONS", 
+            ".jpg,.jpeg,.png,.gif,.mp4,.webm,.pdf,.zip,.rar,.mp3,.wav,.flac"
+        ).split(",")
+        
+        url_lower = url.lower()
+        
+        # Check domains
+        for domain in blacklisted_domains:
+            domain = domain.strip()
+            if domain and domain in url_lower:
+                self.logger.debug(f"Skipping URL with blacklisted domain '{domain}': {url}")
+                return True
+        
+        # Check file extensions
+        for ext in blacklisted_extensions:
+            ext = ext.strip()
+            if ext and url_lower.endswith(ext):
+                self.logger.debug(f"Skipping URL with blacklisted extension '{ext}': {url}")
+                return True
+        
         return False
 
     def _get_subscriptions_module(self):
