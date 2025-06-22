@@ -425,7 +425,7 @@ class BotManager:
             "EKAVIKA_FILE": "ekavika.json",
             "get_latency_start": lambda: getattr(self, "_latency_start", 0),
             "BOT_VERSION": "2.0.0",
-            "toggle_tamagotchi": lambda: self.toggle_tamagotchi(server, target, sender),
+            "toggle_tamagotchi": lambda srv, tgt, snd: self.toggle_tamagotchi(srv, tgt, snd),
         }
 
         # Create a mock IRC message format for commands.py compatibility

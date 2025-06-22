@@ -1326,7 +1326,8 @@ def process_message(irc, message, bot_functions):
                 # Toggle tamagotchi responses
                 toggle_func = bot_functions.get("toggle_tamagotchi")
                 if toggle_func:
-                    toggle_func()
+                    # Call with required parameters: server, target, sender
+                    toggle_func(irc, target, sender)
                 else:
                     notice_message("Tamagotchi toggle not available.", irc, target)
             else:
