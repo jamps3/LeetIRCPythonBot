@@ -423,15 +423,41 @@ class Server:
         """
         if self.connected and self.socket:
             try:
+                # Send QUIT message first
                 self.send_raw(f"QUIT :{message}")
-                time.sleep(1)  # Give the server a moment to process the QUIT
-                self.socket.shutdown(socket.SHUT_RDWR)
-                self.socket.close()
+                time.sleep(0.5)  # Give the server a moment to process the QUIT
+                
+                # Close socket safely
+                self._close_socket()
+                
             except Exception as e:
                 self.logger.warning(f"Error during quit: {e}")
+                # Still try to close socket even if QUIT failed
+                self._close_socket()
 
             self.connected = False
             self.logger.info("Disconnected from server")
+
+    def _close_socket(self):
+        """Safely close the socket connection."""
+        if self.socket:
+            try:
+                # Try to shutdown the socket first
+                self.socket.shutdown(socket.SHUT_RDWR)
+            except (OSError, socket.error) as e:
+                # Shutdown can fail if socket is already closed or not connected
+                self.logger.debug(f"Socket shutdown failed (expected): {e}")
+            
+            try:
+                # Close the socket
+                self.socket.close()
+                self.logger.debug("Socket closed successfully")
+            except (OSError, socket.error) as e:
+                # Close can fail if socket is already closed
+                self.logger.debug(f"Socket close failed (expected): {e}")
+            finally:
+                # Always clear the socket reference
+                self.socket = None
 
     def stop(self):
         """Stop the server and clean up all resources."""
@@ -442,15 +468,8 @@ class Server:
             try:
                 self.logger.info("Stopping server connection...")
                 
-                # Close socket immediately to break any blocking operations
-                if self.socket:
-                    try:
-                        self.socket.settimeout(0.1)  # Very short timeout
-                        self.socket.shutdown(socket.SHUT_RDWR)
-                        self.socket.close()
-                        self.logger.debug("Socket connection closed immediately")
-                    except Exception as e:
-                        self.logger.debug(f"Socket close error (expected): {e}")
+                # Use the safe socket closing method
+                self._close_socket()
 
                 # Wait for threads to finish with short timeout
                 timeout_per_thread = 1.0  # Much shorter timeout
