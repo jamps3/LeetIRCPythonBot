@@ -340,12 +340,24 @@ class Server:
         and start the keepalive and message reading threads.
 
         If connection fails, it will retry with exponential backoff.
+        If stop_event is set at any point, it will exit immediately.
         """
         retry_delay = 5  # Initial delay in seconds
         max_retry_delay = 300  # Maximum delay (5 minutes)
 
         while not self.stop_event.is_set():
+            # Check stop event before attempting connection
+            if self.stop_event.is_set():
+                self.logger.info("Stop event set, exiting connection loop")
+                break
+                
             if self.connect() and self.login():
+                # Check stop event after successful connection
+                if self.stop_event.is_set():
+                    self.logger.info("Stop event set after connection, disconnecting")
+                    self.quit("Shutdown requested")
+                    break
+                    
                 # Start keepalive ping thread
                 keepalive_thread = threading.Thread(
                     target=self._keepalive_ping,
@@ -370,22 +382,37 @@ class Server:
 
                 # If we're still connected but stop event is set, send QUIT
                 if self.connected and self.stop_event.is_set():
+                    self.logger.info("Stop event set, sending QUIT")
                     self.quit("Shutting down")
 
                 retry_delay = 5  # Reset retry delay
+            else:
+                # Connection or login failed
+                if self.stop_event.is_set():
+                    self.logger.info("Stop event set during connection failure, exiting")
+                    break
 
+            # Final check before considering reconnection
+            if self.stop_event.is_set():
+                self.logger.info("Stop event set, not reconnecting")
+                break
+
+            # Only attempt reconnection if stop event is not set
+            self.logger.info(f"Reconnecting in {retry_delay} seconds...")
+            for i in range(retry_delay):
+                if self.stop_event.is_set():
+                    self.logger.info(f"Stop event set during reconnect wait (after {i}s), exiting")
+                    break
+                time.sleep(1)
+                
+            # If stop event was set during the wait, exit immediately
             if self.stop_event.is_set():
                 break
 
-            # Wait before retry with exponential backoff
-            self.logger.info(f"Reconnecting in {retry_delay} seconds...")
-            for _ in range(retry_delay):
-                if self.stop_event.is_set():
-                    break
-                time.sleep(1)
-
             # Increase retry delay with a cap
             retry_delay = min(retry_delay * 2, max_retry_delay)
+            
+        self.logger.info("Server start() method exiting")
 
     def quit(self, message: str = "Disconnecting"):
         """
