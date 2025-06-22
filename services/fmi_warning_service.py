@@ -84,7 +84,10 @@ class FMIWarningService:
         """Stop monitoring FMI warnings."""
         self.running = False
         if self.thread:
-            self.thread.join()
+            # Join with timeout to prevent hanging during shutdown
+            self.thread.join(timeout=3.0)
+            if self.thread.is_alive():
+                print("⚠️ FMI warning service thread did not stop cleanly within timeout")
         print("🛑 FMI warning service stopped")
 
     def _monitor_loop(self) -> None:

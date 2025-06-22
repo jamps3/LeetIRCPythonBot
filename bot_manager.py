@@ -443,13 +443,13 @@ class BotManager:
             except Exception as e:
                 self.logger.error(f"Error stopping server {server_name}: {e}")
 
-        # Wait for all server threads to finish
+        # Wait for all server threads to finish with shorter timeout
         for server_name, thread in self.server_threads.items():
             self.logger.info(f"Waiting for server thread {server_name} to finish...")
-            thread.join(timeout=10)
+            thread.join(timeout=3.0)  # Reduced timeout for faster shutdown
             if thread.is_alive():
                 self.logger.warning(
-                    f"Server thread {server_name} did not finish cleanly"
+                    f"Server thread {server_name} did not finish cleanly within 3s timeout"
                 )
 
         self.logger.info("Bot manager shut down complete")

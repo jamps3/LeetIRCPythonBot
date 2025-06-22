@@ -68,7 +68,10 @@ class OtiedoteService:
         """Stop monitoring press releases."""
         self.running = False
         if self.thread:
-            self.thread.join()
+            # Join with timeout to prevent hanging during shutdown
+            self.thread.join(timeout=3.0)
+            if self.thread.is_alive():
+                logging.warning("⚠️ Otiedote monitor thread did not stop cleanly within timeout")
         if self.driver:
             try:
                 self.driver.quit()
