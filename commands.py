@@ -1204,11 +1204,18 @@ def process_message(irc, message, bot_functions):
 
             try:
                 if command == "scrape":
-                    # Handle scrape command
-                    log("Executing scrape command", "DEBUG")
-                    result = service.scrape_all_draws()
-                    log(f"Scrape result: {result}", "DEBUG")
-                    notice_message(result["message"], irc, target)
+                    if verify_admin_password(arg):
+                        # Handle scrape command
+                        log("Executing scrape command", "DEBUG")
+                        result = service.scrape_all_draws()
+                        log(f"Scrape result: {result}", "DEBUG")
+                        notice_message(result["message"], irc, target)
+                    else:
+                        notice_message(
+                            "❌ Virheellinen salasana. Scrape-komento vaatii admin-salasanan.",
+                            irc,
+                            target,
+                        )
                 elif command == "stats":
                     # Handle stats command
                     log("Executing stats command", "DEBUG")
@@ -1226,40 +1233,49 @@ def process_message(irc, message, bot_functions):
                     log(f"Frequent numbers result: {result}", "DEBUG")
                     notice_message(result["message"], irc, target)
                 elif command == "add":
-                    # Handle manual add command
-                    log("Executing add command", "DEBUG")
-                    # Parse remaining arguments: date, numbers, [jackpot]
-                    remaining_parts = text.split()[2:]  # Skip "!eurojackpot" and "add"
+                    if verify_admin_password(arg):
+                        # Handle manual add command
+                        log("Executing add command", "DEBUG")
+                        # Parse remaining arguments: date, numbers, [jackpot]
+                        remaining_parts = text.split()[
+                            2:
+                        ]  # Skip "!eurojackpot" and "add"
 
-                    if len(remaining_parts) < 2:
-                        notice_message(
-                            "❌ Käyttö: !eurojackpot add PP.KK.VVVV 1,2,3,4,5,6,7 [päävoitto]",
-                            irc,
-                            target,
-                        )
-                        notice_message(
-                            "Esim: !eurojackpot add 20.12.2024 1,5,12,25,35,3,8 15000000",
-                            irc,
-                            target,
-                        )
+                        if len(remaining_parts) < 2:
+                            notice_message(
+                                "❌ Käyttö: !eurojackpot add PP.KK.VVVV 1,2,3,4,5,6,7 [päävoitto]",
+                                irc,
+                                target,
+                            )
+                            notice_message(
+                                "Esim: !eurojackpot add 20.12.2024 1,5,12,25,35,3,8 15000000",
+                                irc,
+                                target,
+                            )
+                        else:
+                            date_str = remaining_parts[0]
+                            numbers_str = remaining_parts[1]
+                            jackpot_str = (
+                                remaining_parts[2]
+                                if len(remaining_parts) > 2
+                                else "Tuntematon"
+                            )
+
+                            log(
+                                f"Adding draw manually: date={date_str}, numbers={numbers_str}, jackpot={jackpot_str}",
+                                "DEBUG",
+                            )
+                            result = service.add_draw_manually(
+                                date_str, numbers_str, jackpot_str
+                            )
+                            log(f"Add result: {result}", "DEBUG")
+                            notice_message(result["message"], irc, target)
                     else:
-                        date_str = remaining_parts[0]
-                        numbers_str = remaining_parts[1]
-                        jackpot_str = (
-                            remaining_parts[2]
-                            if len(remaining_parts) > 2
-                            else "Tuntematon"
+                        notice_message(
+                            "❌ Virheellinen salasana. Add-komento vaatii admin-salasanan.",
+                            irc,
+                            target,
                         )
-
-                        log(
-                            f"Adding draw manually: date={date_str}, numbers={numbers_str}, jackpot={jackpot_str}",
-                            "DEBUG",
-                        )
-                        result = service.add_draw_manually(
-                            date_str, numbers_str, jackpot_str
-                        )
-                        log(f"Add result: {result}", "DEBUG")
-                        notice_message(result["message"], irc, target)
                 elif command and command not in ["scrape", "stats", "add"]:
                     # Date-specific query
                     log(f"Executing date-specific query for: {command}", "DEBUG")
