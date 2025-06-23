@@ -6,15 +6,15 @@ This module registers all test suites for the LeetIRC Bot testing framework.
 
 from test_framework import TestRunner
 
+from .test_bot_functionality import register_bot_functionality_tests
 from .test_command_registry import register_command_registry_tests
 from .test_config import register_config_tests
+from .test_console_commands import register_console_command_tests
 from .test_crypto_service import register_crypto_service_tests
 from .test_eurojackpot_service import register_eurojackpot_service_tests
 from .test_irc_client import register_irc_client_tests
-from .test_weather_service import register_weather_service_tests
-from .test_console_commands import register_console_command_tests
 from .test_new_features import register_new_features_tests
-from .test_bot_functionality import register_bot_functionality_tests
+from .test_weather_service import register_weather_service_tests
 
 # TODO: Add these when they are created
 # from .test_commands import register_command_tests

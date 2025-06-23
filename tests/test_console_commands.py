@@ -13,8 +13,9 @@ from unittest.mock import MagicMock, Mock
 # Add the parent directory to sys.path to import our modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from test_framework import TestCase, TestSuite
 from dotenv import load_dotenv
+
+from test_framework import TestCase, TestSuite
 
 # Load environment variables for testing
 load_dotenv()

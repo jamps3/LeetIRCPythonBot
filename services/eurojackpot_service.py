@@ -870,7 +870,7 @@ class EurojackpotService:
 
             # Calculate date range to scrape (only missing dates)
             # Eurojackpot draws are on Fridays, so we generate all Friday dates and check which are missing
-            from datetime import timedelta, date
+            from datetime import date, timedelta
 
             # Start from the first Eurojackpot draw (March 23, 2012)
             start_date = date(2012, 3, 23)  # First Eurojackpot draw

@@ -10,7 +10,7 @@ import json
 import os
 import threading
 import time
-from typing import List, Callable, Optional, Set
+from typing import Callable, List, Optional, Set
 
 import feedparser
 

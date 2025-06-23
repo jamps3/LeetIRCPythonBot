@@ -15,8 +15,9 @@ from unittest.mock import MagicMock, Mock, patch
 # Add the parent directory to sys.path to import our modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from test_framework import TestCase, TestSuite
 from dotenv import load_dotenv
+
+from test_framework import TestCase, TestSuite
 
 # Load environment variables for testing
 load_dotenv()
@@ -25,10 +26,9 @@ load_dotenv()
 def test_scheduled_message_creation():
     """Test scheduled message service creation and basic functionality."""
     try:
-        from services.scheduled_message_service import get_scheduled_message_service
-
         # Reset global service instance
         import services.scheduled_message_service
+        from services.scheduled_message_service import get_scheduled_message_service
 
         services.scheduled_message_service._scheduled_message_service = None
 
@@ -65,10 +65,9 @@ def test_scheduled_message_creation():
 def test_scheduled_message_cancellation():
     """Test scheduled message cancellation."""
     try:
-        from services.scheduled_message_service import get_scheduled_message_service
-
         # Reset global service instance
         import services.scheduled_message_service
+        from services.scheduled_message_service import get_scheduled_message_service
 
         services.scheduled_message_service._scheduled_message_service = None
 
@@ -105,10 +104,9 @@ def test_scheduled_message_cancellation():
 def test_scheduled_message_convenience_function():
     """Test the convenience function for scheduling messages."""
     try:
-        from services.scheduled_message_service import send_scheduled_message
-
         # Reset global service instance
         import services.scheduled_message_service
+        from services.scheduled_message_service import send_scheduled_message
 
         services.scheduled_message_service._scheduled_message_service = None
 
@@ -132,10 +130,9 @@ def test_scheduled_message_convenience_function():
 def test_ipfs_availability_check(mock_run):
     """Test IPFS availability checking."""
     try:
-        from services.ipfs_service import IPFSService
-
         # Reset global service instance
         import services.ipfs_service
+        from services.ipfs_service import IPFSService
 
         services.ipfs_service._ipfs_service = None
 
@@ -163,10 +160,9 @@ def test_ipfs_availability_check(mock_run):
 def test_ipfs_file_size_check(mock_get, mock_head):
     """Test IPFS file size checking during download."""
     try:
-        from services.ipfs_service import IPFSService
-
         # Reset global service instance
         import services.ipfs_service
+        from services.ipfs_service import IPFSService
 
         services.ipfs_service._ipfs_service = None
 
@@ -199,10 +195,9 @@ def test_ipfs_file_size_check(mock_get, mock_head):
 def test_ipfs_command_handling():
     """Test IPFS command handling."""
     try:
-        from services.ipfs_service import handle_ipfs_command
-
         # Reset global service instance
         import services.ipfs_service
+        from services.ipfs_service import handle_ipfs_command
 
         services.ipfs_service._ipfs_service = None
 
@@ -226,10 +221,9 @@ def test_ipfs_command_handling():
 def test_eurojackpot_service_creation():
     """Test Eurojackpot service creation and basic functionality."""
     try:
-        from services.eurojackpot_service import EurojackpotService
-
         # Reset global service instance
         import services.eurojackpot_service
+        from services.eurojackpot_service import EurojackpotService
 
         services.eurojackpot_service._eurojackpot_service = None
 
@@ -261,9 +255,10 @@ def test_eurojackpot_service_creation():
 def test_eurojackpot_manual_add():
     """Test manual addition of Eurojackpot draws."""
     try:
-        from services.eurojackpot_service import EurojackpotService
-        import tempfile
         import os
+        import tempfile
+
+        from services.eurojackpot_service import EurojackpotService
 
         # Create service with temporary database file
         service = EurojackpotService()
@@ -319,10 +314,11 @@ def test_eurojackpot_manual_add():
 def test_eurojackpot_database_operations():
     """Test Eurojackpot database operations."""
     try:
-        from services.eurojackpot_service import EurojackpotService
-        import tempfile
         import os
+        import tempfile
         from datetime import datetime
+
+        from services.eurojackpot_service import EurojackpotService
 
         # Create service with temporary database file
         service = EurojackpotService()
@@ -390,9 +386,10 @@ def test_eurojackpot_database_operations():
 def test_eurojackpot_tuesday_friday_validation():
     """Test that Eurojackpot now accepts both Tuesday and Friday draws."""
     try:
-        from services.eurojackpot_service import EurojackpotService
-        import tempfile
         import os
+        import tempfile
+
+        from services.eurojackpot_service import EurojackpotService
 
         service = EurojackpotService()
         temp_db_file = tempfile.mktemp(suffix=".json")

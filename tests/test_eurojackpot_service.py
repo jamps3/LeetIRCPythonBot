@@ -5,13 +5,13 @@ Tests for Eurojackpot Service
 
 import json
 import os
-import tempfile
-import unittest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
 
 # Add the parent directory to sys.path to import our modules
 import sys
+import tempfile
+import unittest
+from datetime import datetime
+from unittest.mock import MagicMock, Mock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -757,7 +757,7 @@ def test_date_format_validation():
 
 def register_eurojackpot_service_tests(runner):
     """Register Eurojackpot service tests with the test framework."""
-    from test_framework import TestSuite, TestCase
+    from test_framework import TestCase, TestSuite
 
     tests = [
         TestCase(
