@@ -1178,7 +1178,11 @@ def process_message(irc, message, bot_functions):
                 elif command == "frequent" or command == "tilastot":
                     # Handle frequent numbers command
                     log("Executing frequent numbers command", "DEBUG")
-                    result = service.get_frequent_numbers()
+                    
+                    # Check if extended mode is requested
+                    extended = (arg == "ext")
+                    
+                    result = service.get_frequent_numbers(extended=extended)
                     log(f"Frequent numbers result: {result}", "DEBUG")
                     notice_message(result["message"], irc, target)
                 elif command == "add":

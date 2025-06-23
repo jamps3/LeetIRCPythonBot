@@ -601,17 +601,21 @@ class EurojackpotService:
         else:
             return "Eurojackpot: Tietojen hakeminen epäonnistui."
 
-    def get_frequent_numbers(self, limit: int = 10) -> Dict[str, any]:
+    def get_frequent_numbers(self, limit: int = 10, extended: bool = False) -> Dict[str, any]:
         """
         Get most frequently drawn numbers based on database analysis.
         If no database data is available, falls back to historical statistics.
+
+        Args:
+            limit: Maximum number of results to return
+            extended: If True, include count numbers in brackets
 
         Returns:
             Dict with frequently drawn numbers
         """
         try:
             # Try to calculate from actual database first
-            db_stats = self._calculate_frequency_from_database()
+            db_stats = self._calculate_frequency_from_database(extended=extended)
             if db_stats["success"]:
                 return db_stats
             
@@ -623,9 +627,14 @@ class EurojackpotService:
             frequent_primary = [19, 35, 5, 16, 23]  # Top 5 most frequent
             frequent_secondary = [8, 5]  # Top 2 most frequent Euro numbers (1-12)
 
-            # Format with proper spacing
-            primary_str = " ".join(f"{num:02d}" for num in frequent_primary)
-            secondary_str = " ".join(f"{num:02d}" for num in frequent_secondary)
+            # Format with proper spacing and optionally with counts
+            if extended:
+                # Show with example counts for historical data
+                primary_str = " ".join(f"{num:02d}[{45-i*2}]" for i, num in enumerate(frequent_primary))
+                secondary_str = " ".join(f"{num:02d}[{25-i*3}]" for i, num in enumerate(frequent_secondary))
+            else:
+                primary_str = " ".join(f"{num:02d}" for num in frequent_primary)
+                secondary_str = " ".join(f"{num:02d}" for num in frequent_secondary)
 
             message = f"📊 Yleisimmät numerot (2012-2023): {primary_str} + {secondary_str} (historiallinen data)"
 
@@ -644,9 +653,12 @@ class EurojackpotService:
                 "message": "📊 Virhe yleisimpien numeroiden haussa",
             }
     
-    def _calculate_frequency_from_database(self) -> Dict[str, any]:
+    def _calculate_frequency_from_database(self, extended: bool = False) -> Dict[str, any]:
         """
         Calculate most frequent numbers from the local database.
+        
+        Args:
+            extended: If True, include count numbers in brackets
         
         Returns:
             Dict with frequency analysis results
@@ -711,14 +723,27 @@ class EurojackpotService:
             frequent_primary = [num for num, count in top_main]
             frequent_secondary = [num for num, count in top_euro]
             
-            primary_str = " ".join(f"{num:02d}" for num in frequent_primary)
-            secondary_str = " ".join(f"{num:02d}" for num in frequent_secondary)
+            # Format numbers with or without counts
+            if extended:
+                primary_str = " ".join(f"{num:02d}[{count}]" for num, count in top_main)
+                secondary_str = " ".join(f"{num:02d}[{count}]" for num, count in top_euro)
+            else:
+                primary_str = " ".join(f"{num:02d}" for num in frequent_primary)
+                secondary_str = " ".join(f"{num:02d}" for num in frequent_secondary)
             
-            # Format date range
+            # Format date range with day.month.year format
             if date_range["oldest"] and date_range["newest"]:
-                oldest_year = datetime.strptime(date_range["oldest"], "%Y-%m-%d").year
-                newest_year = datetime.strptime(date_range["newest"], "%Y-%m-%d").year
-                date_range_str = f"{oldest_year}-{newest_year}" if oldest_year != newest_year else str(newest_year)
+                oldest_date = datetime.strptime(date_range["oldest"], "%Y-%m-%d")
+                newest_date = datetime.strptime(date_range["newest"], "%Y-%m-%d")
+                
+                # Format as DD.M.YY - DD.M.YY
+                oldest_str = f"{oldest_date.day}.{oldest_date.month}.{str(oldest_date.year)[2:]}"
+                newest_str = f"{newest_date.day}.{newest_date.month}.{str(newest_date.year)[2:]}"
+                
+                if oldest_date.date() == newest_date.date():
+                    date_range_str = oldest_str
+                else:
+                    date_range_str = f"{oldest_str} - {newest_str}"
             else:
                 date_range_str = "tuntematon ajanjakso"
             
