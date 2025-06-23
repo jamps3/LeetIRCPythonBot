@@ -12,7 +12,8 @@ from datetime import datetime
 
 # Add the parent directory to sys.path to import our modules
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from services.eurojackpot_service import EurojackpotService, eurojackpot_command
 
@@ -35,37 +36,31 @@ class TestEurojackpotService(unittest.TestCase):
 
     def _get_mock_responses(self):
         """Get mock API responses for testing."""
-        self.mock_next_draw_response = {
-            "error": 0,
-            "next_draw": "2025-06-27"
-        }
-        
+        self.mock_next_draw_response = {"error": 0, "next_draw": "2025-06-27"}
+
         self.mock_jackpot_response = {
             "error": 0,
             "jackpot": "15000000",
-            "currency": "EUR"
+            "currency": "EUR",
         }
-        
+
         self.mock_last_results_response = {
             "error": 0,
             "draw": "2025-06-20",
             "results": "06,12,18,37,46,07,09",
             "jackpot": "10000000",
-            "currency": "EUR"
+            "currency": "EUR",
         }
-        
+
         self.mock_draw_by_date_response = {
             "error": 0,
             "draw": "2025-06-13",
             "results": "01,15,23,34,45,02,11",
             "jackpot": "8000000",
-            "currency": "EUR"
+            "currency": "EUR",
         }
-        
-        self.mock_no_draw_response = {
-            "error": 1,
-            "message": "No draw found"
-        }
+
+        self.mock_no_draw_response = {"error": 1, "message": "No draw found"}
 
     def test_get_week_number(self):
         """Test week number calculation."""
@@ -74,82 +69,86 @@ class TestEurojackpotService(unittest.TestCase):
         self.assertGreaterEqual(week_num, 1)
         self.assertLessEqual(week_num, 53)
 
-    @patch('services.eurojackpot_service.requests.get')
+    @patch("services.eurojackpot_service.requests.get")
     def test_make_request_success(self, mock_get):
         """Test successful API request."""
         mock_response = Mock()
         mock_response.json.return_value = {"success": True}
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
-        
+
         result = self.service._make_request("http://test.com", {"param": "value"})
         self.assertEqual(result, {"success": True})
 
-    @patch('services.eurojackpot_service.requests.get')
+    @patch("services.eurojackpot_service.requests.get")
     def test_make_request_failure(self, mock_get):
         """Test failed API request."""
         mock_get.side_effect = Exception("Network error")
-        
+
         result = self.service._make_request("http://test.com", {"param": "value"})
         self.assertIsNone(result)
 
-    @patch('services.eurojackpot_service.requests.get')
+    @patch("services.eurojackpot_service.requests.get")
     def test_get_next_draw_info_no_api_key(self, mock_get):
         """Test next draw info without API key falls back to demo data."""
         self.service.api_key = None
-        
+
         result = self.service.get_next_draw_info()
         self.assertTrue(result["success"])
         self.assertIn("demo-data", result["message"])
         self.assertTrue(result.get("is_demo", False))
 
-    @patch('services.eurojackpot_service.requests.get')
+    @patch("services.eurojackpot_service.requests.get")
     def test_get_next_draw_info_success(self, mock_get):
         """Test successful next draw info retrieval."""
         self.service.api_key = "test_key"
         self._get_mock_responses()
-        
+
         # Mock both API calls
         responses = [
-            Mock(json=lambda: self.mock_next_draw_response, raise_for_status=lambda: None),
-            Mock(json=lambda: self.mock_jackpot_response, raise_for_status=lambda: None)
+            Mock(
+                json=lambda: self.mock_next_draw_response, raise_for_status=lambda: None
+            ),
+            Mock(
+                json=lambda: self.mock_jackpot_response, raise_for_status=lambda: None
+            ),
         ]
         mock_get.side_effect = responses
-        
+
         result = self.service.get_next_draw_info()
         self.assertTrue(result["success"])
         self.assertIn("Seuraava Eurojackpot-arvonta", result["message"])
         self.assertEqual(result["jackpot"], "15000000")
         self.assertEqual(result["currency"], "EUR")
 
-    @patch('services.eurojackpot_service.requests.get')
+    @patch("services.eurojackpot_service.requests.get")
     def test_get_last_results_success(self, mock_get):
         """Test successful last results retrieval."""
         self.service.api_key = "test_key"
         self._get_mock_responses()
-        
+
         mock_response = Mock()
         mock_response.json.return_value = self.mock_last_results_response
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
-        
+
         result = self.service.get_last_results()
         self.assertTrue(result["success"])
         self.assertIn("Viimeisin Eurojackpot-arvonta", result["message"])
         self.assertEqual(result["main_numbers"], "06 12 18 37 46")
         self.assertEqual(result["euro_numbers"], "07 09")
 
-    @patch('services.eurojackpot_service.requests.get')
+    @patch("services.eurojackpot_service.requests.get")
     def test_get_draw_by_date_success(self, mock_get):
         """Test successful draw retrieval by date."""
         self.service.api_key = "test_key"
         self._get_mock_responses()
-        
+
         mock_response = Mock()
         mock_response.json.return_value = self.mock_draw_by_date_response
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
-        
+
         result = self.service.get_draw_by_date("13.06.25")
         self.assertTrue(result["success"])
         self.assertIn("13.06.2025", result["message"])
@@ -157,25 +156,31 @@ class TestEurojackpotService(unittest.TestCase):
     def test_get_draw_by_date_invalid_format(self):
         """Test draw retrieval with invalid date format."""
         self.service.api_key = "test_key"
-        
+
         result = self.service.get_draw_by_date("invalid-date")
         self.assertFalse(result["success"])
         self.assertIn("Virheellinen päivämäärä", result["message"])
 
-    @patch('services.eurojackpot_service.requests.get')
+    @patch("services.eurojackpot_service.requests.get")
     def test_get_draw_by_date_not_found_fallback(self, mock_get):
         """Test draw retrieval fallback when date not found."""
         self.service.api_key = "test_key"
         self._get_mock_responses()
-        
+
         # First call returns no draw found, then successful calls for fallback
         responses = [
-            Mock(json=lambda: self.mock_no_draw_response, raise_for_status=lambda: None),
-            Mock(json=lambda: self.mock_next_draw_response, raise_for_status=lambda: None),
-            Mock(json=lambda: self.mock_jackpot_response, raise_for_status=lambda: None)
+            Mock(
+                json=lambda: self.mock_no_draw_response, raise_for_status=lambda: None
+            ),
+            Mock(
+                json=lambda: self.mock_next_draw_response, raise_for_status=lambda: None
+            ),
+            Mock(
+                json=lambda: self.mock_jackpot_response, raise_for_status=lambda: None
+            ),
         ]
         mock_get.side_effect = responses
-        
+
         result = self.service.get_draw_by_date("21.06.25")
         self.assertTrue(result["success"])
         self.assertIn("Arvontaa ei löytynyt", result["message"])
@@ -189,12 +194,12 @@ class TestEurojackpotService(unittest.TestCase):
         self.assertIn("📊 Yleisimmät numerot", result["message"])
         self.assertEqual(len(result["primary_numbers"]), 5)
         self.assertEqual(len(result["secondary_numbers"]), 2)
-        
+
         # Check that all numbers are in valid ranges
         for num in result["primary_numbers"]:
             self.assertGreaterEqual(num, 1)
             self.assertLessEqual(num, 50)
-        
+
         for num in result["secondary_numbers"]:
             self.assertGreaterEqual(num, 1)
             self.assertLessEqual(num, 12)
@@ -204,28 +209,35 @@ class TestEurojackpotService(unittest.TestCase):
         test_dates = [
             ("21.06.25", "2025-06-21"),
             ("21.06.2025", "2025-06-21"),
-            ("2025-06-21", "2025-06-21")
+            ("2025-06-21", "2025-06-21"),
         ]
-        
+
         for input_date, expected_iso in test_dates:
             # We'll test this by checking if the date parsing works without errors
             # Since we need an API key for the actual call, we'll just test the parsing logic
             pass  # The actual parsing is tested in the integration tests
 
-    @patch('services.eurojackpot_service.requests.get')
+    @patch("services.eurojackpot_service.requests.get")
     def test_get_combined_info(self, mock_get):
         """Test combined info retrieval."""
         self.service.api_key = "test_key"
         self._get_mock_responses()
-        
+
         # Mock responses for both calls
         responses = [
-            Mock(json=lambda: self.mock_last_results_response, raise_for_status=lambda: None),
-            Mock(json=lambda: self.mock_next_draw_response, raise_for_status=lambda: None),
-            Mock(json=lambda: self.mock_jackpot_response, raise_for_status=lambda: None)
+            Mock(
+                json=lambda: self.mock_last_results_response,
+                raise_for_status=lambda: None,
+            ),
+            Mock(
+                json=lambda: self.mock_next_draw_response, raise_for_status=lambda: None
+            ),
+            Mock(
+                json=lambda: self.mock_jackpot_response, raise_for_status=lambda: None
+            ),
         ]
         mock_get.side_effect = responses
-        
+
         result = self.service.get_combined_info()
         self.assertIn("Viimeisin Eurojackpot-arvonta", result)
         self.assertIn("Seuraava Eurojackpot-arvonta", result)
@@ -234,26 +246,26 @@ class TestEurojackpotService(unittest.TestCase):
 class TestEurojackpotCommand(unittest.TestCase):
     """Test cases for eurojackpot_command function."""
 
-    @patch('services.eurojackpot_service.EurojackpotService')
+    @patch("services.eurojackpot_service.EurojackpotService")
     def test_eurojackpot_command_no_arg(self, mock_service_class):
         """Test eurojackpot command without arguments."""
         mock_service = Mock()
         mock_service.get_combined_info.return_value = "Combined info"
         mock_service_class.return_value = mock_service
-        
+
         # Mock the global service instance
-        with patch('services.eurojackpot_service._eurojackpot_service', mock_service):
+        with patch("services.eurojackpot_service._eurojackpot_service", mock_service):
             result = eurojackpot_command()
             self.assertEqual(result, "Combined info")
 
-    @patch('services.eurojackpot_service.EurojackpotService')
+    @patch("services.eurojackpot_service.EurojackpotService")
     def test_eurojackpot_command_with_date(self, mock_service_class):
         """Test eurojackpot command with date argument."""
         mock_service = Mock()
         mock_service.get_draw_by_date.return_value = {"message": "Draw result"}
         mock_service_class.return_value = mock_service
-        
-        with patch('services.eurojackpot_service._eurojackpot_service', mock_service):
+
+        with patch("services.eurojackpot_service._eurojackpot_service", mock_service):
             result = eurojackpot_command("20.06.25")
             self.assertEqual(result, "Draw result")
 
@@ -264,14 +276,16 @@ class TestEurojackpotEnhanced(unittest.TestCase):
     def setUp(self):
         """Set up test environment before each test."""
         # Create a temporary database file for testing
-        self.temp_db = tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False)
+        self.temp_db = tempfile.NamedTemporaryFile(
+            mode="w+", suffix=".json", delete=False
+        )
         self.temp_db_path = self.temp_db.name
         self.temp_db.close()
-        
+
         # Create service instance with test database
         self.service = EurojackpotService()
         self.service.db_file = self.temp_db_path
-        
+
         # Mock logger to prevent test output clutter
         self.service.logger = MagicMock()
 
@@ -285,7 +299,7 @@ class TestEurojackpotEnhanced(unittest.TestCase):
         """Test that database initializes correctly."""
         # Load empty database
         db = self.service._load_database()
-        
+
         self.assertIsInstance(db, dict)
         self.assertIn("draws", db)
         self.assertIn("last_updated", db)
@@ -305,12 +319,12 @@ class TestEurojackpotEnhanced(unittest.TestCase):
             "jackpot": "15000000",
             "currency": "EUR",
             "type": "test",
-            "saved_at": datetime.now().isoformat()
+            "saved_at": datetime.now().isoformat(),
         }
-        
+
         # Save draw
         self.service._save_draw_to_database(test_draw)
-        
+
         # Load and verify
         loaded_draw = self.service._get_draw_by_date_from_database("2023-12-15")
         self.assertIsNotNone(loaded_draw)
@@ -332,7 +346,7 @@ class TestEurojackpotEnhanced(unittest.TestCase):
                 "jackpot": "10000000",
                 "currency": "EUR",
                 "type": "test",
-                "saved_at": datetime.now().isoformat()
+                "saved_at": datetime.now().isoformat(),
             },
             {
                 "date_iso": "2023-12-15",
@@ -344,24 +358,24 @@ class TestEurojackpotEnhanced(unittest.TestCase):
                 "jackpot": "20000000",
                 "currency": "EUR",
                 "type": "test",
-                "saved_at": datetime.now().isoformat()
-            }
+                "saved_at": datetime.now().isoformat(),
+            },
         ]
-        
+
         for draw in draws:
             self.service._save_draw_to_database(draw)
-        
+
         # Get latest draw (should be the most recent by date)
         latest = self.service._get_latest_draw_from_database()
         self.assertIsNotNone(latest)
         self.assertEqual(latest["date"], "15.12.2023")  # Most recent
 
-    @patch('services.eurojackpot_service.requests.get')
+    @patch("services.eurojackpot_service.requests.get")
     def test_scrape_all_draws_success(self, mock_get):
         """Test successful scraping of historical draws."""
         # Set API key for scraping
         self.service.api_key = "test_api_key"
-        
+
         # Mock API response
         mock_response = Mock()
         mock_response.status_code = 200
@@ -372,28 +386,28 @@ class TestEurojackpotEnhanced(unittest.TestCase):
                     "draw": "2023-12-15",
                     "results": "01,12,23,34,45,06,07",
                     "jackpot": "15000000",
-                    "currency": "EUR"
+                    "currency": "EUR",
                 },
                 {
                     "draw": "2023-12-08",
                     "results": "05,16,27,38,49,02,08",
                     "jackpot": "12000000",
-                    "currency": "EUR"
-                }
-            ]
+                    "currency": "EUR",
+                },
+            ],
         }
         mock_get.return_value = mock_response
-        
+
         # Perform scrape
         result = self.service.scrape_all_draws(start_year=2023, max_draws=50)
-        
+
         # Verify result
         self.assertTrue(result["success"])
         self.assertEqual(result["new_draws"], 2)
         self.assertEqual(result["updated_draws"], 0)
         self.assertEqual(result["total_draws"], 2)
         self.assertIn("Scrape valmis!", result["message"])
-        
+
         # Verify database contents
         db = self.service._load_database()
         self.assertEqual(len(db["draws"]), 2)
@@ -402,36 +416,33 @@ class TestEurojackpotEnhanced(unittest.TestCase):
         """Test scrape functionality without API key."""
         # Remove API key
         self.service.api_key = None
-        
+
         result = self.service.scrape_all_draws()
-        
+
         self.assertFalse(result["success"])
         self.assertIn("API-avaimen", result["message"])
 
-    @patch('services.eurojackpot_service.requests.get')
+    @patch("services.eurojackpot_service.requests.get")
     def test_scrape_all_draws_api_error(self, mock_get):
         """Test scrape functionality with API error."""
         # Set API key
         self.service.api_key = "test_api_key"
-        
+
         # Mock API error response
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "error": 1,
-            "message": "API error"
-        }
+        mock_response.json.return_value = {"error": 1, "message": "API error"}
         mock_get.return_value = mock_response
-        
+
         result = self.service.scrape_all_draws()
-        
+
         self.assertFalse(result["success"])
         self.assertIn("API-virhe", result["message"])
 
     def test_get_database_stats_empty(self):
         """Test database statistics with empty database."""
         result = self.service.get_database_stats()
-        
+
         self.assertTrue(result["success"])
         self.assertEqual(result["total_draws"], 0)
         self.assertIn("tyhjä", result["message"])
@@ -450,7 +461,7 @@ class TestEurojackpotEnhanced(unittest.TestCase):
                 "jackpot": "10000000",
                 "currency": "EUR",
                 "type": "test",
-                "saved_at": datetime.now().isoformat()
+                "saved_at": datetime.now().isoformat(),
             },
             {
                 "date_iso": "2023-12-15",
@@ -462,15 +473,15 @@ class TestEurojackpotEnhanced(unittest.TestCase):
                 "jackpot": "20000000",
                 "currency": "EUR",
                 "type": "test",
-                "saved_at": datetime.now().isoformat()
-            }
+                "saved_at": datetime.now().isoformat(),
+            },
         ]
-        
+
         for draw in test_draws:
             self.service._save_draw_to_database(draw)
-        
+
         result = self.service.get_database_stats()
-        
+
         self.assertTrue(result["success"])
         self.assertEqual(result["total_draws"], 2)
         self.assertIn("08.12.2023 - 15.12.2023", result["message"])
@@ -488,14 +499,14 @@ class TestEurojackpotEnhanced(unittest.TestCase):
             "jackpot": "15000000",
             "currency": "EUR",
             "type": "test",
-            "saved_at": datetime.now().isoformat()
+            "saved_at": datetime.now().isoformat(),
         }
         self.service._save_draw_to_database(test_draw)
-        
+
         # Test without API key (should use database)
         self.service.api_key = None
         result = self.service.get_draw_by_date("15.12.23")
-        
+
         self.assertTrue(result["success"])
         self.assertEqual(result["date"], "15.12.2023")
         self.assertIn("tallennettu data", result["message"])
@@ -513,20 +524,20 @@ class TestEurojackpotEnhanced(unittest.TestCase):
             "jackpot": "15000000",
             "currency": "EUR",
             "type": "test",
-            "saved_at": datetime.now().isoformat()
+            "saved_at": datetime.now().isoformat(),
         }
         self.service._save_draw_to_database(test_draw)
-        
+
         # Test different date formats
         date_formats = [
-            "15.12.23",      # DD.MM.YY
-            "15.12.2023",    # DD.MM.YYYY
-            "2023-12-15"     # YYYY-MM-DD
+            "15.12.23",  # DD.MM.YY
+            "15.12.2023",  # DD.MM.YYYY
+            "2023-12-15",  # YYYY-MM-DD
         ]
-        
+
         # Test without API key (database fallback)
         self.service.api_key = None
-        
+
         for date_format in date_formats:
             result = self.service.get_draw_by_date(date_format)
             self.assertTrue(result["success"], f"Failed for format: {date_format}")
@@ -539,10 +550,12 @@ class TestEurojackpotCommandIntegration(unittest.TestCase):
     def setUp(self):
         """Set up test environment."""
         # Create temporary database file
-        self.temp_db = tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False)
+        self.temp_db = tempfile.NamedTemporaryFile(
+            mode="w+", suffix=".json", delete=False
+        )
         self.temp_db_path = self.temp_db.name
         self.temp_db.close()
-        
+
         # Create service and override database path
         self.service = EurojackpotService()
         self.service.db_file = self.temp_db_path
@@ -553,12 +566,12 @@ class TestEurojackpotCommandIntegration(unittest.TestCase):
         if os.path.exists(self.temp_db_path):
             os.unlink(self.temp_db_path)
 
-    @patch('services.eurojackpot_service.requests.get')
+    @patch("services.eurojackpot_service.requests.get")
     def test_scrape_command_integration(self, mock_get):
         """Test !eurojackpot scrape command integration."""
         # Set API key
         self.service.api_key = "test_api_key"
-        
+
         # Mock successful API response
         mock_response = Mock()
         mock_response.status_code = 200
@@ -569,15 +582,15 @@ class TestEurojackpotCommandIntegration(unittest.TestCase):
                     "draw": "2023-12-15",
                     "results": "01,12,23,34,45,06,07",
                     "jackpot": "15000000",
-                    "currency": "EUR"
+                    "currency": "EUR",
                 }
-            ]
+            ],
         }
         mock_get.return_value = mock_response
-        
+
         # Test scrape command
         result = self.service.scrape_all_draws()
-        
+
         self.assertTrue(result["success"])
         self.assertEqual(result["new_draws"], 1)
         self.assertIn("Scrape valmis!", result["message"])
@@ -595,13 +608,13 @@ class TestEurojackpotCommandIntegration(unittest.TestCase):
             "jackpot": "15000000",
             "currency": "EUR",
             "type": "test",
-            "saved_at": datetime.now().isoformat()
+            "saved_at": datetime.now().isoformat(),
         }
         self.service._save_draw_to_database(test_draw)
-        
+
         # Test stats command
         result = self.service.get_database_stats()
-        
+
         self.assertTrue(result["success"])
         self.assertEqual(result["total_draws"], 1)
         self.assertIn("15.12.2023", result["message"])
@@ -619,14 +632,14 @@ class TestEurojackpotCommandIntegration(unittest.TestCase):
             "jackpot": "15000000",
             "currency": "EUR",
             "type": "test",
-            "saved_at": datetime.now().isoformat()
+            "saved_at": datetime.now().isoformat(),
         }
         self.service._save_draw_to_database(test_draw)
-        
+
         # Test without API key (database fallback)
         self.service.api_key = None
         result = self.service.get_draw_by_date("15.12.23")
-        
+
         self.assertTrue(result["success"])
         self.assertEqual(result["date"], "15.12.2023")
         self.assertIn("01 12 23 34 45", result["message"])
@@ -636,7 +649,7 @@ class TestEurojackpotCommandIntegration(unittest.TestCase):
         # Test without API key and no database entry
         self.service.api_key = None
         result = self.service.get_draw_by_date("20.12.23")
-        
+
         # Should succeed but show fallback info
         self.assertTrue(result["success"])
         self.assertIn("Arvontaa ei löytynyt", result["message"])
@@ -645,9 +658,9 @@ class TestEurojackpotCommandIntegration(unittest.TestCase):
     def test_corrupted_database_handling(self):
         """Test handling of corrupted database file."""
         # Write invalid JSON to database file
-        with open(self.temp_db_path, 'w') as f:
+        with open(self.temp_db_path, "w") as f:
             f.write("invalid json content")
-        
+
         # Should handle gracefully and return empty database
         db = self.service._load_database()
         self.assertIsInstance(db, dict)
@@ -667,6 +680,7 @@ class TestEurojackpotIntegration(unittest.TestCase):
     def test_command_function_exists(self):
         """Test that command function exists and is callable."""
         from services.eurojackpot_service import eurojackpot_command
+
         self.assertTrue(callable(eurojackpot_command))
 
     def test_demo_data_without_api_key(self):
@@ -675,17 +689,17 @@ class TestEurojackpotIntegration(unittest.TestCase):
         original_key = os.environ.get("EUROJACKPOT_API_KEY")
         if "EUROJACKPOT_API_KEY" in os.environ:
             del os.environ["EUROJACKPOT_API_KEY"]
-        
+
         try:
             service = EurojackpotService()
             # Create temporary db file for this test
             service.db_file = tempfile.mktemp(suffix=".json")
-            
+
             result = service.get_next_draw_info()
             self.assertTrue(result["success"])
             self.assertIn("demo-data", result["message"])
             self.assertTrue(result.get("is_demo", False))
-            
+
             # Clean up temp file
             if os.path.exists(service.db_file):
                 os.unlink(service.db_file)
@@ -702,17 +716,20 @@ def test_service_initialization():
     test_instance.test_service_initialization()
     return True
 
+
 def test_command_function_exists():
     """Test command function exists."""
     test_instance = TestEurojackpotIntegration()
     test_instance.test_command_function_exists()
     return True
 
+
 def test_demo_data_no_api_key():
     """Test demo data without API key."""
     test_instance = TestEurojackpotIntegration()
     test_instance.test_demo_data_without_api_key()
     return True
+
 
 def test_week_number_calculation():
     """Test week number calculation."""
@@ -721,12 +738,14 @@ def test_week_number_calculation():
     test_instance.test_get_week_number()
     return True
 
+
 def test_frequent_numbers():
     """Test frequent numbers retrieval."""
     test_instance = TestEurojackpotService()
     test_instance.setUp()
     test_instance.test_get_frequent_numbers()
     return True
+
 
 def test_date_format_validation():
     """Test invalid date format handling."""
@@ -735,10 +754,11 @@ def test_date_format_validation():
     test_instance.test_get_draw_by_date_invalid_format()
     return True
 
+
 def register_eurojackpot_service_tests(runner):
     """Register Eurojackpot service tests with the test framework."""
     from test_framework import TestSuite, TestCase
-    
+
     tests = [
         TestCase(
             name="service_initialization",
@@ -777,13 +797,13 @@ def register_eurojackpot_service_tests(runner):
             category="eurojackpot",
         ),
     ]
-    
+
     suite = TestSuite(
         name="Eurojackpot_Service",
         description="Tests for Eurojackpot lottery service functionality",
         tests=tests,
     )
-    
+
     runner.add_suite(suite)
 
 
@@ -791,17 +811,17 @@ def run_eurojackpot_tests():
     """Run all eurojackpot tests."""
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
-    
+
     # Add all test classes (including enhanced ones)
     suite.addTest(loader.loadTestsFromTestCase(TestEurojackpotService))
     suite.addTest(loader.loadTestsFromTestCase(TestEurojackpotCommand))
     suite.addTest(loader.loadTestsFromTestCase(TestEurojackpotEnhanced))
     suite.addTest(loader.loadTestsFromTestCase(TestEurojackpotCommandIntegration))
     suite.addTest(loader.loadTestsFromTestCase(TestEurojackpotIntegration))
-    
+
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
-    
+
     return result.wasSuccessful()
 
 

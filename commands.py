@@ -284,7 +284,8 @@ def process_console_command(command_text, bot_functions):
 
     # Handle commands
     if command == "!help":
-        help_text = (
+        # English help texts already here for your convenience
+        """help_text = (
             "📋 Available commands:\n"
             "🌤️ Weather: !s [location]\n"
             "⚡ Electricity: !sahko [hour|huomenna hour]\n"
@@ -297,6 +298,16 @@ def process_console_command(command_text, bot_functions):
             "🔒 Admin*: !join*, !part*, !nick*, !quit*, !raw*\n"
             "💬 Chat: Any message not starting with ! will be sent to AI\n"
             "* = Requires admin password"
+        )"""
+        help_text = (
+            "📋 Komennot: 🌤️ Sää: !s [kaupunki], !sää, ⚡ Sähkö: !sähkö [hour|huomenna hour], !sahko\n"
+            "📊 Sanat: !sana <sana>, !topwords [nick], !leaderboard, 🍺 Kraks: !drinkstats [nick|server|global], !drinkword <sana>, !drink <tietty>, !drinktop, !kokmäärä [palvelin] - näyttää kaikkien sanojen kokonaismäärät palvelimelta (vapaaehtoinen palvelimen nimi, oletuksena nykyinen), !antikrak - poistaa seurannan\n"
+            "🎯 Muut: !aika, !kaiku, !euribor, !leetwinners, !crypto [coin], !youtube <haku|ID>, !url <url>, !ipfs add <url>\n"
+            "⚙️ FMI Varoitukset ja Onnettomuustiedotteet: !tilaa <varoitukset|onnettomuustiedotteet>\n"
+            "🎰 Eurojackpot: !eurojackpot [arvontapäivä|tilastot|tilastot ext]\n"
+            "⏰ Ajastetut viestit: !leet #kanava HH:MM:SS.mmmmmm viesti\n"
+            "🔒 Admin: !version, !join*, !part*, !nick*, !quit*, !raw* | * = Vaatii salasanan | 🐣 Tamagotchi: !tamagotchi, !feed [food], !pet\n"
+            "💬 AI Chat: Aloita rivi botin nimellä tai lähetä yksityisviesti, AI vastaa."
         )
         for line in help_text.split("\n"):
             if line.strip():
@@ -529,12 +540,13 @@ def process_console_command(command_text, bot_functions):
         sub_command = parts[1] if len(parts) > 1 else None
         arg = parts[2] if len(parts) > 2 else None
         log(f"Parsed sub_command: {sub_command}, arg: {arg}", "DEBUG")
-        
+
         # Import the service
         from services.eurojackpot_service import get_eurojackpot_service
+
         service = get_eurojackpot_service()
         log("Eurojackpot service imported and initialized", "DEBUG")
-        
+
         try:
             if sub_command == "frequent" or sub_command == "tilastot":
                 # Handle frequent numbers command
@@ -558,23 +570,45 @@ def process_console_command(command_text, bot_functions):
                 # Handle manual add command
                 log("Executing add command from console", "DEBUG")
                 # Parse remaining arguments: date, numbers, [jackpot]
-                remaining_parts = command_text.split()[2:]  # Skip "!eurojackpot" and "add"
-                
+                remaining_parts = command_text.split()[
+                    2:
+                ]  # Skip "!eurojackpot" and "add"
+
                 if len(remaining_parts) < 2:
-                    notice_message("❌ Käyttö: !eurojackpot add PP.KK.VVVV 1,2,3,4,5,6,7 [päävoitto]")
-                    notice_message("Esim: !eurojackpot add 20.12.2024 1,5,12,25,35,3,8 15000000")
+                    notice_message(
+                        "❌ Käyttö: !eurojackpot add PP.KK.VVVV 1,2,3,4,5,6,7 [päävoitto]"
+                    )
+                    notice_message(
+                        "Esim: !eurojackpot add 20.12.2024 1,5,12,25,35,3,8 15000000"
+                    )
                 else:
                     date_str = remaining_parts[0]
                     numbers_str = remaining_parts[1]
-                    jackpot_str = remaining_parts[2] if len(remaining_parts) > 2 else "Tuntematon"
-                    
-                    log(f"Adding draw manually from console: date={date_str}, numbers={numbers_str}, jackpot={jackpot_str}", "DEBUG")
-                    result = service.add_draw_manually(date_str, numbers_str, jackpot_str)
+                    jackpot_str = (
+                        remaining_parts[2] if len(remaining_parts) > 2 else "Tuntematon"
+                    )
+
+                    log(
+                        f"Adding draw manually from console: date={date_str}, numbers={numbers_str}, jackpot={jackpot_str}",
+                        "DEBUG",
+                    )
+                    result = service.add_draw_manually(
+                        date_str, numbers_str, jackpot_str
+                    )
                     log(f"Add result: {result}", "DEBUG")
                     notice_message(result["message"])
-            elif sub_command and sub_command not in ["frequent", "tilastot", "stats", "scrape", "add"]:
+            elif sub_command and sub_command not in [
+                "frequent",
+                "tilastot",
+                "stats",
+                "scrape",
+                "add",
+            ]:
                 # Date-specific query
-                log(f"Executing date-specific query for: {sub_command} from console", "DEBUG")
+                log(
+                    f"Executing date-specific query for: {sub_command} from console",
+                    "DEBUG",
+                )
                 result = service.get_draw_by_date(sub_command)
                 log(f"Date query result: {result}", "DEBUG")
                 message = result["message"]
@@ -587,6 +621,7 @@ def process_console_command(command_text, bot_functions):
                 # Default: show combined info (latest + next draw)
                 log("Executing default combined info command from console", "DEBUG")
                 from services.eurojackpot_service import eurojackpot_command
+
                 message = eurojackpot_command(arg)
                 log(f"Combined info result: {message}", "DEBUG")
                 # Split message if it contains newlines (combined info)
@@ -597,7 +632,11 @@ def process_console_command(command_text, bot_functions):
         except Exception as e:
             log(f"Error in console eurojackpot command handling: {e}", "ERROR")
             import traceback
-            log(f"Console Eurojackpot exception traceback: {traceback.format_exc()}", "DEBUG")
+
+            log(
+                f"Console Eurojackpot exception traceback: {traceback.format_exc()}",
+                "DEBUG",
+            )
             notice_message(f"Eurojackpot: Virhe - {str(e)}")
 
     elif command == "!version":
@@ -828,7 +867,7 @@ def process_message(irc, message, bot_functions):
                 "🐣 Tamagotchi: !tamagotchi, !feed [food], !pet\n"
                 "🎯 Other: !aika, !kaiku, !euribor, !leetwinners, !crypto [coin], !version\n"
                 "🎰 Games: !eurojackpot [date|scrape|stats], !youtube <query>\n"
-                "⚙️ Advanced: !leet, !get_total_counts, !tilaa, !url <url>, !ipfs add <url>\n"
+                "⚙️ Advanced: !leet, !kokmäärä [palvelin], !tilaa, !url <url>, !ipfs add <url>\n"
                 "🔒 Admin*: !join*, !part*, !nick*, !quit*, !raw*\n"
                 "💬 Chat: Mention bot name or send private message for AI chat\n"
                 "* = Requires admin password"
@@ -1159,6 +1198,7 @@ def process_message(irc, message, bot_functions):
 
             # Import the service
             from services.eurojackpot_service import get_eurojackpot_service
+
             service = get_eurojackpot_service()
             log("Eurojackpot service imported and initialized", "DEBUG")
 
@@ -1178,10 +1218,10 @@ def process_message(irc, message, bot_functions):
                 elif command == "frequent" or command == "tilastot":
                     # Handle frequent numbers command
                     log("Executing frequent numbers command", "DEBUG")
-                    
+
                     # Check if extended mode is requested
-                    extended = (arg == "ext")
-                    
+                    extended = arg == "ext"
+
                     result = service.get_frequent_numbers(extended=extended)
                     log(f"Frequent numbers result: {result}", "DEBUG")
                     notice_message(result["message"], irc, target)
@@ -1190,17 +1230,34 @@ def process_message(irc, message, bot_functions):
                     log("Executing add command", "DEBUG")
                     # Parse remaining arguments: date, numbers, [jackpot]
                     remaining_parts = text.split()[2:]  # Skip "!eurojackpot" and "add"
-                    
+
                     if len(remaining_parts) < 2:
-                        notice_message("❌ Käyttö: !eurojackpot add PP.KK.VVVV 1,2,3,4,5,6,7 [päävoitto]", irc, target)
-                        notice_message("Esim: !eurojackpot add 20.12.2024 1,5,12,25,35,3,8 15000000", irc, target)
+                        notice_message(
+                            "❌ Käyttö: !eurojackpot add PP.KK.VVVV 1,2,3,4,5,6,7 [päävoitto]",
+                            irc,
+                            target,
+                        )
+                        notice_message(
+                            "Esim: !eurojackpot add 20.12.2024 1,5,12,25,35,3,8 15000000",
+                            irc,
+                            target,
+                        )
                     else:
                         date_str = remaining_parts[0]
                         numbers_str = remaining_parts[1]
-                        jackpot_str = remaining_parts[2] if len(remaining_parts) > 2 else "Tuntematon"
-                        
-                        log(f"Adding draw manually: date={date_str}, numbers={numbers_str}, jackpot={jackpot_str}", "DEBUG")
-                        result = service.add_draw_manually(date_str, numbers_str, jackpot_str)
+                        jackpot_str = (
+                            remaining_parts[2]
+                            if len(remaining_parts) > 2
+                            else "Tuntematon"
+                        )
+
+                        log(
+                            f"Adding draw manually: date={date_str}, numbers={numbers_str}, jackpot={jackpot_str}",
+                            "DEBUG",
+                        )
+                        result = service.add_draw_manually(
+                            date_str, numbers_str, jackpot_str
+                        )
                         log(f"Add result: {result}", "DEBUG")
                         notice_message(result["message"], irc, target)
                 elif command and command not in ["scrape", "stats", "add"]:
@@ -1218,6 +1275,7 @@ def process_message(irc, message, bot_functions):
                     # Default: show combined info (latest + next draw)
                     log("Executing default combined info command", "DEBUG")
                     from services.eurojackpot_service import eurojackpot_command
+
                     message = eurojackpot_command(arg)
                     log(f"Combined info result: {message}", "DEBUG")
                     # Split message if it contains newlines (combined info)
@@ -1228,7 +1286,11 @@ def process_message(irc, message, bot_functions):
             except Exception as e:
                 log(f"Error in eurojackpot command handling: {e}", "ERROR")
                 import traceback
-                log(f"Eurojackpot exception traceback: {traceback.format_exc()}", "DEBUG")
+
+                log(
+                    f"Eurojackpot exception traceback: {traceback.format_exc()}",
+                    "DEBUG",
+                )
                 notice_message(f"Eurojackpot: Virhe - {str(e)}", irc, target)
 
         elif text.startswith("!youtube"):
@@ -1264,7 +1326,9 @@ def process_message(irc, message, bot_functions):
                 channel = target  # Use the current channel
                 if channel.startswith("#"):  # Only work in channels
                     irc.send_raw(f"MODE {channel} +o {nick_to_op}")
-                    notice_message(f"Giving ops to {nick_to_op} in {channel}", irc, target)
+                    notice_message(
+                        f"Giving ops to {nick_to_op} in {channel}", irc, target
+                    )
                 else:
                     notice_message("!opzor command only works in channels", irc, target)
             else:
@@ -1277,7 +1341,7 @@ def process_message(irc, message, bot_functions):
             # url = parts[2]
             # Handle the IPFS command
             handle_ipfs_command(text, irc, target)
-        elif text.startswith("!get_total_counts"):
+        elif text.startswith("!kokmäärä"):
             parts = text.strip().split()
             if len(parts) >= 1:
                 if len(parts) >= 2:
@@ -1289,7 +1353,7 @@ def process_message(irc, message, bot_functions):
                 notice_message(counts, irc, target)
             else:
                 notice_message(
-                    "⚠ Anna palvelimen nimi: !get_total_counts <server>", irc, target
+                    "⚠ Anna palvelimen nimi: !kokmäärä [palvelin]", irc, target
                 )
         elif text.startswith("!get_counts_for_source"):
             parts = text.strip().split()

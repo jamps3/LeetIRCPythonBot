@@ -100,7 +100,7 @@ def ping_command(context: CommandContext, bot_functions):
 def weather_command(context: CommandContext, bot_functions):
     """Get weather information for a location."""
     location = context.args_text.strip() if context.args_text else "Joensuu"
-    
+
     # Call the weather function from bot_functions
     send_weather = bot_functions.get("send_weather")
     if send_weather:
@@ -108,9 +108,10 @@ def weather_command(context: CommandContext, bot_functions):
         if context.is_console:
             # Import logging to track console calls
             import logging
+
             logger = logging.getLogger(__name__)
             logger.info(f"Getting weather for {location} from console")
-        
+
         # Call the weather service
         send_weather(None, context.target, location)
         return CommandResponse.no_response()  # Weather service handles the output

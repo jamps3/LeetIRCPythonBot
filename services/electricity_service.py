@@ -186,13 +186,13 @@ class ElectricityService:
     def _fetch_daily_prices(self, date: datetime) -> Dict[str, Any]:
         """
         Fetch electricity prices for a specific date.
-        
+
         The ENTSO-E API returns data in UTC time periods from 22:00 UTC to 22:00 UTC.
         For Finnish time (UTC+2 in winter, UTC+3 in summer), this means:
         - The data period actually covers from midnight Finnish time to midnight Finnish time.
         - Position 1 = 00:00-01:00 Finnish time
         - Position 23 = 22:00-23:00 Finnish time
-        
+
         To get the correct data for a Finnish date, we need to request the previous day
         from the API, because their "day" starts at 22:00 UTC of the previous day.
 

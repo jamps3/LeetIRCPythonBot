@@ -25,7 +25,7 @@ class FMIWarningService:
     # Locations to exclude from notifications
     EXCLUDED_LOCATIONS = [
         "ahvenanmaa",
-        "etelä-pohjanmaa", 
+        "etelä-pohjanmaa",
         "itämeren",
         "kainuu",
         "keski-",
@@ -33,7 +33,7 @@ class FMIWarningService:
         "keski-lappi",
         "länsi-lappi",
         "maan länsiosa",
-        "maan eteläosa", 
+        "maan eteläosa",
         "maan pohjoisosa",
         "pohjois-pohjanmaa",
         "pohjanmaa",
@@ -45,7 +45,7 @@ class FMIWarningService:
     ALLOWED_LOCATIONS = [
         "joensuu",
         "itä-suomi",
-        "pohjois-karjala", 
+        "pohjois-karjala",
         "itä-",
         "koko maa",
     ]
@@ -87,7 +87,9 @@ class FMIWarningService:
             # Join with timeout to prevent hanging during shutdown
             self.thread.join(timeout=3.0)
             if self.thread.is_alive():
-                print("⚠️ FMI warning service thread did not stop cleanly within timeout")
+                print(
+                    "⚠️ FMI warning service thread did not stop cleanly within timeout"
+                )
         print("🛑 FMI warning service stopped")
 
     def _monitor_loop(self) -> None:
@@ -99,7 +101,7 @@ class FMIWarningService:
                     self.callback(new_warnings)
             except Exception as e:
                 print(f"⚠ Error checking FMI warnings: {e}")
-            
+
             time.sleep(self.check_interval)
 
     def check_new_warnings(self) -> List[str]:
@@ -179,7 +181,7 @@ class FMIWarningService:
         """
         title = "⚠ " + entry.get("title", "")
         summary = entry.get("summary", "")
-        
+
         lower_title = title.lower()
         lower_summary = summary.lower()
 
@@ -195,10 +197,10 @@ class FMIWarningService:
 
         # Apply color symbols
         title = self._apply_color_symbols(title)
-        
+
         # Apply warning type symbols
         title = self._apply_warning_symbols(title, lower_title, lower_summary)
-        
+
         # Clean up formatting
         title = title.replace(" maa-alueille:", "")
         title = title.replace("  ", " ")
@@ -210,34 +212,38 @@ class FMIWarningService:
         """Apply color symbols to warning title."""
         color_replacements = {
             "Punainen ": "🟥",
-            "Oranssi ": "🟠", 
+            "Oranssi ": "🟠",
             "Keltainen ": "🟡",
             "Vihreä ": "🟢",
         }
-        
+
         for text, symbol in color_replacements.items():
             title = title.replace(text, symbol)
-        
+
         return title
 
-    def _apply_warning_symbols(self, title: str, lower_title: str, lower_summary: str) -> str:
+    def _apply_warning_symbols(
+        self, title: str, lower_title: str, lower_summary: str
+    ) -> str:
         """Apply warning type symbols to title."""
         if "tuulivaroitus" in lower_title or "tuulivaroitus" in lower_summary:
             title = title.replace("tuulivaroitus", "🌪️")
-        elif "maastopalovaroitus" in lower_title or "maastopalovaroitus" in lower_summary:
+        elif (
+            "maastopalovaroitus" in lower_title or "maastopalovaroitus" in lower_summary
+        ):
             title = title.replace("maastopalovaroitus", "♨ ")
         elif "liikennesää" in lower_title or "liikennesää" in lower_summary:
             title = title.replace("liikennesää", "🚗 ")
         elif "aallokkovaroitus" in lower_title or "aallokkovaroitus" in lower_summary:
             title = title.replace("aallokkovaroitus", "🌊 ")
-        
+
         return title
 
 
 def create_fmi_warning_service(
     callback: Callable[[List[str]], None],
     state_file: str = FMIWarningService.DEFAULT_STATE_FILE,
-    check_interval: int = FMIWarningService.DEFAULT_CHECK_INTERVAL
+    check_interval: int = FMIWarningService.DEFAULT_CHECK_INTERVAL,
 ) -> FMIWarningService:
     """
     Factory function to create an FMI warning service instance.

@@ -155,7 +155,6 @@ class BotManager:
 
         # Note: Signal handling is done in main.py
 
-
     def load_configurations(self) -> bool:
         """
         Load server configurations from environment variables.
@@ -344,7 +343,9 @@ class BotManager:
             "EKAVIKA_FILE": "ekavika.json",
             "get_latency_start": lambda: getattr(self, "_latency_start", 0),
             "BOT_VERSION": "2.0.0",
-            "toggle_tamagotchi": lambda srv, tgt, snd: self.toggle_tamagotchi(srv, tgt, snd),
+            "toggle_tamagotchi": lambda srv, tgt, snd: self.toggle_tamagotchi(
+                srv, tgt, snd
+            ),
         }
 
         # Create a mock IRC message format for commands.py compatibility
@@ -410,14 +411,18 @@ class BotManager:
                     if channels:
                         target_channel = channels[0]
                         self._send_response(server, target_channel, warning)
-                        self.logger.info(f"Sent FMI warning to {server_name}#{target_channel}")
+                        self.logger.info(
+                            f"Sent FMI warning to {server_name}#{target_channel}"
+                        )
                 except Exception as e:
-                    self.logger.error(f"Error sending FMI warning to {server_name}: {e}")
+                    self.logger.error(
+                        f"Error sending FMI warning to {server_name}: {e}"
+                    )
 
     def _handle_otiedote_release(self, title: str, url: str):
         """Handle new Otiedote press release."""
         message = f"📢 Uusi tiedote: {title} | {url}"
-        
+
         # Send to all servers and channels configured for news notifications
         for server_name, server in self.servers.items():
             try:
@@ -427,9 +432,13 @@ class BotManager:
                 if channels:
                     target_channel = channels[0]
                     self._send_response(server, target_channel, message)
-                    self.logger.info(f"Sent Otiedote release to {server_name}#{target_channel}")
+                    self.logger.info(
+                        f"Sent Otiedote release to {server_name}#{target_channel}"
+                    )
             except Exception as e:
-                self.logger.error(f"Error sending Otiedote release to {server_name}: {e}")
+                self.logger.error(
+                    f"Error sending Otiedote release to {server_name}: {e}"
+                )
 
     def stop(self):
         """Stop all servers and bot functionality gracefully."""
@@ -440,7 +449,7 @@ class BotManager:
             self.fmi_warning_service.stop()
         except Exception as e:
             self.logger.error(f"Error stopping FMI warning service: {e}")
-        
+
         try:
             self.otiedote_service.stop()
         except Exception as e:
@@ -467,10 +476,10 @@ class BotManager:
                 )
 
         # Stop console thread if it exists
-        if hasattr(self, 'console_thread') and self.console_thread.is_alive():
+        if hasattr(self, "console_thread") and self.console_thread.is_alive():
             self.logger.info("Stopping console listener...")
             # Console thread will stop when stop_event is set
-        
+
         self.logger.info("Bot manager shut down complete")
 
     def wait_for_shutdown(self):
@@ -485,7 +494,7 @@ class BotManager:
             # Handle KeyboardInterrupt by setting stop event to prevent reconnects
             self.logger.info("Keyboard interrupt received, stopping all servers...")
             self.stop_event.set()
-            
+
             # Call stop() immediately to force quit IRC connections
             try:
                 for server in self.servers.values():
@@ -493,8 +502,8 @@ class BotManager:
                         server.quit("Keyboard interrupt")
             except Exception as e:
                 self.logger.error(f"Error during immediate quit: {e}")
-            
-        # Re-raise to let main.py handle the shutdown message
+
+            # Re-raise to let main.py handle the shutdown message
             raise
 
     def _listen_for_console_commands(self):
@@ -517,7 +526,7 @@ class BotManager:
                         # Process console commands
                         try:
                             from command_loader import enhanced_process_console_command
-                            
+
                             # Create bot functions for console use
                             bot_functions = self._create_console_bot_functions()
                             enhanced_process_console_command(user_input, bot_functions)
@@ -532,7 +541,9 @@ class BotManager:
                                 if response:
                                     print(f"🤖 AI: {response}")
                             else:
-                                print("🤖 AI service not available (no OpenAI API key configured)")
+                                print(
+                                    "🤖 AI service not available (no OpenAI API key configured)"
+                                )
                         except Exception as e:
                             self.logger.error(f"AI chat error: {e}")
                             print(f"❌ AI chat error: {e}")
@@ -559,7 +570,11 @@ class BotManager:
             "get_eurojackpot_results": self._get_eurojackpot_results,
             "search_youtube": self._search_youtube,
             "handle_ipfs_command": self._handle_ipfs_command,
-            "chat_with_gpt": lambda msg, sender="Console": self.gpt_service.chat(msg, sender) if self.gpt_service else "AI not available",
+            "chat_with_gpt": lambda msg, sender="Console": (
+                self.gpt_service.chat(msg, sender)
+                if self.gpt_service
+                else "AI not available"
+            ),
             "load": self._load_legacy_data,
             "save": self._save_legacy_data,
             "BOT_VERSION": "2.0.0",
@@ -572,7 +587,7 @@ class BotManager:
         if not self.weather_service:
             print("☁️ Weather service not available (no WEATHER_API_KEY)")
             return
-        
+
         try:
             weather_data = self.weather_service.get_weather(location)
             response = self.weather_service.format_weather_message(weather_data)
@@ -585,11 +600,14 @@ class BotManager:
         if not self.electricity_service:
             print("⚡ Electricity service not available (no ELECTRICITY_API_KEY)")
             return
-        
+
         try:
             import datetime
+
             current_hour = datetime.datetime.now().hour
-            price_data = self.electricity_service.get_electricity_price(hour=current_hour)
+            price_data = self.electricity_service.get_electricity_price(
+                hour=current_hour
+            )
             response = self.electricity_service.format_price_message(price_data)
             print(f"⚡ {response}")
         except Exception as e:
@@ -916,7 +934,7 @@ class BotManager:
             # Skip blacklisted URLs
             if self._is_url_blacklisted(url):
                 continue
-                
+
             try:
                 response = requests.get(
                     url, timeout=10, headers={"User-Agent": "Mozilla/5.0"}
@@ -924,21 +942,22 @@ class BotManager:
                 if response.status_code == 200:
                     # Check content type before processing
                     content_type = response.headers.get("Content-Type", "").lower()
-                    if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
+                    if (
+                        "text/html" not in content_type
+                        and "application/xhtml+xml" not in content_type
+                    ):
                         self.logger.debug(f"Skipping non-HTML content: {content_type}")
                         continue
-                        
+
                     soup = BeautifulSoup(response.content, "html.parser")
                     title = soup.find("title")
                     if title and title.string:
                         # Clean the title
                         cleaned_title = re.sub(r"\s+", " ", title.string.strip())
-                        
+
                         # Send title to IRC if we have a proper server object
                         if hasattr(irc, "send_message"):
-                            self._send_response(
-                                irc, target, f"📄 {cleaned_title}"
-                            )
+                            self._send_response(irc, target, f"📄 {cleaned_title}")
                         else:
                             self.logger.info(f"Title: {cleaned_title}")
             except Exception as e:
@@ -947,17 +966,17 @@ class BotManager:
     def _is_youtube_url(self, url: str) -> bool:
         """Check if a URL is a YouTube URL."""
         import re
-        
+
         youtube_patterns = [
-            r'(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([\w\-_]*)',  # Allow empty video ID
-            r'(?:https?://)?(?:www\.)?youtu\.be/([\w\-_]+)',
-            r'(?:https?://)?(?:www\.)?youtube\.com/embed/([\w\-_]*)',
-            r'(?:https?://)?(?:www\.)?youtube\.com/v/([\w\-_]*)',
-            r'(?:https?://)?(?:m\.)?youtube\.com/watch\?v=([\w\-_]*)',
-            r'(?:https?://)?(?:music\.)?youtube\.com/watch\?v=([\w\-_]*)',
-            r'(?:https?://)?(?:www\.)?youtube\.com/shorts/([\w\-_]+)'  # YouTube Shorts
+            r"(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([\w\-_]*)",  # Allow empty video ID
+            r"(?:https?://)?(?:www\.)?youtu\.be/([\w\-_]+)",
+            r"(?:https?://)?(?:www\.)?youtube\.com/embed/([\w\-_]*)",
+            r"(?:https?://)?(?:www\.)?youtube\.com/v/([\w\-_]*)",
+            r"(?:https?://)?(?:m\.)?youtube\.com/watch\?v=([\w\-_]*)",
+            r"(?:https?://)?(?:music\.)?youtube\.com/watch\?v=([\w\-_]*)",
+            r"(?:https?://)?(?:www\.)?youtube\.com/shorts/([\w\-_]+)",  # YouTube Shorts
         ]
-        
+
         for pattern in youtube_patterns:
             if re.search(pattern, url, re.IGNORECASE):
                 return True
@@ -968,35 +987,39 @@ class BotManager:
         # Skip YouTube URLs as they are already handled by the YouTube service
         if self._is_youtube_url(url):
             return True
-            
+
         # Get blacklisted domains from environment
         blacklisted_domains = os.getenv(
-            "TITLE_BLACKLIST_DOMAINS", 
-            "youtube.com,youtu.be,facebook.com,fb.com,x.com,twitter.com,instagram.com,tiktok.com,discord.com,reddit.com,imgur.com"
+            "TITLE_BLACKLIST_DOMAINS",
+            "youtube.com,youtu.be,facebook.com,fb.com,x.com,twitter.com,instagram.com,tiktok.com,discord.com,reddit.com,imgur.com",
         ).split(",")
-        
+
         # Get blacklisted extensions from environment
         blacklisted_extensions = os.getenv(
-            "TITLE_BLACKLIST_EXTENSIONS", 
-            ".jpg,.jpeg,.png,.gif,.mp4,.webm,.pdf,.zip,.rar,.mp3,.wav,.flac"
+            "TITLE_BLACKLIST_EXTENSIONS",
+            ".jpg,.jpeg,.png,.gif,.mp4,.webm,.pdf,.zip,.rar,.mp3,.wav,.flac",
         ).split(",")
-        
+
         url_lower = url.lower()
-        
+
         # Check domains
         for domain in blacklisted_domains:
             domain = domain.strip()
             if domain and domain in url_lower:
-                self.logger.debug(f"Skipping URL with blacklisted domain '{domain}': {url}")
+                self.logger.debug(
+                    f"Skipping URL with blacklisted domain '{domain}': {url}"
+                )
                 return True
-        
+
         # Check file extensions
         for ext in blacklisted_extensions:
             ext = ext.strip()
             if ext and url_lower.endswith(ext):
-                self.logger.debug(f"Skipping URL with blacklisted extension '{ext}': {url}")
+                self.logger.debug(
+                    f"Skipping URL with blacklisted extension '{ext}': {url}"
+                )
                 return True
-        
+
         return False
 
     def _get_subscriptions_module(self):
@@ -1034,12 +1057,12 @@ class BotManager:
         if not os.path.exists(env_file):
             self.logger.warning("No .env file found, cannot persist tamagotchi setting")
             return False
-            
+
         try:
             # Read current .env file
             with open(env_file, "r", encoding="utf-8") as f:
                 lines = f.readlines()
-            
+
             # Find and update the key, or add it if not found
             key_found = False
             for i, line in enumerate(lines):
@@ -1050,20 +1073,20 @@ class BotManager:
                     lines[i] = f"{key}={value}\n"
                     key_found = True
                     break
-            
+
             # If key wasn't found, add it
             if not key_found:
                 lines.append(f"{key}={value}\n")
-            
+
             # Write back to .env file
             with open(env_file, "w", encoding="utf-8") as f:
                 f.writelines(lines)
-            
+
             # Update environment variable for current session
             os.environ[key] = value
-            
+
             return True
-            
+
         except IOError as e:
             self.logger.error(f"Could not update .env file: {e}")
             return False
@@ -1071,11 +1094,11 @@ class BotManager:
     def toggle_tamagotchi(self, server, target, sender):
         """Toggle tamagotchi responses on/off with .env file persistence."""
         self.tamagotchi_enabled = not self.tamagotchi_enabled
-        
+
         # Save the new state to .env file
         new_value = "true" if self.tamagotchi_enabled else "false"
         success = self._update_env_file("TAMAGOTCHI_ENABLED", new_value)
-        
+
         status = "enabled" if self.tamagotchi_enabled else "disabled"
         emoji = "🐣" if self.tamagotchi_enabled else "💤"
 
@@ -1083,7 +1106,7 @@ class BotManager:
             response = f"{emoji} Tamagotchi responses are now {status}."
         else:
             response = f"{emoji} Tamagotchi responses are now {status} (session only - .env update failed)."
-        
+
         self._send_response(server, target, response)
 
         # Log the change

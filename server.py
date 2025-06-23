@@ -241,7 +241,7 @@ class Server:
         # Set socket timeout to allow frequent checking of stop_event
         if self.socket:
             self.socket.settimeout(0.5)  # Shorter timeout for faster shutdown response
-            
+
         while not self.stop_event.is_set() and self.connected:
             try:
                 response = self.socket.recv(4096).decode("utf-8", errors="ignore")
@@ -350,14 +350,14 @@ class Server:
             if self.stop_event.is_set():
                 self.logger.info("Stop event set, exiting connection loop")
                 break
-                
+
             if self.connect() and self.login():
                 # Check stop event after successful connection
                 if self.stop_event.is_set():
                     self.logger.info("Stop event set after connection, disconnecting")
                     self.quit("Shutdown requested")
                     break
-                    
+
                 # Start keepalive ping thread
                 keepalive_thread = threading.Thread(
                     target=self._keepalive_ping,
@@ -378,7 +378,9 @@ class Server:
 
                 # Wait for either thread to exit (check stop event frequently)
                 while self.connected and not self.stop_event.is_set():
-                    time.sleep(0.1)  # Check stop event more frequently for faster shutdown
+                    time.sleep(
+                        0.1
+                    )  # Check stop event more frequently for faster shutdown
 
                 # If we're still connected but stop event is set, send QUIT
                 if self.connected and self.stop_event.is_set():
@@ -389,7 +391,9 @@ class Server:
             else:
                 # Connection or login failed
                 if self.stop_event.is_set():
-                    self.logger.info("Stop event set during connection failure, exiting")
+                    self.logger.info(
+                        "Stop event set during connection failure, exiting"
+                    )
                     break
 
             # Final check before considering reconnection
@@ -401,17 +405,19 @@ class Server:
             self.logger.info(f"Reconnecting in {retry_delay} seconds...")
             for i in range(retry_delay):
                 if self.stop_event.is_set():
-                    self.logger.info(f"Stop event set during reconnect wait (after {i}s), exiting")
+                    self.logger.info(
+                        f"Stop event set during reconnect wait (after {i}s), exiting"
+                    )
                     break
                 time.sleep(1)
-                
+
             # If stop event was set during the wait, exit immediately
             if self.stop_event.is_set():
                 break
 
             # Increase retry delay with a cap
             retry_delay = min(retry_delay * 2, max_retry_delay)
-            
+
         self.logger.info("Server start() method exiting")
 
     def quit(self, message: str = "Disconnecting"):
@@ -426,10 +432,10 @@ class Server:
                 # Send QUIT message first
                 self.send_raw(f"QUIT :{message}")
                 time.sleep(0.5)  # Give the server a moment to process the QUIT
-                
+
                 # Close socket safely
                 self._close_socket()
-                
+
             except Exception as e:
                 self.logger.warning(f"Error during quit: {e}")
                 # Still try to close socket even if QUIT failed
@@ -447,7 +453,7 @@ class Server:
             except (OSError, socket.error) as e:
                 # Shutdown can fail if socket is already closed or not connected
                 self.logger.debug(f"Socket shutdown failed (expected): {e}")
-            
+
             try:
                 # Close the socket
                 self.socket.close()
@@ -467,7 +473,7 @@ class Server:
         if self.connected:
             try:
                 self.logger.info("Stopping server connection...")
-                
+
                 # Use the safe socket closing method
                 self._close_socket()
 

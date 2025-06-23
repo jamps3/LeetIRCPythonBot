@@ -40,80 +40,104 @@ class EurojackpotService:
         """Make HTTP request with Magayo API parameters and return JSON response."""
         try:
             self.logger.debug(f"Making request to {url} with params: {params}")
-            
+
             # Try multiple approaches to handle the API
             approaches = [
                 # Approach 1: Standard session with modern headers
                 {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                    'Accept': 'application/json, text/html, */*',
-                    'Accept-Language': 'en-US,en;q=0.9',
-                    'Referer': 'https://www.magayo.com/',
-                    'Cache-Control': 'no-cache'
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                    "Accept": "application/json, text/html, */*",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Referer": "https://www.magayo.com/",
+                    "Cache-Control": "no-cache",
                 },
                 # Approach 2: Minimal headers (sometimes APIs prefer this)
-                {
-                    'User-Agent': 'Python-requests/2.31.0',
-                    'Accept': 'application/json'
-                },
+                {"User-Agent": "Python-requests/2.31.0", "Accept": "application/json"},
                 # Approach 3: Legacy browser headers
                 {
-                    'User-Agent': 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1)',
-                    'Accept': 'application/json, text/html'
-                }
+                    "User-Agent": "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1)",
+                    "Accept": "application/json, text/html",
+                },
             ]
-            
+
             for i, headers in enumerate(approaches):
                 try:
-                    self.logger.debug(f"Trying approach {i+1} with headers: {list(headers.keys())}")
-                    
+                    self.logger.debug(
+                        f"Trying approach {i+1} with headers: {list(headers.keys())}"
+                    )
+
                     session = requests.Session()
                     session.headers.update(headers)
-                    
-                    response = session.get(url, params=params, timeout=timeout, allow_redirects=True)
-                    self.logger.debug(f"Approach {i+1} - Response status: {response.status_code}, URL: {response.url}")
-                    
+
+                    response = session.get(
+                        url, params=params, timeout=timeout, allow_redirects=True
+                    )
+                    self.logger.debug(
+                        f"Approach {i+1} - Response status: {response.status_code}, URL: {response.url}"
+                    )
+
                     if response.status_code == 303:
-                        self.logger.warning(f"Approach {i+1} - Got 303 redirect, following to: {response.headers.get('Location', 'unknown')}")
+                        self.logger.warning(
+                            f"Approach {i+1} - Got 303 redirect, following to: {response.headers.get('Location', 'unknown')}"
+                        )
                         continue  # Try next approach
-                    
+
                     response.raise_for_status()
-                    
+
                     # Log response content for debugging
-                    self.logger.debug(f"Approach {i+1} - Response content preview: {response.text[:200]}...")
-                    
+                    self.logger.debug(
+                        f"Approach {i+1} - Response content preview: {response.text[:200]}..."
+                    )
+
                     json_data = response.json()
-                    self.logger.debug(f"Approach {i+1} - Parsed JSON response: {json_data}")
-                    
+                    self.logger.debug(
+                        f"Approach {i+1} - Parsed JSON response: {json_data}"
+                    )
+
                     # Check if the API returned an error in the JSON (common with Magayo API)
-                    if isinstance(json_data, dict) and json_data.get('error') == 303:
-                        self.logger.warning(f"Approach {i+1} - API returned error 303 in JSON response")
+                    if isinstance(json_data, dict) and json_data.get("error") == 303:
+                        self.logger.warning(
+                            f"Approach {i+1} - API returned error 303 in JSON response"
+                        )
                         if i < len(approaches) - 1:  # Not the last approach
                             continue  # Try next approach
-                    
+
                     return json_data
-                    
+
                 except requests.RequestException as e:
-                    self.logger.warning(f"Approach {i+1} failed with request error: {e}")
+                    self.logger.warning(
+                        f"Approach {i+1} failed with request error: {e}"
+                    )
                     if i == len(approaches) - 1:  # Last approach
                         raise
                     continue
                 except json.JSONDecodeError as e:
-                    self.logger.warning(f"Approach {i+1} failed with JSON decode error: {e}")
+                    self.logger.warning(
+                        f"Approach {i+1} failed with JSON decode error: {e}"
+                    )
                     if i == len(approaches) - 1:  # Last approach
                         raise
                     continue
-            
+
             # If we get here, all approaches failed
             return {"error": 303, "message": "All API request approaches failed"}
-            
+
         except requests.RequestException as e:
             self.logger.error(f"Request error for {url}: {e}")
             self.logger.debug(f"Request params were: {params}")
-            return {"error": getattr(e.response, 'status_code', 999) if hasattr(e, 'response') and e.response else 999, "message": str(e)}
+            return {
+                "error": (
+                    getattr(e.response, "status_code", 999)
+                    if hasattr(e, "response") and e.response
+                    else 999
+                ),
+                "message": str(e),
+            }
         except json.JSONDecodeError as e:
             self.logger.error(f"JSON decode error for {url}: {e}")
-            self.logger.debug(f"Response was: {response.text if 'response' in locals() else 'No response'}")
+            self.logger.debug(
+                f"Response was: {response.text if 'response' in locals() else 'No response'}"
+            )
             return {"error": 998, "message": f"Invalid JSON response: {str(e)}"}
         except Exception as e:
             self.logger.error(f"Unexpected error for {url}: {e}")
@@ -123,7 +147,7 @@ class EurojackpotService:
         """Load draw data from JSON database file."""
         try:
             if os.path.exists(self.db_file):
-                with open(self.db_file, 'r', encoding='utf-8') as f:
+                with open(self.db_file, "r", encoding="utf-8") as f:
                     return json.load(f)
             return {"draws": [], "last_updated": None}
         except Exception as e:
@@ -133,7 +157,7 @@ class EurojackpotService:
     def _save_database(self, data: Dict[str, any]) -> None:
         """Save draw data to JSON database file."""
         try:
-            with open(self.db_file, 'w', encoding='utf-8') as f:
+            with open(self.db_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
             self.logger.debug(f"Database saved to {self.db_file}")
         except Exception as e:
@@ -143,25 +167,27 @@ class EurojackpotService:
         """Save a draw result to the database."""
         try:
             db = self._load_database()
-            
+
             # Check if draw already exists (by date)
             draw_date_iso = draw_data.get("date_iso")
             if draw_date_iso:
                 # Remove existing draw with same date
-                db["draws"] = [d for d in db["draws"] if d.get("date_iso") != draw_date_iso]
-                
+                db["draws"] = [
+                    d for d in db["draws"] if d.get("date_iso") != draw_date_iso
+                ]
+
                 # Add new draw
                 db["draws"].append(draw_data)
-                
+
                 # Sort by date (newest first)
                 db["draws"].sort(key=lambda x: x.get("date_iso", ""), reverse=True)
-                
+
                 # Keep only last 500 draws to allow for historical data while preventing excessive growth
                 db["draws"] = db["draws"][:500]
-                
+
                 # Update timestamp
                 db["last_updated"] = datetime.now().isoformat()
-                
+
                 self._save_database(db)
                 self.logger.debug(f"Saved draw data for {draw_date_iso} to database")
         except Exception as e:
@@ -178,7 +204,9 @@ class EurojackpotService:
             self.logger.error(f"Error getting latest draw from database: {e}")
             return None
 
-    def _get_draw_by_date_from_database(self, date_iso: str) -> Optional[Dict[str, any]]:
+    def _get_draw_by_date_from_database(
+        self, date_iso: str
+    ) -> Optional[Dict[str, any]]:
         """Get a specific draw by date from the database."""
         try:
             db = self._load_database()
@@ -202,27 +230,27 @@ class EurojackpotService:
             if not self.api_key:
                 # Return mock data for development/testing
                 from datetime import timedelta
-                
+
                 # Calculate next draw day (Eurojackpot draws are on Tuesdays and Fridays)
                 today = datetime.now()
-                
+
                 # Check for next Tuesday (1) or Friday (4)
                 next_tuesday = today + timedelta(days=(1 - today.weekday()) % 7)
                 next_friday = today + timedelta(days=(4 - today.weekday()) % 7)
-                
+
                 # If both are in the past, get the next ones
                 if next_tuesday <= today:
                     next_tuesday += timedelta(days=7)
                 if next_friday <= today:
                     next_friday += timedelta(days=7)
-                
+
                 # Choose the earlier one
                 next_draw = min(next_tuesday, next_friday)
                 draw_date = next_draw.strftime("%d.%m.%Y")
                 week_number = next_draw.isocalendar()[1]
-                
+
                 success_message = f"Seuraava Eurojackpot-arvonta: {draw_date} (viikko {week_number}) | Päävoitto: 15000000 EUR (demo-data)"
-                
+
                 return {
                     "success": True,
                     "message": success_message,
@@ -238,32 +266,39 @@ class EurojackpotService:
             draw_data = self._make_request(self.next_draw_url, params)
             jackpot_data = self._make_request(self.jackpot_url, params)
 
-            if not draw_data or not jackpot_data or draw_data.get("error") != 0 or jackpot_data.get("error") != 0:
+            if (
+                not draw_data
+                or not jackpot_data
+                or draw_data.get("error") != 0
+                or jackpot_data.get("error") != 0
+            ):
                 # API failed, fall back to mock data with warning
-                self.logger.warning(f"API failed (error {draw_data.get('error') if draw_data else 'null'}), using mock data")
-                
+                self.logger.warning(
+                    f"API failed (error {draw_data.get('error') if draw_data else 'null'}), using mock data"
+                )
+
                 from datetime import timedelta
-                
+
                 # Calculate next draw day (Eurojackpot draws are on Tuesdays and Fridays)
                 today = datetime.now()
-                
+
                 # Check for next Tuesday (1) or Friday (4)
                 next_tuesday = today + timedelta(days=(1 - today.weekday()) % 7)
                 next_friday = today + timedelta(days=(4 - today.weekday()) % 7)
-                
+
                 # If both are in the past, get the next ones
                 if next_tuesday <= today:
                     next_tuesday += timedelta(days=7)
                 if next_friday <= today:
                     next_friday += timedelta(days=7)
-                
+
                 # Choose the earlier one
                 next_draw = min(next_tuesday, next_friday)
                 draw_date = next_draw.strftime("%d.%m.%Y")
                 week_number = next_draw.isocalendar()[1]
-                
+
                 success_message = f"Seuraava Eurojackpot-arvonta: {draw_date} (viikko {week_number}) | Päävoitto: 15000000 EUR (demo-data - API ei saatavilla)"
-                
+
                 return {
                     "success": True,
                     "message": success_message,
@@ -311,9 +346,11 @@ class EurojackpotService:
                 # No API key - try database fallback
                 db_draw = self._get_latest_draw_from_database()
                 if db_draw:
-                    self.logger.info("Using cached draw data from database (no API key)")
+                    self.logger.info(
+                        "Using cached draw data from database (no API key)"
+                    )
                     success_message = f"Viimeisin Eurojackpot-arvonta: {db_draw['date']} (viikko {db_draw['week_number']}) | Numerot: {db_draw['main_numbers']} + {db_draw['euro_numbers']} | Suurin voitto: {db_draw['jackpot']} {db_draw['currency']} (tallennettu data)"
-                    
+
                     return {
                         "success": True,
                         "message": success_message,
@@ -338,13 +375,17 @@ class EurojackpotService:
 
             if not data or data.get("error") != 0:
                 # API failed, try database fallback
-                self.logger.warning(f"API failed (error {data.get('error') if data else 'null'}), trying database fallback")
-                
+                self.logger.warning(
+                    f"API failed (error {data.get('error') if data else 'null'}), trying database fallback"
+                )
+
                 db_draw = self._get_latest_draw_from_database()
                 if db_draw:
-                    self.logger.info("Using cached draw data from database (API unavailable)")
+                    self.logger.info(
+                        "Using cached draw data from database (API unavailable)"
+                    )
                     success_message = f"Viimeisin Eurojackpot-arvonta: {db_draw['date']} (viikko {db_draw['week_number']}) | Numerot: {db_draw['main_numbers']} + {db_draw['euro_numbers']} | Suurin voitto: {db_draw['jackpot']} {db_draw['currency']} (tallennettu data - API ei saatavilla)"
-                    
+
                     return {
                         "success": True,
                         "message": success_message,
@@ -388,7 +429,7 @@ class EurojackpotService:
                 "jackpot": jackpot,
                 "currency": currency,
                 "type": "latest_result",
-                "saved_at": datetime.now().isoformat()
+                "saved_at": datetime.now().isoformat(),
             }
             self._save_draw_to_database(draw_db_data)
 
@@ -424,20 +465,24 @@ class EurojackpotService:
                 # No API key - parse date and check database first
                 query_date = None
                 date_formats = ["%d.%m.%y", "%d.%m.%Y", "%Y-%m-%d"]
-                
+
                 for fmt in date_formats:
                     try:
-                        query_date = datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
+                        query_date = datetime.strptime(date_str, fmt).strftime(
+                            "%Y-%m-%d"
+                        )
                         break
                     except ValueError:
                         continue
-                
+
                 if query_date:
                     db_draw = self._get_draw_by_date_from_database(query_date)
                     if db_draw:
-                        self.logger.info(f"Using cached draw data from database for {query_date} (no API key)")
+                        self.logger.info(
+                            f"Using cached draw data from database for {query_date} (no API key)"
+                        )
                         success_message = f"Eurojackpot-arvonta {db_draw['date']} (viikko {db_draw['week_number']}): {db_draw['main_numbers']} + {db_draw['euro_numbers']} | Suurin voitto: {db_draw['jackpot']} {db_draw['currency']} (tallennettu data)"
-                        
+
                         return {
                             "success": True,
                             "message": success_message,
@@ -450,11 +495,11 @@ class EurojackpotService:
                             "currency": db_draw["currency"],
                             "is_cached": True,
                         }
-                
+
                 # No API key and no cached data - show next draw + frequent numbers
                 next_draw = self.get_next_draw_info()
                 frequent = self.get_frequent_numbers()
-                
+
                 if next_draw["success"] and frequent["success"]:
                     message = f"Eurojackpot: Arvontaa ei löytynyt päivämäärälle {date_str} (ei API-avainta).\n{next_draw['message']}\n{frequent['message']}"
                     return {
@@ -462,7 +507,7 @@ class EurojackpotService:
                         "message": message,
                         "next_draw": next_draw,
                         "frequent_numbers": frequent,
-                        "is_demo": True
+                        "is_demo": True,
                     }
                 else:
                     return {
@@ -473,14 +518,14 @@ class EurojackpotService:
             # Parse and validate date - support multiple formats
             query_date = None
             date_formats = ["%d.%m.%y", "%d.%m.%Y", "%Y-%m-%d"]
-            
+
             for fmt in date_formats:
                 try:
                     query_date = datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
                     break
                 except ValueError:
                     continue
-            
+
             if not query_date:
                 return {
                     "success": False,
@@ -503,9 +548,11 @@ class EurojackpotService:
                 # No draw found for this date via API - try database first
                 db_draw = self._get_draw_by_date_from_database(query_date)
                 if db_draw:
-                    self.logger.info(f"Using cached draw data from database for {query_date}")
+                    self.logger.info(
+                        f"Using cached draw data from database for {query_date}"
+                    )
                     success_message = f"Eurojackpot-arvonta {db_draw['date']} (viikko {db_draw['week_number']}): {db_draw['main_numbers']} + {db_draw['euro_numbers']} | Suurin voitto: {db_draw['jackpot']} {db_draw['currency']} (tallennettu data)"
-                    
+
                     return {
                         "success": True,
                         "message": success_message,
@@ -518,18 +565,18 @@ class EurojackpotService:
                         "currency": db_draw["currency"],
                         "is_cached": True,
                     }
-                
+
                 # No draw found in API or database - show next draw + frequent numbers
                 next_draw = self.get_next_draw_info()
                 frequent = self.get_frequent_numbers()
-                
+
                 if next_draw["success"] and frequent["success"]:
                     message = f"Eurojackpot: Arvontaa ei löytynyt päivämäärälle {date_str}.\n{next_draw['message']}\n{frequent['message']}"
                     return {
                         "success": True,
                         "message": message,
                         "next_draw": next_draw,
-                        "frequent_numbers": frequent
+                        "frequent_numbers": frequent,
                     }
                 else:
                     return {
@@ -562,7 +609,7 @@ class EurojackpotService:
                 "jackpot": jackpot,
                 "currency": currency,
                 "type": "date_specific",
-                "saved_at": datetime.now().isoformat()
+                "saved_at": datetime.now().isoformat(),
             }
             self._save_draw_to_database(draw_db_data)
 
@@ -601,7 +648,9 @@ class EurojackpotService:
         else:
             return "Eurojackpot: Tietojen hakeminen epäonnistui."
 
-    def get_frequent_numbers(self, limit: int = 10, extended: bool = False) -> Dict[str, any]:
+    def get_frequent_numbers(
+        self, limit: int = 10, extended: bool = False
+    ) -> Dict[str, any]:
         """
         Get most frequently drawn numbers based on database analysis.
         If no database data is available, falls back to historical statistics.
@@ -618,10 +667,10 @@ class EurojackpotService:
             db_stats = self._calculate_frequency_from_database(extended=extended)
             if db_stats["success"]:
                 return db_stats
-            
+
             # Fall back to historical statistics if no database data
             self.logger.info("No database data available, using historical statistics")
-            
+
             # Most frequent primary numbers (1-50) based on historical Eurojackpot data
             # These are actual statistics from Eurojackpot draws 2012-2023
             frequent_primary = [19, 35, 5, 16, 23]  # Top 5 most frequent
@@ -630,8 +679,12 @@ class EurojackpotService:
             # Format with proper spacing and optionally with counts
             if extended:
                 # Show with example counts for historical data
-                primary_str = " ".join(f"{num:02d}[{45-i*2}]" for i, num in enumerate(frequent_primary))
-                secondary_str = " ".join(f"{num:02d}[{25-i*3}]" for i, num in enumerate(frequent_secondary))
+                primary_str = " ".join(
+                    f"{num:02d}[{45-i*2}]" for i, num in enumerate(frequent_primary)
+                )
+                secondary_str = " ".join(
+                    f"{num:02d}[{25-i*3}]" for i, num in enumerate(frequent_secondary)
+                )
             else:
                 primary_str = " ".join(f"{num:02d}" for num in frequent_primary)
                 secondary_str = " ".join(f"{num:02d}" for num in frequent_secondary)
@@ -644,7 +697,7 @@ class EurojackpotService:
                 "primary_numbers": frequent_primary,
                 "secondary_numbers": frequent_secondary,
                 "note": "Based on historical Eurojackpot frequency analysis 2012-2023",
-                "source": "historical"
+                "source": "historical",
             }
         except Exception as e:
             self.logger.error(f"Error getting frequent numbers: {e}")
@@ -652,36 +705,35 @@ class EurojackpotService:
                 "success": False,
                 "message": "📊 Virhe yleisimpien numeroiden haussa",
             }
-    
-    def _calculate_frequency_from_database(self, extended: bool = False) -> Dict[str, any]:
+
+    def _calculate_frequency_from_database(
+        self, extended: bool = False
+    ) -> Dict[str, any]:
         """
         Calculate most frequent numbers from the local database.
-        
+
         Args:
             extended: If True, include count numbers in brackets
-        
+
         Returns:
             Dict with frequency analysis results
         """
         try:
             db = self._load_database()
             draws = db.get("draws", [])
-            
+
             if len(draws) < 5:  # Need at least 5 draws for meaningful statistics
                 return {
                     "success": False,
                     "message": f"📊 Liian vähän dataa tilastoihin ({len(draws)} arvontaa). Tarvitaan vähintään 5.",
                 }
-            
+
             # Count frequency of each number
             main_number_counts = {}  # 1-50
             euro_number_counts = {}  # 1-12
-            
-            date_range = {
-                "oldest": None,
-                "newest": None
-            }
-            
+
+            date_range = {"oldest": None, "newest": None}
+
             for draw in draws:
                 numbers = draw.get("numbers", [])
                 if len(numbers) >= 7:  # Must have 5 main + 2 euro numbers
@@ -692,7 +744,7 @@ class EurojackpotService:
                             main_number_counts[num] = main_number_counts.get(num, 0) + 1
                         except (ValueError, IndexError):
                             continue
-                    
+
                     # Euro numbers (last 2)
                     for i in range(5, 7):
                         try:
@@ -700,7 +752,7 @@ class EurojackpotService:
                             euro_number_counts[num] = euro_number_counts.get(num, 0) + 1
                         except (ValueError, IndexError):
                             continue
-                
+
                 # Track date range
                 draw_date = draw.get("date_iso")
                 if draw_date:
@@ -708,47 +760,57 @@ class EurojackpotService:
                         date_range["oldest"] = draw_date
                     if date_range["newest"] is None or draw_date > date_range["newest"]:
                         date_range["newest"] = draw_date
-            
+
             # Get top 5 main numbers and top 2 euro numbers
-            top_main = sorted(main_number_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-            top_euro = sorted(euro_number_counts.items(), key=lambda x: x[1], reverse=True)[:2]
-            
+            top_main = sorted(
+                main_number_counts.items(), key=lambda x: x[1], reverse=True
+            )[:5]
+            top_euro = sorted(
+                euro_number_counts.items(), key=lambda x: x[1], reverse=True
+            )[:2]
+
             if not top_main or not top_euro:
                 return {
                     "success": False,
                     "message": "📊 Ei tarpeeksi numerodataa tilastoihin.",
                 }
-            
+
             # Format results
             frequent_primary = [num for num, count in top_main]
             frequent_secondary = [num for num, count in top_euro]
-            
+
             # Format numbers with or without counts
             if extended:
                 primary_str = " ".join(f"{num:02d}[{count}]" for num, count in top_main)
-                secondary_str = " ".join(f"{num:02d}[{count}]" for num, count in top_euro)
+                secondary_str = " ".join(
+                    f"{num:02d}[{count}]" for num, count in top_euro
+                )
             else:
                 primary_str = " ".join(f"{num:02d}" for num in frequent_primary)
                 secondary_str = " ".join(f"{num:02d}" for num in frequent_secondary)
-            
+
             # Format date range with day.month.year format
             if date_range["oldest"] and date_range["newest"]:
                 oldest_date = datetime.strptime(date_range["oldest"], "%Y-%m-%d")
                 newest_date = datetime.strptime(date_range["newest"], "%Y-%m-%d")
-                
+
                 # Format as DD.M.YY - DD.M.YY
-                oldest_str = f"{oldest_date.day}.{oldest_date.month}.{str(oldest_date.year)[2:]}"
-                newest_str = f"{newest_date.day}.{newest_date.month}.{str(newest_date.year)[2:]}"
-                
+                oldest_str = (
+                    f"{oldest_date.day}.{oldest_date.month}.{str(oldest_date.year)[2:]}"
+                )
+                newest_str = (
+                    f"{newest_date.day}.{newest_date.month}.{str(newest_date.year)[2:]}"
+                )
+
                 if oldest_date.date() == newest_date.date():
                     date_range_str = oldest_str
                 else:
                     date_range_str = f"{oldest_str} - {newest_str}"
             else:
                 date_range_str = "tuntematon ajanjakso"
-            
+
             message = f"📊 Yleisimmät numerot ({date_range_str}): {primary_str} + {secondary_str} ({len(draws)} arvontaa)"
-            
+
             return {
                 "success": True,
                 "message": message,
@@ -758,9 +820,9 @@ class EurojackpotService:
                 "secondary_counts": dict(top_euro),
                 "total_draws": len(draws),
                 "date_range": date_range_str,
-                "source": "database"
+                "source": "database",
             }
-            
+
         except Exception as e:
             self.logger.error(f"Error calculating frequency from database: {e}")
             return {
@@ -768,17 +830,19 @@ class EurojackpotService:
                 "message": f"📊 Virhe laskettaessa tilastoja: {str(e)}",
             }
 
-    def scrape_all_draws(self, start_year: int = 2012, max_api_calls: int = 10) -> Dict[str, any]:
+    def scrape_all_draws(
+        self, start_year: int = 2012, max_api_calls: int = 10
+    ) -> Dict[str, any]:
         """
         Scrape historical Eurojackpot draws from the API and save to database.
-        
+
         This function respects API limits (10 calls per month) and only fetches
         draws that we don't already have in the database.
-        
+
         Args:
             start_year: Year to start scraping from (Eurojackpot started in 2012)
             max_api_calls: Maximum API calls to make (default 10 = monthly limit)
-            
+
         Returns:
             Dict with scraping results and statistics
         """
@@ -788,24 +852,30 @@ class EurojackpotService:
                     "success": False,
                     "message": "📥 Scrape-toiminto vaatii API-avaimen. Aseta EUROJACKPOT_API_KEY .env-tiedostoon.",
                 }
-            
-            self.logger.info(f"Starting smart scrape of Eurojackpot draws from {start_year} (max {max_api_calls} API calls)")
-            
+
+            self.logger.info(
+                f"Starting smart scrape of Eurojackpot draws from {start_year} (max {max_api_calls} API calls)"
+            )
+
             # Load existing database
             db = self._load_database()
             initial_count = len(db["draws"])
-            existing_dates = {draw.get("date_iso") for draw in db["draws"] if draw.get("date_iso")}
-            
-            self.logger.info(f"Database has {initial_count} existing draws, skipping those to save API calls")
-            
+            existing_dates = {
+                draw.get("date_iso") for draw in db["draws"] if draw.get("date_iso")
+            }
+
+            self.logger.info(
+                f"Database has {initial_count} existing draws, skipping those to save API calls"
+            )
+
             # Calculate date range to scrape (only missing dates)
             # Eurojackpot draws are on Fridays, so we generate all Friday dates and check which are missing
             from datetime import timedelta, date
-            
+
             # Start from the first Eurojackpot draw (March 23, 2012)
             start_date = date(2012, 3, 23)  # First Eurojackpot draw
             today = date.today()
-            
+
             # Generate all Tuesday and Friday dates from start_date to today
             missing_dates = []
             current_date = start_date
@@ -813,13 +883,16 @@ class EurojackpotService:
                 # Check if it's a Tuesday (1) or Friday (4)
                 if current_date.weekday() in [1, 4]:  # Tuesday or Friday
                     date_iso = current_date.strftime("%Y-%m-%d")
-                    if date_iso not in existing_dates and current_date.year >= start_year:
+                    if (
+                        date_iso not in existing_dates
+                        and current_date.year >= start_year
+                    ):
                         missing_dates.append(date_iso)
                 current_date += timedelta(days=1)
-            
+
             missing_dates.sort(reverse=True)  # Newest first
             total_missing = len(missing_dates)
-            
+
             if total_missing == 0:
                 return {
                     "success": True,
@@ -828,20 +901,24 @@ class EurojackpotService:
                     "api_calls_used": 0,
                     "total_missing": 0,
                 }
-            
-            self.logger.info(f"Found {total_missing} missing draws, will fetch up to {max_api_calls} of them")
-            
+
+            self.logger.info(
+                f"Found {total_missing} missing draws, will fetch up to {max_api_calls} of them"
+            )
+
             # Limit the dates to scrape based on max_api_calls
             dates_to_scrape = missing_dates[:max_api_calls]
-            
+
             new_draws = 0
             api_calls_used = 0
             failed_calls = 0
-            
+
             for i, date_iso in enumerate(dates_to_scrape, 1):
                 try:
-                    self.logger.info(f"Scraping draw {i}/{len(dates_to_scrape)}: {date_iso}")
-                    
+                    self.logger.info(
+                        f"Scraping draw {i}/{len(dates_to_scrape)}: {date_iso}"
+                    )
+
                     # Make API call for specific date
                     params = {
                         "api_key": self.api_key,
@@ -849,49 +926,59 @@ class EurojackpotService:
                         "draw": date_iso,
                         "format": "json",
                     }
-                    
+
                     data = self._make_request(self.results_url, params)
                     api_calls_used += 1
-                    
+
                     if not data:
                         self.logger.warning(f"No response for {date_iso}")
                         failed_calls += 1
                         continue
-                    
+
                     if data.get("error") == 303:
-                        self.logger.warning(f"API limit reached (303) after {api_calls_used} calls")
+                        self.logger.warning(
+                            f"API limit reached (303) after {api_calls_used} calls"
+                        )
                         break  # Stop scraping if we hit the limit
-                    
+
                     if data.get("error") != 0:
-                        self.logger.warning(f"API error {data.get('error')} for {date_iso}")
+                        self.logger.warning(
+                            f"API error {data.get('error')} for {date_iso}"
+                        )
                         failed_calls += 1
                         continue
-                    
+
                     # Process the draw data
                     draw_date_iso = data.get("draw")
                     if not draw_date_iso or draw_date_iso == "-":
-                        self.logger.info(f"No draw found for {date_iso} (probably no draw that day)")
+                        self.logger.info(
+                            f"No draw found for {date_iso} (probably no draw that day)"
+                        )
                         continue
-                    
+
                     results = data.get("results", "")
                     if not results or results == "-":
                         self.logger.info(f"No results found for {date_iso}")
                         continue
-                    
+
                     # Parse the draw data
-                    draw_date = datetime.strptime(draw_date_iso, "%Y-%m-%d").strftime("%d.%m.%Y")
+                    draw_date = datetime.strptime(draw_date_iso, "%Y-%m-%d").strftime(
+                        "%d.%m.%Y"
+                    )
                     week_number = self.get_week_number(draw_date_iso)
-                    
+
                     numbers = results.split(",")
                     if len(numbers) < 7:  # Need at least 5 main + 2 euro numbers
-                        self.logger.warning(f"Invalid number format for {date_iso}: {results}")
+                        self.logger.warning(
+                            f"Invalid number format for {date_iso}: {results}"
+                        )
                         continue
-                    
+
                     main = " ".join(numbers[:5])
                     euro = " ".join(numbers[5:])
                     jackpot = data.get("jackpot", "Tuntematon")
                     currency = data.get("currency", "EUR")
-                    
+
                     # Create database entry
                     draw_db_data = {
                         "date_iso": draw_date_iso,
@@ -903,31 +990,37 @@ class EurojackpotService:
                         "jackpot": jackpot,
                         "currency": currency,
                         "type": "scraped",
-                        "saved_at": datetime.now().isoformat()
+                        "saved_at": datetime.now().isoformat(),
                     }
-                    
+
                     # Save the draw
                     self._save_draw_to_database(draw_db_data)
                     new_draws += 1
-                    
+
                     self.logger.info(f"✓ Saved draw {draw_date}: {main} + {euro}")
-                    
+
                 except Exception as e:
                     self.logger.error(f"Error processing draw for {date_iso}: {e}")
                     failed_calls += 1
                     continue
-            
+
             # Get final database stats
             final_db = self._load_database()
             final_count = len(final_db["draws"])
-            
+
             # Calculate progress
             remaining_missing = total_missing - new_draws
-            progress_pct = ((total_missing - remaining_missing) / total_missing * 100) if total_missing > 0 else 100
-            
+            progress_pct = (
+                ((total_missing - remaining_missing) / total_missing * 100)
+                if total_missing > 0
+                else 100
+            )
+
             # Build status message
             if api_calls_used == 0:
-                message = f"📥 Ei API-kutsuja tehty. Tietokannassa: {final_count} arvontaa."
+                message = (
+                    f"📥 Ei API-kutsuja tehty. Tietokannassa: {final_count} arvontaa."
+                )
             else:
                 message = f"📥 Scrape valmis! Haettu {new_draws} uutta arvontaa ({api_calls_used} API-kutsua). "
                 message += f"Tietokannassa nyt: {final_count} arvontaa. "
@@ -935,12 +1028,14 @@ class EurojackpotService:
                     message += f"Puuttuu vielä: {remaining_missing} arvontaa ({progress_pct:.1f}% valmis)."
                 else:
                     message += "Kaikki arvonnat tallennettu! 🎉"
-                
+
                 if failed_calls > 0:
                     message += f" Epäonnistui: {failed_calls} kutsua."
-            
-            self.logger.info(f"Scrape completed: {new_draws} new draws, {api_calls_used} API calls used")
-            
+
+            self.logger.info(
+                f"Scrape completed: {new_draws} new draws, {api_calls_used} API calls used"
+            )
+
             return {
                 "success": True,
                 "message": message,
@@ -953,37 +1048,37 @@ class EurojackpotService:
                 "progress_percent": progress_pct,
                 "initial_count": initial_count,
             }
-            
+
         except Exception as e:
             self.logger.error(f"Error in scrape_all_draws: {e}")
             return {
                 "success": False,
                 "message": f"📥 Scrape-virhe: {str(e)}",
             }
-    
+
     def get_database_stats(self) -> Dict[str, any]:
         """
         Get statistics about the local database.
-        
+
         Returns:
             Dict with database statistics
         """
         try:
             db = self._load_database()
             total_draws = len(db["draws"])
-            
+
             if total_draws == 0:
                 return {
                     "success": True,
                     "message": "📊 Tietokanta on tyhjä. Käytä !eurojackpot scrape hakemaan historiatietoja.",
                     "total_draws": 0,
                 }
-            
+
             # Calculate date range
             sorted_draws = sorted(db["draws"], key=lambda x: x.get("date_iso", ""))
             oldest_date = sorted_draws[0].get("date", "Tuntematon")
             newest_date = sorted_draws[-1].get("date", "Tuntematon")
-            
+
             # Get last update time
             last_updated = db.get("last_updated", "Tuntematon")
             if last_updated != "Tuntematon":
@@ -992,9 +1087,9 @@ class EurojackpotService:
                     last_updated = last_updated_dt.strftime("%d.%m.%Y %H:%M")
                 except:
                     pass
-            
+
             message = f"📊 Tietokanta: {total_draws} arvontaa ({oldest_date} - {newest_date}). Päivitetty: {last_updated}"
-            
+
             return {
                 "success": True,
                 "message": message,
@@ -1003,24 +1098,30 @@ class EurojackpotService:
                 "newest_date": newest_date,
                 "last_updated": last_updated,
             }
-            
+
         except Exception as e:
             self.logger.error(f"Error getting database stats: {e}")
             return {
                 "success": False,
                 "message": f"📊 Virhe tietokannan tilastoissa: {str(e)}",
             }
-    
-    def add_draw_manually(self, date_str: str, numbers_str: str, jackpot_str: str = "Tuntematon", currency: str = "EUR") -> Dict[str, any]:
+
+    def add_draw_manually(
+        self,
+        date_str: str,
+        numbers_str: str,
+        jackpot_str: str = "Tuntematon",
+        currency: str = "EUR",
+    ) -> Dict[str, any]:
         """
         Manually add a draw to the database.
-        
+
         Args:
             date_str: Date in format DD.MM.YYYY or YYYY-MM-DD
             numbers_str: Numbers in format "1,2,3,4,5,6,7" (5 main + 2 euro)
             jackpot_str: Jackpot amount (optional)
             currency: Currency (default EUR)
-            
+
         Returns:
             Dict with operation result
         """
@@ -1028,36 +1129,46 @@ class EurojackpotService:
             # Parse and validate date
             date_iso = None
             date_formats = ["%d.%m.%Y", "%Y-%m-%d", "%d.%m.%y"]
-            
+
             for fmt in date_formats:
                 try:
                     if fmt == "%d.%m.%y":
                         # Handle 2-digit years (assume 20xx)
                         parsed_date = datetime.strptime(date_str, fmt)
                         if parsed_date.year < 2000:
-                            parsed_date = parsed_date.replace(year=parsed_date.year + 100)
+                            parsed_date = parsed_date.replace(
+                                year=parsed_date.year + 100
+                            )
                         date_iso = parsed_date.strftime("%Y-%m-%d")
                     else:
                         date_iso = datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
                     break
                 except ValueError:
                     continue
-            
+
             if not date_iso:
                 return {
                     "success": False,
                     "message": "❌ Virheellinen päivämäärä. Käytä muotoa PP.KK.VVVV tai VVVV-KK-PP.",
                 }
-            
+
             # Validate that the date is a Tuesday or Friday (Eurojackpot draw days)
             draw_date_obj = datetime.strptime(date_iso, "%Y-%m-%d")
             if draw_date_obj.weekday() not in [1, 4]:  # 1 = Tuesday, 4 = Friday
-                day_name = ['maanantai', 'tiistai', 'keskiviikko', 'torstai', 'perjantai', 'lauantai', 'sunnuntai'][draw_date_obj.weekday()]
+                day_name = [
+                    "maanantai",
+                    "tiistai",
+                    "keskiviikko",
+                    "torstai",
+                    "perjantai",
+                    "lauantai",
+                    "sunnuntai",
+                ][draw_date_obj.weekday()]
                 return {
                     "success": False,
                     "message": f"⚠️ Eurojackpot-arvonnat ovat tiistaisin ja perjantaisin. {date_str} on {day_name}.",
                 }
-            
+
             # Parse and validate numbers
             try:
                 numbers = [n.strip() for n in numbers_str.split(",")]
@@ -1066,11 +1177,11 @@ class EurojackpotService:
                         "success": False,
                         "message": "❌ Tarvitaan täsmälleen 7 numeroa (5 pääsarjan + 2 euronumeroa). Esim: 1,5,12,25,35,3,8",
                     }
-                
+
                 # Validate number ranges
                 main_numbers = [int(n) for n in numbers[:5]]
                 euro_numbers = [int(n) for n in numbers[5:]]
-                
+
                 # Check main numbers (1-50)
                 for num in main_numbers:
                     if not (1 <= num <= 50):
@@ -1078,7 +1189,7 @@ class EurojackpotService:
                             "success": False,
                             "message": f"❌ Pääsarjan numero {num} ei ole välillä 1-50.",
                         }
-                
+
                 # Check euro numbers (1-12)
                 for num in euro_numbers:
                     if not (1 <= num <= 12):
@@ -1086,35 +1197,35 @@ class EurojackpotService:
                             "success": False,
                             "message": f"❌ Euronumero {num} ei ole välillä 1-12.",
                         }
-                
+
                 # Check for duplicates in main numbers
                 if len(set(main_numbers)) != 5:
                     return {
                         "success": False,
                         "message": "❌ Pääsarjan numeroiden tulee olla eri numeroita.",
                     }
-                
+
                 # Check for duplicates in euro numbers
                 if len(set(euro_numbers)) != 2:
                     return {
                         "success": False,
                         "message": "❌ Euronumeroiden tulee olla eri numeroita.",
                     }
-                
+
             except ValueError:
                 return {
                     "success": False,
                     "message": "❌ Kaikki numerot tulee olla kokonaislukuja.",
                 }
-            
+
             # Format the numbers
             main_formatted = " ".join(f"{num:02d}" for num in main_numbers)
             euro_formatted = " ".join(f"{num:02d}" for num in euro_numbers)
-            
+
             # Create draw data
             draw_date = draw_date_obj.strftime("%d.%m.%Y")
             week_number = self.get_week_number(date_iso)
-            
+
             draw_data = {
                 "date_iso": date_iso,
                 "date": draw_date,
@@ -1125,24 +1236,26 @@ class EurojackpotService:
                 "jackpot": jackpot_str,
                 "currency": currency,
                 "type": "manual",
-                "saved_at": datetime.now().isoformat()
+                "saved_at": datetime.now().isoformat(),
             }
-            
+
             # Check if draw already exists
             existing = self._get_draw_by_date_from_database(date_iso)
             action = "päivitetty" if existing else "lisätty"
-            
+
             # Save to database
             self._save_draw_to_database(draw_data)
-            
+
             # Get final count
             db = self._load_database()
             total_count = len(db["draws"])
-            
+
             success_message = f"✅ Arvonta {action}! {draw_date} (viikko {week_number}): {main_formatted} + {euro_formatted} | Päävoitto: {jackpot_str} {currency}. Tietokannassa nyt: {total_count} arvontaa."
-            
-            self.logger.info(f"Manually {action} draw for {date_iso}: {main_formatted} + {euro_formatted}")
-            
+
+            self.logger.info(
+                f"Manually {action} draw for {date_iso}: {main_formatted} + {euro_formatted}"
+            )
+
             return {
                 "success": True,
                 "message": success_message,
@@ -1155,7 +1268,7 @@ class EurojackpotService:
                 "currency": currency,
                 "total_draws": total_count,
             }
-            
+
         except Exception as e:
             self.logger.error(f"Error adding draw manually: {e}")
             return {

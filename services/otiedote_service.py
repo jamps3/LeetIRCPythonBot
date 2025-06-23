@@ -71,7 +71,9 @@ class OtiedoteService:
             # Join with timeout to prevent hanging during shutdown
             self.thread.join(timeout=3.0)
             if self.thread.is_alive():
-                logging.warning("⚠️ Otiedote monitor thread did not stop cleanly within timeout")
+                logging.warning(
+                    "⚠️ Otiedote monitor thread did not stop cleanly within timeout"
+                )
         if self.driver:
             try:
                 self.driver.quit()
@@ -90,9 +92,9 @@ class OtiedoteService:
         chrome_options.add_argument("--log-level=3")
         chrome_options.add_argument("--silent")
         chrome_options.add_argument("--disable-logging")
-        
+
         service = Service(log_path=os.devnull)
-        
+
         for attempt in range(3):
             try:
                 self.driver = webdriver.Chrome(service=service, options=chrome_options)
@@ -100,7 +102,7 @@ class OtiedoteService:
             except Exception as e:
                 logging.warning(f"WebDriver setup attempt {attempt + 1} failed: {e}")
                 time.sleep(2)
-        
+
         logging.critical("WebDriver failed to start after multiple attempts")
         self.driver = None
 
@@ -129,7 +131,7 @@ class OtiedoteService:
             try:
                 if not self.driver:
                     self._setup_driver()
-                
+
                 if not self.driver:
                     logging.error("WebDriver not available, retrying later")
                     time.sleep(self.check_interval)
@@ -156,7 +158,7 @@ class OtiedoteService:
             # Parse the page
             soup = BeautifulSoup(self.driver.page_source, "html.parser")
             release_links = soup.select('tbody tr td a[href*="/release_view/"]')
-            
+
             new_releases = []
             for link in release_links:
                 href = link.get("href")
@@ -188,20 +190,22 @@ class OtiedoteService:
         try:
             url = self.RELEASE_URL_TEMPLATE.format(release_number)
             self.driver.get(url)
-            
+
             WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located((By.TAG_NAME, "h1"))
             )
 
             # Parse release page
             release_soup = BeautifulSoup(self.driver.page_source, "html.parser")
-            
+
             # Extract title
             title_tag = release_soup.find("h1")
             title = title_tag.text.strip() if title_tag else f"Release {release_number}"
 
             # Try to extract description (this selector might need adjustment)
-            description_tag = release_soup.select_one("#releaseCommentsWrapper > ul > li > p")
+            description_tag = release_soup.select_one(
+                "#releaseCommentsWrapper > ul > li > p"
+            )
             if description_tag:
                 description = description_tag.text.strip()
                 if description:
@@ -209,11 +213,11 @@ class OtiedoteService:
 
             # Notify callback
             self.callback(title, url)
-            
+
             # Update state
             self.latest_release = release_number
             self._save_latest_release(release_number)
-            
+
             logging.info(f"Processed new release {release_number}: {title}")
 
         except Exception as e:

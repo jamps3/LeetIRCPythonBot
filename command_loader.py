@@ -185,7 +185,7 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
     Enhanced console command processor using the new command system.
     """
     log_func = bot_functions.get("log")
-    
+
     # Use only the new command system
     try:
         # Run async command processing
@@ -210,14 +210,16 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
             # Command not recognized
             notice_message = bot_functions.get("notice_message")
             if notice_message:
-                notice_message(f"Command not recognized: {command_text}. Type !help for available commands.")
-            
+                notice_message(
+                    f"Command not recognized: {command_text}. Type !help for available commands."
+                )
+
     except Exception as e:
         if log_func:
             log_func(f"Error processing console command '{command_text}': {e}", "ERROR")
         else:
             print(f"ERROR: Console command processing failed for '{command_text}': {e}")
-        
+
         # Show error to user
         notice_message = bot_functions.get("notice_message")
         if notice_message:
