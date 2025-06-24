@@ -26,7 +26,7 @@ class OtiedoteService:
 
     BASE_URL = "https://otiedote.fi/pohjois-karjalan-pelastuslaitos"
     RELEASE_URL_TEMPLATE = "https://otiedote.fi/release_view/{}"
-    DEFAULT_CHECK_INTERVAL = 5 * 60  # 5 minutes
+    DEFAULT_CHECK_INTERVAL = 15 * 60  # 15 minutes
     DEFAULT_STATE_FILE = "latest_otiedote.txt"
 
     def __init__(
