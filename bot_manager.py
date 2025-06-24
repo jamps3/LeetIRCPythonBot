@@ -426,14 +426,12 @@ class BotManager:
         # Send to all servers and channels configured for news notifications
         for server_name, server in self.servers.items():
             try:
-                # Get first channel from the server configuration
-                # You might want to make this more configurable
                 channels = server.config.channels
-                if channels:
-                    target_channel = channels[0]
-                    self._send_response(server, target_channel, message)
+                # Send to all subscribers
+                for channel in channels:
+                    self._send_response(server, channel, message)
                     self.logger.info(
-                        f"Sent Otiedote release to {server_name}#{target_channel}"
+                        f"Sent Otiedote release to {server_name}#{channel}"
                     )
             except Exception as e:
                 self.logger.error(
