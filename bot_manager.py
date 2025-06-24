@@ -1226,12 +1226,13 @@ class BotManager:
 
             if result:
                 achievement_message, achievement_level = result
-                # Send achievement message to the channel immediately
-                self._send_response(server, target, achievement_message)
+                if achievement_level != "leet":  # Filter out regular leet messages
+                    # Send achievement message to the channel immediately
+                    self._send_response(server, target, achievement_message)
 
                 # Log the achievement with high precision
                 self.logger.info(
-                    f"Nanoleet achievement: {achievement_level} for {sender} in {target} at {timestamp}"
+                    f"Leet achievement: {achievement_level} for {sender} in {target} at {timestamp}"
                 )
 
         except Exception as e:
