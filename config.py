@@ -18,6 +18,7 @@ class ServerConfig:
         port: The IRC server port number
         channels: List of channels to join
         keys: Optional list of channel keys (passwords) matching the channels list
+        tls: Enable TLS for secure connection
         name: Unique identifier for this server configuration
     """
 
@@ -25,6 +26,7 @@ class ServerConfig:
     port: int
     channels: List[str]
     keys: Optional[List[str]] = None
+    tls: bool = False  # Enable TLS if needed
     name: str = ""
 
     def __post_init__(self):

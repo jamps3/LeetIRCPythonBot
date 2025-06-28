@@ -10,6 +10,7 @@ import re
 import socket
 import threading
 import time
+import ssl  # For TLS support
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -86,19 +87,32 @@ class Server:
 
     def connect(self) -> bool:
         """
-        Connect to the IRC server.
+        Connect to the IRC server, optionally using TLS.
 
         Returns:
-            bool: True if connection was successful, False otherwise
+                bool: True if connection was successful, False otherwise
         """
         try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            raw_socket.settimeout(10)
+
+            if getattr(self.config, "tls", False):
+                context = ssl.create_default_context()
+                self.socket = context.wrap_socket(
+                    raw_socket, server_hostname=self.config.host
+                )
+                self.logger.info("Using TLS for connection")
+            else:
+                self.socket = raw_socket
+
             self.socket.connect((self.config.host, self.config.port))
-            self.socket.settimeout(1.0)  # Timeout for socket operations
+            self.socket.settimeout(1.0)  # Short timeout for responsiveness
+
             self.logger.info(f"Connected to {self.config.host}:{self.config.port}")
             self.connected = True
             return True
-        except (socket.error, ConnectionError) as e:
+
+        except (socket.error, ssl.SSLError, ConnectionError) as e:
             self.logger.error(f"Failed to connect: {e}")
             self.connected = False
             return False
