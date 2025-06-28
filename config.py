@@ -367,9 +367,14 @@ def get_server_configs() -> List[ServerConfig]:
         except ValueError:
             port = 6667
 
-        # Get channels and keys
+        # Get channels, keys and TLS settings
         channels_str = os.environ.get(f"{prefix}CHANNELS", "")
         keys_str = os.environ.get(f"{prefix}KEYS", "")
+        tls = os.environ.get(f"{prefix}TLS", "false").lower() in (
+            "true",
+            "1",
+            "yes",
+        )  # Enable TLS if specified
 
         channels = parse_comma_separated_values(channels_str)
         keys = parse_comma_separated_values(keys_str) if keys_str else None
