@@ -27,6 +27,7 @@ class ServerConfig:
     channels: List[str]
     keys: Optional[List[str]] = None
     tls: bool = False  # Enable TLS if needed
+    allow_insecure_tls: bool = False  # Allow insecure TLS connections
     name: str = ""
 
     def __post_init__(self):
@@ -375,13 +376,26 @@ def get_server_configs() -> List[ServerConfig]:
             "1",
             "yes",
         )  # Enable TLS if specified
+        allow_insecure_tls = os.environ.get(
+            f"{prefix}ALLOW_INSECURE_TLS", "false"
+        ).lower() in (
+            "true",
+            "1",
+            "yes",
+        )
 
         channels = parse_comma_separated_values(channels_str)
         keys = parse_comma_separated_values(keys_str) if keys_str else None
 
         # Create the server config
         config = ServerConfig(
-            host=host, port=port, channels=channels, keys=keys, name=f"SERVER{idx}"
+            host=host,
+            port=port,
+            channels=channels,
+            keys=keys,
+            name=f"SERVER{idx}",
+            tls=tls,
+            allow_insecure_tls=allow_insecure_tls,  # Default to allow insecure TLS connections
         )
 
         server_configs.append(config)

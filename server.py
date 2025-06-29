@@ -10,6 +10,7 @@ import re
 import socket
 import threading
 import time
+import socket  # For TLS support
 import ssl  # For TLS support
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -87,44 +88,86 @@ class Server:
 
     def connect(self) -> bool:
         """
-        Connect to the IRC server, optionally using TLS.
+        Connect to the IRC server using TLS if configured.
 
         Returns:
-        bool: True if connection was successful, False otherwise
+            bool: True if connection succeeded, False otherwise.
         """
         try:
             raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             raw_socket.settimeout(10)
 
-            if getattr(self.config, "tls", False):
-                context = ssl.create_default_context()
-                # wrap BEFORE connecting!
-                self.socket = context.wrap_socket(
-                    raw_socket, server_hostname=self.config.host
+            if self.config.tls:
+                self.logger.info(
+                    f"Connecting to {self.config.host}:{self.config.port} with TLS=True"
                 )
-                self.logger.info("Socket wrapped with TLS")
+
+                try:
+                    context = ssl.create_default_context()
+
+                    if self.config.allow_insecure_tls:
+                        context.check_hostname = False
+                        context.verify_mode = ssl.CERT_NONE
+                        self.logger.warning(
+                            f"Using unverified SSL context — insecure but allows expired/broken certs"
+                        )
+                    else:
+                        context.check_hostname = True
+                        context.verify_mode = ssl.CERT_REQUIRED
+
+                    # Legacy support (optional, uncomment if needed)
+                    context.minimum_version = ssl.TLSVersion.TLSv1_2
+                    context.options |= ssl.OP_LEGACY_SERVER_CONNECT
+                    context.set_ciphers("HIGH:!aNULL:!MD5:!RC4:!LOW:!EXP")
+
+                    self.socket = context.wrap_socket(
+                        raw_socket,
+                        server_hostname=(
+                            None
+                            if context.check_hostname is False
+                            else self.config.host
+                        ),
+                    )
+                    self.logger.info("Wrapped socket with TLS")
+
+                except Exception as e:
+                    self.logger.error(f"Failed to create SSL context: {e}")
+                    return False
+
             else:
+                self.logger.info(
+                    f"Connecting to {self.config.host}:{self.config.port} with TLS=False"
+                )
                 self.socket = raw_socket
 
-            self.socket.connect(
-                (self.config.host, self.config.port)
-            )  # must be after wrap
-
+            self.socket.connect((self.config.host, self.config.port))
             self.socket.settimeout(1.0)
-            self.logger.info(
-                f"Connected to {self.config.host}:{self.config.port} (TLS={self.is_tls()})"
-            )
 
-            if self.is_tls():
-                self.logger.info(f"TLS version: {self.socket.version()}")
+            if isinstance(self.socket, ssl.SSLSocket):
+                cert = self.socket.getpeercert()
+                tls_version = self.socket.version()
+                self.logger.info(f"TLS handshake successful — using {tls_version}")
+                if cert:
+                    subject = dict(x[0] for x in cert.get("subject", []))
+                    cn = subject.get("commonName", "(unknown)")
+                    self.logger.info(f"TLS certificate CN: {cn}")
+            else:
+                self.logger.warning("Connected without TLS!")
 
             self.connected = True
             return True
 
-        except (ssl.SSLError, socket.error, ConnectionError) as e:
+        except ssl.SSLCertVerificationError as e:
+            self.logger.error(f"TLS certificate verification failed: {e}")
+        except ssl.SSLError as e:
+            self.logger.error(f"SSL error during connect: {e}")
+        except (socket.error, ConnectionError) as e:
             self.logger.error(f"Failed to connect: {e}")
-            self.connected = False
-            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error during connect: {e}")
+
+        self.connected = False
+        return False
 
     def is_tls(self) -> bool:
         return isinstance(self.socket, ssl.SSLSocket)
