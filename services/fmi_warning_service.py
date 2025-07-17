@@ -114,6 +114,7 @@ class FMIWarningService:
         try:
             feed = feedparser.parse(self.FEED_URL)
             seen_hashes = self._load_seen_hashes()
+            seen_data = self._load_seen_data()
 
             new_entries = []
             for entry in feed.entries:
@@ -128,12 +129,25 @@ class FMIWarningService:
             for entry_hash, entry in reversed(new_entries):
                 message = self._format_warning_message(entry)
                 if message:  # Only add if not filtered out
-                    messages.append(message)
-                    seen_hashes.add(entry_hash)
+                    # Check for duplicate titles in the last 5 warnings
+                    title = entry.get("title", "")
+                    if not self._is_duplicate_title(title, seen_data):
+                        messages.append(message)
+                        seen_hashes.add(entry_hash)
+                        # Add to seen data for duplicate checking
+                        seen_data.append({
+                            "title": title,
+                            "timestamp": entry.get("published", ""),
+                            "hash": entry_hash
+                        })
 
             # Keep only the 50 most recent hashes to prevent unlimited growth
             seen_hashes = set(list(seen_hashes)[-50:])
             self._save_seen_hashes(seen_hashes)
+            
+            # Keep only the last 5 warnings for duplicate checking
+            seen_data = seen_data[-5:]
+            self._save_seen_data(seen_data)
 
             return messages
 
@@ -164,10 +178,70 @@ class FMIWarningService:
     def _save_seen_hashes(self, hashes: Set[str]) -> None:
         """Save seen warning hashes to state file."""
         try:
+            # Load existing data to preserve seen_data
+            existing_data = {}
+            if os.path.exists(self.state_file):
+                try:
+                    with open(self.state_file, "r", encoding="utf-8") as f:
+                        existing_data = json.load(f)
+                except (json.JSONDecodeError, IOError):
+                    pass
+            
+            # Update with new hashes
+            existing_data["seen_hashes"] = list(hashes)
+            
             with open(self.state_file, "w", encoding="utf-8") as f:
-                json.dump({"seen_hashes": list(hashes)}, f, ensure_ascii=False)
+                json.dump(existing_data, f, ensure_ascii=False)
         except IOError as e:
             print(f"⚠ Error saving seen hashes: {e}")
+    
+    def _load_seen_data(self) -> List[dict]:
+        """Load previously seen warning data for duplicate checking."""
+        if not os.path.exists(self.state_file):
+            return []
+        
+        try:
+            with open(self.state_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("seen_data", [])
+        except (json.JSONDecodeError, ValueError, IOError):
+            print("⚠ Warning: State file corrupted, resetting seen data")
+            return []
+    
+    def _save_seen_data(self, seen_data: List[dict]) -> None:
+        """Save seen warning data to state file."""
+        try:
+            # Load existing data to preserve seen_hashes
+            existing_data = {}
+            if os.path.exists(self.state_file):
+                try:
+                    with open(self.state_file, "r", encoding="utf-8") as f:
+                        existing_data = json.load(f)
+                except (json.JSONDecodeError, IOError):
+                    pass
+            
+            # Update with new seen data
+            existing_data["seen_data"] = seen_data
+            
+            with open(self.state_file, "w", encoding="utf-8") as f:
+                json.dump(existing_data, f, ensure_ascii=False)
+        except IOError as e:
+            print(f"⚠ Error saving seen data: {e}")
+    
+    def _is_duplicate_title(self, title: str, seen_data: List[dict]) -> bool:
+        """Check if a title is a duplicate of recently seen warnings."""
+        if not title:
+            return False
+        
+        # Clean and normalize title for comparison
+        clean_title = title.strip().lower()
+        
+        for item in seen_data:
+            seen_title = item.get("title", "").strip().lower()
+            if clean_title == seen_title:
+                return True
+        
+        return False
 
     def _format_warning_message(self, entry: dict) -> Optional[str]:
         """

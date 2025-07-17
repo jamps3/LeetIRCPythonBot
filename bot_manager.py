@@ -400,23 +400,51 @@ class BotManager:
 
     def _handle_fmi_warnings(self, warnings: List[str]):
         """Handle new FMI weather warnings."""
+        # Get subscriptions module
+        subscriptions = self._get_subscriptions_module()
+        
         for warning in warnings:
-            # Send warnings to all servers and channels configured for weather notifications
-            # You might want to make this configurable per server/channel
-            for server_name, server in self.servers.items():
+            # Get subscribers for varoitukset
+            subscribers = subscriptions.get_subscribers("varoitukset")
+            
+            if not subscribers:
+                self.logger.debug("No subscribers for varoitukset, skipping warning")
+                continue
+            
+            # Send warnings to subscribed channels/users
+            for subscriber in subscribers:
                 try:
-                    # Get first channel from the server configuration
-                    # You might want to make this more configurable
-                    channels = server.config.channels
-                    if channels:
-                        target_channel = channels[0]
-                        self._send_response(server, target_channel, warning)
-                        self.logger.info(
-                            f"Sent FMI warning to {server_name}#{target_channel}"
-                        )
+                    # Check if subscriber is a channel (starts with #)
+                    if subscriber.startswith("#"):
+                        # Find the server that has this channel
+                        for server_name, server in self.servers.items():
+                            # Check if this channel is in the server's configured channels
+                            if subscriber[1:] in server.config.channels:  # Remove # prefix
+                                self._send_response(server, subscriber, warning)
+                                self.logger.info(
+                                    f"Sent FMI warning to {server_name}#{subscriber}"
+                                )
+                                break
+                        else:
+                            # Channel not found in any server, log warning
+                            self.logger.warning(
+                                f"Channel {subscriber} not found in any configured server"
+                            )
+                    else:
+                        # It's a user - send to all servers as private message
+                        for server_name, server in self.servers.items():
+                            try:
+                                self._send_response(server, subscriber, warning)
+                                self.logger.info(
+                                    f"Sent FMI warning to user {subscriber} on {server_name}"
+                                )
+                            except Exception as e:
+                                self.logger.error(
+                                    f"Error sending FMI warning to user {subscriber} on {server_name}: {e}"
+                                )
                 except Exception as e:
                     self.logger.error(
-                        f"Error sending FMI warning to {server_name}: {e}"
+                        f"Error sending FMI warning to subscriber {subscriber}: {e}"
                     )
 
     def _handle_otiedote_release(self, title: str, url: str):
