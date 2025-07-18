@@ -135,16 +135,18 @@ class FMIWarningService:
                         messages.append(message)
                         seen_hashes.add(entry_hash)
                         # Add to seen data for duplicate checking
-                        seen_data.append({
-                            "title": title,
-                            "timestamp": entry.get("published", ""),
-                            "hash": entry_hash
-                        })
+                        seen_data.append(
+                            {
+                                "title": title,
+                                "timestamp": entry.get("published", ""),
+                                "hash": entry_hash,
+                            }
+                        )
 
             # Keep only the 50 most recent hashes to prevent unlimited growth
             seen_hashes = set(list(seen_hashes)[-50:])
             self._save_seen_hashes(seen_hashes)
-            
+
             # Keep only the last 5 warnings for duplicate checking
             seen_data = seen_data[-5:]
             self._save_seen_data(seen_data)
@@ -186,20 +188,20 @@ class FMIWarningService:
                         existing_data = json.load(f)
                 except (json.JSONDecodeError, IOError):
                     pass
-            
+
             # Update with new hashes
             existing_data["seen_hashes"] = list(hashes)
-            
+
             with open(self.state_file, "w", encoding="utf-8") as f:
                 json.dump(existing_data, f, ensure_ascii=False)
         except IOError as e:
             print(f"⚠ Error saving seen hashes: {e}")
-    
+
     def _load_seen_data(self) -> List[dict]:
         """Load previously seen warning data for duplicate checking."""
         if not os.path.exists(self.state_file):
             return []
-        
+
         try:
             with open(self.state_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -207,7 +209,7 @@ class FMIWarningService:
         except (json.JSONDecodeError, ValueError, IOError):
             print("⚠ Warning: State file corrupted, resetting seen data")
             return []
-    
+
     def _save_seen_data(self, seen_data: List[dict]) -> None:
         """Save seen warning data to state file."""
         try:
@@ -219,28 +221,28 @@ class FMIWarningService:
                         existing_data = json.load(f)
                 except (json.JSONDecodeError, IOError):
                     pass
-            
+
             # Update with new seen data
             existing_data["seen_data"] = seen_data
-            
+
             with open(self.state_file, "w", encoding="utf-8") as f:
                 json.dump(existing_data, f, ensure_ascii=False)
         except IOError as e:
             print(f"⚠ Error saving seen data: {e}")
-    
+
     def _is_duplicate_title(self, title: str, seen_data: List[dict]) -> bool:
         """Check if a title is a duplicate of recently seen warnings."""
         if not title:
             return False
-        
+
         # Clean and normalize title for comparison
         clean_title = title.strip().lower()
-        
+
         for item in seen_data:
             seen_title = item.get("title", "").strip().lower()
             if clean_title == seen_title:
                 return True
-        
+
         return False
 
     def _format_warning_message(self, entry: dict) -> Optional[str]:

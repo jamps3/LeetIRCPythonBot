@@ -6,10 +6,10 @@ Tests for GPT service functionality including date correction.
 """
 
 import os
-import sys
 import re
+import sys
 from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 # Add the parent directory to sys.path to import our modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from test_framework import TestCase, TestSuite
 
 # Mock only the external dependencies needed for GPT service
-sys.modules['openai'] = Mock()
+sys.modules["openai"] = Mock()
 
 
 def test_date_correction_tanaanaon_pattern():
@@ -26,44 +26,53 @@ def test_date_correction_tanaanaon_pattern():
         # Import directly to avoid services package __init__.py
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services"))
         from gpt_service import GPTService
-        
+
         service = GPTService("fake_api_key")
-        
+
         # Test cases with 'Tänään on' pattern
         test_cases = [
             "Tänään on 22. lokakuuta 2023.",
             "Tänään on 15. maaliskuuta 2022.",
             "Hyvää huomenta! Tänään on 1. tammikuuta 2023 ja sää on kaunis.",
         ]
-        
+
         current_date = datetime.now()
         finnish_months = [
-            "tammikuuta", "helmikuuta", "maaliskuuta", "huhtikuuta",
-            "toukokuuta", "kesäkuuta", "heinäkuuta", "elokuuta",
-            "syyskuuta", "lokakuuta", "marraskuuta", "joulukuuta"
+            "tammikuuta",
+            "helmikuuta",
+            "maaliskuuta",
+            "huhtikuuta",
+            "toukokuuta",
+            "kesäkuuta",
+            "heinäkuuta",
+            "elokuuta",
+            "syyskuuta",
+            "lokakuuta",
+            "marraskuuta",
+            "joulukuuta",
         ]
         expected_date = f"{current_date.day}. {finnish_months[current_date.month - 1]} {current_date.year}"
-        
+
         for test_case in test_cases:
             corrected = service._correct_outdated_dates(test_case)
-            
+
             # Should contain the corrected date
             if expected_date not in corrected:
                 print(f"Failed: Expected '{expected_date}' in '{corrected}'")
                 return False
-            
+
             # Should still contain "Tänään on"
             if "Tänään on" not in corrected:
                 print(f"Failed: 'Tänään on' missing from '{corrected}'")
                 return False
-            
+
             # Should have changed from original
             if corrected == test_case:
                 print(f"Failed: No change applied to '{test_case}'")
                 return False
-                
+
         return True
-            
+
     except Exception as e:
         print(f"Date correction 'Tänään on' test failed: {e}")
         return False
@@ -75,32 +84,32 @@ def test_date_correction_other_patterns():
         # Import directly to avoid services package __init__.py
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services"))
         from gpt_service import GPTService
-        
+
         service = GPTService("fake_api_key")
-        
+
         # Test cases with various patterns
         test_cases = [
-                "Nykyinen päivämäärä on 1. tammikuuta 2023.",
-                "Päivämäärä on 25. joulukuuta 2021.",
-                "Olemme nyt 10. kesäkuuta 2023.",
+            "Nykyinen päivämäärä on 1. tammikuuta 2023.",
+            "Päivämäärä on 25. joulukuuta 2021.",
+            "Olemme nyt 10. kesäkuuta 2023.",
         ]
-        
+
         for test_case in test_cases:
             corrected = service._correct_outdated_dates(test_case)
-            
+
             # Should have been corrected (changed from original)
             if corrected == test_case:
                 print(f"Failed: No change applied to '{test_case}'")
                 return False
-                
+
             # Should contain current year
             current_year = str(datetime.now().year)
             if current_year not in corrected:
                 print(f"Failed: Current year '{current_year}' not in '{corrected}'")
                 return False
-                
+
         return True
-            
+
     except Exception as e:
         print(f"Date correction other patterns test failed: {e}")
         return False
@@ -112,9 +121,9 @@ def test_date_correction_no_change_cases():
         # Import directly to avoid services package __init__.py
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services"))
         from gpt_service import GPTService
-        
+
         service = GPTService("fake_api_key")
-        
+
         # Test cases that should NOT be changed
         test_cases = [
             "Tämä on normaali lause ilman päivämäärää.",
@@ -125,17 +134,17 @@ def test_date_correction_no_change_cases():
             "",
             "Pelkkä teksti ilman mitään päivämäärää.",
         ]
-        
+
         for test_case in test_cases:
             corrected = service._correct_outdated_dates(test_case)
-            
+
             # Should NOT have been changed
             if corrected != test_case:
                 print(f"Failed: Unexpected change from '{test_case}' to '{corrected}'")
                 return False
-                
+
         return True
-            
+
     except Exception as e:
         print(f"Date correction no-change test failed: {e}")
         return False
@@ -147,40 +156,51 @@ def test_date_correction_pattern_matching():
         # Import directly to avoid services package __init__.py
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services"))
         from gpt_service import GPTService
-        
+
         service = GPTService("fake_api_key")
-        
+
         # Test specific patterns
         current_date = datetime.now()
         finnish_months = [
-            "tammikuuta", "helmikuuta", "maaliskuuta", "huhtikuuta",
-            "toukokuuta", "kesäkuuta", "heinäkuuta", "elokuuta",
-            "syyskuuta", "lokakuuta", "marraskuuta", "joulukuuta"
+            "tammikuuta",
+            "helmikuuta",
+            "maaliskuuta",
+            "huhtikuuta",
+            "toukokuuta",
+            "kesäkuuta",
+            "heinäkuuta",
+            "elokuuta",
+            "syyskuuta",
+            "lokakuuta",
+            "marraskuuta",
+            "joulukuuta",
         ]
         expected_date = f"{current_date.day}. {finnish_months[current_date.month - 1]} {current_date.year}"
-        
+
         # Test case-insensitive matching
         test_cases = [
             "tänään on 22. lokakuuta 2023.",  # lowercase
             "TÄNÄÄN ON 22. LOKAKUUTA 2023.",  # uppercase
             "Tänään On 22. Lokakuuta 2023.",  # mixed case
         ]
-        
+
         for test_case in test_cases:
             corrected = service._correct_outdated_dates(test_case)
-            
+
             # Should contain the corrected date
             if expected_date not in corrected:
-                print(f"Failed case-insensitive: Expected '{expected_date}' in '{corrected}'")
+                print(
+                    f"Failed case-insensitive: Expected '{expected_date}' in '{corrected}'"
+                )
                 return False
-                
+
             # Should have changed from original
             if corrected == test_case:
                 print(f"Failed case-insensitive: No change applied to '{test_case}'")
                 return False
-                
+
         return True
-            
+
     except Exception as e:
         print(f"Date correction pattern matching test failed: {e}")
         return False
@@ -192,9 +212,9 @@ def test_date_correction_edge_cases():
         # Import directly to avoid services package __init__.py
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services"))
         from gpt_service import GPTService
-        
+
         service = GPTService("fake_api_key")
-        
+
         # Edge cases
         test_cases = [
             # Multiple date references in one message
@@ -204,23 +224,25 @@ def test_date_correction_edge_cases():
             # Different formats that should be caught
             "Nykyinen päivämäärä on 5. toukokuuta 2020.",
         ]
-        
+
         for test_case in test_cases:
             corrected = service._correct_outdated_dates(test_case)
-            
+
             # Should contain current year
             current_year = str(datetime.now().year)
             if current_year not in corrected:
-                print(f"Failed edge case: Current year '{current_year}' not in '{corrected}'")
+                print(
+                    f"Failed edge case: Current year '{current_year}' not in '{corrected}'"
+                )
                 return False
-                
+
             # Should have changed from original
             if corrected == test_case:
                 print(f"Failed edge case: No change applied to '{test_case}'")
                 return False
-                
+
         return True
-            
+
     except Exception as e:
         print(f"Date correction edge cases test failed: {e}")
         return False
@@ -232,23 +254,23 @@ def test_gpt_service_initialization():
         # Import directly to avoid services package __init__.py
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services"))
         from gpt_service import GPTService
-        
+
         service = GPTService("fake_api_key")
-        
+
         # Check that essential attributes exist
         required_attrs = [
             "api_key",
-            "history_file", 
+            "history_file",
             "history_limit",
             "conversation_history",
             "default_history",
         ]
-        
+
         for attr in required_attrs:
             if not hasattr(service, attr):
                 print(f"Missing required attribute: {attr}")
                 return False
-                
+
         # Check that essential methods exist
         required_methods = [
             "_correct_outdated_dates",
@@ -258,7 +280,7 @@ def test_gpt_service_initialization():
             "get_conversation_stats",
             "set_system_prompt",
         ]
-        
+
         for method in required_methods:
             if not hasattr(service, method):
                 print(f"Missing required method: {method}")
@@ -266,9 +288,9 @@ def test_gpt_service_initialization():
             if not callable(getattr(service, method)):
                 print(f"Attribute {method} is not callable")
                 return False
-                
+
         return True
-            
+
     except Exception as e:
         print(f"GPT service initialization test failed: {e}")
         return False
@@ -280,40 +302,49 @@ def test_date_correction_month_names():
         # Import directly to avoid services package __init__.py
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services"))
         from gpt_service import GPTService
-        
+
         service = GPTService("fake_api_key")
-        
+
         # Test correction with different months
         test_cases = [
-            "Tänään on 1. tammikuuta 2023.",   # January
-            "Tänään on 15. kesäkuuta 2023.",   # June  
+            "Tänään on 1. tammikuuta 2023.",  # January
+            "Tänään on 15. kesäkuuta 2023.",  # June
             "Tänään on 25. joulukuuta 2023.",  # December
         ]
-        
+
         finnish_months = [
-            "tammikuuta", "helmikuuta", "maaliskuuta", "huhtikuuta",
-            "toukokuuta", "kesäkuuta", "heinäkuuta", "elokuuta",
-            "syyskuuta", "lokakuuta", "marraskuuta", "joulukuuta"
+            "tammikuuta",
+            "helmikuuta",
+            "maaliskuuta",
+            "huhtikuuta",
+            "toukokuuta",
+            "kesäkuuta",
+            "heinäkuuta",
+            "elokuuta",
+            "syyskuuta",
+            "lokakuuta",
+            "marraskuuta",
+            "joulukuuta",
         ]
-        
+
         current_date = datetime.now()
         expected_month = finnish_months[current_date.month - 1]
-        
+
         for test_case in test_cases:
             corrected = service._correct_outdated_dates(test_case)
-            
+
             # Should contain the current month name
             if expected_month not in corrected:
                 print(f"Failed: Expected month '{expected_month}' not in '{corrected}'")
                 return False
-                
+
             # Should have changed from original
             if corrected == test_case:
                 print(f"Failed: No change applied to '{test_case}'")
                 return False
-                
+
         return True
-            
+
     except Exception as e:
         print(f"Date correction month names test failed: {e}")
         return False

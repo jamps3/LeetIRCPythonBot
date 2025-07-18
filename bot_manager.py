@@ -403,15 +403,15 @@ class BotManager:
         """Handle new FMI weather warnings."""
         # Get subscriptions module
         subscriptions = self._get_subscriptions_module()
-        
+
         for warning in warnings:
             # Get subscribers for varoitukset (returns (nick, server) tuples)
             subscribers = subscriptions.get_subscribers("varoitukset")
-            
+
             if not subscribers:
                 self.logger.debug("No subscribers for varoitukset, skipping warning")
                 continue
-            
+
             # Send warnings to subscribed channels/users
             for subscriber_nick, server_name in subscribers:
                 try:
@@ -422,13 +422,13 @@ class BotManager:
                             f"Server {server_name} not found for subscriber {subscriber_nick}"
                         )
                         continue
-                    
+
                     # Send the warning
                     self._send_response(server, subscriber_nick, warning)
                     self.logger.info(
                         f"Sent FMI warning to {subscriber_nick} on {server_name}"
                     )
-                    
+
                 except Exception as e:
                     self.logger.error(
                         f"Error sending FMI warning to {subscriber_nick} on {server_name}: {e}"

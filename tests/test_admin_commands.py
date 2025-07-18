@@ -14,10 +14,10 @@ import sys
 import threading
 import time
 import unittest
-from unittest.mock import Mock, patch, MagicMock, call
+from unittest.mock import MagicMock, Mock, call, patch
 
 # Add parent directory to sys.path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from command_registry import CommandContext, CommandResponse
 from commands_admin import (
@@ -37,17 +37,17 @@ class TestAdminCommands(unittest.TestCase):
         """Set up test fixtures."""
         self.mock_config = Mock()
         self.mock_config.admin_password = "testpass123"
-        
+
         # Mock IRC connection (Server instance)
         self.mock_irc = Mock()
         self.mock_irc.send_raw = Mock()
-        
+
         # Mock stop event
         self.mock_stop_event = Mock()
-        
+
         # Mock logger
         self.mock_logger = Mock()
-        
+
         # Basic bot functions
         self.bot_functions = {
             "irc": self.mock_irc,
@@ -172,18 +172,16 @@ class TestAdminCommands(unittest.TestCase):
             response = quit_command(context, self.bot_functions)
 
         # Verify IRC QUIT was sent
-        self.mock_irc.send_raw.assert_called_once_with(
-            "QUIT :bye everyone"
-        )
-        
+        self.mock_irc.send_raw.assert_called_once_with("QUIT :bye everyone")
+
         # Verify shutdown was triggered
         self.mock_stop_event.set.assert_called_once()
-        
+
         # Verify logging
         self.mock_logger.assert_called_once_with(
             "Admin quit with message: bye everyone", "INFO"
         )
-        
+
         # Should return no response for IRC quit
         self.assertEqual(response, "")
 
@@ -263,7 +261,9 @@ class TestAdminCommands(unittest.TestCase):
             response = join_command(context, self.bot_functions)
 
         self.mock_irc.send_raw.assert_called_once_with("JOIN #newchannel")
-        self.mock_logger.assert_called_once_with("Admin joined channel #newchannel", "INFO")
+        self.mock_logger.assert_called_once_with(
+            "Admin joined channel #newchannel", "INFO"
+        )
         self.assertEqual(response, "Joined #newchannel")
 
     def test_join_command_irc_with_key(self):
@@ -283,7 +283,9 @@ class TestAdminCommands(unittest.TestCase):
             response = join_command(context, self.bot_functions)
 
         self.mock_irc.send_raw.assert_called_once_with("JOIN #private secretkey")
-        self.mock_logger.assert_called_once_with("Admin joined channel #private", "INFO")
+        self.mock_logger.assert_called_once_with(
+            "Admin joined channel #private", "INFO"
+        )
         self.assertEqual(response, "Joined #private")
 
     def test_part_command_console(self):
@@ -379,7 +381,9 @@ class TestAdminCommands(unittest.TestCase):
             response = raw_command(context, self.bot_functions)
 
         self.mock_irc.send_raw.assert_called_once_with("MODE #channel +o user")
-        self.mock_logger.assert_called_once_with("Admin sent raw command: MODE #channel +o user", "INFO")
+        self.mock_logger.assert_called_once_with(
+            "Admin sent raw command: MODE #channel +o user", "INFO"
+        )
         self.assertEqual(response, "Sent: MODE #channel +o user")
 
     def test_commands_require_args(self):
@@ -417,23 +421,28 @@ class TestAdminCommands(unittest.TestCase):
         # Mock Server instance with send_raw method
         mock_server = Mock()
         mock_server.send_raw = Mock()
-        
+
         bot_functions = {
             "irc": mock_server,
             "log": Mock(),
         }
-        
+
         test_cases = [
             (join_command, "join", ["testpass123", "#test"], "JOIN #test"),
             (part_command, "part", ["testpass123", "#test"], "PART #test"),
             (nick_command, "nick", ["testpass123", "newbot"], "NICK newbot"),
-            (raw_command, "raw", ["testpass123", "MODE", "#test", "+o", "user"], "MODE #test +o user"),
+            (
+                raw_command,
+                "raw",
+                ["testpass123", "MODE", "#test", "+o", "user"],
+                "MODE #test +o user",
+            ),
         ]
-        
+
         for cmd_func, cmd_name, args, expected_raw in test_cases:
             with self.subTest(command=cmd_name):
                 mock_server.send_raw.reset_mock()
-                
+
                 context = CommandContext(
                     command=cmd_name,
                     args=args,
@@ -444,13 +453,13 @@ class TestAdminCommands(unittest.TestCase):
                     is_console=False,
                     server_name="testserver",
                 )
-                
+
                 with patch("commands_admin.get_config", return_value=self.mock_config):
                     response = cmd_func(context, bot_functions)
-                
+
                 # Verify that send_raw was called with the correct command
                 mock_server.send_raw.assert_called_once_with(expected_raw)
-                
+
                 # Verify that the response indicates success
                 self.assertNotIn("❌", response)
 
@@ -462,28 +471,28 @@ class TestQuitCommandIntegration(unittest.TestCase):
         """Test that quit command actually stops a running thread."""
         # Create a real threading.Event
         stop_event = threading.Event()
-        
+
         # Create a simple worker thread that runs until stop_event is set
         def worker():
             while not stop_event.is_set():
                 time.sleep(0.1)
-        
+
         # Start the worker thread
         thread = threading.Thread(target=worker)
         thread.start()
-        
+
         # Verify thread is running
         self.assertTrue(thread.is_alive())
-        
+
         # Set up quit command
         mock_config = Mock()
         mock_config.admin_password = "testpass123"
-        
+
         bot_functions = {
             "stop_event": stop_event,
             "log": Mock(),
         }
-        
+
         context = CommandContext(
             command="quit",
             args=["testpass123", "test shutdown"],
@@ -494,18 +503,18 @@ class TestQuitCommandIntegration(unittest.TestCase):
             is_console=True,
             server_name="console",
         )
-        
+
         # Execute quit command
         with patch("commands_admin.get_config", return_value=mock_config):
             response = quit_command(context, bot_functions)
-        
+
         # Verify response
         self.assertIn("🛑 Shutting down bot", response)
         self.assertIn("test shutdown", response)
-        
+
         # Wait for thread to stop
         thread.join(timeout=2.0)
-        
+
         # Verify thread has stopped
         self.assertFalse(thread.is_alive())
         self.assertTrue(stop_event.is_set())

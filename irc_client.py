@@ -369,7 +369,7 @@ class IRCClient:
     def send_action(self, target: str, action: str):
         """Send CTCP ACTION (/me) to target."""
         self._send_raw(f"PRIVMSG {target} :\x01ACTION {action}\x01")
-    
+
     def send_raw(self, message: str):
         """Send raw IRC message (public interface)."""
         self._send_raw(message)

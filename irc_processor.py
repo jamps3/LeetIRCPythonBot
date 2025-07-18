@@ -249,7 +249,9 @@ class IRCMessageProcessor:
 
             # Add IRC client to bot functions for admin commands
             enhanced_bot_functions = context.bot_functions.copy()
-            enhanced_bot_functions["irc"] = context.irc_client  # Pass the Server instance
+            enhanced_bot_functions["irc"] = (
+                context.irc_client
+            )  # Pass the Server instance
             enhanced_bot_functions["irc_client"] = context.irc_client
 
             # Process command

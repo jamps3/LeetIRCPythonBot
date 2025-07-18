@@ -1,22 +1,26 @@
-import unittest
-from unittest.mock import Mock, patch, mock_open
-import tempfile
-import os
 import json
+import os
 import sys
+import tempfile
+import unittest
+from unittest.mock import Mock, mock_open, patch
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from subscriptions import toggle_subscription, get_subscribers, get_server_subscribers
+from subscriptions import get_server_subscribers, get_subscribers, toggle_subscription
+
 
 class TestSubscriptionToggle(unittest.TestCase):
 
     def setUp(self):
         # Create a temporary file for testing
-        self.temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json')
-        self.temp_file.write('{}')
+        self.temp_file = tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".json"
+        )
+        self.temp_file.write("{}")
         self.temp_file.close()
-        
+
         # Patch the SUBSCRIBERS_FILE constant
-        self.patcher = patch('subscriptions.SUBSCRIBERS_FILE', self.temp_file.name)
+        self.patcher = patch("subscriptions.SUBSCRIBERS_FILE", self.temp_file.name)
         self.patcher.start()
 
     def tearDown(self):
@@ -28,7 +32,7 @@ class TestSubscriptionToggle(unittest.TestCase):
         """Test adding a subscription."""
         result = toggle_subscription("#test", "test_server", "varoitukset")
         self.assertIn("✅ Tilaus lisätty", result)
-        
+
         # Verify subscription was added
         subscribers = get_subscribers("varoitukset")
         self.assertIn(("#test", "test_server"), subscribers)
@@ -37,11 +41,11 @@ class TestSubscriptionToggle(unittest.TestCase):
         """Test removing a subscription."""
         # First add a subscription
         toggle_subscription("#test", "test_server", "varoitukset")
-        
+
         # Then remove it
         result = toggle_subscription("#test", "test_server", "varoitukset")
         self.assertIn("❌ Poistettu tilaus", result)
-        
+
         # Verify subscription was removed
         subscribers = get_subscribers("varoitukset")
         self.assertNotIn(("#test", "test_server"), subscribers)
@@ -52,12 +56,12 @@ class TestSubscriptionToggle(unittest.TestCase):
         toggle_subscription("#test1", "test_server", "varoitukset")
         toggle_subscription("#test2", "test_server", "varoitukset")
         toggle_subscription("#test1", "test_server", "onnettomuustiedotteet")
-        
+
         # Check varoitukset subscribers
         varoitukset_subscribers = get_subscribers("varoitukset")
         self.assertIn(("#test1", "test_server"), varoitukset_subscribers)
         self.assertIn(("#test2", "test_server"), varoitukset_subscribers)
-        
+
         # Check onnettomuustiedotteet subscribers
         onnettomuustiedotteet_subscribers = get_subscribers("onnettomuustiedotteet")
         self.assertIn(("#test1", "test_server"), onnettomuustiedotteet_subscribers)
@@ -72,14 +76,15 @@ class TestSubscriptionToggle(unittest.TestCase):
         """Test that subscriptions persist between calls."""
         # Add a subscription
         toggle_subscription("#test", "test_server", "varoitukset")
-        
+
         # Check that it's persisted by reading file directly
-        with open(self.temp_file.name, 'r') as f:
+        with open(self.temp_file.name, "r") as f:
             data = json.load(f)
-        
+
         self.assertIn("test_server", data)
         self.assertIn("#test", data["test_server"])
         self.assertIn("varoitukset", data["test_server"]["#test"])
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

@@ -13,11 +13,38 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Mock external dependencies at import time to avoid import errors
 external_deps = [
-    'requests', 'feedparser', 'bs4', 'selenium', 'youtube_dl', 'yt_dlp', 
-    'psutil', 'matplotlib', 'openai', 'websocket', 'urllib3', 'certifi', 
-    'charset_normalizer', 'idna', 'lxml', 'html5lib', 'pytz', 'dateutil', 
-    'cryptography', 'jwt', 'aiohttp', 'asyncio', 'websockets', 'discord', 
-    'tweepy', 'praw', 'pandas', 'numpy', 'PIL', 'cv2', 'googleapiclient', 'isodate'
+    "requests",
+    "feedparser",
+    "bs4",
+    "selenium",
+    "youtube_dl",
+    "yt_dlp",
+    "psutil",
+    "matplotlib",
+    "openai",
+    "websocket",
+    "urllib3",
+    "certifi",
+    "charset_normalizer",
+    "idna",
+    "lxml",
+    "html5lib",
+    "pytz",
+    "dateutil",
+    "cryptography",
+    "jwt",
+    "aiohttp",
+    "asyncio",
+    "websockets",
+    "discord",
+    "tweepy",
+    "praw",
+    "pandas",
+    "numpy",
+    "PIL",
+    "cv2",
+    "googleapiclient",
+    "isodate",
 ]
 
 # Mock main modules
@@ -26,26 +53,26 @@ for dep in external_deps:
 
 # Mock common submodules
 submodules = {
-    'selenium.webdriver': Mock(),
-    'selenium.webdriver.common': Mock(),
-    'selenium.webdriver.chrome': Mock(),
-    'selenium.webdriver.firefox': Mock(),
-    'selenium.webdriver.chrome.options': Mock(),
-    'selenium.webdriver.chrome.service': Mock(),
-    'selenium.webdriver.common.by': Mock(),
-    'selenium.webdriver.support': Mock(),
-    'selenium.webdriver.support.ui': Mock(),
-    'selenium.webdriver.support.expected_conditions': Mock(),
-    'bs4': Mock(),
-    'matplotlib.pyplot': Mock(),
-    'PIL.Image': Mock(),
-    'requests.adapters': Mock(),
-    'requests.exceptions': Mock(),
-    'urllib3.exceptions': Mock(),
-    'cryptography.fernet': Mock(),
-    'jwt.exceptions': Mock(),
-    'googleapiclient.discovery': Mock(),
-    'googleapiclient.errors': Mock(),
+    "selenium.webdriver": Mock(),
+    "selenium.webdriver.common": Mock(),
+    "selenium.webdriver.chrome": Mock(),
+    "selenium.webdriver.firefox": Mock(),
+    "selenium.webdriver.chrome.options": Mock(),
+    "selenium.webdriver.chrome.service": Mock(),
+    "selenium.webdriver.common.by": Mock(),
+    "selenium.webdriver.support": Mock(),
+    "selenium.webdriver.support.ui": Mock(),
+    "selenium.webdriver.support.expected_conditions": Mock(),
+    "bs4": Mock(),
+    "matplotlib.pyplot": Mock(),
+    "PIL.Image": Mock(),
+    "requests.adapters": Mock(),
+    "requests.exceptions": Mock(),
+    "urllib3.exceptions": Mock(),
+    "cryptography.fernet": Mock(),
+    "jwt.exceptions": Mock(),
+    "googleapiclient.discovery": Mock(),
+    "googleapiclient.errors": Mock(),
 }
 
 for module_name, mock_obj in submodules.items():
@@ -86,13 +113,13 @@ def register_all_test_suites(runner: TestRunner, quick_mode: bool = False):
         print("[INFO] Registered bot functionality tests")
     except Exception as e:
         print(f"[WARNING] Could not register bot functionality tests: {e}")
-    
+
     try:
         register_gpt_service_tests(runner)
         print("[INFO] Registered GPT service tests")
     except Exception as e:
         print(f"[WARNING] Could not register GPT service tests: {e}")
-    
+
     # TODO: Add these when they are created
     # Core component tests (always run)
     # register_config_tests(runner)

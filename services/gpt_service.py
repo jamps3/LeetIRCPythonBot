@@ -90,29 +90,38 @@ class GPTService:
                 json.dump(self.conversation_history, f, indent=2, ensure_ascii=False)
         except IOError as e:
             print(f"Error saving conversation history: {e}")
-    
+
     def _correct_outdated_dates(self, response: str) -> str:
         """
         Correct outdated dates in GPT responses with current date.
-        
+
         Args:
             response: GPT response text
-            
+
         Returns:
             Corrected response with current date
         """
         # Get current date in Finnish format
         current_date = datetime.now()
-        
+
         # Finnish month names
         finnish_months = [
-            "tammikuuta", "helmikuuta", "maaliskuuta", "huhtikuuta",
-            "toukokuuta", "kesäkuuta", "heinäkuuta", "elokuuta",
-            "syyskuuta", "lokakuuta", "marraskuuta", "joulukuuta"
+            "tammikuuta",
+            "helmikuuta",
+            "maaliskuuta",
+            "huhtikuuta",
+            "toukokuuta",
+            "kesäkuuta",
+            "heinäkuuta",
+            "elokuuta",
+            "syyskuuta",
+            "lokakuuta",
+            "marraskuuta",
+            "joulukuuta",
         ]
-        
+
         current_finnish_date = f"{current_date.day}. {finnish_months[current_date.month - 1]} {current_date.year}"
-        
+
         # Common patterns for outdated dates that GPT might use
         outdated_patterns = [
             # Match "Tänään on [date]" pattern
@@ -130,9 +139,9 @@ class GPTService:
             # Don't match specific outdated date that GPT commonly uses as we don't know if it's in another context
             # r"\b22\. lokakuuta 2023\b",
         ]
-        
+
         corrected_response = response
-        
+
         for pattern in outdated_patterns:
             if re.search(pattern, corrected_response, re.IGNORECASE):
                 if "tänään on" in corrected_response.lower():
@@ -141,7 +150,7 @@ class GPTService:
                         r"Tänään on \d{1,2}\. \w+ \d{4}",
                         f"Tänään on {current_finnish_date}",
                         corrected_response,
-                        flags=re.IGNORECASE
+                        flags=re.IGNORECASE,
                     )
                 elif "current date" in corrected_response.lower():
                     # Replace "current date is [old date]" with current date
@@ -149,7 +158,7 @@ class GPTService:
                         r"current date is \d{1,2}\. \w+ \d{4}",
                         f"current date is {current_finnish_date}",
                         corrected_response,
-                        flags=re.IGNORECASE
+                        flags=re.IGNORECASE,
                     )
                 else:
                     # Replace any standalone old date with current date
@@ -157,9 +166,9 @@ class GPTService:
                         pattern,
                         current_finnish_date,
                         corrected_response,
-                        flags=re.IGNORECASE
+                        flags=re.IGNORECASE,
                     )
-                    
+
         return corrected_response
 
     def chat(self, message: str, sender: str = "user") -> str:
@@ -193,7 +202,7 @@ class GPTService:
 
             # Extract response
             gpt_response = response.choices[0].message.content.strip()
-            
+
             # Apply date correction to fix outdated dates
             corrected_response = self._correct_outdated_dates(gpt_response)
 
