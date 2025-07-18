@@ -158,8 +158,8 @@ class DataManager:
             try:
                 hostname = socket.gethostbyaddr(remote_ip)[0]
                 return hostname
-            except socket.herror:
-                return remote_ip  # Fallback to IP if no reverse DNS
+            except (socket.herror, Exception):
+                return remote_ip  # Fallback to IP if no reverse DNS or any DNS error
         except Exception:
             return "unknown_server"
 

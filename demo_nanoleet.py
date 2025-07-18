@@ -19,7 +19,7 @@ def demo_nanoleet_detection():
 
     # Test various timestamp scenarios
     test_scenarios = [
-        ("jamps", "13:37:13.371337133", "The ultimate leet timestamp!"),
+        ("jampsix", "13:37:13.371337133", "The ultimate leet timestamp!"),
         ("testuser", "13:37:21.133713371", "Multiple 1337s in one timestamp"),
         ("alice", "02:38:12.123451337", "Your example - nano leet at the end"),
         ("bob", "23:13:37.987654321", "Regular leet in time part"),

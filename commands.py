@@ -1407,8 +1407,12 @@ def process_message(irc, message, bot_functions):
                         subscriber = parts[2]  # esim. #kanava tai nick
                     else:
                         subscriber = sender  # käytä viestin lähettäjän nimeä oletuksena
-                    result = subscriptions.toggle_subscription(subscriber, topic)
-                    notice_message(f"{result}: {topic}", irc, target)
+                    
+                    # Get server name
+                    server_name = data_manager.get_server_name(irc)
+                    
+                    result = subscriptions.toggle_subscription(subscriber, server_name, topic)
+                    notice_message(result, irc, target)
                 else:
                     notice_message(
                         "⚠ Tuntematon tilaustyyppi. Käytä: varoitukset tai onnettomuustiedotteet",

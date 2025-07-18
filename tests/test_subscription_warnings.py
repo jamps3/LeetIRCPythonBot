@@ -27,9 +27,9 @@ class TestSubscriptionWarnings(unittest.TestCase):
 
     def test_handle_fmi_warnings_with_subscribers(self):
         """Test that FMI warnings are sent to subscribers."""
-        # Mock the subscriptions module
+        # Mock the subscriptions module - new format returns (nick, server) tuples
         mock_subscriptions = Mock()
-        mock_subscriptions.get_subscribers.return_value = ["#test", "user1"]
+        mock_subscriptions.get_subscribers.return_value = [("#test", "test_server"), ("user1", "test_server")]
         
         with patch.object(self.bot_manager, '_get_subscriptions_module', return_value=mock_subscriptions):
             # Mock the _send_response method to track calls
@@ -58,11 +58,11 @@ class TestSubscriptionWarnings(unittest.TestCase):
                 # Verify that no messages were sent
                 mock_send.assert_not_called()
 
-    def test_handle_fmi_warnings_channel_not_in_server(self):
-        """Test handling of channels not in server configuration."""
-        # Mock the subscriptions module to return a channel not in server config
+    def test_handle_fmi_warnings_server_not_found(self):
+        """Test handling of subscribers on non-existent servers."""
+        # Mock the subscriptions module to return a subscriber on non-existent server
         mock_subscriptions = Mock()
-        mock_subscriptions.get_subscribers.return_value = ["#nonexistent"]
+        mock_subscriptions.get_subscribers.return_value = [("#test", "nonexistent_server")]
         
         with patch.object(self.bot_manager, '_get_subscriptions_module', return_value=mock_subscriptions):
             # Mock the _send_response method to track calls
