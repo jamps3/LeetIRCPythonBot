@@ -2,10 +2,7 @@ LeetIRC Bot Test Coverage
 ========================================
 Note: This is a basic test framework without coverage analysis.
 For detailed coverage, consider integrating with pytest and coverage.py
-Tests run: 49
-Test suites covered: 5
-  Command_Registry: 10/10 tests passed
-  Configuration: 6/6 tests passed
-  Crypto_Service: 14/14 tests passed
-  IRC_Client: 7/7 tests passed
-  Weather_Service: 12/12 tests passed
+Tests run: 15
+Test suites covered: 2
+  Bot_Functionality: 8/8 tests passed
+  GPT_Service: 7/7 tests passed

@@ -1,61 +1,27 @@
 LeetIRC Bot Test Results
 ========================================
-Total Tests: 49
-Passed: 49
+Total Tests: 15
+Passed: 15
 Failed: 0
 Errors: 0
 Skipped: 0
 Success Rate: 100.0%
-Total Time: 0.689s
+Total Time: 0.071s
 Overall: PASS
 
 Detailed Results:
-PASS: Configuration.config_loading (0.016s)
-PASS: Configuration.config_validation (0.000s)
-PASS: Configuration.server_config_parsing (0.000s)
-PASS: Configuration.environment_variable_handling (0.003s)
-PASS: Configuration.config_json_export (0.002s)
-PASS: Configuration.config_server_lookup (0.000s)
-PASS: IRC_Client.irc_client_creation (0.003s)
-PASS: IRC_Client.irc_message_parsing (0.000s)
-PASS: IRC_Client.irc_message_properties (0.000s)
-PASS: IRC_Client.irc_connection_states (0.000s)
-PASS: IRC_Client.irc_handler_system (0.000s)
-PASS: IRC_Client.irc_rate_limiting (0.000s)
-PASS: IRC_Client.irc_channel_management (0.000s)
-PASS: Command_Registry.command_registry_creation (0.003s)
-PASS: Command_Registry.command_registration (0.000s)
-PASS: Command_Registry.command_execution (0.000s)
-PASS: Command_Registry.command_metadata (0.000s)
-PASS: Command_Registry.help_command (0.000s)
-PASS: Command_Registry.admin_commands (0.000s)
-PASS: Command_Registry.command_aliases (0.000s)
-PASS: Command_Registry.command_error_handling (0.000s)
-PASS: Command_Registry.command_listing (0.000s)
-PASS: Command_Registry.decorator_functionality (0.000s)
-PASS: Weather_Service.weather_service_creation (0.551s)
-PASS: Weather_Service.weather_api_success (0.001s)
-PASS: Weather_Service.weather_api_error (0.000s)
-PASS: Weather_Service.weather_timeout_handling (0.000s)
-PASS: Weather_Service.weather_data_parsing (0.100s)
-PASS: Weather_Service.wind_direction_calculation (0.000s)
-PASS: Weather_Service.weather_emoji_mapping (0.000s)
-PASS: Weather_Service.pressure_analysis (0.000s)
-PASS: Weather_Service.uv_index_fetching (0.002s)
-PASS: Weather_Service.weather_message_formatting (0.000s)
-PASS: Weather_Service.precipitation_handling (0.000s)
-PASS: Weather_Service.malformed_api_response (0.000s)
-PASS: Crypto_Service.crypto_service_creation (0.000s)
-PASS: Crypto_Service.crypto_price_success (0.001s)
-PASS: Crypto_Service.crypto_alias_handling (0.001s)
-PASS: Crypto_Service.crypto_api_error (0.001s)
-PASS: Crypto_Service.crypto_timeout_handling (0.001s)
-PASS: Crypto_Service.unsupported_currency (0.000s)
-PASS: Crypto_Service.coin_not_found (0.001s)
-PASS: Crypto_Service.trending_cryptos (0.001s)
-PASS: Crypto_Service.crypto_search (0.001s)
-PASS: Crypto_Service.price_message_formatting (0.000s)
-PASS: Crypto_Service.trending_message_formatting (0.000s)
-PASS: Crypto_Service.currency_symbol_mapping (0.000s)
-PASS: Crypto_Service.price_formatting_precision (0.000s)
-PASS: Crypto_Service.service_configuration (0.000s)
+PASS: Bot_Functionality.nanoleet_detector_ultimate (0.000s)
+PASS: Bot_Functionality.nanoleet_detector_mega (0.000s)
+PASS: Bot_Functionality.nanoleet_detector_nano (0.000s)
+PASS: Bot_Functionality.tamagotchi_toggle_functionality (0.059s)
+PASS: Bot_Functionality.youtube_url_detection (0.003s)
+PASS: Bot_Functionality.url_blacklist_functionality (0.004s)
+PASS: Bot_Functionality.nanoleet_message_for_leet (0.000s)
+PASS: Bot_Functionality.bot_manager_initialization_with_services (0.005s)
+PASS: GPT_Service.date_correction_tanaanaon_pattern (0.000s)
+PASS: GPT_Service.date_correction_other_patterns (0.000s)
+PASS: GPT_Service.date_correction_no_change_cases (0.000s)
+PASS: GPT_Service.date_correction_pattern_matching (0.000s)
+PASS: GPT_Service.date_correction_edge_cases (0.000s)
+PASS: GPT_Service.gpt_service_initialization (0.000s)
+PASS: GPT_Service.date_correction_month_names (0.000s)
