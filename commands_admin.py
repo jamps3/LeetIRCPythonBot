@@ -36,10 +36,10 @@ def verify_admin_password(args):
 def join_command(context: CommandContext, bot_functions):
     """Join an IRC channel."""
     if not verify_admin_password(context.args):
-        return CommandResponse.error_msg("Invalid admin password")
+        return "❌ Invalid admin password"
 
     if len(context.args) < 2:
-        return CommandResponse.error_msg("Usage: !join <password> #channel [key]")
+        return "❌ Usage: !join <password> #channel [key]"
 
     channel = context.args[1]
     key = context.args[2] if len(context.args) > 2 else ""
@@ -51,9 +51,9 @@ def join_command(context: CommandContext, bot_functions):
         irc = bot_functions.get("irc")
         if irc:
             if key:
-                irc.sendall(f"JOIN {channel} {key}\r\n".encode("utf-8"))
+                irc.send_raw(f"JOIN {channel} {key}")
             else:
-                irc.sendall(f"JOIN {channel}\r\n".encode("utf-8"))
+                irc.send_raw(f"JOIN {channel}")
 
             log_func = bot_functions.get("log")
             if log_func:
@@ -61,7 +61,7 @@ def join_command(context: CommandContext, bot_functions):
 
             return f"Joined {channel}"
         else:
-            return CommandResponse.error_msg("IRC connection not available")
+            return "❌ IRC connection not available"
 
 
 @command(
@@ -75,10 +75,10 @@ def join_command(context: CommandContext, bot_functions):
 def part_command(context: CommandContext, bot_functions):
     """Leave an IRC channel."""
     if not verify_admin_password(context.args):
-        return CommandResponse.error_msg("Invalid admin password")
+        return "❌ Invalid admin password"
 
     if len(context.args) < 2:
-        return CommandResponse.error_msg("Usage: !part <password> #channel")
+        return "❌ Usage: !part <password> #channel"
 
     channel = context.args[1]
 
@@ -88,7 +88,7 @@ def part_command(context: CommandContext, bot_functions):
         # Send IRC command
         irc = bot_functions.get("irc")
         if irc:
-            irc.sendall(f"PART {channel}\r\n".encode("utf-8"))
+            irc.send_raw(f"PART {channel}")
 
             log_func = bot_functions.get("log")
             if log_func:
@@ -96,7 +96,7 @@ def part_command(context: CommandContext, bot_functions):
 
             return f"Left {channel}"
         else:
-            return CommandResponse.error_msg("IRC connection not available")
+            return "❌ IRC connection not available"
 
 
 @command(
@@ -110,10 +110,10 @@ def part_command(context: CommandContext, bot_functions):
 def nick_command(context: CommandContext, bot_functions):
     """Change the bot's nickname."""
     if not verify_admin_password(context.args):
-        return CommandResponse.error_msg("Invalid admin password")
+        return "❌ Invalid admin password"
 
     if len(context.args) < 2:
-        return CommandResponse.error_msg("Usage: !nick <password> <new_nickname>")
+        return "❌ Usage: !nick <password> <new_nickname>"
 
     new_nick = context.args[1]
 
@@ -123,7 +123,7 @@ def nick_command(context: CommandContext, bot_functions):
         # Send IRC command
         irc = bot_functions.get("irc")
         if irc:
-            irc.sendall(f"NICK {new_nick}\r\n".encode("utf-8"))
+            irc.send_raw(f"NICK {new_nick}")
 
             log_func = bot_functions.get("log")
             if log_func:
@@ -131,7 +131,7 @@ def nick_command(context: CommandContext, bot_functions):
 
             return f"Changed nick to {new_nick}"
         else:
-            return CommandResponse.error_msg("IRC connection not available")
+            return "❌ IRC connection not available"
 
 
 @command(
@@ -145,28 +145,36 @@ def nick_command(context: CommandContext, bot_functions):
 def quit_command(context: CommandContext, bot_functions):
     """Quit IRC with an optional message."""
     if not verify_admin_password(context.args):
-        return CommandResponse.error_msg("Invalid admin password")
+        return "❌ Invalid admin password"
 
     quit_message = " ".join(context.args[1:]) if len(context.args) > 1 else "Admin quit"
 
     if context.is_console:
         # For console, trigger bot shutdown
-        return f"Console quit command: {quit_message}"
+        stop_event = bot_functions.get("stop_event")
+        if stop_event:
+            stop_event.set()
+            return f"🛑 Shutting down bot: {quit_message}"
+        else:
+            return "❌ Cannot access shutdown mechanism"
     else:
         # Send IRC command
         irc = bot_functions.get("irc")
         if irc:
-            irc.sendall(f"QUIT :{quit_message}\r\n".encode("utf-8"))
+            irc.send_raw(f"QUIT :{quit_message}")
 
             log_func = bot_functions.get("log")
             if log_func:
                 log_func(f"Admin quit with message: {quit_message}", "INFO")
 
-            return (
-                CommandResponse.no_response()
-            )  # Don't send a response since we're quitting
+            # Also trigger shutdown for IRC quit
+            stop_event = bot_functions.get("stop_event")
+            if stop_event:
+                stop_event.set()
+
+            return ""  # Don't send a response since we're quitting
         else:
-            return CommandResponse.error_msg("IRC connection not available")
+            return "❌ IRC connection not available"
 
 
 @command(
@@ -181,17 +189,17 @@ def quit_command(context: CommandContext, bot_functions):
 def raw_command(context: CommandContext, bot_functions):
     """Send a raw IRC command."""
     if not verify_admin_password(context.args):
-        return CommandResponse.error_msg("Invalid admin password")
+        return "❌ Invalid admin password"
 
     if len(context.args) < 2:
-        return CommandResponse.error_msg("Usage: !raw <password> <IRC_COMMAND>")
+        return "❌ Usage: !raw <password> <IRC_COMMAND>"
 
     raw_command = " ".join(context.args[1:])
 
     # Send IRC command
     irc = bot_functions.get("irc")
     if irc:
-        irc.sendall(f"{raw_command}\r\n".encode("utf-8"))
+        irc.send_raw(raw_command)
 
         log_func = bot_functions.get("log")
         if log_func:
@@ -199,7 +207,7 @@ def raw_command(context: CommandContext, bot_functions):
 
         return f"Sent: {raw_command}"
     else:
-        return CommandResponse.error_msg("IRC connection not available")
+        return "❌ IRC connection not available"
 
 
 # Import this module to register the commands

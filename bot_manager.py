@@ -346,6 +346,7 @@ class BotManager:
             "toggle_tamagotchi": lambda srv, tgt, snd: self.toggle_tamagotchi(
                 srv, tgt, snd
             ),
+            "stop_event": self.stop_event,  # Allow IRC commands to trigger shutdown
         }
 
         # Create a mock IRC message format for commands.py compatibility
