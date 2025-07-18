@@ -11,7 +11,7 @@ import pickle
 import shutil
 import socket
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class DataManager:
@@ -246,13 +246,76 @@ class DataManager:
         """Save tamagotchi state data."""
         self.save_json(self.tamagotchi_state_file, data)
 
-    def load_privacy_settings(self) -> Dict[str, Any]:
-        """Load privacy settings data."""
-        return self.load_json(self.privacy_settings_file)
-
-    def save_privacy_settings(self, data: Dict[str, Any]):
-        """Save privacy settings data."""
-        self.save_json(self.privacy_settings_file, data)
+    # Privacy management methods
+    def _parse_opt_out_env(self) -> Dict[str, List[str]]:
+        """
+        Parse the DRINK_TRACKING_OPT_OUT environment variable.
+        
+        Returns:
+            Dictionary mapping server names to lists of opted-out nicknames
+        """
+        opt_out_str = os.getenv("DRINK_TRACKING_OPT_OUT", "")
+        if not opt_out_str.strip():
+            return {}
+        
+        result = {}
+        try:
+            # Split by comma and process each server:nick pair
+            pairs = [pair.strip() for pair in opt_out_str.split(",") if pair.strip()]
+            
+            for pair in pairs:
+                if ":" not in pair:
+                    continue
+                    
+                server, nick = pair.split(":", 1)
+                server = server.strip()
+                nick = nick.strip()
+                
+                if server and nick:
+                    if server not in result:
+                        result[server] = []
+                    if nick not in result[server]:
+                        result[server].append(nick)
+                        
+        except Exception as e:
+            print(f"Error parsing DRINK_TRACKING_OPT_OUT: {e}")
+            return {}
+            
+        return result
+    
+    def _format_opt_out_env(self, opt_out_data: Dict[str, List[str]]) -> str:
+        """
+        Format opt-out data back to environment variable format.
+        
+        Args:
+            opt_out_data: Dictionary mapping server names to lists of opted-out nicknames
+            
+        Returns:
+            Formatted string for environment variable
+        """
+        pairs = []
+        for server, nicks in opt_out_data.items():
+            for nick in nicks:
+                pairs.append(f"{server}:{nick}")
+        return ",".join(pairs)
+    
+    def _update_opt_out_env(self, opt_out_data: Dict[str, List[str]]) -> bool:
+        """
+        Update the DRINK_TRACKING_OPT_OUT environment variable.
+        
+        Args:
+            opt_out_data: Dictionary mapping server names to lists of opted-out nicknames
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            env_value = self._format_opt_out_env(opt_out_data)
+            os.environ["DRINK_TRACKING_OPT_OUT"] = env_value
+            return True
+        except Exception as e:
+            print(f"Error updating DRINK_TRACKING_OPT_OUT: {e}")
+            return False
 
     def is_user_opted_out(self, server: str, nick: str) -> bool:
         """
@@ -265,12 +328,11 @@ class DataManager:
         Returns:
             True if user has opted out, False otherwise
         """
-        privacy_data = self.load_privacy_settings()
-        opted_out = privacy_data.get("opted_out_users", {})
-        server_opted_out = opted_out.get(server, [])
-        return nick.lower() in [n.lower() for n in server_opted_out]
+        opt_out_data = self._parse_opt_out_env()
+        server_opts = opt_out_data.get(server, [])
+        return nick.lower() in [n.lower() for n in server_opts]
 
-    def set_user_opt_out(self, server: str, nick: str, opt_out: bool = True):
+    def set_user_opt_out(self, server: str, nick: str, opt_out: bool = True) -> bool:
         """
         Set user's opt-out status for drink tracking.
 
@@ -278,26 +340,45 @@ class DataManager:
             server: Server name
             nick: User nickname
             opt_out: True to opt out, False to opt back in
+            
+        Returns:
+            True if successful, False otherwise
         """
-        privacy_data = self.load_privacy_settings()
-
-        if "opted_out_users" not in privacy_data:
-            privacy_data["opted_out_users"] = {}
-
-        if server not in privacy_data["opted_out_users"]:
-            privacy_data["opted_out_users"][server] = []
-
-        server_opted_out = privacy_data["opted_out_users"][server]
+        opt_out_data = self._parse_opt_out_env()
+        
+        if server not in opt_out_data:
+            opt_out_data[server] = []
+        
+        server_opts = opt_out_data[server]
         nick_lower = nick.lower()
-
+        
         if opt_out:
-            # Add to opted out list if not already there
-            if nick_lower not in [n.lower() for n in server_opted_out]:
-                server_opted_out.append(nick)
+            # Add to opt-out list if not already there
+            if nick_lower not in [n.lower() for n in server_opts]:
+                server_opts.append(nick)
         else:
-            # Remove from opted out list
-            privacy_data["opted_out_users"][server] = [
-                n for n in server_opted_out if n.lower() != nick_lower
-            ]
-
-        self.save_privacy_settings(privacy_data)
+            # Remove from opt-out list
+            opt_out_data[server] = [n for n in server_opts if n.lower() != nick_lower]
+            
+            # Clean up empty server entries
+            if not opt_out_data[server]:
+                del opt_out_data[server]
+        
+        return self._update_opt_out_env(opt_out_data)
+    
+    def get_opted_out_users(self, server: Optional[str] = None) -> Dict[str, List[str]]:
+        """
+        Get all opted-out users, optionally filtered by server.
+        
+        Args:
+            server: Optional server name to filter by
+            
+        Returns:
+            Dictionary mapping server names to lists of opted-out nicknames
+        """
+        opt_out_data = self._parse_opt_out_env()
+        
+        if server is not None:
+            return {server: opt_out_data.get(server, [])}
+        
+        return opt_out_data
