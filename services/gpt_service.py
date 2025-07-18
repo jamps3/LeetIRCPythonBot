@@ -6,6 +6,7 @@ Provides AI chat functionality using OpenAI's GPT models with conversation histo
 
 import json
 import os
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -89,6 +90,77 @@ class GPTService:
                 json.dump(self.conversation_history, f, indent=2, ensure_ascii=False)
         except IOError as e:
             print(f"Error saving conversation history: {e}")
+    
+    def _correct_outdated_dates(self, response: str) -> str:
+        """
+        Correct outdated dates in GPT responses with current date.
+        
+        Args:
+            response: GPT response text
+            
+        Returns:
+            Corrected response with current date
+        """
+        # Get current date in Finnish format
+        current_date = datetime.now()
+        
+        # Finnish month names
+        finnish_months = [
+            "tammikuuta", "helmikuuta", "maaliskuuta", "huhtikuuta",
+            "toukokuuta", "kesäkuuta", "heinäkuuta", "elokuuta",
+            "syyskuuta", "lokakuuta", "marraskuuta", "joulukuuta"
+        ]
+        
+        current_finnish_date = f"{current_date.day}. {finnish_months[current_date.month - 1]} {current_date.year}"
+        
+        # Common patterns for outdated dates that GPT might use
+        outdated_patterns = [
+            # Match "Tänään on [date]" pattern
+            r"Tänään on \d{1,2}\. \w+ \d{4}",
+            # Match "today is [date]" pattern (in case it responds in English)
+            r"today is \w+ \d{1,2}, \d{4}",
+            # Match "current date is [date]" pattern
+            r"current date is \d{1,2}\. \w+ \d{4}",
+            # Match "Nykyinen päivämäärä on [date]" pattern
+            r"Nykyinen päivämäärä on \d{1,2}\. \w+ \d{4}",
+            # Match "Päivämäärä on [date]" pattern
+            r"Päivämäärä on \d{1,2}\. \w+ \d{4}",
+            # Match "Olemme nyt [date]" pattern
+            r"Olemme nyt \d{1,2}\. \w+ \d{4}",
+            # Don't match specific outdated date that GPT commonly uses as we don't know if it's in another context
+            # r"\b22\. lokakuuta 2023\b",
+        ]
+        
+        corrected_response = response
+        
+        for pattern in outdated_patterns:
+            if re.search(pattern, corrected_response, re.IGNORECASE):
+                if "tänään on" in corrected_response.lower():
+                    # Replace "Tänään on [old date]" with current date
+                    corrected_response = re.sub(
+                        r"Tänään on \d{1,2}\. \w+ \d{4}",
+                        f"Tänään on {current_finnish_date}",
+                        corrected_response,
+                        flags=re.IGNORECASE
+                    )
+                elif "current date" in corrected_response.lower():
+                    # Replace "current date is [old date]" with current date
+                    corrected_response = re.sub(
+                        r"current date is \d{1,2}\. \w+ \d{4}",
+                        f"current date is {current_finnish_date}",
+                        corrected_response,
+                        flags=re.IGNORECASE
+                    )
+                else:
+                    # Replace any standalone old date with current date
+                    corrected_response = re.sub(
+                        pattern,
+                        current_finnish_date,
+                        corrected_response,
+                        flags=re.IGNORECASE
+                    )
+                    
+        return corrected_response
 
     def chat(self, message: str, sender: str = "user") -> str:
         """
@@ -121,15 +193,18 @@ class GPTService:
 
             # Extract response
             gpt_response = response.choices[0].message.content.strip()
+            
+            # Apply date correction to fix outdated dates
+            corrected_response = self._correct_outdated_dates(gpt_response)
 
-            # Add assistant response to history
-            assistant_message = {"role": "assistant", "content": gpt_response}
+            # Add assistant response to history (use corrected version)
+            assistant_message = {"role": "assistant", "content": corrected_response}
             self.conversation_history.append(assistant_message)
 
             # Save updated history
             self._save_conversation_history()
 
-            return gpt_response
+            return corrected_response
 
         except openai.RateLimitError:
             return "Sorry, I'm currently rate limited. Please try again later."
