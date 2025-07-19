@@ -85,9 +85,13 @@ class EurojackpotService:
                     response.raise_for_status()
 
                     # Log response content for debugging
-                    self.logger.debug(
-                        f"Approach {i+1} - Response content preview: {response.text[:200]}..."
-                    )
+                    try:
+                        preview_text = response.text[:200] if hasattr(response, 'text') else str(response)[:200]
+                        self.logger.debug(
+                            f"Approach {i+1} - Response content preview: {preview_text}..."
+                        )
+                    except Exception:
+                        self.logger.debug(f"Approach {i+1} - Response content preview: [unable to get preview]")
 
                     json_data = response.json()
                     self.logger.debug(
@@ -114,6 +118,13 @@ class EurojackpotService:
                 except json.JSONDecodeError as e:
                     self.logger.warning(
                         f"Approach {i+1} failed with JSON decode error: {e}"
+                    )
+                    if i == len(approaches) - 1:  # Last approach
+                        raise
+                    continue
+                except Exception as e:
+                    self.logger.warning(
+                        f"Approach {i+1} failed with unexpected error: {e}"
                     )
                     if i == len(approaches) - 1:  # Last approach
                         raise

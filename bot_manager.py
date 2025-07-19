@@ -6,12 +6,8 @@ connections and integrates all bot functionality across servers.
 """
 
 import os
-import signal
-import socket
-import sys
 import threading
 import time
-from functools import partial
 from typing import Any, Dict, List, Optional
 
 import commands

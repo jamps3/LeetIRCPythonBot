@@ -37,7 +37,7 @@ class TestAdminCommands(unittest.TestCase):
 
         # Mock IRC connection
         self.mock_irc = Mock()
-        self.mock_irc.sendall = Mock()
+        self.mock_irc.send_raw = Mock()
 
         # Real threading.Event for shutdown testing
         self.stop_event = threading.Event()
@@ -91,7 +91,7 @@ class TestAdminCommands(unittest.TestCase):
         response = commands_admin.quit_command(context, self.bot_functions)
 
         # Verify IRC QUIT was sent
-        self.mock_irc.sendall.assert_called_once_with(b"QUIT :bye everyone\r\n")
+        self.mock_irc.send_raw.assert_called_once_with("QUIT :bye everyone")
 
         # Verify shutdown was triggered
         self.assertTrue(
@@ -118,7 +118,7 @@ class TestAdminCommands(unittest.TestCase):
         context = self.MockContext(["testpass123", "#testchannel"], is_console=False)
         response = commands_admin.join_command(context, self.bot_functions)
 
-        self.mock_irc.sendall.assert_called_once_with(b"JOIN #testchannel\r\n")
+        self.mock_irc.send_raw.assert_called_once_with("JOIN #testchannel")
         self.mock_logger.assert_called_once_with(
             "Admin joined channel #testchannel", "INFO"
         )
@@ -131,7 +131,7 @@ class TestAdminCommands(unittest.TestCase):
         )
         response = commands_admin.join_command(context, self.bot_functions)
 
-        self.mock_irc.sendall.assert_called_once_with(b"JOIN #private secretkey\r\n")
+        self.mock_irc.send_raw.assert_called_once_with("JOIN #private secretkey")
         self.mock_logger.assert_called_once_with(
             "Admin joined channel #private", "INFO"
         )
@@ -149,7 +149,7 @@ class TestAdminCommands(unittest.TestCase):
         context = self.MockContext(["testpass123", "#leavechannel"], is_console=False)
         response = commands_admin.part_command(context, self.bot_functions)
 
-        self.mock_irc.sendall.assert_called_once_with(b"PART #leavechannel\r\n")
+        self.mock_irc.send_raw.assert_called_once_with("PART #leavechannel")
         self.mock_logger.assert_called_once_with(
             "Admin left channel #leavechannel", "INFO"
         )
@@ -167,7 +167,7 @@ class TestAdminCommands(unittest.TestCase):
         context = self.MockContext(["testpass123", "coolbot"], is_console=False)
         response = commands_admin.nick_command(context, self.bot_functions)
 
-        self.mock_irc.sendall.assert_called_once_with(b"NICK coolbot\r\n")
+        self.mock_irc.send_raw.assert_called_once_with("NICK coolbot")
         self.mock_logger.assert_called_once_with(
             "Admin changed nick to coolbot", "INFO"
         )
@@ -180,7 +180,7 @@ class TestAdminCommands(unittest.TestCase):
         )
         response = commands_admin.raw_command(context, self.bot_functions)
 
-        self.mock_irc.sendall.assert_called_once_with(b"MODE #channel +o user\r\n")
+        self.mock_irc.send_raw.assert_called_once_with("MODE #channel +o user")
         self.mock_logger.assert_called_once_with(
             "Admin sent raw command: MODE #channel +o user", "INFO"
         )
@@ -203,7 +203,7 @@ class TestAdminCommands(unittest.TestCase):
 
                 self.assertIn("❌ Invalid admin password", response)
                 # Verify no IRC commands were sent
-                self.mock_irc.sendall.assert_not_called()
+                self.mock_irc.send_raw.assert_not_called()
 
     def test_missing_arguments_all_commands(self):
         """Test that commands validate required arguments."""

@@ -348,19 +348,16 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
     def test_atomic_writes(self):
         """Test that writes are atomic (using temporary file)."""
         # This test verifies that the atomic write mechanism works
-        # by checking that temp files are cleaned up
+        # by checking that the specific temp file for subscriptions is cleaned up
         test_data = {"server1": {"user1": ["varoitukset"]}}
 
         result = save_subscriptions(test_data)
         self.assertTrue(result)
 
-        # Check that no temporary files are left behind
-        temp_files = [
-            f
-            for f in os.listdir(os.path.dirname(self.temp_file.name))
-            if f.endswith(".tmp")
-        ]
-        self.assertEqual(len(temp_files), 0)
+        # Check that the specific subscription temp file is cleaned up
+        # We can't check the entire temp directory on Windows as it's shared
+        subscription_temp_file = f"{self.temp_file.name}.tmp"
+        self.assertFalse(os.path.exists(subscription_temp_file))
 
     def test_valid_topics_constant(self):
         """Test that VALID_TOPICS contains expected topics."""

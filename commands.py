@@ -11,18 +11,14 @@ import os
 import platform
 import re
 import time
-import urllib.parse
 import xml.etree.ElementTree as ElementTree
-from collections import Counter
 from datetime import datetime
-from io import StringIO
 
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
 
-import commands
 from logger import get_logger
 
 # Load environment variables
@@ -274,8 +270,6 @@ def process_console_command(command_text, bot_functions):
     log = bot_functions["log"]
     fetch_title = bot_functions["fetch_title"]
     handle_ipfs_command = bot_functions["handle_ipfs_command"]
-    chat_with_gpt = bot_functions["chat_with_gpt"]
-    wrap_irc_message_utf8_bytes = bot_functions["wrap_irc_message_utf8_bytes"]
 
     # Parse command
     command_parts = command_text.split(" ", 1)
@@ -334,49 +328,71 @@ def process_console_command(command_text, bot_functions):
     elif command == "!sana":
         if args:
             search_word = args.strip().lower()
-            kraks = load()
-            word_counts = {
-                nick: stats[search_word]
-                for nick, stats in kraks.items()
-                if search_word in stats
-            }
-            if word_counts:
-                results = ", ".join(
-                    f"{nick}: {count}" for nick, count in word_counts.items()
-                )
-                notice_message(f"Sana '{search_word}' on sanottu: {results}")
+            results = general_words.search_word(search_word)
+            
+            if results["total_occurrences"] > 0:
+                # Show results from all servers since console doesn't track words
+                all_users = []
+                for server_name, server_data in results["servers"].items():
+                    for user in server_data["users"]:
+                        all_users.append(f"{user['nick']}@{server_name}: {user['count']}")
+                
+                if all_users:
+                    users_text = ", ".join(all_users)
+                    notice_message(f"Sana '{search_word}' on sanottu: {users_text}")
+                else:
+                    notice_message(f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
             else:
                 notice_message(f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
         else:
             notice_message("Käytä komentoa: !sana <sana>")
 
     elif command == "!topwords":
-        kraks = load()
         if args:  # Specific nick provided
             nick = args.strip()
-            if nick in kraks:
-                top_words = Counter(kraks[nick]).most_common(5)
-                word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
-                notice_message(f"{nick}: {word_list}")
-            else:
+            # Search across all servers for this nick
+            found_user = False
+            for server_name in data_manager.get_all_servers():
+                user_stats = general_words.get_user_stats(server_name, nick)
+                if user_stats["total_words"] > 0:
+                    top_words = general_words.get_user_top_words(server_name, nick, 5)
+                    word_list = ", ".join(
+                        f"{word['word']}: {word['count']}" for word in top_words
+                    )
+                    notice_message(f"{nick}@{server_name}: {word_list}")
+                    found_user = True
+            
+            if not found_user:
                 notice_message(f"Käyttäjää '{nick}' ei löydy.")
-        else:  # Show top words for all users
-            overall_counts = Counter()
-            for words in kraks.values():
-                overall_counts.update(words)
-            top_words = overall_counts.most_common(5)
-            word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
-            notice_message(f"Käytetyimmät sanat: {word_list}")
+        else:  # Show global top words across all servers
+            # Get global stats by combining all servers
+            global_word_counts = {}
+            for server_name in data_manager.get_all_servers():
+                server_stats = general_words.get_server_stats(server_name)
+                for word, count in server_stats["top_words"]:
+                    global_word_counts[word] = global_word_counts.get(word, 0) + count
+            
+            if global_word_counts:
+                top_words = sorted(global_word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+                word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
+                notice_message(f"Käytetyimmät sanat (globaali): {word_list}")
+            else:
+                notice_message("Ei vielä tarpeeksi dataa sanatilastoille.")
 
     elif command == "!leaderboard":
-        kraks = load()
-        user_word_counts = {nick: sum(words.values()) for nick, words in kraks.items()}
-        top_users = sorted(user_word_counts.items(), key=lambda x: x[1], reverse=True)[
-            :5
-        ]
-        if top_users:
+        # Show global leaderboard across all servers
+        global_user_counts = {}
+        
+        for server_name in data_manager.get_all_servers():
+            leaderboard = general_words.get_leaderboard(server_name, 100)  # Get more users to combine
+            for user in leaderboard:
+                user_key = f"{user['nick']}@{server_name}"
+                global_user_counts[user_key] = global_user_counts.get(user_key, 0) + user['total_words']
+        
+        if global_user_counts:
+            top_users = sorted(global_user_counts.items(), key=lambda x: x[1], reverse=True)[:5]
             leaderboard_msg = ", ".join(f"{nick}: {count}" for nick, count in top_users)
-            notice_message(f"Aktiivisimmat käyttäjät: {leaderboard_msg}")
+            notice_message(f"Aktiivisimmat käyttäjät (globaali): {leaderboard_msg}")
         else:
             notice_message("Ei vielä tarpeeksi dataa leaderboardille.")
 
@@ -729,8 +745,6 @@ def process_console_command(command_text, bot_functions):
 def process_message(irc, message, bot_functions):
     """Processes incoming IRC messages and tracks word statistics."""
     # Extract all needed functions and variables from bot_functions dict
-    tamagotchi = bot_functions["tamagotchi"]
-    count_kraks = bot_functions["count_kraks"]
     notice_message = bot_functions["notice_message"]
     send_electricity_price = bot_functions["send_electricity_price"]
     measure_latency = bot_functions["measure_latency"]
@@ -739,7 +753,6 @@ def process_message(irc, message, bot_functions):
     save_leet_winners = bot_functions["save_leet_winners"]
     send_weather = bot_functions["send_weather"]
     send_scheduled_message = bot_functions["send_scheduled_message"]
-    get_eurojackpot_numbers = bot_functions["get_eurojackpot_numbers"]
     search_youtube = bot_functions["search_youtube"]
     handle_ipfs_command = bot_functions["handle_ipfs_command"]
     lookup = bot_functions["lookup"]
@@ -747,14 +760,11 @@ def process_message(irc, message, bot_functions):
     chat_with_gpt = bot_functions["chat_with_gpt"]
     wrap_irc_message_utf8_bytes = bot_functions["wrap_irc_message_utf8_bytes"]
     send_message = bot_functions["send_message"]
-    load = bot_functions["load"]
-    save = bot_functions["save"]
-    update_kraks = bot_functions["update_kraks"]
+    # Legacy word tracking functions still used by some commands
     log = bot_functions["log"]
     fetch_title = bot_functions["fetch_title"]
     lemmat = bot_functions["lemmat"]
     subscriptions = bot_functions["subscriptions"]
-    DRINK_WORDS = bot_functions["DRINK_WORDS"]
     EKAVIKA_FILE = bot_functions["EKAVIKA_FILE"]
     bot_name = bot_functions["bot_name"]
     get_latency_start = bot_functions["latency_start"]
@@ -775,7 +785,7 @@ def process_message(irc, message, bot_functions):
             general_words.process_message(server_name, sender, text, target)
 
             # Drink words tracking with privacy controls
-            drink_matches = drink_tracker.process_message(server_name, sender, text)
+            drink_tracker.process_message(server_name, sender, text)
 
             # Note: Tamagotchi interaction is now handled by bot_manager._track_words()
             # which properly respects the tamagotchi_enabled toggle setting
@@ -783,22 +793,7 @@ def process_message(irc, message, bot_functions):
             # Legacy tamagotchi call removed - now handled by bot_manager._track_words()
             # with proper toggle support
 
-        # Process each message sent to the channel and detect drinking words.
-        # Regex pattern to find words in the format "word (beverage)"
-        match = re.search(r"(\w+)\s*\(\s*([\w\s]+)\s*\)", text)
-
-        if match:
-            word = match.group(
-                1
-            ).lower()  # First captured word (e.g., "krak"). Convert to lowercase for consistent matching
-            beverage = match.group(
-                2
-            ).lower()  # Second captured word inside parentheses (e.g., "karhu")
-
-            if (
-                word in DRINK_WORDS
-            ):  # Check if the first word is in the DRINKING_WORDS list
-                count_kraks(word, beverage)  # Call the function with extracted values
+        # Legacy drink detection removed - now handled by new drink_tracker system
 
         # Check if the message is a private message (not a channel)
         if target.lower() == bot_name.lower():  # Private message detected
@@ -849,12 +844,8 @@ def process_message(irc, message, bot_functions):
 
             return  # Stop further processing
 
-        # Track words only if it's not a bot command
-        if not text.startswith(("!")):  # Track all lines except commands
-            words = re.findall(r"\b\w+\b", text.lower())  # Extract words, ignore case
-            kraks = load()
-            update_kraks(kraks, sender, words)
-            save(kraks)  # Save updates immediately
+        # Legacy word tracking is now handled by the new word tracking system above
+        # The process_message function calls general_words.process_message() which handles all word tracking
 
         # Output all available commands
         if text.startswith("!help"):
@@ -894,22 +885,26 @@ def process_message(irc, message, bot_functions):
         elif text.startswith("!sana "):
             parts = text.split(" ", 1)
             if len(parts) > 1:
-                search_word = parts[1].strip().lower()  # Normalize case
-                kraks = load()  # Reload word data
-
-                word_counts = {
-                    nick: stats[search_word]
-                    for nick, stats in kraks.items()
-                    if search_word in stats
-                }
-
-                if word_counts:
-                    results = ", ".join(
-                        f"{nick}: {count}" for nick, count in word_counts.items()
-                    )
-                    notice_message(
-                        f"Sana '{search_word}' on sanottu: {results}", irc, target
-                    )
+                search_word = parts[1].strip().lower()
+                server_name = data_manager.get_server_name(irc)
+                results = general_words.search_word(search_word)
+                
+                if results["total_occurrences"] > 0:
+                    # Filter for current server only
+                    server_results = results["servers"].get(server_name, {"users": []})
+                    if server_results.get("total", 0) > 0:
+                        users_text = ", ".join(
+                            f"{u['nick']}: {u['count']}" for u in server_results["users"]
+                        )
+                        notice_message(
+                            f"Sana '{search_word}' on sanottu: {users_text}", irc, target
+                        )
+                    else:
+                        notice_message(
+                            f"Kukaan ei ole sanonut sanaa '{search_word}' täällä vielä.",
+                            irc,
+                            target,
+                        )
                 else:
                     notice_message(
                         f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.",
@@ -922,40 +917,36 @@ def process_message(irc, message, bot_functions):
         # !topwords - Käytetyimmät sanat
         elif text.startswith("!topwords"):
             parts = text.split(" ", 1)
-            kraks = load()
+            server_name = data_manager.get_server_name(irc)
 
             if len(parts) > 1:  # Specific nick provided
                 nick = parts[1].strip()
-                if nick in kraks:
-                    top_words = Counter(kraks[nick]).most_common(5)
+                user_stats = general_words.get_user_stats(server_name, nick)
+                if user_stats["total_words"] > 0:
+                    top_words = general_words.get_user_top_words(server_name, nick, 5)
                     word_list = ", ".join(
-                        f"{word}: {count}" for word, count in top_words
+                        f"{word['word']}: {word['count']}" for word in top_words
                     )
                     notice_message(f"{nick}: {word_list}", irc, target)
                 else:
                     notice_message(f"Käyttäjää '{nick}' ei löydy.", irc, target)
-            else:  # Show top words for all users
-                overall_counts = Counter()
-                for words in kraks.values():
-                    overall_counts.update(words)
-
-                top_words = overall_counts.most_common(5)
-                word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
-                notice_message(f"Käytetyimmät sanat: {word_list}", irc, target)
+            else:  # Show top words for all users on this server
+                server_stats = general_words.get_server_stats(server_name)
+                if server_stats["total_words"] > 0:
+                    top_words = server_stats["top_words"][:5]
+                    word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
+                    notice_message(f"Käytetyimmät sanat: {word_list}", irc, target)
+                else:
+                    notice_message("Ei vielä tarpeeksi dataa sanatilastoille.", irc, target)
 
         # !leaderboard - Aktiivisimmat käyttäjät
         elif text.startswith("!leaderboard"):
-            kraks = load()
-            user_word_counts = {
-                nick: sum(words.values()) for nick, words in kraks.items()
-            }
-            top_users = sorted(
-                user_word_counts.items(), key=lambda x: x[1], reverse=True
-            )[:5]
-
-            if top_users:
+            server_name = data_manager.get_server_name(irc)
+            leaderboard = general_words.get_leaderboard(server_name, 5)
+            
+            if leaderboard:
                 leaderboard_msg = ", ".join(
-                    f"{nick}: {count}" for nick, count in top_users
+                    f"{user['nick']}: {user['total_words']}" for user in leaderboard
                 )
                 notice_message(
                     f"Aktiivisimmat käyttäjät: {leaderboard_msg}", irc, target
@@ -963,43 +954,35 @@ def process_message(irc, message, bot_functions):
             else:
                 notice_message("Ei vielä tarpeeksi dataa leaderboardille.", irc, target)
 
-        # !kraks - Krakkaukset
+        # !kraks - Krakkaukset (core drink tracking functionality)
         elif text.startswith("!kraks"):
-            kraks = load()
-            total_kraks = 0
-            word_counts = DRINK_WORDS.copy()
-            top_users = {word: None for word in word_counts.keys()}
-
-            # Count occurrences and track top users
-            for nick, words in kraks.items():
-                for word in word_counts.keys():
-                    count = words.get(word, 0)
-                    word_counts[word] += count
-                    total_kraks += count
-
-                    if count > 0 and (
-                        top_users[word] is None
-                        or count > kraks[top_users[word]].get(word, 0)
-                    ):
-                        top_users[word] = nick
-
-            total_message = f"Krakit yhteensä: {total_kraks}"
-            details = ", ".join(
-                f"{word}: {count} [{top_users[word]}]"
-                for word, count in word_counts.items()
-                if count > 0
-            )
-            notice_message(f"{total_message}, {details}", irc, target)
+            # Use new drink tracking system for kraks command
+            server_name = data_manager.get_server_name(irc)
+            stats = drink_tracker.get_server_stats(server_name)
+            
+            if stats['total_drink_words'] > 0:
+                # Get detailed breakdown by drink word
+                drink_words = drink_tracker.get_drink_word_breakdown(server_name)
+                if drink_words:
+                    details = ", ".join(
+                        f"{word}: {count} [{top_user}]"
+                        for word, count, top_user in drink_words[:10]  # Show top 10 drink words
+                    )
+                    response = f"Krakit yhteensä: {stats['total_drink_words']}, {details}"
+                else:
+                    response = f"Krakit yhteensä: {stats['total_drink_words']}. Top 5: {', '.join([f'{nick}:{count}' for nick, count in stats['top_users'][:5]])}"
+            else:
+                response = "Ei vielä krakkauksia tallennettuna."
+            
+            notice_message(response, irc, target)
 
         elif text.startswith("!clearkraks"):
-            kraks = load()
-
-            # Reset all tracked words
-            for nick in kraks.keys():
-                kraks[nick] = {}
-
-            save(kraks)  # Save the cleared data
-            log("Kaikki krakit on nollattu!")
+            # For clearing drink stats, inform user about privacy controls
+            notice_message(
+                "💡 Käytä !antikrak poistaaksesi omat juomatilastot seurannasta. Ylläpitäjä voi poistaa kaikki tilastot tarvittaessa.",
+                irc,
+                target,
+            )
 
         # !euribor - Uusin 12kk euribor
         elif text.startswith("!euribor"):
@@ -1642,7 +1625,6 @@ def process_message(irc, message, bot_functions):
             if target == bot_name:
                 target = sender
             if match:
-                username = match.group(1)
                 notice_message(
                     "https://img-9gag-fun.9cache.com/photo/aqGwo2R_700bwp.webp",
                     irc,

@@ -366,6 +366,14 @@ class DataManager:
 
         return self._update_opt_out_env(opt_out_data)
 
+    def load_privacy_settings(self) -> Dict[str, Any]:
+        """Load privacy settings data."""
+        return self.load_json(self.privacy_settings_file)
+
+    def save_privacy_settings(self, data: Dict[str, Any]):
+        """Save privacy settings data."""
+        self.save_json(self.privacy_settings_file, data)
+
     def get_opted_out_users(self, server: Optional[str] = None) -> Dict[str, List[str]]:
         """
         Get all opted-out users, optionally filtered by server.
