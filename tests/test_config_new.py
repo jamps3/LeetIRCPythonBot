@@ -49,7 +49,7 @@ def test_server_config_parsing():
     config = config_manager.config
 
     assert config.servers, "Should have servers configured"
-    
+
     server = config.servers[0]
 
     # Validate server structure
@@ -63,6 +63,7 @@ def test_server_config_parsing():
 def test_environment_variable_handling():
     """Test environment variable handling."""
     import os
+
     from config import ConfigManager
 
     # Save current environment state

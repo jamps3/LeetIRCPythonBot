@@ -5,7 +5,6 @@ Tests for Eurojackpot Service
 
 import json
 import os
-import requests
 
 # Add the parent directory to sys.path to import our modules
 import sys
@@ -14,17 +13,28 @@ import unittest
 from datetime import datetime
 from unittest.mock import MagicMock, Mock, patch
 
+import requests
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Mock all external dependencies that might cause import errors
 modules_to_mock = [
-    'feedparser', 'bs4', 'selenium', 'googleapiclient', 'isodate',
-    'selenium.webdriver', 'selenium.webdriver.chrome',
-    'selenium.webdriver.chrome.options', 'selenium.webdriver.common',
-    'selenium.webdriver.common.by', 'selenium.webdriver.support',
-    'selenium.webdriver.support.ui', 'selenium.webdriver.support.expected_conditions',
-    'googleapiclient.discovery', 'googleapiclient.errors',
-    'selenium.webdriver.chrome.service'
+    "feedparser",
+    "bs4",
+    "selenium",
+    "googleapiclient",
+    "isodate",
+    "selenium.webdriver",
+    "selenium.webdriver.chrome",
+    "selenium.webdriver.chrome.options",
+    "selenium.webdriver.common",
+    "selenium.webdriver.common.by",
+    "selenium.webdriver.support",
+    "selenium.webdriver.support.ui",
+    "selenium.webdriver.support.expected_conditions",
+    "googleapiclient.discovery",
+    "googleapiclient.errors",
+    "selenium.webdriver.chrome.service",
 ]
 
 for module in modules_to_mock:
@@ -91,7 +101,7 @@ class TestEurojackpotService(unittest.TestCase):
         mock_response.json.return_value = {"success": True}
         mock_response.raise_for_status.return_value = None
         mock_response.status_code = 200
-        
+
         mock_session_instance = Mock()
         mock_session_instance.get.return_value = mock_response
         mock_session.return_value = mock_session_instance
@@ -104,12 +114,9 @@ class TestEurojackpotService(unittest.TestCase):
         # Instead of trying to mock the complex multi-approach logic,
         # let's test the error handling directly by simulating what happens
         # when a RequestException is caught in the outer try-except
-        with patch.object(self.service, '_make_request') as mock_method:
-            mock_method.return_value = {
-                "error": 999,
-                "message": "Network error"
-            }
-            
+        with patch.object(self.service, "_make_request") as mock_method:
+            mock_method.return_value = {"error": 999, "message": "Network error"}
+
             result = self.service._make_request("http://test.com", {"param": "value"})
             self.assertIsNotNone(result)  # Should return error dict, not None
             self.assertIsInstance(result, dict)  # Should be a dictionary
@@ -156,7 +163,7 @@ class TestEurojackpotService(unittest.TestCase):
         # Since the real API is complex to mock properly, we'll test the fallback behavior
         # The service should still return success=False when API fails but provide fallback info
         self.service.api_key = None  # This will trigger fallback behavior
-        
+
         result = self.service.get_last_results()
         self.assertFalse(result["success"])  # API unavailable, so success=False
         self.assertIn("Ei API-avainta", result["message"])
@@ -178,7 +185,7 @@ class TestEurojackpotService(unittest.TestCase):
             "saved_at": datetime.now().isoformat(),
         }
         self.service._save_draw_to_database(test_draw)
-        
+
         # Test without API key (database fallback)
         self.service.api_key = None
         result = self.service.get_draw_by_date("13.06.25")
@@ -253,7 +260,7 @@ class TestEurojackpotService(unittest.TestCase):
         """Test combined info retrieval with fallback behavior."""
         # Test with no API key to trigger fallback behavior
         self.service.api_key = None
-        
+
         result = self.service.get_combined_info()
         # When API is unavailable, only next draw info (demo data) is shown
         self.assertIn("Seuraava Eurojackpot-arvonta", result)
@@ -595,7 +602,9 @@ class TestEurojackpotCommandIntegration(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertGreaterEqual(result["new_draws"], 0)  # May be 0 if no new draws
         # Check that message indicates completion
-        self.assertTrue("Scrape valmis!" in result["message"] or "tallennettu" in result["message"])
+        self.assertTrue(
+            "Scrape valmis!" in result["message"] or "tallennettu" in result["message"]
+        )
 
     def test_stats_command_integration(self):
         """Test !eurojackpot stats command integration."""

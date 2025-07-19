@@ -18,11 +18,37 @@ from dotenv import load_dotenv
 
 # Mock external dependencies at import time to avoid import errors
 external_deps = [
-    "requests", "feedparser", "bs4", "selenium", "youtube_dl", "yt_dlp",
-    "psutil", "matplotlib", "openai", "websocket", "urllib3", "certifi",
-    "charset_normalizer", "idna", "lxml", "html5lib", "pytz", "dateutil",
-    "cryptography", "jwt", "aiohttp", "asyncio", "websockets", "discord",
-    "tweepy", "praw", "pandas", "numpy", "PIL", "cv2", "googleapiclient",
+    "requests",
+    "feedparser",
+    "bs4",
+    "selenium",
+    "youtube_dl",
+    "yt_dlp",
+    "psutil",
+    "matplotlib",
+    "openai",
+    "websocket",
+    "urllib3",
+    "certifi",
+    "charset_normalizer",
+    "idna",
+    "lxml",
+    "html5lib",
+    "pytz",
+    "dateutil",
+    "cryptography",
+    "jwt",
+    "aiohttp",
+    "asyncio",
+    "websockets",
+    "discord",
+    "tweepy",
+    "praw",
+    "pandas",
+    "numpy",
+    "PIL",
+    "cv2",
+    "googleapiclient",
     "isodate",
 ]
 
@@ -102,11 +128,17 @@ def test_nanoleet_detector_mega():
 
         if timestamp == "13:37:13.371337133":
             # This should be ultimate, not mega
-            assert level == "ultimate", f"Ultimate timestamp should be 'ultimate', got '{level}'"
+            assert (
+                level == "ultimate"
+            ), f"Ultimate timestamp should be 'ultimate', got '{level}'"
         elif result["total_count"] >= 3 and expected_level == "mega":
-            assert level == "mega", f"Expected 'mega' level for {timestamp}, got '{level}'"
+            assert (
+                level == "mega"
+            ), f"Expected 'mega' level for {timestamp}, got '{level}'"
         elif result["total_count"] == 2 and expected_level == "super":
-            assert level == "super", f"Expected 'super' level for {timestamp}, got '{level}'"
+            assert (
+                level == "super"
+            ), f"Expected 'super' level for {timestamp}, got '{level}'"
 
 
 def test_nanoleet_detector_nano():
@@ -127,7 +159,9 @@ def test_nanoleet_detector_nano():
         level = detector.determine_achievement_level(result)
 
         if result["nano_count"] > 0 and result["time_count"] == 0:
-            assert level == "nano", f"Expected 'nano' level for {timestamp}, got '{level}'"
+            assert (
+                level == "nano"
+            ), f"Expected 'nano' level for {timestamp}, got '{level}'"
 
             # Test message formatting
             message = detector.format_achievement_message("nanouser", timestamp, level)
@@ -147,31 +181,59 @@ def test_tamagotchi_toggle_functionality():
         with patch("bot_manager.DataManager") as mock_dm:
             with patch("bot_manager.get_api_key", return_value=None):
                 with patch("bot_manager.create_crypto_service", return_value=Mock()):
-                    with patch("bot_manager.create_nanoleet_detector", return_value=Mock()):
-                        with patch("bot_manager.create_fmi_warning_service", return_value=Mock()):
-                            with patch("bot_manager.create_otiedote_service", return_value=Mock()):
-                                with patch("bot_manager.Lemmatizer", side_effect=Exception("Mock error")):
+                    with patch(
+                        "bot_manager.create_nanoleet_detector", return_value=Mock()
+                    ):
+                        with patch(
+                            "bot_manager.create_fmi_warning_service",
+                            return_value=Mock(),
+                        ):
+                            with patch(
+                                "bot_manager.create_otiedote_service",
+                                return_value=Mock(),
+                            ):
+                                with patch(
+                                    "bot_manager.Lemmatizer",
+                                    side_effect=Exception("Mock error"),
+                                ):
                                     from bot_manager import BotManager
 
                                     # Mock data manager methods
-                                    mock_dm.return_value.load_tamagotchi_state.return_value = {"servers": {}}
-                                    mock_dm.return_value.save_tamagotchi_state.return_value = None
-                                    mock_dm.return_value.load_general_words_data.return_value = {"servers": {}}
-                                    mock_dm.return_value.save_general_words_data.return_value = None
-                                    mock_dm.return_value.load_drink_data.return_value = {"servers": {}}
-                                    mock_dm.return_value.save_drink_data.return_value = None
+                                    mock_dm.return_value.load_tamagotchi_state.return_value = {
+                                        "servers": {}
+                                    }
+                                    mock_dm.return_value.save_tamagotchi_state.return_value = (
+                                        None
+                                    )
+                                    mock_dm.return_value.load_general_words_data.return_value = {
+                                        "servers": {}
+                                    }
+                                    mock_dm.return_value.save_general_words_data.return_value = (
+                                        None
+                                    )
+                                    mock_dm.return_value.load_drink_data.return_value = {
+                                        "servers": {}
+                                    }
+                                    mock_dm.return_value.save_drink_data.return_value = (
+                                        None
+                                    )
 
                                     bot_manager = BotManager("TestBot")
 
                                     # Test initial state
-                                    assert hasattr(bot_manager, "tamagotchi_enabled"), "Bot should have tamagotchi_enabled attribute"
-                                    assert hasattr(bot_manager, "toggle_tamagotchi"), "Bot should have toggle_tamagotchi method"
+                                    assert hasattr(
+                                        bot_manager, "tamagotchi_enabled"
+                                    ), "Bot should have tamagotchi_enabled attribute"
+                                    assert hasattr(
+                                        bot_manager, "toggle_tamagotchi"
+                                    ), "Bot should have toggle_tamagotchi method"
 
                                     # Mock server and response tracking
                                     mock_server = Mock()
                                     mock_server.config.name = "test_server"
 
                                     responses = []
+
                                     def mock_send_response(server, target, message):
                                         responses.append(message)
 
@@ -179,12 +241,20 @@ def test_tamagotchi_toggle_functionality():
 
                                     # Test toggle command
                                     original_state = bot_manager.tamagotchi_enabled
-                                    bot_manager.toggle_tamagotchi(mock_server, "#test", "testuser")
+                                    bot_manager.toggle_tamagotchi(
+                                        mock_server, "#test", "testuser"
+                                    )
 
                                     # Should have changed state
-                                    assert bot_manager.tamagotchi_enabled != original_state, "Tamagotchi state should have changed"
-                                    assert len(responses) > 0, "Should have sent a response"
-                                    assert "Tamagotchi" in responses[0], "Response should mention Tamagotchi"
+                                    assert (
+                                        bot_manager.tamagotchi_enabled != original_state
+                                    ), "Tamagotchi state should have changed"
+                                    assert (
+                                        len(responses) > 0
+                                    ), "Should have sent a response"
+                                    assert (
+                                        "Tamagotchi" in responses[0]
+                                    ), "Response should mention Tamagotchi"
     finally:
         # Clean up temp file
         if os.path.exists(env_file):
@@ -198,9 +268,16 @@ def test_youtube_url_detection():
         with patch("bot_manager.get_api_key", return_value=None):
             with patch("bot_manager.create_crypto_service", return_value=Mock()):
                 with patch("bot_manager.create_nanoleet_detector", return_value=Mock()):
-                    with patch("bot_manager.create_fmi_warning_service", return_value=Mock()):
-                        with patch("bot_manager.create_otiedote_service", return_value=Mock()):
-                            with patch("bot_manager.Lemmatizer", side_effect=Exception("Mock error")):
+                    with patch(
+                        "bot_manager.create_fmi_warning_service", return_value=Mock()
+                    ):
+                        with patch(
+                            "bot_manager.create_otiedote_service", return_value=Mock()
+                        ):
+                            with patch(
+                                "bot_manager.Lemmatizer",
+                                side_effect=Exception("Mock error"),
+                            ):
                                 from bot_manager import BotManager
 
                                 bot_manager = BotManager("TestBot")
@@ -208,18 +285,30 @@ def test_youtube_url_detection():
                                 # Test various YouTube URL formats
                                 test_urls = [
                                     # Standard YouTube URLs
-                                    ("https://www.youtube.com/watch?v=5nM6T3KCVfM", True),
-                                    ("http://www.youtube.com/watch?v=5nM6T3KCVfM", True),
+                                    (
+                                        "https://www.youtube.com/watch?v=5nM6T3KCVfM",
+                                        True,
+                                    ),
+                                    (
+                                        "http://www.youtube.com/watch?v=5nM6T3KCVfM",
+                                        True,
+                                    ),
                                     ("https://youtube.com/watch?v=5nM6T3KCVfM", True),
                                     # Short YouTube URLs
                                     ("https://youtu.be/5nM6T3KCVfM", True),
                                     ("http://youtu.be/5nM6T3KCVfM", True),
                                     # YouTube Shorts URLs
-                                    ("https://www.youtube.com/shorts/5nM6T3KCVfM", True),
+                                    (
+                                        "https://www.youtube.com/shorts/5nM6T3KCVfM",
+                                        True,
+                                    ),
                                     # Mobile YouTube URLs
                                     ("https://m.youtube.com/watch?v=5nM6T3KCVfM", True),
                                     # YouTube Music URLs
-                                    ("https://music.youtube.com/watch?v=5nM6T3KCVfM", True),
+                                    (
+                                        "https://music.youtube.com/watch?v=5nM6T3KCVfM",
+                                        True,
+                                    ),
                                     # Embed URLs
                                     ("https://www.youtube.com/embed/5nM6T3KCVfM", True),
                                     ("https://www.youtube.com/v/5nM6T3KCVfM", True),
@@ -234,7 +323,9 @@ def test_youtube_url_detection():
 
                                 for url, should_be_youtube in test_urls:
                                     result = bot_manager._is_youtube_url(url)
-                                    assert result == should_be_youtube, f"Failed for URL: {url}, expected {should_be_youtube}, got {result}"
+                                    assert (
+                                        result == should_be_youtube
+                                    ), f"Failed for URL: {url}, expected {should_be_youtube}, got {result}"
 
 
 def test_url_blacklist_functionality():
@@ -244,9 +335,16 @@ def test_url_blacklist_functionality():
         with patch("bot_manager.get_api_key", return_value=None):
             with patch("bot_manager.create_crypto_service", return_value=Mock()):
                 with patch("bot_manager.create_nanoleet_detector", return_value=Mock()):
-                    with patch("bot_manager.create_fmi_warning_service", return_value=Mock()):
-                        with patch("bot_manager.create_otiedote_service", return_value=Mock()):
-                            with patch("bot_manager.Lemmatizer", side_effect=Exception("Mock error")):
+                    with patch(
+                        "bot_manager.create_fmi_warning_service", return_value=Mock()
+                    ):
+                        with patch(
+                            "bot_manager.create_otiedote_service", return_value=Mock()
+                        ):
+                            with patch(
+                                "bot_manager.Lemmatizer",
+                                side_effect=Exception("Mock error"),
+                            ):
                                 from bot_manager import BotManager
 
                                 bot_manager = BotManager("TestBot")
@@ -262,7 +360,9 @@ def test_url_blacklist_functionality():
 
                                 for url in blacklisted_urls:
                                     result = bot_manager._is_url_blacklisted(url)
-                                    assert result, f"URL should be blacklisted but wasn't: {url}"
+                                    assert (
+                                        result
+                                    ), f"URL should be blacklisted but wasn't: {url}"
 
                                 # Test allowed URLs
                                 allowed_urls = [
@@ -273,7 +373,9 @@ def test_url_blacklist_functionality():
 
                                 for url in allowed_urls:
                                     result = bot_manager._is_url_blacklisted(url)
-                                    assert not result, f"URL should be allowed but was blacklisted: {url}"
+                                    assert (
+                                        not result
+                                    ), f"URL should be allowed but was blacklisted: {url}"
 
 
 def test_nanoleet_message_for_leet():
@@ -304,7 +406,9 @@ def test_bot_manager_initialization_with_services():
             with patch("bot_manager.create_crypto_service") as mock_crypto:
                 with patch("bot_manager.create_nanoleet_detector") as mock_nano:
                     with patch("bot_manager.create_fmi_warning_service") as mock_fmi:
-                        with patch("bot_manager.create_otiedote_service") as mock_otiedote:
+                        with patch(
+                            "bot_manager.create_otiedote_service"
+                        ) as mock_otiedote:
                             with patch("bot_manager.Lemmatizer") as mock_lemma:
                                 # Set up proper mock returns
                                 mock_api.return_value = "fake_key"
@@ -317,11 +421,21 @@ def test_bot_manager_initialization_with_services():
                                 # Mock data manager
                                 mock_dm_instance = Mock()
                                 mock_dm.return_value = mock_dm_instance
-                                mock_dm_instance.load_tamagotchi_state.return_value = {"servers": {}}
-                                mock_dm_instance.save_tamagotchi_state.return_value = None
-                                mock_dm_instance.load_general_words_data.return_value = {"servers": {}}
-                                mock_dm_instance.save_general_words_data.return_value = None
-                                mock_dm_instance.load_drink_data.return_value = {"servers": {}}
+                                mock_dm_instance.load_tamagotchi_state.return_value = {
+                                    "servers": {}
+                                }
+                                mock_dm_instance.save_tamagotchi_state.return_value = (
+                                    None
+                                )
+                                mock_dm_instance.load_general_words_data.return_value = {
+                                    "servers": {}
+                                }
+                                mock_dm_instance.save_general_words_data.return_value = (
+                                    None
+                                )
+                                mock_dm_instance.load_drink_data.return_value = {
+                                    "servers": {}
+                                }
                                 mock_dm_instance.save_drink_data.return_value = None
 
                                 from bot_manager import BotManager
@@ -330,21 +444,38 @@ def test_bot_manager_initialization_with_services():
 
                                 # Check that essential attributes exist
                                 required_attrs = [
-                                    "bot_name", "servers", "stop_event", "data_manager",
-                                    "drink_tracker", "general_words", "tamagotchi",
-                                    "crypto_service", "nanoleet_detector",
+                                    "bot_name",
+                                    "servers",
+                                    "stop_event",
+                                    "data_manager",
+                                    "drink_tracker",
+                                    "general_words",
+                                    "tamagotchi",
+                                    "crypto_service",
+                                    "nanoleet_detector",
                                 ]
 
                                 for attr in required_attrs:
-                                    assert hasattr(bot_manager, attr), f"Missing required attribute: {attr}"
+                                    assert hasattr(
+                                        bot_manager, attr
+                                    ), f"Missing required attribute: {attr}"
 
                                 # Check that essential methods exist
                                 required_methods = [
-                                    "_handle_message", "_track_words", "_process_commands",
-                                    "start", "stop", "wait_for_shutdown",
-                                    "_listen_for_console_commands", "_create_console_bot_functions",
+                                    "_handle_message",
+                                    "_track_words",
+                                    "_process_commands",
+                                    "start",
+                                    "stop",
+                                    "wait_for_shutdown",
+                                    "_listen_for_console_commands",
+                                    "_create_console_bot_functions",
                                 ]
 
                                 for method in required_methods:
-                                    assert hasattr(bot_manager, method), f"Missing required method: {method}"
-                                    assert callable(getattr(bot_manager, method)), f"Attribute {method} is not callable"
+                                    assert hasattr(
+                                        bot_manager, method
+                                    ), f"Missing required method: {method}"
+                                    assert callable(
+                                        getattr(bot_manager, method)
+                                    ), f"Attribute {method} is not callable"

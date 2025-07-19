@@ -6,15 +6,17 @@ Pure pytest implementation with fixtures, parametrization, and assertions.
 """
 
 import json
+from unittest.mock import Mock, patch
+
 import pytest
 import requests
-from unittest.mock import Mock, patch
 
 
 @pytest.fixture
 def crypto_service():
     """Create a CryptoService instance for testing."""
     from services.crypto_service import CryptoService
+
     return CryptoService()
 
 
@@ -81,13 +83,19 @@ def test_crypto_service_creation():
 
     # Test direct instantiation
     service = CryptoService()
-    assert service.base_url == "https://api.coingecko.com/api/v3", "Base URL should be set"
+    assert (
+        service.base_url == "https://api.coingecko.com/api/v3"
+    ), "Base URL should be set"
     assert isinstance(service.crypto_aliases, dict), "Should have crypto aliases"
-    assert isinstance(service.supported_currencies, list), "Should have supported currencies"
+    assert isinstance(
+        service.supported_currencies, list
+    ), "Should have supported currencies"
 
     # Test factory function
     service2 = create_crypto_service()
-    assert isinstance(service2, CryptoService), "Factory should return CryptoService instance"
+    assert isinstance(
+        service2, CryptoService
+    ), "Factory should return CryptoService instance"
 
 
 def test_crypto_price_success(crypto_service, mock_bitcoin_response):
@@ -100,7 +108,7 @@ def test_crypto_price_success(crypto_service, mock_bitcoin_response):
 
         result = crypto_service.get_crypto_price("bitcoin", "eur")
 
-    assert result["error"] == False, "Should not have error"
+    assert not result["error"], "Should not have error"
     assert result["coin_id"] == "bitcoin", "Coin ID should match"
     assert result["currency"] == "EUR", "Currency should be uppercase"
     assert result["price"] == 45000.50, "Price should match"
@@ -118,7 +126,7 @@ def test_crypto_alias_handling(crypto_service, mock_bitcoin_response):
         # Test BTC alias resolves to bitcoin
         result = crypto_service.get_crypto_price("btc", "eur")
 
-    assert result["error"] == False, "Should not have error"
+    assert not result["error"], "Should not have error"
     assert result["coin_id"] == "bitcoin", "BTC should resolve to bitcoin"
 
 
@@ -132,7 +140,7 @@ def test_crypto_api_error(crypto_service):
 
         result = crypto_service.get_crypto_price("nonexistent", "eur")
 
-    assert result["error"] == True, "Should have error"
+    assert result["error"], "Should have error"
     assert "404" in str(result["status_code"]), "Should include status code"
 
 
@@ -143,7 +151,7 @@ def test_crypto_timeout_handling(crypto_service):
 
         result = crypto_service.get_crypto_price("bitcoin", "eur")
 
-    assert result["error"] == True, "Should have error"
+    assert result["error"], "Should have error"
     assert "timed out" in result["message"].lower(), "Should mention timeout"
     assert result["exception"] == "timeout", "Should have timeout exception type"
 
@@ -152,8 +160,10 @@ def test_unsupported_currency(crypto_service):
     """Test unsupported currency handling."""
     result = crypto_service.get_crypto_price("bitcoin", "xyz")
 
-    assert result["error"] == True, "Should have error"
-    assert "Unsupported currency" in result["message"], "Should mention unsupported currency"
+    assert result["error"], "Should have error"
+    assert (
+        "Unsupported currency" in result["message"]
+    ), "Should mention unsupported currency"
 
 
 def test_coin_not_found(crypto_service):
@@ -169,7 +179,7 @@ def test_coin_not_found(crypto_service):
 
         result = crypto_service.get_crypto_price("nonexistentcoin", "eur")
 
-    assert result["error"] == True, "Should have error"
+    assert result["error"], "Should have error"
     assert "not found" in result["message"].lower(), "Should mention coin not found"
 
 
@@ -183,7 +193,7 @@ def test_trending_cryptos(crypto_service, mock_trending_response):
 
         result = crypto_service.get_trending_cryptos()
 
-    assert result["error"] == False, "Should not have error"
+    assert not result["error"], "Should not have error"
     assert len(result["trending"]) == 2, "Should have 2 trending coins"
     assert result["trending"][0]["symbol"] == "BTC", "First coin should be BTC"
 
@@ -198,7 +208,7 @@ def test_crypto_search(crypto_service, mock_search_response):
 
         result = crypto_service.search_crypto("bitcoin")
 
-    assert result["error"] == False, "Should not have error"
+    assert not result["error"], "Should not have error"
     assert len(result["results"]) == 1, "Should have 1 search result"
     assert result["results"][0]["name"] == "Bitcoin", "Should find Bitcoin"
 
@@ -255,45 +265,62 @@ def test_trending_message_formatting(crypto_service):
     assert "🔥 Trending-haku epäonnistui" in error_result, "Should indicate failure"
 
 
-@pytest.mark.parametrize("currency,expected_symbol", [
-    ("EUR", "€"),
-    ("USD", "$"),
-    ("BTC", "₿"),
-    ("ETH", "Ξ"),
-    ("UNKNOWN", "UNKNOWN "),
-])
+@pytest.mark.parametrize(
+    "currency,expected_symbol",
+    [
+        ("EUR", "€"),
+        ("USD", "$"),
+        ("BTC", "₿"),
+        ("ETH", "Ξ"),
+        ("UNKNOWN", "UNKNOWN "),
+    ],
+)
 def test_currency_symbol_mapping(crypto_service, currency, expected_symbol):
     """Test currency symbol mapping."""
     result = crypto_service._get_currency_symbol(currency)
-    assert result == expected_symbol, f"Currency symbol for {currency} should be {expected_symbol}, got {result}"
+    assert (
+        result == expected_symbol
+    ), f"Currency symbol for {currency} should be {expected_symbol}, got {result}"
 
 
-@pytest.mark.parametrize("price_data,expected_content", [
-    # High value coins
-    ({
-        "error": False,
-        "coin_id": "bitcoin",
-        "currency": "EUR",
-        "price": 45000.50,
-        "change_24h": None,
-    }, "45,000.50"),
-    # Medium value coins
-    ({
-        "error": False,
-        "coin_id": "ethereum",
-        "currency": "EUR",
-        "price": 3.5678,
-        "change_24h": None,
-    }, "3.57"),
-    # Low value coins
-    ({
-        "error": False,
-        "coin_id": "lowcoin",
-        "currency": "EUR",
-        "price": 0.00001234,
-        "change_24h": None,
-    }, "0.00001234"),
-])
+@pytest.mark.parametrize(
+    "price_data,expected_content",
+    [
+        # High value coins
+        (
+            {
+                "error": False,
+                "coin_id": "bitcoin",
+                "currency": "EUR",
+                "price": 45000.50,
+                "change_24h": None,
+            },
+            "45,000.50",
+        ),
+        # Medium value coins
+        (
+            {
+                "error": False,
+                "coin_id": "ethereum",
+                "currency": "EUR",
+                "price": 3.5678,
+                "change_24h": None,
+            },
+            "3.57",
+        ),
+        # Low value coins
+        (
+            {
+                "error": False,
+                "coin_id": "lowcoin",
+                "currency": "EUR",
+                "price": 0.00001234,
+                "change_24h": None,
+            },
+            "0.00001234",
+        ),
+    ],
+)
 def test_price_formatting_precision(crypto_service, price_data, expected_content):
     """Test price formatting precision."""
     result = crypto_service.format_price_message(price_data)
@@ -322,7 +349,7 @@ def test_network_error_handling(crypto_service):
 
         result = crypto_service.get_crypto_price("bitcoin", "eur")
 
-    assert result["error"] == True, "Should have error"
+    assert result["error"], "Should have error"
     assert "connection" in result["message"].lower(), "Should mention connection error"
 
 
@@ -336,8 +363,10 @@ def test_json_decode_error(crypto_service):
 
         result = crypto_service.get_crypto_price("bitcoin", "eur")
 
-    assert result["error"] == True, "Should have error"
-    assert "json" in result["message"].lower() or "decode" in result["message"].lower(), "Should mention JSON error"
+    assert result["error"], "Should have error"
+    assert (
+        "json" in result["message"].lower() or "decode" in result["message"].lower()
+    ), "Should mention JSON error"
 
 
 def test_negative_price_change_formatting(crypto_service):

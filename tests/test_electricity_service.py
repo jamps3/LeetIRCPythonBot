@@ -7,11 +7,12 @@ command parsing, and message formatting.
 
 import json
 import os
-import requests
 import unittest
 from datetime import datetime, timedelta
 from io import StringIO
 from unittest.mock import Mock, patch
+
+import requests
 
 from services.electricity_service import ElectricityService, create_electricity_service
 
@@ -168,10 +169,12 @@ class TestElectricityService(unittest.TestCase):
         self.assertEqual(result["status_code"], 401)
         self.assertIn("Invalid ENTSO-E API key", result["message"])
 
-    @unittest.skip("Skipping due to test framework mocking conflicts with requests.exceptions.Timeout")
+    @unittest.skip(
+        "Skipping due to test framework mocking conflicts with requests.exceptions.Timeout"
+    )
     def test_fetch_daily_prices_timeout(self):
         """Test timeout handling.
-        
+
         Note: This test is skipped due to test framework mocking issues.
         The timeout handling has been manually verified to work correctly.
         """

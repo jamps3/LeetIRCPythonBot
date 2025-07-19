@@ -35,9 +35,18 @@ def test_date_correction_tanaanaon_pattern():
 
     current_date = datetime.now()
     finnish_months = [
-        "tammikuuta", "helmikuuta", "maaliskuuta", "huhtikuuta",
-        "toukokuuta", "kesäkuuta", "heinäkuuta", "elokuuta",
-        "syyskuuta", "lokakuuta", "marraskuuta", "joulukuuta",
+        "tammikuuta",
+        "helmikuuta",
+        "maaliskuuta",
+        "huhtikuuta",
+        "toukokuuta",
+        "kesäkuuta",
+        "heinäkuuta",
+        "elokuuta",
+        "syyskuuta",
+        "lokakuuta",
+        "marraskuuta",
+        "joulukuuta",
     ]
     expected_date = f"{current_date.day}. {finnish_months[current_date.month - 1]} {current_date.year}"
 
@@ -45,11 +54,13 @@ def test_date_correction_tanaanaon_pattern():
         corrected = service._correct_outdated_dates(test_case)
 
         # Should contain the corrected date
-        assert expected_date in corrected, f"Expected '{expected_date}' in '{corrected}'"
-        
+        assert (
+            expected_date in corrected
+        ), f"Expected '{expected_date}' in '{corrected}'"
+
         # Should still contain "Tänään on"
         assert "Tänään on" in corrected, f"'Tänään on' missing from '{corrected}'"
-        
+
         # Should have changed from original
         assert corrected != test_case, f"No change applied to '{test_case}'"
 
@@ -74,10 +85,12 @@ def test_date_correction_other_patterns():
 
         # Should have been corrected (changed from original)
         assert corrected != test_case, f"No change applied to '{test_case}'"
-        
+
         # Should contain current year
         current_year = str(datetime.now().year)
-        assert current_year in corrected, f"Current year '{current_year}' not in '{corrected}'"
+        assert (
+            current_year in corrected
+        ), f"Current year '{current_year}' not in '{corrected}'"
 
 
 def test_date_correction_no_change_cases():
@@ -103,7 +116,9 @@ def test_date_correction_no_change_cases():
         corrected = service._correct_outdated_dates(test_case)
 
         # Should NOT have been changed
-        assert corrected == test_case, f"Unexpected change from '{test_case}' to '{corrected}'"
+        assert (
+            corrected == test_case
+        ), f"Unexpected change from '{test_case}' to '{corrected}'"
 
 
 def test_date_correction_pattern_matching():
@@ -117,9 +132,18 @@ def test_date_correction_pattern_matching():
     # Test specific patterns
     current_date = datetime.now()
     finnish_months = [
-        "tammikuuta", "helmikuuta", "maaliskuuta", "huhtikuuta",
-        "toukokuuta", "kesäkuuta", "heinäkuuta", "elokuuta",
-        "syyskuuta", "lokakuuta", "marraskuuta", "joulukuuta",
+        "tammikuuta",
+        "helmikuuta",
+        "maaliskuuta",
+        "huhtikuuta",
+        "toukokuuta",
+        "kesäkuuta",
+        "heinäkuuta",
+        "elokuuta",
+        "syyskuuta",
+        "lokakuuta",
+        "marraskuuta",
+        "joulukuuta",
     ]
     expected_date = f"{current_date.day}. {finnish_months[current_date.month - 1]} {current_date.year}"
 
@@ -134,10 +158,14 @@ def test_date_correction_pattern_matching():
         corrected = service._correct_outdated_dates(test_case)
 
         # Should contain the corrected date
-        assert expected_date in corrected, f"Expected '{expected_date}' in '{corrected}' for case-insensitive test"
-        
+        assert (
+            expected_date in corrected
+        ), f"Expected '{expected_date}' in '{corrected}' for case-insensitive test"
+
         # Should have changed from original
-        assert corrected != test_case, f"No change applied to '{test_case}' in case-insensitive test"
+        assert (
+            corrected != test_case
+        ), f"No change applied to '{test_case}' in case-insensitive test"
 
 
 def test_date_correction_edge_cases():
@@ -177,8 +205,12 @@ def test_gpt_service_initialization():
     service = GPTService(api_key)
 
     assert service.api_key == api_key, "API key should be set correctly"
-    assert hasattr(service, "_correct_outdated_dates"), "Service should have date correction method"
-    assert hasattr(service, "conversation_history"), "Service should have conversation history"
+    assert hasattr(
+        service, "_correct_outdated_dates"
+    ), "Service should have date correction method"
+    assert hasattr(
+        service, "conversation_history"
+    ), "Service should have conversation history"
     assert hasattr(service, "client"), "Service should have OpenAI client"
 
 
@@ -192,9 +224,18 @@ def test_date_correction_month_names():
 
     # Test all Finnish months
     finnish_months = [
-        "tammikuuta", "helmikuuta", "maaliskuuta", "huhtikuuta",
-        "toukokuuta", "kesäkuuta", "heinäkuuta", "elokuuta",
-        "syyskuuta", "lokakuuta", "marraskuuta", "joulukuuta",
+        "tammikuuta",
+        "helmikuuta",
+        "maaliskuuta",
+        "huhtikuuta",
+        "toukokuuta",
+        "kesäkuuta",
+        "heinäkuuta",
+        "elokuuta",
+        "syyskuuta",
+        "lokakuuta",
+        "marraskuuta",
+        "joulukuuta",
     ]
 
     current_date = datetime.now()
@@ -205,5 +246,7 @@ def test_date_correction_month_names():
         corrected = service._correct_outdated_dates(test_text)
 
         # Should be corrected to current year
-        assert str(current_year) in corrected, f"Should correct year for month {month}: '{corrected}'"
+        assert (
+            str(current_year) in corrected
+        ), f"Should correct year for month {month}: '{corrected}'"
         assert corrected != test_text, f"Should change for month {month}"

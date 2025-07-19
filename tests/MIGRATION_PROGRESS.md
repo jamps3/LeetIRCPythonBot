@@ -56,6 +56,39 @@ Migration from custom test framework to pure pytest implementation.
   - Price formatting and message generation tests
   - Enhanced error handling tests
 
+### 6. test_console_commands_new.py
+- **Original**: `test_console_commands.py` (custom framework)
+- **Status**: ✅ Migrated and tested
+- **Features**:
+  - Pytest fixtures for mock bot functions
+  - Parametrized testing for various console commands
+  - Legacy command system compatibility testing
+  - Error handling and edge case testing
+  - Unicode and argument parsing tests
+  - Enhanced mocking with pytest.importorskip for optional dependencies
+
+### 7. test_data_manager_new.py
+- **Original**: `test_data_manager.py` (unittest.TestCase)
+- **Status**: ✅ Migrated and tested
+- **Features**:
+  - Pytest fixtures for temporary data manager setup
+  - Comprehensive JSON file operations testing
+  - Concurrent access simulation tests
+  - UTF-8 encoding and large data handling
+  - Privacy settings and user opt-out functionality
+  - Socket error handling and server name resolution
+
+### 8. test_bot_functionality.py
+- **Original**: Already pure pytest
+- **Status**: ✅ Already migrated
+- **Features**:
+  - Pure pytest implementation with comprehensive mocking
+  - NanoLeet detector testing with multiple achievement levels
+  - Tamagotchi toggle functionality testing
+  - YouTube URL detection and blacklisting
+  - Bot manager initialization and service integration
+  - Extensive dependency mocking for isolated testing
+
 ## Already Pure Pytest ✅
 
 ### test_command_registry.py
@@ -65,9 +98,7 @@ Migration from custom test framework to pure pytest implementation.
 ## Pending Migrations 📋
 
 ### High Priority
-- [ ] `test_bot_functionality.py`
-- [ ] `test_data_manager.py`
-- [ ] `test_console_commands.py`
+✅ **All high priority migrations are now complete!**
 
 ### Medium Priority  
 - [ ] `test_kraks_command.py`
@@ -109,6 +140,8 @@ python -m pytest tests/test_admin_commands_new.py -v
 python -m pytest tests/test_irc_client_new.py -v
 python -m pytest tests/test_weather_service_new.py -v
 python -m pytest tests/test_crypto_service_new.py -v
+python -m pytest tests/test_console_commands_new.py -v
+python -m pytest tests/test_data_manager_new.py -v
 
 # Run all migrated tests
 python -m pytest tests/*_new.py -v

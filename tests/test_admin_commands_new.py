@@ -12,6 +12,7 @@ This module contains comprehensive tests for all admin commands including:
 import os
 import sys
 from unittest.mock import MagicMock, Mock, call, patch
+
 import pytest
 
 # Add parent directory to sys.path for imports
@@ -423,7 +424,9 @@ def test_raw_command_irc(mock_config, bot_functions):
         ("raw", ["testpass123"], raw_command),
     ],
 )
-def test_commands_require_args(command_name, args, command_func, mock_config, bot_functions):
+def test_commands_require_args(
+    command_name, args, command_func, mock_config, bot_functions
+):
     """Test that commands properly validate required arguments."""
     context = CommandContext(
         command=command_name,
@@ -468,4 +471,6 @@ def test_admin_commands_invalid_password(mock_config, bot_functions):
         with patch("commands_admin.get_config", return_value=mock_config):
             response = command_func(context, bot_functions)
 
-        assert response == "❌ Invalid admin password", f"Command {command_name} should reject invalid password"
+        assert (
+            response == "❌ Invalid admin password"
+        ), f"Command {command_name} should reject invalid password"

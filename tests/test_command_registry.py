@@ -25,16 +25,14 @@ def test_command_registry_creation():
 
     # Test global registry
     global_registry = get_command_registry()
-    assert isinstance(global_registry, CommandRegistry), "Should return CommandRegistry instance"
+    assert isinstance(
+        global_registry, CommandRegistry
+    ), "Should return CommandRegistry instance"
 
 
 def test_command_registration():
     """Test command registration functionality."""
-    from command_registry import (
-        CommandInfo,
-        CommandRegistry,
-        FunctionCommandHandler,
-    )
+    from command_registry import CommandInfo, CommandRegistry, FunctionCommandHandler
 
     registry = CommandRegistry()
 
@@ -93,7 +91,7 @@ def test_command_metadata():
     assert info.name == "complex", "Name should be stored"
     assert info.description == "Complex command", "Description should be stored"
     assert info.usage == "!complex <arg1> [arg2]", "Usage should be stored"
-    assert info.admin_only == True, "Admin flag should be stored"
+    assert info.admin_only is True, "Admin flag should be stored"
 
 
 def test_help_command():
@@ -112,10 +110,8 @@ def test_admin_commands():
     from command_registry import CommandInfo
 
     # Test admin command info creation
-    info = CommandInfo(
-        name="admin_cmd", description="Admin command", admin_only=True
-    )
-    assert info.admin_only == True, "Command should be marked as admin-only"
+    info = CommandInfo(name="admin_cmd", description="Admin command", admin_only=True)
+    assert info.admin_only is True, "Command should be marked as admin-only"
     assert info.admin_marker == "*", "Should have admin marker"
 
 

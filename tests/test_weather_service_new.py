@@ -8,6 +8,7 @@ import json
 import os
 import sys
 from unittest.mock import Mock, patch
+
 import pytest
 
 # Add the parent directory to Python path to ensure imports work in CI
@@ -20,6 +21,7 @@ if parent_dir not in sys.path:
 def weather_service():
     """Create a weather service instance for testing."""
     from services.weather_service import WeatherService
+
     return WeatherService("test_api_key")
 
 
@@ -144,15 +146,15 @@ def test_weather_data_parsing(weather_service):
 @pytest.mark.parametrize(
     "degrees,expected_emoji",
     [
-        (0, "⬆️"),     # North
-        (45, "↗️"),    # Northeast
-        (90, "➡️"),    # East
-        (135, "↘️"),   # Southeast
-        (180, "⬇️"),   # South
-        (225, "↙️"),   # Southwest
-        (270, "⬅️"),   # West
-        (315, "↖️"),   # Northwest
-        (360, "⬆️"),   # Full circle back to North
+        (0, "⬆️"),  # North
+        (45, "↗️"),  # Northeast
+        (90, "➡️"),  # East
+        (135, "↘️"),  # Southeast
+        (180, "⬇️"),  # South
+        (225, "↙️"),  # Southwest
+        (270, "⬅️"),  # West
+        (315, "↖️"),  # Northwest
+        (360, "⬆️"),  # Full circle back to North
     ],
 )
 def test_wind_direction_calculation(weather_service, degrees, expected_emoji):
@@ -186,16 +188,16 @@ def test_weather_emoji_mapping(weather_service, condition, expected_emoji):
 @pytest.mark.parametrize(
     "pressure,expected_visual",
     [
-        (1013.25, "〇"),   # Normal pressure
-        (1020, "🟢"),     # Slightly high
-        (1025, "🟡"),     # Moderately high
-        (1040, "🟠"),     # High
-        (1060, "☠"),      # Very high
-        (1005, "🟢"),     # Slightly low
-        (995, "🟡"),      # Moderately low
-        (985, "🟠"),      # Low
-        (980, "🔴"),      # Lower
-        (950, "☠"),       # Very low
+        (1013.25, "〇"),  # Normal pressure
+        (1020, "🟢"),  # Slightly high
+        (1025, "🟡"),  # Moderately high
+        (1040, "🟠"),  # High
+        (1060, "☠"),  # Very high
+        (1005, "🟢"),  # Slightly low
+        (995, "🟡"),  # Moderately low
+        (985, "🟠"),  # Low
+        (980, "🔴"),  # Lower
+        (950, "☠"),  # Very low
     ],
 )
 def test_pressure_analysis(weather_service, pressure, expected_visual):

@@ -86,12 +86,18 @@ class EurojackpotService:
 
                     # Log response content for debugging
                     try:
-                        preview_text = response.text[:200] if hasattr(response, 'text') else str(response)[:200]
+                        preview_text = (
+                            response.text[:200]
+                            if hasattr(response, "text")
+                            else str(response)[:200]
+                        )
                         self.logger.debug(
                             f"Approach {i+1} - Response content preview: {preview_text}..."
                         )
                     except Exception:
-                        self.logger.debug(f"Approach {i+1} - Response content preview: [unable to get preview]")
+                        self.logger.debug(
+                            f"Approach {i+1} - Response content preview: [unable to get preview]"
+                        )
 
                     json_data = response.json()
                     self.logger.debug(
@@ -1096,7 +1102,7 @@ class EurojackpotService:
                 try:
                     last_updated_dt = datetime.fromisoformat(last_updated)
                     last_updated = last_updated_dt.strftime("%d.%m.%Y %H:%M")
-                except:
+                except Exception:
                     pass
 
             message = f"📊 Tietokanta: {total_draws} arvontaa ({oldest_date} - {newest_date}). Päivitetty: {last_updated}"

@@ -6,6 +6,7 @@ Comprehensive tests for the IRC client functionality.
 
 import os
 import sys
+
 import pytest
 
 # Add the parent directory to Python path to ensure imports work in CI
@@ -107,9 +108,7 @@ def test_irc_connection_states():
 
     # Test status string
     status = client.get_status()
-    assert (
-        "disconnected" in status.lower()
-    ), "Status should mention disconnected state"
+    assert "disconnected" in status.lower(), "Status should mention disconnected state"
 
 
 def test_irc_handler_system():
@@ -135,9 +134,7 @@ def test_irc_handler_system():
             handler(test_msg)
 
     assert len(handler_called) == 1, "Handler should be called once"
-    assert (
-        handler_called[0] == IRCMessageType.PRIVMSG
-    ), "Handler should receive PRIVMSG"
+    assert handler_called[0] == IRCMessageType.PRIVMSG, "Handler should receive PRIVMSG"
 
     # Test handler removal
     client.remove_message_handler(IRCMessageType.PRIVMSG, test_handler)
@@ -179,7 +176,7 @@ def test_irc_channel_management():
         assert (
             "#test" in client.connection_info.channels
         ), "Channel should be added to list"
-    except:
+    except Exception:
         # Network error is expected in test environment
         pass
 
@@ -189,7 +186,7 @@ def test_irc_channel_management():
         assert (
             "#test" not in client.connection_info.channels
         ), "Channel should be removed from list"
-    except:
+    except Exception:
         # Network error is expected in test environment
         pass
 
@@ -203,7 +200,9 @@ def test_irc_channel_management():
         (":bot!botuser@bothost PART #channel :Bye", "bot", "botuser", "bothost"),
     ],
 )
-def test_irc_message_parsing_user_info(raw_message, expected_nick, expected_user, expected_host):
+def test_irc_message_parsing_user_info(
+    raw_message, expected_nick, expected_user, expected_host
+):
     """Test IRC message parsing with user information extraction."""
     from irc_client import create_irc_client
 
@@ -249,7 +248,9 @@ def test_irc_message_types():
     for raw_msg, expected_type in message_type_tests:
         parsed = client.parse_message(raw_msg)
         assert parsed is not None, f"Should parse: {raw_msg}"
-        assert parsed.type == expected_type, f"Wrong type for {raw_msg}: expected {expected_type}, got {parsed.type}"
+        assert (
+            parsed.type == expected_type
+        ), f"Wrong type for {raw_msg}: expected {expected_type}, got {parsed.type}"
 
 
 def test_irc_client_error_handling():
@@ -269,4 +270,6 @@ def test_irc_client_error_handling():
         parsed = client.parse_message(invalid_msg)
         # Should either return None or handle gracefully
         # The exact behavior depends on implementation
-        assert parsed is None or hasattr(parsed, 'type'), f"Should handle invalid message gracefully: {invalid_msg}"
+        assert parsed is None or hasattr(
+            parsed, "type"
+        ), f"Should handle invalid message gracefully: {invalid_msg}"

@@ -424,7 +424,9 @@ class DrinkTracker:
         # Sort by total and return top results
         return sorted(drink_list, key=lambda x: x["total"], reverse=True)[:limit]
 
-    def get_drink_word_breakdown(self, server: str, limit: int = 10) -> List[Tuple[str, int, str]]:
+    def get_drink_word_breakdown(
+        self, server: str, limit: int = 10
+    ) -> List[Tuple[str, int, str]]:
         """
         Get breakdown of drink words for a server with top users.
 
@@ -436,30 +438,34 @@ class DrinkTracker:
             List of tuples (drink_word, total_count, top_user)
         """
         data = self.data_manager.load_drink_data()
-        
+
         if server not in data.get("servers", {}):
             return []
-        
+
         server_data = data["servers"][server]["nicks"]
         drink_word_stats = {}
-        
+
         # Collect statistics for each drink word
         for nick, user_data in server_data.items():
             for drink_word, drink_data in user_data.get("drink_words", {}).items():
                 if drink_word not in drink_word_stats:
                     drink_word_stats[drink_word] = {"total": 0, "users": []}
-                
+
                 total = drink_data["total"]
                 drink_word_stats[drink_word]["total"] += total
                 drink_word_stats[drink_word]["users"].append((nick, total))
-        
+
         # Create breakdown list
         breakdown = []
         for drink_word, stats in drink_word_stats.items():
             # Find top user for this drink word
-            top_user = max(stats["users"], key=lambda x: x[1])[0] if stats["users"] else "unknown"
+            top_user = (
+                max(stats["users"], key=lambda x: x[1])[0]
+                if stats["users"]
+                else "unknown"
+            )
             breakdown.append((drink_word, stats["total"], top_user))
-        
+
         # Sort by total count and return top results
         return sorted(breakdown, key=lambda x: x[1], reverse=True)[:limit]
 

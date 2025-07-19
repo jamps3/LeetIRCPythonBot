@@ -329,19 +329,23 @@ def process_console_command(command_text, bot_functions):
         if args:
             search_word = args.strip().lower()
             results = general_words.search_word(search_word)
-            
+
             if results["total_occurrences"] > 0:
                 # Show results from all servers since console doesn't track words
                 all_users = []
                 for server_name, server_data in results["servers"].items():
                     for user in server_data["users"]:
-                        all_users.append(f"{user['nick']}@{server_name}: {user['count']}")
-                
+                        all_users.append(
+                            f"{user['nick']}@{server_name}: {user['count']}"
+                        )
+
                 if all_users:
                     users_text = ", ".join(all_users)
                     notice_message(f"Sana '{search_word}' on sanottu: {users_text}")
                 else:
-                    notice_message(f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
+                    notice_message(
+                        f"Kukaan ei ole sanonut sanaa '{search_word}' vielä."
+                    )
             else:
                 notice_message(f"Kukaan ei ole sanonut sanaa '{search_word}' vielä.")
         else:
@@ -361,7 +365,7 @@ def process_console_command(command_text, bot_functions):
                     )
                     notice_message(f"{nick}@{server_name}: {word_list}")
                     found_user = True
-            
+
             if not found_user:
                 notice_message(f"Käyttäjää '{nick}' ei löydy.")
         else:  # Show global top words across all servers
@@ -371,9 +375,11 @@ def process_console_command(command_text, bot_functions):
                 server_stats = general_words.get_server_stats(server_name)
                 for word, count in server_stats["top_words"]:
                     global_word_counts[word] = global_word_counts.get(word, 0) + count
-            
+
             if global_word_counts:
-                top_words = sorted(global_word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+                top_words = sorted(
+                    global_word_counts.items(), key=lambda x: x[1], reverse=True
+                )[:5]
                 word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
                 notice_message(f"Käytetyimmät sanat (globaali): {word_list}")
             else:
@@ -382,15 +388,21 @@ def process_console_command(command_text, bot_functions):
     elif command == "!leaderboard":
         # Show global leaderboard across all servers
         global_user_counts = {}
-        
+
         for server_name in data_manager.get_all_servers():
-            leaderboard = general_words.get_leaderboard(server_name, 100)  # Get more users to combine
+            leaderboard = general_words.get_leaderboard(
+                server_name, 100
+            )  # Get more users to combine
             for user in leaderboard:
                 user_key = f"{user['nick']}@{server_name}"
-                global_user_counts[user_key] = global_user_counts.get(user_key, 0) + user['total_words']
-        
+                global_user_counts[user_key] = (
+                    global_user_counts.get(user_key, 0) + user["total_words"]
+                )
+
         if global_user_counts:
-            top_users = sorted(global_user_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+            top_users = sorted(
+                global_user_counts.items(), key=lambda x: x[1], reverse=True
+            )[:5]
             leaderboard_msg = ", ".join(f"{nick}: {count}" for nick, count in top_users)
             notice_message(f"Aktiivisimmat käyttäjät (globaali): {leaderboard_msg}")
         else:
@@ -888,16 +900,19 @@ def process_message(irc, message, bot_functions):
                 search_word = parts[1].strip().lower()
                 server_name = data_manager.get_server_name(irc)
                 results = general_words.search_word(search_word)
-                
+
                 if results["total_occurrences"] > 0:
                     # Filter for current server only
                     server_results = results["servers"].get(server_name, {"users": []})
                     if server_results.get("total", 0) > 0:
                         users_text = ", ".join(
-                            f"{u['nick']}: {u['count']}" for u in server_results["users"]
+                            f"{u['nick']}: {u['count']}"
+                            for u in server_results["users"]
                         )
                         notice_message(
-                            f"Sana '{search_word}' on sanottu: {users_text}", irc, target
+                            f"Sana '{search_word}' on sanottu: {users_text}",
+                            irc,
+                            target,
                         )
                     else:
                         notice_message(
@@ -934,16 +949,20 @@ def process_message(irc, message, bot_functions):
                 server_stats = general_words.get_server_stats(server_name)
                 if server_stats["total_words"] > 0:
                     top_words = server_stats["top_words"][:5]
-                    word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
+                    word_list = ", ".join(
+                        f"{word}: {count}" for word, count in top_words
+                    )
                     notice_message(f"Käytetyimmät sanat: {word_list}", irc, target)
                 else:
-                    notice_message("Ei vielä tarpeeksi dataa sanatilastoille.", irc, target)
+                    notice_message(
+                        "Ei vielä tarpeeksi dataa sanatilastoille.", irc, target
+                    )
 
         # !leaderboard - Aktiivisimmat käyttäjät
         elif text.startswith("!leaderboard"):
             server_name = data_manager.get_server_name(irc)
             leaderboard = general_words.get_leaderboard(server_name, 5)
-            
+
             if leaderboard:
                 leaderboard_msg = ", ".join(
                     f"{user['nick']}: {user['total_words']}" for user in leaderboard
@@ -959,21 +978,25 @@ def process_message(irc, message, bot_functions):
             # Use new drink tracking system for kraks command
             server_name = data_manager.get_server_name(irc)
             stats = drink_tracker.get_server_stats(server_name)
-            
-            if stats['total_drink_words'] > 0:
+
+            if stats["total_drink_words"] > 0:
                 # Get detailed breakdown by drink word
                 drink_words = drink_tracker.get_drink_word_breakdown(server_name)
                 if drink_words:
                     details = ", ".join(
                         f"{word}: {count} [{top_user}]"
-                        for word, count, top_user in drink_words[:10]  # Show top 10 drink words
+                        for word, count, top_user in drink_words[
+                            :10
+                        ]  # Show top 10 drink words
                     )
-                    response = f"Krakit yhteensä: {stats['total_drink_words']}, {details}"
+                    response = (
+                        f"Krakit yhteensä: {stats['total_drink_words']}, {details}"
+                    )
                 else:
                     response = f"Krakit yhteensä: {stats['total_drink_words']}. Top 5: {', '.join([f'{nick}:{count}' for nick, count in stats['top_users'][:5]])}"
             else:
                 response = "Ei vielä krakkauksia tallennettuna."
-            
+
             notice_message(response, irc, target)
 
         elif text.startswith("!clearkraks"):

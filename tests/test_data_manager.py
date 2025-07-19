@@ -263,8 +263,10 @@ class TestDataManager(unittest.TestCase):
         time.sleep(0.1)
 
         # At least one write should succeed
-        self.assertGreater(write_success_count, 0, f"No writes succeeded. Errors: {write_errors}")
-        
+        self.assertGreater(
+            write_success_count, 0, f"No writes succeeded. Errors: {write_errors}"
+        )
+
         # If file exists, verify it's valid JSON
         if os.path.exists(test_file):
             data = self.data_manager.load_json(test_file)
