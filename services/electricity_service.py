@@ -289,6 +289,73 @@ class ElectricityService:
         """
         return (eur_per_mwh / 10) * self.vat_rate
 
+    def _create_price_bar_graph(
+        self, prices: Dict[int, float], avg_price_snt: float
+    ) -> str:
+        """
+        Create a colorful bar graph showing hourly prices relative to average.
+
+        Args:
+            prices: Dictionary of position -> price in EUR/MWh
+            avg_price_snt: Average price in snt/kWh with VAT
+
+        Returns:
+            String representation of the bar graph
+        """
+        # Define bar symbols for different heights (low to high)
+        bar_symbols = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
+
+        # IRC color codes: 3=green, 7=orange/yellow, 4=red
+        green = "\x033"  # Below average (good price)
+        yellow = "\x037"  # At average
+        red = "\x034"  # Above average (expensive)
+        reset = "\x03"  # Reset color
+
+        # Convert prices to snt/kWh and create hour-price pairs
+        hour_prices = []
+        for position in range(1, 25):  # Positions 1-24 (hours 1-23 and 0)
+            if position in prices:
+                hour = position if position != 24 else 0
+                price_eur_mwh = prices[position]
+                price_snt_kwh = self._convert_price(price_eur_mwh)
+                hour_prices.append((hour, price_snt_kwh))
+
+        if not hour_prices:
+            return "No data"
+
+        # Sort by hour
+        hour_prices.sort(key=lambda x: x[0])
+
+        # Find min/max for bar height scaling
+        all_prices = [price for _, price in hour_prices]
+        min_price = min(all_prices)
+        max_price = max(all_prices)
+        price_range = max_price - min_price if max_price > min_price else 1
+
+        # Create bar graph
+        bars = []
+        for hour, price in hour_prices:
+            # Calculate bar height (0-7 index into bar_symbols)
+            if price_range > 0:
+                height_ratio = (price - min_price) / price_range
+                bar_height = min(7, int(height_ratio * 8))
+            else:
+                bar_height = 4  # Middle height if all prices are same
+
+            # Choose color based on comparison to average
+            if abs(price - avg_price_snt) < 0.01:  # Essentially equal (within 0.01 snt)
+                color = yellow
+            elif price < avg_price_snt:
+                color = green  # Below average = good = green
+            else:
+                color = red  # Above average = expensive = red
+
+            # Create colored bar
+            bar = f"{color}{bar_symbols[bar_height]}{reset}"
+            bars.append(bar)
+
+        return "".join(bars)
+
     def format_price_message(self, price_data: Dict[str, Any]) -> str:
         """
         Format price data into a readable message.
@@ -375,13 +442,13 @@ class ElectricityService:
 
     def format_statistics_message(self, stats_data: Dict[str, Any]) -> str:
         """
-        Format statistics data into a readable message.
+        Format statistics data into a readable message with bar graph.
 
         Args:
             stats_data: Statistics data dictionary
 
         Returns:
-            Formatted statistics message string
+            Formatted statistics message string with colorful bar graph
         """
         if stats_data.get("error"):
             return f"📊 Sähkön tilastojen haku epäonnistui: {stats_data.get('message', 'Tuntematon virhe')}"
@@ -391,12 +458,24 @@ class ElectricityService:
         max_price = stats_data["max_price"]
         avg_price = stats_data["avg_price"]
 
+        # Get daily prices to create bar graph
+        daily_prices = self.get_daily_prices(
+            datetime.strptime(date_str, "%Y-%m-%d") if date_str else None
+        )
+
         message = (
             f"📊 Sähkön hintatilastot {date_str}: "
             f"🔹 Min: {min_price['snt_per_kwh_with_vat']:.2f} snt/kWh (klo {min_price['hour']:02d}) "
             f"🔸 Max: {max_price['snt_per_kwh_with_vat']:.2f} snt/kWh (klo {max_price['hour']:02d}) "
             f"🔹 Keskiarvo: {avg_price['snt_per_kwh_with_vat']:.2f} snt/kWh"
         )
+
+        # Add bar graph if daily prices available
+        if not daily_prices.get("error") and daily_prices.get("prices"):
+            bar_graph = self._create_price_bar_graph(
+                daily_prices["prices"], avg_price["snt_per_kwh_with_vat"]
+            )
+            message += f" | {bar_graph}"
 
         return message
 
@@ -425,7 +504,7 @@ class ElectricityService:
         try:
             # Check for special keywords
             if len(args) >= 1:
-                if args[0].lower() == "tilastot":
+                if args[0].lower() in ["tilastot", "stats"]:
                     result["show_stats"] = True
                     return result
                 elif args[0].lower() in ["tänään", "tanaan", "today"]:
@@ -458,12 +537,12 @@ class ElectricityService:
                     return result
 
             result["error"] = (
-                "Virheellinen komento! Käytä: !sahko [tänään|huomenna] [tunti] tai !sahko tilastot"
+                "Virheellinen komento! Käytä: !sahko [tänään|huomenna] [tunti] tai !sahko tilastot/stats"
             )
 
         except ValueError:
             result["error"] = (
-                "Virheellinen komento! Käytä: !sahko [tänään|huomenna] [tunti] tai !sahko tilastot"
+                "Virheellinen komento! Käytä: !sahko [tänään|huomenna] [tunti] tai !sahko tilastot/stats"
             )
 
         return result

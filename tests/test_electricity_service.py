@@ -100,6 +100,36 @@ class TestElectricityService(unittest.TestCase):
         self.assertFalse(result["is_tomorrow"])
         self.assertTrue(result["show_stats"])
 
+    def test_command_parsing_statistics_english(self):
+        """Test parsing command for statistics using English 'stats' parameter."""
+        result = self.service.parse_command_args(["stats"])
+
+        self.assertIsNone(result["error"])
+        self.assertFalse(result["is_tomorrow"])
+        self.assertTrue(result["show_stats"])
+
+    def test_command_parsing_tanaan(self):
+        """Test parsing command for tänään (today all hours)."""
+        result = self.service.parse_command_args(["tänään"])
+
+        self.assertIsNone(result["error"])
+        self.assertFalse(result["is_tomorrow"])
+        self.assertFalse(result["show_stats"])
+        self.assertTrue(result["show_all_hours"])
+
+    def test_command_parsing_huomenna_all_hours(self):
+        """Test parsing command for huomenna without specific hour (all hours)."""
+        result = self.service.parse_command_args(["huomenna"])
+
+        current_time = datetime.now()
+        expected_date = current_time + timedelta(days=1)
+
+        self.assertIsNone(result["error"])
+        self.assertTrue(result["is_tomorrow"])
+        self.assertFalse(result["show_stats"])
+        self.assertTrue(result["show_all_hours"])
+        self.assertEqual(result["date"].date(), expected_date.date())
+
     def test_command_parsing_invalid_hour(self):
         """Test parsing command with invalid hour."""
         result = self.service.parse_command_args(["25"])
@@ -169,16 +199,18 @@ class TestElectricityService(unittest.TestCase):
         self.assertEqual(result["status_code"], 401)
         self.assertIn("Invalid ENTSO-E API key", result["message"])
 
-    @unittest.skip(
-        "Skipping due to test framework mocking conflicts with requests.exceptions.Timeout"
-    )
-    def test_fetch_daily_prices_timeout(self):
-        """Test timeout handling.
+    @patch("requests.get")
+    def test_fetch_daily_prices_timeout(self, mock_get):
+        """Test timeout handling."""
+        # Mock a timeout exception
+        mock_get.side_effect = requests.exceptions.Timeout("Request timed out")
 
-        Note: This test is skipped due to test framework mocking issues.
-        The timeout handling has been manually verified to work correctly.
-        """
-        pass
+        test_date = datetime(2023, 1, 1)
+        result = self.service._fetch_daily_prices(test_date)
+
+        self.assertTrue(result["error"])
+        self.assertIn("ENTSO-E API request timed out", result["message"])
+        self.assertEqual(result["exception"], "timeout")
 
     def test_format_price_message_success(self):
         """Test formatting of successful price data."""
@@ -321,6 +353,7 @@ class TestElectricityServiceIntegration(unittest.TestCase):
             ["!sahko", "huomenna"],  # Command with tomorrow
             ["!sahko", "huomenna", "10"],  # Command with tomorrow and hour
             ["!sahko", "tilastot"],  # Command with statistics
+            ["!sahko", "stats"],  # Command with statistics (English)
             ["!sahko", "25"],  # Invalid hour
             ["!sahko", "invalid"],  # Invalid argument
         ]
