@@ -384,16 +384,26 @@ class BotManager:
         self._original_stdout_write = sys.stdout.write
         self._original_stderr_write = sys.stderr.write
 
+        # Add protection against recursive calls
+        self._protection_active = False
+
+        # TEMPORARILY DISABLE CONSOLE PROTECTION TO PREVENT HANGING ISSUES
+        # This feature can cause hanging on some systems due to terminal manipulation
+        print("DEBUG: Console output protection disabled (prevents hanging issues)")
+        return
+
         # Only set up protected output if readline is available and we're not on Windows
-        # Windows terminals don't handle the console manipulation well
-        if READLINE_AVAILABLE and os.name != "nt":
+        # Also check if we're in an interactive terminal to avoid issues with non-interactive environments
+        if READLINE_AVAILABLE and os.name != "nt" and self._is_interactive_terminal():
             try:
                 self._setup_protected_output()
+                print("DEBUG: Console protection enabled successfully")
             except Exception as e:
-                self.logger.warning(f"Could not set up console output protection: {e}")
+                print(f"DEBUG: Could not set up console output protection: {e}")
+                # Don't log this error as it could cause recursion
         else:
-            self.logger.debug(
-                "Skipping console output protection (Windows or no readline)"
+            print(
+                "DEBUG: Skipping console output protection (Windows, no readline, or non-interactive)"
             )
 
     def _setup_protected_output(self):
