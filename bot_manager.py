@@ -7,6 +7,7 @@ connections and integrates all bot functionality across servers.
 
 import os
 import readline
+import sys
 import threading
 import time
 from typing import Any, Dict, List, Optional
@@ -54,8 +55,9 @@ class BotManager:
         # Initialize high-precision logger first
         self.logger = get_logger("BotManager")
 
-        # Configure readline for command history
+        # Configure readline for command history and console output protection
         self._setup_readline_history()
+        self._setup_console_output_protection()
 
         # Load USE_NOTICES setting
         use_notices_setting = os.getenv("USE_NOTICES", "false").lower()
@@ -175,8 +177,8 @@ class BotManager:
                 self.logger.warning(f"Could not load command history: {e}")
 
             # Configure readline for better editing
-            readline.parse_and_bind('tab: complete')  # Tab completion
-            readline.parse_and_bind('set editing-mode emacs')  # Emacs-style editing
+            readline.parse_and_bind("tab: complete")  # Tab completion
+            readline.parse_and_bind("set editing-mode emacs")  # Emacs-style editing
             # Arrow keys are handled automatically by readline, no explicit binding needed
 
             # Store history file path for saving later
@@ -200,6 +202,94 @@ class BotManager:
                 self.logger.debug(f"Saved command history to {self._history_file}")
             except Exception as e:
                 self.logger.warning(f"Could not save command history: {e}")
+
+    def _setup_console_output_protection(self):
+        """Set up console output protection to prevent log messages from overwriting input line."""
+        self._input_active = False
+        self._print_lock = threading.Lock()
+        self._original_print = print
+        self._original_stdout_write = sys.stdout.write
+        self._original_stderr_write = sys.stderr.write
+
+        # Replace built-in print and stdout/stderr writes with protected versions
+        self._setup_protected_output()
+
+    def _setup_protected_output(self):
+        """Replace print and stdout/stderr with readline-aware versions."""
+        try:
+            # Store reference to original functions
+            import builtins
+
+            builtins.print = self._protected_print
+            sys.stdout.write = self._protected_stdout_write
+            sys.stderr.write = self._protected_stderr_write
+        except Exception as e:
+            self.logger.warning(f"Could not set up console output protection: {e}")
+
+    def _protected_print(self, *args, **kwargs):
+        """Print function that preserves readline input line."""
+        with self._print_lock:
+            if (
+                self._input_active
+                and hasattr(self, "_history_file")
+                and self._history_file
+            ):
+                # Clear the current line and move cursor to beginning
+                sys.stdout.write("\r\033[K")
+                sys.stdout.flush()
+
+            # Use original print
+            self._original_print(*args, **kwargs)
+
+            if (
+                self._input_active
+                and hasattr(self, "_history_file")
+                and self._history_file
+            ):
+                # Redisplay the input line
+                try:
+                    readline.redisplay()
+                except (AttributeError, OSError):
+                    # Fallback if redisplay is not available
+                    pass
+
+    def _protected_stdout_write(self, text):
+        """Protected stdout.write that preserves input line."""
+        with self._print_lock:
+            if (
+                self._input_active
+                and hasattr(self, "_history_file")
+                and self._history_file
+                and text.strip()
+            ):
+                # Clear current line
+                self._original_stdout_write("\r\033[K")
+                self._original_stdout_write(text)
+                try:
+                    readline.redisplay()
+                except (AttributeError, OSError):
+                    pass
+            else:
+                self._original_stdout_write(text)
+
+    def _protected_stderr_write(self, text):
+        """Protected stderr.write that preserves input line."""
+        with self._print_lock:
+            if (
+                self._input_active
+                and hasattr(self, "_history_file")
+                and self._history_file
+                and text.strip()
+            ):
+                # Clear current line
+                self._original_stderr_write("\r\033[K")
+                self._original_stderr_write(text)
+                try:
+                    readline.redisplay()
+                except (AttributeError, OSError):
+                    pass
+            else:
+                self._original_stderr_write(text)
 
     def load_configurations(self) -> bool:
         """
@@ -570,6 +660,9 @@ class BotManager:
         try:
             while not self.stop_event.is_set():
                 try:
+                    # Mark that input is active for output protection
+                    self._input_active = True
+
                     # Use readline for input with history and editing support
                     if hasattr(self, "_history_file") and self._history_file:
                         # Readline is available, use it for better input experience
@@ -577,6 +670,9 @@ class BotManager:
                     else:
                         # Fallback to simple input if readline is not available
                         user_input = input()
+
+                    # Mark that input is no longer active
+                    self._input_active = False
 
                     if not user_input or not user_input.strip():
                         continue
