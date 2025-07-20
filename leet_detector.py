@@ -1,10 +1,13 @@
 """
-Nanosecond Leet Detection System
+Leet Detection System
 
 Detects "1337" patterns in high-precision timestamps and awards different
 levels of leet achievements based on the position and frequency of occurrence.
+Saves all detected leets to a JSON file for historical tracking.
 """
 
+import json
+import os
 import re
 import time
 from datetime import datetime
@@ -13,7 +16,7 @@ from typing import Dict, List, Optional, Tuple
 from logger import get_logger
 
 
-class NanoLeetDetector:
+class LeetDetector:
     """
     Detects leet (1337) patterns in nanosecond-precision timestamps.
 
@@ -25,9 +28,10 @@ class NanoLeetDetector:
     - Nano Leet: "1337" appears only in nanosecond digits
     """
 
-    def __init__(self):
+    def __init__(self, leet_history_file: str = "leet_detections.json"):
         """Initialize the leet detector."""
-        self.logger = get_logger("NanoLeetDetector")
+        self.logger = get_logger("LeetDetector")
+        self.leet_history_file = leet_history_file
 
         # Achievement levels and their criteria
         self.achievement_levels = {
@@ -181,7 +185,11 @@ class NanoLeetDetector:
         return None
 
     def format_achievement_message(
-        self, nick: str, timestamp: str, achievement_level: str
+        self,
+        nick: str,
+        timestamp: str,
+        achievement_level: str,
+        user_message: str = None,
     ) -> str:
         """
         Format the achievement message for IRC.
@@ -190,16 +198,100 @@ class NanoLeetDetector:
             nick: Nickname who achieved the leet
             timestamp: The timestamp that triggered the achievement
             achievement_level: Level of achievement
+            user_message: The message text the user sent (optional)
 
         Returns:
             Formatted message string
         """
         achievement = self.achievement_levels[achievement_level]
 
-        return f"{achievement['emoji']} {achievement['name']} " f"[{nick}] {timestamp}"
+        base_message = (
+            f"{achievement['emoji']} {achievement['name']} [{nick}] {timestamp}"
+        )
+
+        # Add user message in quotes if provided
+        if user_message:
+            base_message += f' "{user_message}"'
+
+        return base_message
+
+    def _load_leet_history(self) -> List[Dict]:
+        """
+        Load leet detection history from JSON file.
+
+        Returns:
+            List of leet detection records
+        """
+        if not os.path.exists(self.leet_history_file):
+            return []
+
+        try:
+            with open(self.leet_history_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            self.logger.error(f"Failed to load leet history: {e}")
+            return []
+
+    def _save_leet_detection(
+        self,
+        nick: str,
+        timestamp: str,
+        achievement_level: str,
+        user_message: Optional[str] = None,
+    ) -> None:
+        """
+        Save a leet detection to the history file.
+
+        Args:
+            nick: Nickname who achieved the leet
+            timestamp: The timestamp that triggered the achievement
+            achievement_level: Level of achievement
+            user_message: The message text the user sent (optional)
+        """
+        detection_record = {
+            "datetime": datetime.now().isoformat(),
+            "nick": nick,
+            "timestamp": timestamp,
+            "achievement_level": achievement_level,
+            "user_message": user_message,
+            "achievement_name": self.achievement_levels[achievement_level]["name"],
+            "emoji": self.achievement_levels[achievement_level]["emoji"],
+        }
+
+        try:
+            history = self._load_leet_history()
+            history.append(detection_record)
+
+            with open(self.leet_history_file, "w", encoding="utf-8") as f:
+                json.dump(history, f, indent=2, ensure_ascii=False)
+
+            self.logger.debug(f"Saved leet detection to {self.leet_history_file}")
+        except IOError as e:
+            self.logger.error(f"Failed to save leet detection: {e}")
+
+    def get_leet_history(self, limit: Optional[int] = None) -> List[Dict]:
+        """
+        Get leet detection history.
+
+        Args:
+            limit: Maximum number of records to return (most recent first)
+
+        Returns:
+            List of leet detection records
+        """
+        history = self._load_leet_history()
+        # Sort by datetime descending (most recent first)
+        history.sort(key=lambda x: x.get("datetime", ""), reverse=True)
+
+        if limit:
+            return history[:limit]
+        return history
 
     def check_message_for_leet(
-        self, nick: str, message_time: Optional[str] = None
+        self,
+        nick: str,
+        message_time: Optional[str] = None,
+        user_message: Optional[str] = None,
     ) -> Optional[Tuple[str, str]]:
         """
         Check if a message timestamp contains leet patterns.
@@ -207,6 +299,7 @@ class NanoLeetDetector:
         Args:
             nick: Nickname of the message sender
             message_time: Optional timestamp, uses current time if None
+            user_message: Optional user message text to include in achievement
 
         Returns:
             Tuple of (achievement_message, achievement_level) or None
@@ -219,10 +312,16 @@ class NanoLeetDetector:
 
         if achievement_level:
             message = self.format_achievement_message(
-                nick, message_time, achievement_level
+                nick, message_time, achievement_level, user_message
             )
+
+            # Save the detection to history
+            self._save_leet_detection(
+                nick, message_time, achievement_level, user_message
+            )
+
             self.logger.info(
-                f"Leet detected: {achievement_level} for {nick} at {message_time}"
+                f"Leet detected: {achievement_level} for {nick} at {message_time} - message: {user_message or 'N/A'}"
             )
             return (message, achievement_level)
 
@@ -238,11 +337,25 @@ class NanoLeetDetector:
         return self.achievement_levels.copy()
 
 
-def create_nanoleet_detector() -> NanoLeetDetector:
+def create_leet_detector() -> LeetDetector:
     """
-    Factory function to create a NanoLeetDetector instance.
+    Factory function to create a LeetDetector instance.
 
     Returns:
-        NanoLeetDetector instance
+        LeetDetector instance
     """
-    return NanoLeetDetector()
+    return LeetDetector()
+
+
+# Backward compatibility - keep old function name but use new class
+def create_nanoleet_detector() -> LeetDetector:
+    """
+    Factory function to create a LeetDetector instance.
+
+    Note: This function is kept for backward compatibility.
+    Use create_leet_detector() for new code.
+
+    Returns:
+        LeetDetector instance
+    """
+    return LeetDetector()

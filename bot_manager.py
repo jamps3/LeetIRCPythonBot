@@ -12,9 +12,9 @@ from typing import Any, Dict, List, Optional
 
 import commands
 from config import get_api_key, get_server_configs, load_env_file
+from leet_detector import create_nanoleet_detector
 from lemmatizer import Lemmatizer
 from logger import get_logger
-from nanoleet_detector import create_nanoleet_detector
 from server import Server
 from services.crypto_service import create_crypto_service
 from services.electricity_service import create_electricity_service
@@ -1228,6 +1228,7 @@ class BotManager:
         server = context["server"]
         target = context["target"]
         sender = context["sender"]
+        user_message = context["text"]
 
         # Only check in channels, not private messages
         if not target.startswith("#"):
@@ -1238,8 +1239,10 @@ class BotManager:
             # This is the most accurate timestamp possible for when the message was processed
             timestamp = self.nanoleet_detector.get_timestamp_with_nanoseconds()
 
-            # Check for leet achievement
-            result = self.nanoleet_detector.check_message_for_leet(sender, timestamp)
+            # Check for leet achievement, including the user's message text
+            result = self.nanoleet_detector.check_message_for_leet(
+                sender, timestamp, user_message
+            )
 
             if result:
                 achievement_message, achievement_level = result
@@ -1249,7 +1252,7 @@ class BotManager:
 
                 # Log the achievement with high precision
                 self.logger.info(
-                    f"Leet achievement: {achievement_level} for {sender} in {target} at {timestamp}"
+                    f"Leet achievement: {achievement_level} for {sender} in {target} at {timestamp} - message: {user_message}"
                 )
 
         except Exception as e:

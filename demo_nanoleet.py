@@ -5,7 +5,7 @@ Demo script showing the nanosecond leet detection system in action.
 
 import time
 
-from nanoleet_detector import create_nanoleet_detector
+from leet_detector import create_nanoleet_detector
 
 
 def demo_nanoleet_detection():
@@ -38,7 +38,7 @@ def demo_nanoleet_detection():
             achievement_message, achievement_level = result
             print(f"    🎉 {achievement_message}")
         else:
-            print(f"    💭 No leet achievement detected")
+            print("    💭 No leet achievement detected")
 
         print()
 

@@ -296,7 +296,7 @@ def process_console_command(command_text, bot_functions):
         help_text = (
             "📋 Komennot: 🌤️ Sää: !s [kaupunki], !sää, ⚡ Sähkö: !sähkö [tänään|huomenna] [tunti], !sahko [tänään|huomenna] [tunti]\n"
             "📊 Sanat: !sana <sana>, !topwords [nick], !leaderboard, 🍺 Kraks: !drinkstats [nick|server|global], !drinkword <sana>, !drink <tietty>, !drinktop, !kokmäärä [palvelin] - näyttää kaikkien sanojen kokonaismäärät palvelimelta (vapaaehtoinen palvelimen nimi, oletuksena nykyinen), !antikrak - poistaa seurannan\n"
-            "🎯 Muut: !aika, !kaiku, !euribor, !leetwinners, !crypto [coin], !youtube <haku|ID>, !url <url>, !ipfs add <url>\n"
+            "🎯 Muut: !aika, !kaiku, !euribor, !leetwinners, !leets [määrä], !crypto [coin], !youtube <haku|ID>, !url <url>, !ipfs add <url>\n"
             "⚙️ FMI Varoitukset ja Onnettomuustiedotteet: !tilaa <varoitukset|onnettomuustiedotteet>\n"
             "🎰 Eurojackpot: !eurojackpot [arvontapäivä|tilastot|tilastot ext]\n"
             "⏰ Ajastetut viestit: !leet #kanava HH:MM:SS.mmmmmm viesti\n"
@@ -1164,6 +1164,59 @@ def process_message(irc, message, bot_functions):
             )
             send_message(irc, target, response)
             log(f"Sent leet winners: {response}")
+
+        # Handle !leets command - Show leet detection history via PRIVMSG
+        elif text.startswith("!leets"):
+            try:
+                from leet_detector import create_leet_detector
+
+                leet_detector = create_leet_detector()
+
+                # Parse optional limit parameter
+                parts = text.split()
+                limit = 10  # Default limit
+                if len(parts) > 1 and parts[1].isdigit():
+                    limit = min(int(parts[1]), 50)  # Max 50 entries
+
+                # Get leet history
+                history = leet_detector.get_leet_history(limit)
+
+                if not history:
+                    notice_message("📋 No leet detections recorded yet.", irc, sender)
+                else:
+                    # Send header
+                    notice_message(
+                        f"📋 Last {len(history)} leet detections:", irc, sender
+                    )
+
+                    # Send each detection as a separate PRIVMSG
+                    for detection in history:
+                        # Parse datetime for display
+                        try:
+                            dt = datetime.fromisoformat(
+                                detection["datetime"].replace("Z", "+00:00")
+                            )
+                            date_str = dt.strftime("%d.%m %H:%M:%S")
+                        except (ValueError, KeyError, AttributeError):
+                            date_str = detection.get("datetime", "Unknown")
+
+                        # Format message
+                        user_msg_part = (
+                            f' "{detection["user_message"]}"'
+                            if detection.get("user_message")
+                            else ""
+                        )
+                        formatted_msg = f"{detection['emoji']} {detection['achievement_name']} [{detection['nick']}] {detection['timestamp']}{user_msg_part} ({date_str})"
+
+                        notice_message(formatted_msg, irc, sender)
+
+                log(
+                    f"Sent {len(history) if history else 0} leet detections to {sender}"
+                )
+
+            except Exception as e:
+                log(f"Error in !leets command: {e}", "ERROR")
+                notice_message("❌ Error retrieving leet history.", irc, sender)
 
         # !leet - Ajasta viestin lähetys
         elif text.startswith("!leet"):
