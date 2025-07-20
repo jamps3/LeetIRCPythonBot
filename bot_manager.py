@@ -299,9 +299,25 @@ class BotManager:
         # Note: Signal handling is done in main.py
         print("DEBUG: BotManager initialization complete!")
 
+    def _is_interactive_terminal(self):
+        """Check if we're running in an interactive terminal."""
+        try:
+            import sys
+
+            # Check if stdin is a TTY and we're not being piped to
+            return sys.stdin.isatty() and sys.stdout.isatty()
+        except (AttributeError, OSError):
+            return False
+
     def _setup_readline_history(self):
         """Configure readline for command history and editing."""
         try:
+            # Only set up readline if we're in an interactive terminal
+            if not self._is_interactive_terminal():
+                self.logger.debug("Non-interactive terminal, skipping readline setup")
+                self._history_file = None
+                return
+
             # Set history file
             history_file = os.path.expanduser("~/.leetbot_history")
 
@@ -318,10 +334,25 @@ class BotManager:
             except Exception as e:
                 self.logger.warning(f"Could not load command history: {e}")
 
-            # Configure readline for better editing
-            readline.parse_and_bind("tab: complete")  # Tab completion
-            readline.parse_and_bind("set editing-mode emacs")  # Emacs-style editing
-            # Arrow keys are handled automatically by readline, no explicit binding needed
+            # Configure readline for better editing (Linux/Unix compatible)
+            if READLINE_AVAILABLE:
+                try:
+                    # Enable tab completion
+                    readline.parse_and_bind("tab: complete")
+                    # Set editing mode to emacs (supports arrow keys)
+                    readline.parse_and_bind("set editing-mode emacs")
+                    # Enable arrow key navigation
+                    readline.parse_and_bind("\\C-p: previous-history")  # Up arrow
+                    readline.parse_and_bind("\\C-n: next-history")  # Down arrow
+                    readline.parse_and_bind("\\C-b: backward-char")  # Left arrow
+                    readline.parse_and_bind("\\C-f: forward-char")  # Right arrow
+                    # Enable better line editing
+                    readline.parse_and_bind("\\C-a: beginning-of-line")  # Ctrl+A
+                    readline.parse_and_bind("\\C-e: end-of-line")  # Ctrl+E
+                    readline.parse_and_bind("\\C-k: kill-line")  # Ctrl+K
+                    self.logger.debug("Readline key bindings configured")
+                except Exception as e:
+                    self.logger.warning(f"Could not configure readline bindings: {e}")
 
             # Store history file path for saving later
             self._history_file = history_file
@@ -825,6 +856,16 @@ class BotManager:
     def _listen_for_console_commands(self):
         """Listen for console commands in a separate thread with readline history support."""
         try:
+            # Check if we're running in an interactive terminal
+            if not self._is_interactive_terminal():
+                self.logger.info(
+                    "Non-interactive terminal detected, disabling console input"
+                )
+                # Just wait for stop event without trying to read input
+                while not self.stop_event.is_set():
+                    time.sleep(0.5)
+                return
+
             while not self.stop_event.is_set():
                 try:
                     # Mark that input is active for output protection
@@ -836,7 +877,7 @@ class BotManager:
                         user_input = input("💬 > ")
                     else:
                         # Fallback to simple input if readline is not available
-                        user_input = input()
+                        user_input = input("💬 > ")
 
                     # Mark that input is no longer active
                     self._input_active = False
