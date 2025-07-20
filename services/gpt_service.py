@@ -10,7 +10,47 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import openai
+# Try to import openai, but handle gracefully if not available
+try:
+    import openai
+
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
+    # Create a dummy openai module for compatibility
+    class DummyOpenAI:
+        def __init__(self, api_key):
+            self.api_key = api_key
+
+        def chat(self):
+            return self
+
+        @property
+        def completions(self):
+            return self
+
+        def create(self, **kwargs):
+            # Return a mock response structure
+            class MockChoice:
+                class MockMessage:
+                    content = (
+                        "OpenAI service not available - please install openai package"
+                    )
+
+                message = MockMessage()
+
+            class MockResponse:
+                choices = [MockChoice()]
+
+            return MockResponse()
+
+    class MockOpenAIModule:
+        @staticmethod
+        def OpenAI(api_key):
+            return DummyOpenAI(api_key)
+
+    openai = MockOpenAIModule()
 
 
 class GPTService:
@@ -215,14 +255,19 @@ class GPTService:
 
             return corrected_response
 
-        except openai.RateLimitError:
-            return "Sorry, I'm currently rate limited. Please try again later."
-        except openai.AuthenticationError:
-            return "Authentication error with AI service."
-        except openai.APIError as e:
-            print(f"OpenAI API error: {e}")
-            return "Sorry, I'm having trouble connecting to the AI service."
         except Exception as e:
+            # Handle OpenAI exceptions if the module is available
+            if OPENAI_AVAILABLE:
+                import openai as openai_module
+
+                if isinstance(e, openai_module.RateLimitError):
+                    return "Sorry, I'm currently rate limited. Please try again later."
+                elif isinstance(e, openai_module.AuthenticationError):
+                    return "Authentication error with AI service."
+                elif isinstance(e, openai_module.APIError):
+                    print(f"OpenAI API error: {e}")
+                    return "Sorry, I'm having trouble connecting to the AI service."
+
             print(f"Unexpected error in GPT chat: {e}")
             return "Sorry, something went wrong with my AI processing."
 

@@ -6,11 +6,37 @@ connections and integrates all bot functionality across servers.
 """
 
 import os
-import readline
 import sys
 import threading
 import time
 from typing import Any, Dict, List, Optional
+
+# Try to import readline, but handle gracefully if not available (Windows)
+try:
+    import readline
+
+    READLINE_AVAILABLE = True
+except ImportError:
+    READLINE_AVAILABLE = False
+
+    # Create a dummy readline module for compatibility
+    class DummyReadline:
+        def set_history_length(self, length):
+            pass
+
+        def read_history_file(self, filename):
+            raise FileNotFoundError()
+
+        def write_history_file(self, filename):
+            pass
+
+        def parse_and_bind(self, string):
+            pass
+
+        def redisplay(self):
+            pass
+
+    readline = DummyReadline()
 
 import commands
 from config import get_api_key, get_server_configs, load_env_file
@@ -18,14 +44,50 @@ from leet_detector import create_nanoleet_detector
 from lemmatizer import Lemmatizer
 from logger import get_logger
 from server import Server
-from services.crypto_service import create_crypto_service
-from services.electricity_service import create_electricity_service
-from services.fmi_warning_service import create_fmi_warning_service
-from services.gpt_service import GPTService
-from services.otiedote_service import create_otiedote_service
-from services.weather_service import WeatherService
-from services.youtube_service import create_youtube_service
 from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
+
+# Optional service imports - handle gracefully if dependencies are missing
+try:
+    from services.crypto_service import create_crypto_service
+except ImportError as e:
+    print(f"Warning: Crypto service not available: {e}")
+    create_crypto_service = None
+
+try:
+    from services.electricity_service import create_electricity_service
+except ImportError as e:
+    print(f"Warning: Electricity service not available: {e}")
+    create_electricity_service = None
+
+try:
+    from services.fmi_warning_service import create_fmi_warning_service
+except ImportError as e:
+    print(f"Warning: FMI warning service not available: {e}")
+    create_fmi_warning_service = None
+
+try:
+    from services.gpt_service import GPTService
+except ImportError as e:
+    print(f"Warning: GPT service not available: {e}")
+    GPTService = None
+
+try:
+    from services.otiedote_service import create_otiedote_service
+except ImportError as e:
+    print(f"Warning: Otiedote service not available: {e}")
+    create_otiedote_service = None
+
+try:
+    from services.weather_service import WeatherService
+except ImportError as e:
+    print(f"Warning: Weather service not available: {e}")
+    WeatherService = None
+
+try:
+    from services.youtube_service import create_youtube_service
+except ImportError as e:
+    print(f"Warning: YouTube service not available: {e}")
+    create_youtube_service = None
 
 
 class BotManager:
@@ -82,70 +144,97 @@ class BotManager:
         self.tamagotchi = TamagotchiBot(self.data_manager)
 
         # Initialize weather service
-        weather_api_key = get_api_key("WEATHER_API_KEY")
-        if weather_api_key:
-            self.weather_service = WeatherService(weather_api_key)
-            self.logger.info("🌤️ Weather service initialized")
+        if WeatherService is not None:
+            weather_api_key = get_api_key("WEATHER_API_KEY")
+            if weather_api_key:
+                self.weather_service = WeatherService(weather_api_key)
+                self.logger.info("🌤️ Weather service initialized")
+            else:
+                self.logger.warning(
+                    "⚠️  No weather API key found. Weather commands will not work."
+                )
+                self.weather_service = None
         else:
-            self.logger.warning(
-                "⚠️  No weather API key found. Weather commands will not work."
-            )
             self.weather_service = None
 
         # Initialize GPT service
-        openai_api_key = get_api_key("OPENAI_API_KEY")
-        history_file = os.getenv("HISTORY_FILE", "conversation_history.json")
-        history_limit = int(os.getenv("GPT_HISTORY_LIMIT", "100"))
-        if openai_api_key:
-            self.gpt_service = GPTService(openai_api_key, history_file, history_limit)
-            self.logger.info(
-                f"🤖 GPT chat service initialized (history limit: {history_limit} messages)"
-            )
+        if GPTService is not None:
+            openai_api_key = get_api_key("OPENAI_API_KEY")
+            history_file = os.getenv("HISTORY_FILE", "conversation_history.json")
+            history_limit = int(os.getenv("GPT_HISTORY_LIMIT", "100"))
+            if openai_api_key:
+                self.gpt_service = GPTService(
+                    openai_api_key, history_file, history_limit
+                )
+                self.logger.info(
+                    f"🤖 GPT chat service initialized (history limit: {history_limit} messages)"
+                )
+            else:
+                self.logger.warning(
+                    "⚠️  No OpenAI API key found. AI chat will not work."
+                )
+                self.gpt_service = None
         else:
-            self.logger.warning("⚠️  No OpenAI API key found. AI chat will not work.")
             self.gpt_service = None
 
         # Initialize electricity service
-        electricity_api_key = get_api_key("ELECTRICITY_API_KEY")
-        if electricity_api_key:
-            self.electricity_service = create_electricity_service(electricity_api_key)
-            self.logger.info("⚡ Electricity price service initialized")
+        if create_electricity_service is not None:
+            electricity_api_key = get_api_key("ELECTRICITY_API_KEY")
+            if electricity_api_key:
+                self.electricity_service = create_electricity_service(
+                    electricity_api_key
+                )
+                self.logger.info("⚡ Electricity price service initialized")
+            else:
+                self.logger.warning(
+                    "⚠️  No electricity API key found. Electricity price commands will not work."
+                )
+                self.electricity_service = None
         else:
-            self.logger.warning(
-                "⚠️  No electricity API key found. Electricity price commands will not work."
-            )
             self.electricity_service = None
 
         # Initialize YouTube service
-        youtube_api_key = get_api_key("YOUTUBE_API_KEY")
-        if youtube_api_key:
-            self.youtube_service = create_youtube_service(youtube_api_key)
-            self.logger.info("▶️ YouTube service initialized")
+        if create_youtube_service is not None:
+            youtube_api_key = get_api_key("YOUTUBE_API_KEY")
+            if youtube_api_key:
+                self.youtube_service = create_youtube_service(youtube_api_key)
+                self.logger.info("▶️ YouTube service initialized")
+            else:
+                self.logger.warning(
+                    "⚠️  No YouTube API key found. YouTube commands will not work."
+                )
+                self.youtube_service = None
         else:
-            self.logger.warning(
-                "⚠️  No YouTube API key found. YouTube commands will not work."
-            )
             self.youtube_service = None
 
         # Initialize crypto service
-        self.crypto_service = create_crypto_service()
-        self.logger.info("🪙 Crypto service initialized (using CoinGecko API)")
+        if create_crypto_service is not None:
+            self.crypto_service = create_crypto_service()
+            self.logger.info("🪙 Crypto service initialized (using CoinGecko API)")
+        else:
+            self.crypto_service = None
 
         # Initialize nanoleet detector
         self.nanoleet_detector = create_nanoleet_detector()
         self.logger.info("🎯 Nanosecond leet detector initialized")
 
         # Initialize FMI warning service
-        self.fmi_warning_service = create_fmi_warning_service(
-            callback=self._handle_fmi_warnings
-        )
-        self.logger.info("⚠️ FMI warning service initialized")
+        if create_fmi_warning_service is not None:
+            self.fmi_warning_service = create_fmi_warning_service(
+                callback=self._handle_fmi_warnings
+            )
+            self.logger.info("⚠️ FMI warning service initialized")
+        else:
+            self.fmi_warning_service = None
 
         # Initialize Otiedote service
-        self.otiedote_service = create_otiedote_service(
-            callback=self._handle_otiedote_release
-        )
-        self.logger.info("📢 Otiedote monitoring service initialized")
+        if create_otiedote_service is not None:
+            self.otiedote_service = create_otiedote_service(
+                callback=self._handle_otiedote_release
+            )
+            self.logger.info("📢 Otiedote monitoring service initialized")
+        else:
+            self.otiedote_service = None
 
         # Initialize lemmatizer with graceful fallback
         try:
@@ -506,8 +595,10 @@ class BotManager:
             self.logger.warning("Data migration failed, but continuing...")
 
         # Start monitoring services
-        self.fmi_warning_service.start()
-        self.otiedote_service.start()
+        if self.fmi_warning_service is not None:
+            self.fmi_warning_service.start()
+        if self.otiedote_service is not None:
+            self.otiedote_service.start()
 
         # Start console listener thread
         self.console_thread = threading.Thread(
@@ -595,12 +686,14 @@ class BotManager:
 
         # Stop monitoring services
         try:
-            self.fmi_warning_service.stop()
+            if self.fmi_warning_service is not None:
+                self.fmi_warning_service.stop()
         except Exception as e:
             self.logger.error(f"Error stopping FMI warning service: {e}")
 
         try:
-            self.otiedote_service.stop()
+            if self.otiedote_service is not None:
+                self.otiedote_service.stop()
         except Exception as e:
             self.logger.error(f"Error stopping Otiedote service: {e}")
 
