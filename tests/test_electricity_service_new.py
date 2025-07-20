@@ -145,6 +145,31 @@ def test_command_parsing_statistics(electricity_service):
     assert result["error"] is None
     assert result["is_tomorrow"] is False
     assert result["show_stats"] is True
+    assert result["show_all_hours"] is False
+
+
+def test_command_parsing_tanaan(electricity_service):
+    """Test parsing command for tänään (today all hours)."""
+    result = electricity_service.parse_command_args(["tänään"])
+
+    assert result["error"] is None
+    assert result["is_tomorrow"] is False
+    assert result["show_stats"] is False
+    assert result["show_all_hours"] is True
+
+
+def test_command_parsing_huomenna_all_hours(electricity_service):
+    """Test parsing command for huomenna without specific hour (all hours)."""
+    result = electricity_service.parse_command_args(["huomenna"])
+
+    current_time = datetime.now()
+    expected_date = current_time + timedelta(days=1)
+
+    assert result["error"] is None
+    assert result["is_tomorrow"] is True
+    assert result["show_stats"] is False
+    assert result["show_all_hours"] is True
+    assert result["date"].date() == expected_date.date()
 
 
 def test_command_parsing_invalid_hour(electricity_service):
@@ -292,6 +317,51 @@ def test_format_statistics_message(electricity_service):
     assert "Min: 2.51 snt/kWh (klo 03)" in result
     assert "Max: 10.04 snt/kWh (klo 18)" in result
     assert "Keskiarvo: 6.28 snt/kWh" in result
+
+
+def test_format_daily_prices_message(electricity_service):
+    """Test formatting of daily prices message."""
+    price_data = {
+        "error": False,
+        "date": "2023-01-01",
+        "prices": {
+            1: 50.0,  # Hour 1
+            2: 45.5,  # Hour 2
+            24: 60.0,  # Hour 0 (midnight)
+        },
+    }
+
+    # Test for today
+    result_today = electricity_service.format_daily_prices_message(
+        price_data, is_tomorrow=False
+    )
+
+    assert "⚡ Tänään 2023-01-01:" in result_today
+    assert "00: 7.53" in result_today  # Hour 0 (midnight)
+    assert "01: 6.28" in result_today  # Hour 1
+    assert "02: 5.71" in result_today  # Hour 2
+    assert "ALV 25,5%" in result_today
+
+    # Test for tomorrow
+    result_tomorrow = electricity_service.format_daily_prices_message(
+        price_data, is_tomorrow=True
+    )
+
+    assert "⚡ Huomenna 2023-01-01:" in result_tomorrow
+    assert "00: 7.53" in result_tomorrow  # Hour 0 (midnight)
+    assert "01: 6.28" in result_tomorrow  # Hour 1
+    assert "02: 5.71" in result_tomorrow  # Hour 2
+    assert "ALV 25,5%" in result_tomorrow
+
+
+def test_format_daily_prices_message_error(electricity_service):
+    """Test formatting of daily prices message with error."""
+    price_data = {"error": True, "message": "API error occurred"}
+
+    result = electricity_service.format_daily_prices_message(price_data)
+
+    assert "⚡ Sähkön hintatietojen haku epäonnistui" in result
+    assert "API error occurred" in result
 
 
 def test_get_electricity_price_success(electricity_service):

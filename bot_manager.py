@@ -696,6 +696,14 @@ class BotManager:
                 response = self.electricity_service.format_statistics_message(
                     stats_data
                 )
+            elif parsed_args.get("show_all_hours"):
+                # Show all hours for the day
+                daily_prices = self.electricity_service.get_daily_prices(
+                    parsed_args["date"]
+                )
+                response = self.electricity_service.format_daily_prices_message(
+                    daily_prices, is_tomorrow=parsed_args["is_tomorrow"]
+                )
             else:
                 # Show specific hour price
                 price_data = self.electricity_service.get_electricity_price(

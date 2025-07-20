@@ -294,7 +294,7 @@ def process_console_command(command_text, bot_functions):
             "* = Requires admin password"
         )"""
         help_text = (
-            "📋 Komennot: 🌤️ Sää: !s [kaupunki], !sää, ⚡ Sähkö: !sähkö [hour|huomenna hour], !sahko\n"
+            "📋 Komennot: 🌤️ Sää: !s [kaupunki], !sää, ⚡ Sähkö: !sähkö [tänään|huomenna] [tunti], !sahko [tänään|huomenna] [tunti]\n"
             "📊 Sanat: !sana <sana>, !topwords [nick], !leaderboard, 🍺 Kraks: !drinkstats [nick|server|global], !drinkword <sana>, !drink <tietty>, !drinktop, !kokmäärä [palvelin] - näyttää kaikkien sanojen kokonaismäärät palvelimelta (vapaaehtoinen palvelimen nimi, oletuksena nykyinen), !antikrak - poistaa seurannan\n"
             "🎯 Muut: !aika, !kaiku, !euribor, !leetwinners, !crypto [coin], !youtube <haku|ID>, !url <url>, !ipfs add <url>\n"
             "⚙️ FMI Varoitukset ja Onnettomuustiedotteet: !tilaa <varoitukset|onnettomuustiedotteet>\n"
@@ -715,7 +715,15 @@ def process_console_command(command_text, bot_functions):
             # Extract quit message from command: !quit password [message]
             parts = command_text.split(" ", 2)
             quit_message = parts[2] if len(parts) > 2 else "Admin quit"
-            notice_message(f"Admin command: QUIT :{quit_message}")
+
+            # Check if we have access to stop_event (console mode)
+            stop_event = bot_functions.get("stop_event")
+            if stop_event:
+                notice_message(f"🛑 Sending QUIT to all servers: {quit_message}")
+                # Trigger shutdown - the bot manager will handle sending QUIT to all servers
+                stop_event.set()
+            else:
+                notice_message(f"Admin command: QUIT :{quit_message}")
         else:
             notice_message("Invalid password for admin command.")
 

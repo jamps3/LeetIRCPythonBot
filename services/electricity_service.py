@@ -329,6 +329,50 @@ class ElectricityService:
 
         return " | ".join(message_parts)
 
+    def format_daily_prices_message(
+        self, price_data: Dict[str, Any], is_tomorrow: bool = False
+    ) -> str:
+        """
+        Format daily price data into a readable message showing all hours.
+
+        Args:
+            price_data: Daily price data dictionary
+            is_tomorrow: Whether the prices are for tomorrow
+
+        Returns:
+            Formatted daily prices message string
+        """
+        if price_data.get("error"):
+            return f"⚡ Sähkön hintatietojen haku epäonnistui: {price_data.get('message', 'Tuntematon virhe')}"
+
+        date_str = price_data["date"]
+        prices = price_data.get("prices", {})
+
+        if not prices:
+            day_text = "huomenna" if is_tomorrow else "tänään"
+            return f"⚡ Sähkön hintatietoja ei saatavilla {day_text}. https://sahko.tk"
+
+        # Sort hours and format prices
+        hour_prices = []
+        for position in range(1, 25):  # Positions 1-24 (hours 1-23 and 0)
+            if position in prices:
+                # Convert position to hour (position 24 = hour 0)
+                hour = position if position != 24 else 0
+                price_eur_mwh = prices[position]
+                price_snt_kwh = self._convert_price(price_eur_mwh)
+                hour_prices.append((hour, price_snt_kwh))
+
+        # Sort by hour
+        hour_prices.sort(key=lambda x: x[0])
+
+        # Format message
+        day_text = "Huomenna" if is_tomorrow else "Tänään"
+        prices_text = ", ".join(
+            f"{hour:02d}: {price:.2f}" for hour, price in hour_prices
+        )
+
+        return f"⚡ {day_text} {date_str}: {prices_text} snt/kWh (ALV 25,5%)"
+
     def format_statistics_message(self, stats_data: Dict[str, Any]) -> str:
         """
         Format statistics data into a readable message.
@@ -371,6 +415,7 @@ class ElectricityService:
             "date": datetime.now(),
             "is_tomorrow": False,
             "show_stats": False,
+            "show_all_hours": False,
             "error": None,
         }
 
@@ -383,7 +428,12 @@ class ElectricityService:
                 if args[0].lower() == "tilastot":
                     result["show_stats"] = True
                     return result
-                elif args[0].lower() == "huomenna":
+                elif args[0].lower() in ["tänään", "tanaan", "today"]:
+                    # Show all hours for today (accept multiple variations)
+                    result["show_all_hours"] = True
+                    result["is_tomorrow"] = False
+                    return result
+                elif args[0].lower() in ["huomenna", "tomorrow"]:
                     result["is_tomorrow"] = True
                     result["date"] += timedelta(days=1)
 
@@ -394,6 +444,9 @@ class ElectricityService:
                             result["hour"] = hour
                         else:
                             result["error"] = f"Virheellinen tunti: {hour}. Käytä 0-23."
+                    else:
+                        # Show all hours for tomorrow
+                        result["show_all_hours"] = True
                     return result
                 elif args[0].isdigit():
                     # Just hour specified
@@ -405,12 +458,12 @@ class ElectricityService:
                     return result
 
             result["error"] = (
-                "Virheellinen komento! Käytä: !sahko [huomenna] [tunti] tai !sahko tilastot"
+                "Virheellinen komento! Käytä: !sahko [tänään|huomenna] [tunti] tai !sahko tilastot"
             )
 
         except ValueError:
             result["error"] = (
-                "Virheellinen komento! Käytä: !sahko [huomenna] [tunti] tai !sahko tilastot"
+                "Virheellinen komento! Käytä: !sahko [tänään|huomenna] [tunti] tai !sahko tilastot"
             )
 
         return result
