@@ -37,6 +37,50 @@ from datetime import datetime
 # Import existing components that are still needed
 from dotenv import load_dotenv
 
+
+# Configure console encoding for Windows Unicode support
+def setup_console_encoding():
+    """Setup console encoding to handle Unicode characters on Windows."""
+    try:
+        # Try to set UTF-8 encoding for stdout/stderr
+        if sys.platform.startswith("win"):
+            import codecs
+            import io
+
+            # Force UTF-8 encoding with error handling
+            sys.stdout = io.TextIOWrapper(
+                sys.stdout.buffer, encoding="utf-8", errors="replace"
+            )
+            sys.stderr = io.TextIOWrapper(
+                sys.stderr.buffer, encoding="utf-8", errors="replace"
+            )
+    except Exception as e:
+        # If setting encoding fails, we'll handle Unicode characters safely below
+        pass
+
+
+# Safe print function that handles Unicode gracefully
+def safe_print(text, fallback_text=None):
+    """Print text with Unicode fallback for Windows console compatibility."""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        # Fall back to ASCII-safe version
+        if fallback_text:
+            print(fallback_text)
+        else:
+            # Replace common Unicode characters with ASCII equivalents
+            safe_text = (
+                text.replace("🤖", "[BOT]")
+                .replace("🚀", "[START]")
+                .replace("🛑", "[STOP]")
+                .replace("✅", "[OK]")
+                .replace("❌", "[ERROR]")
+                .replace("💥", "[ERROR]")
+            )
+            print(safe_text)
+
+
 # Import our new multi-server architecture
 from bot_manager import BotManager
 from config import load_env_file
@@ -139,8 +183,14 @@ Configuration:
 
 def main():
     """Main entry point for the multi-server IRC bot."""
+    # Setup console encoding for Unicode support
+    setup_console_encoding()
+
     print("=" * 60)
-    print("🤖 LeetIRC Python Bot - Multi-Server Edition")
+    safe_print(
+        "🤖 LeetIRC Python Bot - Multi-Server Edition",
+        "[BOT] LeetIRC Python Bot - Multi-Server Edition",
+    )
     print("=" * 60)
 
     # Parse command line arguments
@@ -173,7 +223,7 @@ def main():
             print("ERROR: Failed to start bot manager")
             return 1
 
-        print("🚀 Bot started successfully!")
+        safe_print("🚀 Bot started successfully!", "[START] Bot started successfully!")
         print("Press Ctrl+C to shutdown gracefully")
         print("-" * 60)
 
@@ -182,11 +232,11 @@ def main():
 
     except KeyboardInterrupt:
         print("\n" + "=" * 60)
-        print("🛑 Shutdown signal received")
+        safe_print("🛑 Shutdown signal received", "[STOP] Shutdown signal received")
         print("=" * 60)
 
     except Exception as e:
-        print(f"\n💥 Unexpected error: {e}")
+        safe_print(f"\n💥 Unexpected error: {e}", f"\n[ERROR] Unexpected error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -196,9 +246,13 @@ def main():
         # Ensure clean shutdown
         try:
             bot_manager.stop()
-            print("✅ Bot shut down successfully")
+            safe_print(
+                "✅ Bot shut down successfully", "[OK] Bot shut down successfully"
+            )
         except Exception as e:
-            print(f"❌ Error during shutdown: {e}")
+            safe_print(
+                f"❌ Error during shutdown: {e}", f"[ERROR] Error during shutdown: {e}"
+            )
             return 1
 
     return 0

@@ -11,6 +11,34 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
+
+# Safe print function that handles Unicode gracefully
+def safe_print(text, fallback_text=None):
+    """Print text with Unicode fallback for Windows console compatibility."""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        # Fall back to ASCII-safe version
+        if fallback_text:
+            print(fallback_text)
+        else:
+            # Replace common Unicode characters with ASCII equivalents
+            safe_text = (
+                text.replace("🤖", "[BOT]")
+                .replace("🚀", "[START]")
+                .replace("🛑", "[STOP]")
+                .replace("✅", "[OK]")
+                .replace("❌", "[ERROR]")
+                .replace("💥", "[ERROR]")
+            )
+            safe_text = (
+                safe_text.replace("💬", "[CHAT]")
+                .replace("🔧", "[CONFIG]")
+                .replace("🗣️", "[TALK]")
+            )
+            print(safe_text)
+
+
 # Try to import readline, but handle gracefully if not available (Windows)
 try:
     import readline
@@ -109,17 +137,33 @@ class BotManager:
         Args:
             bot_name: The nickname for the bot across all servers
         """
+        print("DEBUG: Starting BotManager initialization...")
         self.bot_name = bot_name
         self.servers: Dict[str, Server] = {}
         self.server_threads: Dict[str, threading.Thread] = {}
         self.stop_event = threading.Event()
 
         # Initialize high-precision logger first
+        print("DEBUG: Initializing logger...")
         self.logger = get_logger("BotManager")
+        print("DEBUG: Logger initialized.")
 
         # Configure readline for command history and console output protection
-        self._setup_readline_history()
-        self._setup_console_output_protection()
+        print("DEBUG: Setting up readline history...")
+        try:
+            self._setup_readline_history()
+            print("DEBUG: Readline history setup complete.")
+        except Exception as e:
+            print(f"DEBUG: Readline history setup failed: {e}")
+
+        print("DEBUG: Setting up console output protection...")
+        try:
+            self._setup_console_output_protection()
+            print("DEBUG: Console output protection setup complete.")
+        except Exception as e:
+            print(f"DEBUG: Console output protection setup failed: {e}")
+
+        print("DEBUG: Readline and console setup complete.")
 
         # Load USE_NOTICES setting
         use_notices_setting = os.getenv("USE_NOTICES", "false").lower()
@@ -138,10 +182,15 @@ class BotManager:
             self.logger.info("🐣 Tamagotchi responses disabled")
 
         # Initialize bot components
+        print("DEBUG: Initializing data manager...")
         self.data_manager = DataManager()
+        print("DEBUG: Initializing drink tracker...")
         self.drink_tracker = DrinkTracker(self.data_manager)
+        print("DEBUG: Initializing general words...")
         self.general_words = GeneralWords(self.data_manager)
+        print("DEBUG: Initializing tamagotchi...")
         self.tamagotchi = TamagotchiBot(self.data_manager)
+        print("DEBUG: Bot components initialized.")
 
         # Initialize weather service
         if WeatherService is not None:
@@ -237,14 +286,18 @@ class BotManager:
             self.otiedote_service = None
 
         # Initialize lemmatizer with graceful fallback
+        print("DEBUG: Initializing lemmatizer...")
         try:
             self.lemmatizer = Lemmatizer()
             self.logger.info("🔤 Lemmatizer component initialized")
+            print("DEBUG: Lemmatizer initialized successfully.")
         except Exception as e:
             self.logger.warning(f"⚠️  Could not initialize lemmatizer: {e}")
             self.lemmatizer = None
+            print(f"DEBUG: Lemmatizer failed to initialize: {e}")
 
         # Note: Signal handling is done in main.py
+        print("DEBUG: BotManager initialization complete!")
 
     def _setup_readline_history(self):
         """Configure readline for command history and editing."""
@@ -300,8 +353,17 @@ class BotManager:
         self._original_stdout_write = sys.stdout.write
         self._original_stderr_write = sys.stderr.write
 
-        # Replace built-in print and stdout/stderr writes with protected versions
-        self._setup_protected_output()
+        # Only set up protected output if readline is available and we're not on Windows
+        # Windows terminals don't handle the console manipulation well
+        if READLINE_AVAILABLE and os.name != "nt":
+            try:
+                self._setup_protected_output()
+            except Exception as e:
+                self.logger.warning(f"Could not set up console output protection: {e}")
+        else:
+            self.logger.debug(
+                "Skipping console output protection (Windows or no readline)"
+            )
 
     def _setup_protected_output(self):
         """Replace print and stdout/stderr with readline-aware versions."""
@@ -619,10 +681,22 @@ class BotManager:
             self.logger.info(f"Started server thread for {server_name}")
 
         self.logger.info(f"Bot manager started with {len(self.servers)} servers")
-        print("\n💬 Console is ready! Type commands (!help) or chat messages.")
-        print("🔧 Commands: !help, !version, !s <location>, !ping, etc.")
-        print("🗣️  Chat: Type any message (without !) to chat with AI")
-        print("🛑 Exit: Type 'quit' or 'exit' or press Ctrl+C")
+        safe_print(
+            "\n💬 Console is ready! Type commands (!help) or chat messages.",
+            "\n[CHAT] Console is ready! Type commands (!help) or chat messages.",
+        )
+        safe_print(
+            "🔧 Commands: !help, !version, !s <location>, !ping, etc.",
+            "[CONFIG] Commands: !help, !version, !s <location>, !ping, etc.",
+        )
+        safe_print(
+            "🗣️  Chat: Type any message (without !) to chat with AI",
+            "[TALK] Chat: Type any message (without !) to chat with AI",
+        )
+        safe_print(
+            "🛑 Exit: Type 'quit' or 'exit' or press Ctrl+C",
+            "[STOP] Exit: Type 'quit' or 'exit' or press Ctrl+C",
+        )
         print("-" * 60)
         return True
 
@@ -774,7 +848,9 @@ class BotManager:
 
                     if user_input.lower() in ("quit", "exit"):
                         self.logger.info("Console quit command received")
-                        print("🛑 Shutting down bot...")
+                        safe_print(
+                            "🛑 Shutting down bot...", "[STOP] Shutting down bot..."
+                        )
                         self.stop_event.set()
                         break
 
