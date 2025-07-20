@@ -6,6 +6,7 @@ connections and integrates all bot functionality across servers.
 """
 
 import os
+import readline
 import threading
 import time
 from typing import Any, Dict, List, Optional
@@ -52,6 +53,9 @@ class BotManager:
 
         # Initialize high-precision logger first
         self.logger = get_logger("BotManager")
+
+        # Configure readline for command history
+        self._setup_readline_history()
 
         # Load USE_NOTICES setting
         use_notices_setting = os.getenv("USE_NOTICES", "false").lower()
@@ -150,6 +154,52 @@ class BotManager:
             self.lemmatizer = None
 
         # Note: Signal handling is done in main.py
+
+    def _setup_readline_history(self):
+        """Configure readline for command history and editing."""
+        try:
+            # Set history file
+            history_file = os.path.expanduser("~/.leetbot_history")
+
+            # Set history length (number of commands to remember)
+            readline.set_history_length(1000)
+
+            # Try to read existing history
+            try:
+                readline.read_history_file(history_file)
+                self.logger.debug(f"Loaded command history from {history_file}")
+            except FileNotFoundError:
+                # History file doesn't exist yet, that's fine
+                pass
+            except Exception as e:
+                self.logger.warning(f"Could not load command history: {e}")
+
+            # Configure readline for better editing
+            readline.parse_and_bind('tab: complete')  # Tab completion
+            readline.parse_and_bind('set editing-mode emacs')  # Emacs-style editing
+            # Arrow keys are handled automatically by readline, no explicit binding needed
+
+            # Store history file path for saving later
+            self._history_file = history_file
+
+        except ImportError:
+            # readline not available (e.g., on some Windows installations)
+            self.logger.warning(
+                "readline module not available, command history disabled"
+            )
+            self._history_file = None
+        except Exception as e:
+            self.logger.warning(f"Could not configure readline: {e}")
+            self._history_file = None
+
+    def _save_command_history(self):
+        """Save command history to file."""
+        if hasattr(self, "_history_file") and self._history_file:
+            try:
+                readline.write_history_file(self._history_file)
+                self.logger.debug(f"Saved command history to {self._history_file}")
+            except Exception as e:
+                self.logger.warning(f"Could not save command history: {e}")
 
     def load_configurations(self) -> bool:
         """
@@ -516,14 +566,22 @@ class BotManager:
             raise
 
     def _listen_for_console_commands(self):
-        """Listen for console commands in a separate thread."""
+        """Listen for console commands in a separate thread with readline history support."""
         try:
             while not self.stop_event.is_set():
                 try:
-                    # Display a simple prompt
-                    user_input = input()
-                    if not user_input:
+                    # Use readline for input with history and editing support
+                    if hasattr(self, "_history_file") and self._history_file:
+                        # Readline is available, use it for better input experience
+                        user_input = input("💬 > ")
+                    else:
+                        # Fallback to simple input if readline is not available
+                        user_input = input()
+
+                    if not user_input or not user_input.strip():
                         continue
+
+                    user_input = user_input.strip()
 
                     if user_input.lower() in ("quit", "exit"):
                         self.logger.info("Console quit command received")
@@ -564,6 +622,9 @@ class BotManager:
         except Exception as e:
             self.logger.error(f"Console listener error: {e}")
             print(f"❌ Console listener error: {e}")
+        finally:
+            # Save command history on exit
+            self._save_command_history()
 
     def _create_console_bot_functions(self):
         """Create bot functions dictionary for console commands."""
