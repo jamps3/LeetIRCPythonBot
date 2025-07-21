@@ -142,6 +142,8 @@ class BotManager:
         self.servers: Dict[str, Server] = {}
         self.server_threads: Dict[str, threading.Thread] = {}
         self.stop_event = threading.Event()
+        # Read default quit message from environment or use fallback
+        self.quit_message = os.getenv("DEFAULT_QUIT_MESSAGE", "Disconnecting")
 
         # Initialize high-precision logger first
         print("DEBUG: Initializing logger...")
@@ -795,9 +797,18 @@ class BotManager:
                     f"Error sending Otiedote release to {server_name}: {e}"
                 )
 
-    def stop(self):
-        """Stop all servers and bot functionality gracefully."""
-        self.logger.info("Shutting down bot manager...")
+    def stop(self, quit_message: str = None):
+        """Stop all servers and bot functionality gracefully.
+
+        Args:
+            quit_message (str, optional): Custom quit message to use. If not provided, uses the stored quit_message.
+        """
+        if quit_message:
+            self.quit_message = quit_message
+
+        self.logger.info(
+            f"Shutting down bot manager with message: {self.quit_message}..."
+        )
 
         # Stop monitoring services
         try:
@@ -815,11 +826,13 @@ class BotManager:
         # Set stop event
         self.stop_event.set()
 
-        # Stop all servers
+        # Stop all servers with custom quit message
         for server_name, server in self.servers.items():
-            self.logger.info(f"Stopping server {server_name}...")
+            self.logger.info(
+                f"Stopping server {server_name} with quit message: {self.quit_message}..."
+            )
             try:
-                server.stop()
+                server.stop(quit_message=self.quit_message)
             except Exception as e:
                 self.logger.error(f"Error stopping server {server_name}: {e}")
 
@@ -966,7 +979,17 @@ class BotManager:
             "BOT_VERSION": "2.0.0",
             "server_name": "console",
             "stop_event": self.stop_event,  # Allow console commands to trigger shutdown
+            "set_quit_message": self.set_quit_message,  # Allow setting custom quit message
         }
+
+    def set_quit_message(self, message: str):
+        """Set a custom quit message for all servers.
+
+        Args:
+            message (str): The quit message to use when stopping servers.
+        """
+        self.quit_message = message
+        self.logger.info(f"Quit message set to: {message}")
 
     def _console_weather(self, irc, channel, location):
         """Console weather command."""

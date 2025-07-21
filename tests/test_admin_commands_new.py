@@ -11,6 +11,8 @@ This module contains comprehensive tests for all admin commands including:
 
 import os
 import sys
+import threading
+import time
 from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
@@ -474,3 +476,327 @@ def test_admin_commands_invalid_password(mock_config, bot_functions):
         assert (
             response == "❌ Invalid admin password"
         ), f"Command {command_name} should reject invalid password"
+
+
+# === COMPREHENSIVE CUSTOM QUIT MESSAGE TESTS ===
+
+
+def test_bot_manager_quit_message_attribute():
+    """Test that BotManager has quit_message attribute and set_quit_message method."""
+    with patch("bot_manager.DataManager"), patch(
+        "bot_manager.get_api_key", return_value=None
+    ), patch("bot_manager.create_crypto_service", return_value=Mock()), patch(
+        "bot_manager.create_nanoleet_detector", return_value=Mock()
+    ), patch(
+        "bot_manager.create_fmi_warning_service", return_value=Mock()
+    ), patch(
+        "bot_manager.create_otiedote_service", return_value=Mock()
+    ), patch(
+        "bot_manager.Lemmatizer", side_effect=Exception("Mock error")
+    ):
+
+        from bot_manager import BotManager
+
+        bot_manager = BotManager("TestBot")
+
+        # Test that quit_message attribute exists and has default value
+        assert hasattr(
+            bot_manager, "quit_message"
+        ), "BotManager should have quit_message attribute"
+        assert (
+            bot_manager.quit_message == "Disconnecting"
+        ), f"Expected default quit_message 'Disconnecting', got '{bot_manager.quit_message}'"
+
+        # Test that set_quit_message method exists and works
+        assert hasattr(
+            bot_manager, "set_quit_message"
+        ), "BotManager should have set_quit_message method"
+        assert callable(
+            bot_manager.set_quit_message
+        ), "set_quit_message should be callable"
+
+        # Test setting custom quit message
+        custom_message = "Custom farewell message"
+        bot_manager.set_quit_message(custom_message)
+        assert (
+            bot_manager.quit_message == custom_message
+        ), f"Expected quit_message to be '{custom_message}', got '{bot_manager.quit_message}'"
+
+
+def test_server_quit_message_functionality():
+    """Test that Server class accepts quit_message parameter and uses it."""
+    with patch("server.get_logger", return_value=Mock()):
+        from config import ServerConfig
+        from server import Server
+
+        # Mock server config
+        config = Mock(spec=ServerConfig)
+        config.name = "TestServer"
+        config.host = "irc.example.com"
+        config.port = 6667
+        config.channels = ["#test"]
+        config.keys = []
+        config.tls = False
+
+        # Create server instance
+        stop_event = threading.Event()
+        server = Server(config, "TestBot", stop_event)
+
+        # Test that server has quit_message attribute
+        assert hasattr(
+            server, "quit_message"
+        ), "Server should have quit_message attribute"
+        assert (
+            server.quit_message == "Disconnecting"
+        ), f"Expected default quit_message 'Disconnecting', got '{server.quit_message}'"
+
+        # Test that stop method accepts quit_message parameter
+        custom_message = "Server shutdown with custom message"
+
+        # Mock the socket and connection state
+        server.connected = True
+        mock_socket = Mock()
+        server.socket = mock_socket
+
+        # Call stop with custom quit message
+        server.stop(quit_message=custom_message)
+
+        # Verify that quit_message was set
+        assert (
+            server.quit_message == custom_message
+        ), f"Expected quit_message to be '{custom_message}', got '{server.quit_message}'"
+
+        # Verify that QUIT command was sent with custom message
+        mock_socket.sendall.assert_called()
+        call_args = mock_socket.sendall.call_args[0][0].decode("utf-8")
+        assert (
+            f"QUIT :{custom_message}" in call_args
+        ), f"Expected 'QUIT :{custom_message}' in socket call, got '{call_args}'"
+
+
+def test_console_bot_functions_has_set_quit_message():
+    """Test that console bot functions includes set_quit_message function."""
+    with patch("bot_manager.DataManager"), patch(
+        "bot_manager.get_api_key", return_value=None
+    ), patch("bot_manager.create_crypto_service", return_value=Mock()), patch(
+        "bot_manager.create_nanoleet_detector", return_value=Mock()
+    ), patch(
+        "bot_manager.create_fmi_warning_service", return_value=Mock()
+    ), patch(
+        "bot_manager.create_otiedote_service", return_value=Mock()
+    ), patch(
+        "bot_manager.Lemmatizer", side_effect=Exception("Mock error")
+    ):
+
+        from bot_manager import BotManager
+
+        bot_manager = BotManager("TestBot")
+
+        # Get console bot functions
+        bot_functions = bot_manager._create_console_bot_functions()
+
+        # Test that set_quit_message is included
+        assert (
+            "set_quit_message" in bot_functions
+        ), "Console bot functions should include set_quit_message"
+        assert callable(
+            bot_functions["set_quit_message"]
+        ), "set_quit_message should be callable"
+
+        # Test that it actually calls the BotManager's set_quit_message method
+        test_message = "Test quit message from console"
+        bot_functions["set_quit_message"](test_message)
+        assert (
+            bot_manager.quit_message == test_message
+        ), f"Expected quit_message to be '{test_message}', got '{bot_manager.quit_message}'"
+
+
+def test_legacy_quit_commands_use_set_quit_message():
+    """Test that legacy quit commands in commands.py use set_quit_message."""
+    # Mock bot functions with set_quit_message and stop_event
+    quit_message_calls = []
+
+    def mock_set_quit_message(message):
+        quit_message_calls.append(message)
+
+    stop_event_calls = []
+
+    def mock_stop_event_set():
+        stop_event_calls.append("set")
+
+    stop_event = Mock()
+    stop_event.set = mock_stop_event_set
+
+    bot_functions = {
+        "set_quit_message": mock_set_quit_message,
+        "stop_event": stop_event,
+        "notice_message": Mock(),
+        "log": Mock(),
+        "send_electricity_price": Mock(),
+        "load_leet_winners": Mock(return_value={}),
+        "send_weather": Mock(),
+        "load": Mock(return_value={}),
+        "fetch_title": Mock(),
+        "handle_ipfs_command": Mock(),
+    }
+
+    # Test console quit command
+    from commands import process_console_command
+
+    with patch("commands.verify_admin_password", return_value=True):
+        process_console_command(
+            "!quit testpass123 Goodbye from console!", bot_functions
+        )
+
+    # Verify that set_quit_message was called with correct message
+    assert (
+        len(quit_message_calls) == 1
+    ), f"Expected 1 call to set_quit_message, got {len(quit_message_calls)}"
+    assert (
+        quit_message_calls[0] == "Goodbye from console!"
+    ), f"Expected 'Goodbye from console!', got '{quit_message_calls[0]}'"
+
+    # Verify that stop_event.set() was called
+    assert (
+        len(stop_event_calls) == 1
+    ), f"Expected 1 call to stop_event.set(), got {len(stop_event_calls)}"
+
+
+def test_irc_quit_command_integration():
+    """Test IRC quit command sets custom message and triggers shutdown."""
+    quit_message_calls = []
+
+    def mock_set_quit_message(message):
+        quit_message_calls.append(message)
+
+    stop_event_calls = []
+
+    def mock_stop_event_set():
+        stop_event_calls.append("set")
+
+    stop_event = Mock()
+    stop_event.set = mock_stop_event_set
+
+    # Mock IRC socket
+    irc_calls = []
+
+    def mock_sendall(data):
+        irc_calls.append(data.decode("utf-8"))
+
+    irc = Mock()
+    irc.sendall = mock_sendall
+
+    bot_functions = {
+        "set_quit_message": mock_set_quit_message,
+        "stop_event": stop_event,
+        "notice_message": Mock(),
+        "log": Mock(),
+        "send_message": Mock(),
+        "send_electricity_price": Mock(),
+        "measure_latency": Mock(),
+        "get_crypto_price": Mock(return_value="50000"),
+        "load_leet_winners": Mock(return_value={}),
+        "save_leet_winners": Mock(),
+        "send_weather": Mock(),
+        "send_scheduled_message": Mock(),
+        "search_youtube": Mock(),
+        "handle_ipfs_command": Mock(),
+        "lookup": Mock(return_value="testserver"),
+        "format_counts": Mock(),
+        "chat_with_gpt": Mock(return_value="AI response"),
+        "wrap_irc_message_utf8_bytes": Mock(return_value=["response"]),
+        "fetch_title": Mock(),
+        "lemmat": Mock(),
+        "subscriptions": Mock(),
+        "EKAVIKA_FILE": "test_ekavika.json",
+        "bot_name": "TestBot",
+        "latency_start": Mock(return_value=0),
+        "set_latency_start": Mock(),
+    }
+
+    # Test IRC quit command processing
+    from commands import process_message
+
+    # Create a mock IRC message for admin quit
+    admin_quit_message = (
+        ":admin!admin@host.com PRIVMSG #test :!quit testpass123 Farewell from IRC"
+    )
+
+    with patch("commands.verify_admin_password", return_value=True), patch(
+        "commands.data_manager"
+    ) as mock_dm:
+
+        mock_dm.get_server_name.return_value = "testserver"
+        process_message(irc, admin_quit_message, bot_functions)
+
+    # Verify that set_quit_message was called
+    assert (
+        len(quit_message_calls) == 1
+    ), f"Expected 1 call to set_quit_message, got {len(quit_message_calls)}"
+    assert (
+        quit_message_calls[0] == "Farewell from IRC"
+    ), f"Expected 'Farewell from IRC', got '{quit_message_calls[0]}'"
+
+    # Verify that IRC QUIT was sent
+    assert len(irc_calls) == 1, f"Expected 1 IRC command, got {len(irc_calls)}"
+    assert (
+        "QUIT :Farewell from IRC" in irc_calls[0]
+    ), f"Expected 'QUIT :Farewell from IRC' in '{irc_calls[0]}'"
+
+    # Verify that stop_event.set() was called for global shutdown
+    assert (
+        len(stop_event_calls) == 1
+    ), f"Expected 1 call to stop_event.set(), got {len(stop_event_calls)}"
+
+
+def test_quit_command_actually_stops_thread():
+    """Integration test: verify quit command actually stops a running thread."""
+    # Create a real threading.Event
+    stop_event = threading.Event()
+
+    # Create a worker thread that runs until stop_event is set
+    def worker():
+        while not stop_event.is_set():
+            time.sleep(0.1)
+
+    # Start the worker thread
+    thread = threading.Thread(target=worker)
+    thread.start()
+
+    # Verify thread is running
+    assert thread.is_alive()
+
+    # Set up quit command with mock config and functions
+    mock_config = Mock()
+    mock_config.admin_password = "testpass123"
+
+    bot_functions = {
+        "stop_event": stop_event,
+        "log": Mock(),
+    }
+
+    context = CommandContext(
+        command="quit",
+        args=["testpass123", "test shutdown"],
+        raw_message="!quit testpass123 test shutdown",
+        sender=None,
+        target=None,
+        is_private=False,
+        is_console=True,
+        server_name="console",
+    )
+
+    # Execute quit command
+    with patch("commands_admin.get_config", return_value=mock_config):
+        response = quit_command(context, bot_functions)
+
+    # Verify response
+    assert "🛑 Shutting down bot" in response
+    assert "test shutdown" in response
+
+    # Wait for thread to stop
+    thread.join(timeout=2.0)
+
+    # Verify thread has stopped
+    assert not thread.is_alive()
+    assert stop_event.is_set()

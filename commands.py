@@ -719,7 +719,14 @@ def process_console_command(command_text, bot_functions):
             # Check if we have access to stop_event (console mode)
             stop_event = bot_functions.get("stop_event")
             if stop_event:
-                notice_message(f"🛑 Sending QUIT to all servers: {quit_message}")
+                # Set custom quit message first
+                set_quit_message_func = bot_functions.get("set_quit_message")
+                if set_quit_message_func:
+                    set_quit_message_func(quit_message)
+                    notice_message(f"🛑 Sending QUIT to all servers: {quit_message}")
+                else:
+                    notice_message(f"🛑 Sending QUIT to all servers: {quit_message}")
+
                 # Trigger shutdown - the bot manager will handle sending QUIT to all servers
                 stop_event.set()
             else:
@@ -1683,8 +1690,25 @@ def process_message(irc, message, bot_functions):
                 # Extract quit message from command: !quit password [message]
                 parts = text.split(" ", 2)
                 quit_message = parts[2] if len(parts) > 2 else "Admin quit"
+
+                # Set custom quit message first
+                set_quit_message_func = bot_functions.get("set_quit_message")
+                if set_quit_message_func:
+                    set_quit_message_func(quit_message)
+
+                # Send QUIT message to this server
                 irc.sendall(f"QUIT :{quit_message}\r\n".encode("utf-8"))
                 log(f"Admin quit with message: {quit_message}", "INFO")
+
+                # Trigger global shutdown
+                stop_event = bot_functions.get("stop_event")
+                if stop_event:
+                    log(
+                        f"Triggering global shutdown with quit message: {quit_message}",
+                        "INFO",
+                    )
+                    stop_event.set()
+
             else:
                 notice_message("Invalid password for admin command.", irc, target)
 

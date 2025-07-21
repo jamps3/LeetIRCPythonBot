@@ -7,11 +7,10 @@ reconnection logic, message handling, and maintaining the connection lifecycle.
 """
 
 import re
-import socket
-import threading
-import time
 import socket  # For TLS support
 import ssl  # For TLS support
+import threading
+import time
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -58,6 +57,7 @@ class Server:
         self.connected = False
         self.last_ping = time.time()
         self.threads = []
+        self.quit_message = "Disconnecting"  # Default quit message
         self.callbacks = {
             "message": [],  # Callbacks for PRIVMSG
             "join": [],  # Callbacks for user join events
@@ -109,7 +109,7 @@ class Server:
                         context.check_hostname = False
                         context.verify_mode = ssl.CERT_NONE
                         self.logger.warning(
-                            f"Using unverified SSL context — insecure but allows expired/broken certs"
+                            "Using unverified SSL context — insecure but allows expired/broken certs"
                         )
                     else:
                         context.check_hostname = True
@@ -424,7 +424,7 @@ class Server:
                 # Check stop event after successful connection
                 if self.stop_event.is_set():
                     self.logger.info("Stop event set after connection, disconnecting")
-                    self.quit("Shutdown requested")
+                    self.quit(self.quit_message)
                     break
 
                 # Start keepalive ping thread
@@ -454,7 +454,7 @@ class Server:
                 # If we're still connected but stop event is set, send QUIT
                 if self.connected and self.stop_event.is_set():
                     self.logger.info("Stop event set, sending QUIT")
-                    self.quit("Shutting down")
+                    self.quit(self.quit_message)
 
                 retry_delay = 5  # Reset retry delay
             else:
@@ -534,14 +534,33 @@ class Server:
                 # Always clear the socket reference
                 self.socket = None
 
-    def stop(self):
-        """Stop the server and clean up all resources."""
+    def stop(self, quit_message: str = None):
+        """Stop the server and clean up all resources.
+
+        Args:
+            quit_message (str, optional): Custom quit message to use before disconnecting.
+        """
+        if quit_message:
+            self.quit_message = quit_message
+
         if not self.stop_event.is_set():
             self.stop_event.set()
 
         if self.connected:
             try:
-                self.logger.info("Stopping server connection...")
+                self.logger.info(
+                    f"Stopping server connection with message: {self.quit_message}..."
+                )
+
+                # Send QUIT with custom message before closing socket
+                try:
+                    self.send_raw(f"QUIT :{self.quit_message}")
+                    # Give server time to process the QUIT
+                    import time
+
+                    time.sleep(0.5)
+                except Exception as e:
+                    self.logger.warning(f"Error sending QUIT message: {e}")
 
                 # Use the safe socket closing method
                 self._close_socket()
