@@ -1638,13 +1638,30 @@ def process_message(irc, message, bot_functions):
                 )
                 if results["total_occurrences"] > 0:
                     top_users = results["users"][:5]
-                    users_text = ", ".join(
-                        [
-                            f"{u['nick']}:{u['total']}({','.join([f'{dw}:{cnt}' for dw, cnt in u['drink_words'].items()])})"
-                            for u in top_users
-                        ]
-                    )
-                    response = f"'{specific_drink}': {results['total_occurrences']} total. Top: {users_text}"
+                    users_text = []
+                    for u in top_users:
+                        # Build drink names string with counts
+                        if "drink_names" in u:
+                            drink_details = []
+                            for dw, drink_names in u["drink_names"].items():
+                                # Show all matching drink names for this drink word
+                                names_list = []
+                                for drink_name, count in drink_names.items():
+                                    if drink_name != "unspecified":
+                                        names_list.append(f"{drink_name}:{count}")
+                                    else:
+                                        names_list.append(f"{dw}:{count}")
+                                # Join all drink names/counts for this drink word
+                                if names_list:
+                                    drink_details.append(",".join(names_list))
+                            detail_str = ",".join(drink_details)
+                        else:
+                            # Fallback to old format if drink_names not available
+                            detail_str = ",".join(
+                                [f"{dw}:{cnt}" for dw, cnt in u["drink_words"].items()]
+                            )
+                        users_text.append(f"{u['nick']}:{u['total']}({detail_str})")
+                    response = f"'{specific_drink}': {results['total_occurrences']} total. Top: {', '.join(users_text)}"
                 else:
                     response = f"Ei löydetty juomaa '{specific_drink}'"
             else:

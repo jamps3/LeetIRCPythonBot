@@ -383,6 +383,7 @@ class DrinkTracker:
             for nick, user_data in server_data.get("nicks", {}).items():
                 user_total = 0
                 user_drink_words = {}
+                user_drink_names = {}
 
                 for drink_word, drink_data in user_data.get("drink_words", {}).items():
                     for drink_name, count in drink_data.get("drinks", {}).items():
@@ -392,6 +393,10 @@ class DrinkTracker:
                             user_drink_words[drink_word] = (
                                 user_drink_words.get(drink_word, 0) + count
                             )
+                            # Store the actual drink names that matched
+                            if drink_word not in user_drink_names:
+                                user_drink_names[drink_word] = {}
+                            user_drink_names[drink_word][drink_name] = count
                             results["drink_words"][drink_word] += count
 
                 if user_total > 0:
@@ -402,6 +407,7 @@ class DrinkTracker:
                             "server": server_name,
                             "total": user_total,
                             "drink_words": user_drink_words,
+                            "drink_names": user_drink_names,
                         }
                     )
 
