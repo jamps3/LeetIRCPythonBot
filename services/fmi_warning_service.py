@@ -84,11 +84,11 @@ class FMIWarningService:
         """Stop monitoring FMI warnings."""
         self.running = False
         if self.thread:
-            # Join with timeout to prevent hanging during shutdown
-            self.thread.join(timeout=3.0)
+            # Join with timeout to allow graceful shutdown (30 seconds)
+            self.thread.join(timeout=30.0)
             if self.thread.is_alive():
                 print(
-                    "⚠️ FMI warning service thread did not stop cleanly within timeout"
+                    "⚠️ FMI warning service thread did not stop cleanly within 30 second timeout"
                 )
         print("🛑 FMI warning service stopped")
 
@@ -102,7 +102,12 @@ class FMIWarningService:
             except Exception as e:
                 print(f"⚠ Error checking FMI warnings: {e}")
 
-            time.sleep(self.check_interval)
+            # Sleep in smaller chunks to respond faster to shutdown requests
+            remaining_sleep = self.check_interval
+            while remaining_sleep > 0 and self.running:
+                chunk_sleep = min(remaining_sleep, 5.0)  # Check every 5 seconds
+                time.sleep(chunk_sleep)
+                remaining_sleep -= chunk_sleep
 
     def check_new_warnings(self) -> List[str]:
         """

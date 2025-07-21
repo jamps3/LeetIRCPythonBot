@@ -143,7 +143,7 @@ class BotManager:
         self.server_threads: Dict[str, threading.Thread] = {}
         self.stop_event = threading.Event()
         # Read default quit message from environment or use fallback
-        self.quit_message = os.getenv("DEFAULT_QUIT_MESSAGE", "Disconnecting")
+        self.quit_message = os.getenv("QUIT_MESSAGE", "Disconnecting")
 
         # Initialize high-precision logger first
         print("DEBUG: Initializing logger...")
@@ -506,6 +506,8 @@ class BotManager:
         # Create Server instances
         for config in server_configs:
             server = Server(config, self.bot_name, self.stop_event)
+            # Set the quit message from bot manager to server
+            server.quit_message = self.quit_message
             self.servers[config.name] = server
             self.logger.info(
                 f"Loaded server configuration: {config.name} ({config.host}:{config.port})"
@@ -677,6 +679,7 @@ class BotManager:
                 srv, tgt, snd
             ),
             "stop_event": self.stop_event,  # Allow IRC commands to trigger shutdown
+            "set_quit_message": self.set_quit_message,  # Allow setting custom quit message
         }
 
         # Create a mock IRC message format for commands.py compatibility

@@ -149,6 +149,11 @@ def quit_command(context: CommandContext, bot_functions):
 
     quit_message = " ".join(context.args[1:]) if len(context.args) > 1 else "Admin quit"
 
+    # Set the custom quit message first for all servers
+    set_quit_message_func = bot_functions.get("set_quit_message")
+    if set_quit_message_func:
+        set_quit_message_func(quit_message)
+
     if context.is_console:
         # For console, trigger bot shutdown
         stop_event = bot_functions.get("stop_event")
