@@ -994,6 +994,13 @@ class BotManager:
         self.quit_message = message
         self.logger.info(f"Quit message set to: {message}")
 
+        # Update quit message for all existing servers
+        for server_name, server in self.servers.items():
+            server.quit_message = message
+            self.logger.debug(
+                f"Updated quit message for server {server_name}: {message}"
+            )
+
     def _console_weather(self, irc, channel, location):
         """Console weather command."""
         if not self.weather_service:
