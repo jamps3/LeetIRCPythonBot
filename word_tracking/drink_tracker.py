@@ -349,7 +349,8 @@ class DrinkTracker:
             Dictionary containing statistics for the specific drink
         """
         data = self.data_manager.load_drink_data()
-        specific_drink_lower = specific_drink.lower()
+        specific_drink_lower = specific_drink.lower().replace("*", ".*")
+        wildcard_regex = re.compile(specific_drink_lower)
 
         results = {
             "specific_drink": specific_drink,
@@ -365,7 +366,7 @@ class DrinkTracker:
 
                 for drink_word, drink_data in user_data.get("drink_words", {}).items():
                     for drink_name, count in drink_data.get("drinks", {}).items():
-                        if drink_name.lower() == specific_drink_lower:
+                        if wildcard_regex.search(drink_name.lower()):
                             user_total += count
                             user_drink_words[drink_word] = count
                             results["drink_words"][drink_word] += count

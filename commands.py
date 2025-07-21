@@ -522,7 +522,7 @@ def process_console_command(command_text, bot_functions):
             else:
                 response = f"Ei löydetty juomaa '{specific_drink}'"
         else:
-            response = "Käytä: !drink <juoma>"
+            response = "Käytä: !drink <juoma> - Wildcards supported: !drink *ipa*"
         notice_message(response)
 
     elif command == "!drinktop":
@@ -1634,7 +1634,7 @@ def process_message(irc, message, bot_functions):
                 else:
                     response = f"Ei löydetty juomaa '{specific_drink}'"
             else:
-                response = "Käytä: !drink <juoma>"
+                response = "Käytä: !drink <juoma> - Wildcards supported: !drink *ipa*"
             notice_message(response, irc, target)
 
         elif text.startswith("!drinktop"):
