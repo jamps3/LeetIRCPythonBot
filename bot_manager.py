@@ -1382,6 +1382,11 @@ class BotManager:
                         # Clean the title
                         cleaned_title = re.sub(r"\s+", " ", title.string.strip())
 
+                        # Check if title is banned
+                        if self._is_title_banned(cleaned_title):
+                            self.logger.debug(f"Skipping banned title: {cleaned_title}")
+                            continue
+
                         # Send title to IRC if we have a proper server object
                         if hasattr(irc, "send_message"):
                             self._send_response(irc, target, f"📄 {cleaned_title}")
@@ -1444,6 +1449,27 @@ class BotManager:
             if ext and url_lower.endswith(ext):
                 self.logger.debug(
                     f"Skipping URL with blacklisted extension '{ext}': {url}"
+                )
+                return True
+
+        return False
+
+    def _is_title_banned(self, title: str) -> bool:
+        """Check if a title should be banned from being displayed."""
+        # Get banned titles from environment
+        banned_titles = os.getenv(
+            "TITLE_BANNED_TEXTS",
+            "Bevor Sie zu Google Maps weitergehen;Just a moment...;403 Forbidden;404 Not Found;Access Denied",
+        ).split(";")
+
+        title_lower = title.lower().strip()
+
+        # Check if title contains any banned text
+        for banned_text in banned_titles:
+            banned_text = banned_text.strip().lower()
+            if banned_text and banned_text in title_lower:
+                self.logger.debug(
+                    f"Skipping title with banned text '{banned_text}': {title}"
                 )
                 return True
 
