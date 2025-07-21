@@ -500,6 +500,7 @@ def process_console_command(command_text, bot_functions):
     elif command == "!drinkword":
         if args:
             drink_word = args.strip()
+            # Console uses global search (no server filter)
             results = drink_tracker.search_drink_word(drink_word)
             if results["total_occurrences"] > 0:
                 top_users = results["users"][:5]
@@ -514,10 +515,16 @@ def process_console_command(command_text, bot_functions):
     elif command == "!drink":
         if args:
             specific_drink = args.strip()
+            # Console uses global search (no server filter)
             results = drink_tracker.search_specific_drink(specific_drink)
             if results["total_occurrences"] > 0:
                 top_users = results["users"][:5]
-                users_text = ", ".join([f"{u['nick']}:{u['total']}" for u in top_users])
+                users_text = ", ".join(
+                    [
+                        f"{u['nick']}:{u['total']}({','.join([f'{dw}:{cnt}' for dw, cnt in u['drink_words'].items()])})"
+                        for u in top_users
+                    ]
+                )
                 response = f"'{specific_drink}': {results['total_occurrences']} total. Top: {users_text}"
             else:
                 response = f"Ei löydetty juomaa '{specific_drink}'"
@@ -1606,7 +1613,8 @@ def process_message(irc, message, bot_functions):
             parts = text.split(" ", 1)
             if len(parts) > 1:
                 drink_word = parts[1].strip()
-                results = drink_tracker.search_drink_word(drink_word)
+                server_name = data_manager.get_server_name(irc)
+                results = drink_tracker.search_drink_word(drink_word, server_name)
                 if results["total_occurrences"] > 0:
                     top_users = results["users"][:5]
                     users_text = ", ".join(
@@ -1624,11 +1632,17 @@ def process_message(irc, message, bot_functions):
             parts = text.split(" ", 1)
             if len(parts) > 1:
                 specific_drink = parts[1].strip()
-                results = drink_tracker.search_specific_drink(specific_drink)
+                server_name = data_manager.get_server_name(irc)
+                results = drink_tracker.search_specific_drink(
+                    specific_drink, server_name
+                )
                 if results["total_occurrences"] > 0:
                     top_users = results["users"][:5]
                     users_text = ", ".join(
-                        [f"{u['nick']}:{u['total']}" for u in top_users]
+                        [
+                            f"{u['nick']}:{u['total']}({','.join([f'{dw}:{cnt}' for dw, cnt in u['drink_words'].items()])})"
+                            for u in top_users
+                        ]
                     )
                     response = f"'{specific_drink}': {results['total_occurrences']} total. Top: {users_text}"
                 else:

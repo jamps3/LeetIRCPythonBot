@@ -282,12 +282,15 @@ class DrinkTracker:
             "top_users": global_top_users,
         }
 
-    def search_drink_word(self, drink_word: str) -> Dict[str, Any]:
+    def search_drink_word(
+        self, drink_word: str, server_filter: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Search for statistics about a specific drink word.
 
         Args:
             drink_word: The drink word to search for
+            server_filter: Optional server name to filter results to a specific server
 
         Returns:
             Dictionary containing statistics for the drink word
@@ -302,7 +305,14 @@ class DrinkTracker:
             "servers": {},
         }
 
-        for server_name, server_data in data.get("servers", {}).items():
+        # Filter servers if server_filter is provided
+        servers_to_search = data.get("servers", {})
+        if server_filter:
+            servers_to_search = {
+                server_filter: servers_to_search.get(server_filter, {})
+            }
+
+        for server_name, server_data in servers_to_search.items():
             server_total = 0
             server_users = []
 
@@ -338,12 +348,15 @@ class DrinkTracker:
 
         return results
 
-    def search_specific_drink(self, specific_drink: str) -> Dict[str, Any]:
+    def search_specific_drink(
+        self, specific_drink: str, server_filter: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Search for statistics about a specific drink.
 
         Args:
             specific_drink: The specific drink to search for
+            server_filter: Optional server name to filter results to a specific server
 
         Returns:
             Dictionary containing statistics for the specific drink
@@ -359,7 +372,14 @@ class DrinkTracker:
             "drink_words": Counter(),
         }
 
-        for server_name, server_data in data.get("servers", {}).items():
+        # Filter servers if server_filter is provided
+        servers_to_search = data.get("servers", {})
+        if server_filter:
+            servers_to_search = {
+                server_filter: servers_to_search.get(server_filter, {})
+            }
+
+        for server_name, server_data in servers_to_search.items():
             for nick, user_data in server_data.get("nicks", {}).items():
                 user_total = 0
                 user_drink_words = {}
@@ -368,7 +388,10 @@ class DrinkTracker:
                     for drink_name, count in drink_data.get("drinks", {}).items():
                         if wildcard_regex.search(drink_name.lower()):
                             user_total += count
-                            user_drink_words[drink_word] = count
+                            # Accumulate counts for the same drink word
+                            user_drink_words[drink_word] = (
+                                user_drink_words.get(drink_word, 0) + count
+                            )
                             results["drink_words"][drink_word] += count
 
                 if user_total > 0:
