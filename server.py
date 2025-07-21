@@ -64,7 +64,64 @@ class Server:
             "part": [],  # Callbacks for user part events
             "quit": [],  # Callbacks for user quit events
         }
+
+        # Flood protection - token bucket rate limiter
+        # Allow 5 messages per 10 seconds (0.5 messages/second)
+        self._rate_limit_tokens = 5.0  # Start with full bucket
+        self._rate_limit_max_tokens = 5.0  # Maximum tokens
+        self._rate_limit_refill_rate = 0.5  # Tokens per second
+        self._rate_limit_last_refill = time.time()
+        self._rate_limit_lock = threading.Lock()
+
         self.logger = get_logger(self.config.name)
+
+    def _refill_rate_limit_tokens(self):
+        """Refill rate limiting tokens based on time elapsed."""
+        with self._rate_limit_lock:
+            now = time.time()
+            elapsed = now - self._rate_limit_last_refill
+
+            # Add tokens based on elapsed time
+            tokens_to_add = elapsed * self._rate_limit_refill_rate
+            self._rate_limit_tokens = min(
+                self._rate_limit_max_tokens, self._rate_limit_tokens + tokens_to_add
+            )
+
+            self._rate_limit_last_refill = now
+
+    def _can_send_message(self):
+        """Check if we can send a message without hitting rate limits.
+
+        Returns:
+            bool: True if message can be sent, False if rate limited
+        """
+        self._refill_rate_limit_tokens()
+
+        with self._rate_limit_lock:
+            if self._rate_limit_tokens >= 1.0:
+                self._rate_limit_tokens -= 1.0
+                return True
+            return False
+
+    def _wait_for_rate_limit(self, timeout=10.0):
+        """Wait until we can send a message or timeout.
+
+        Args:
+            timeout (float): Maximum time to wait in seconds
+
+        Returns:
+            bool: True if we can send, False if timed out
+        """
+        start_time = time.time()
+
+        while time.time() - start_time < timeout:
+            if self._can_send_message():
+                return True
+
+            # Sleep for a short time before checking again
+            time.sleep(0.1)
+
+        return False
 
     def register_callback(self, event_type: str, callback: Callable):
         """
@@ -249,16 +306,31 @@ class Server:
                 self.send_raw(f"JOIN {channel}")
                 self.logger.info(f"Joined channel {channel} (no key)")
 
-    def send_raw(self, message: str):
+    def send_raw(self, message: str, bypass_rate_limit: bool = False):
         """
-        Send a raw IRC message to the server.
+        Send a raw IRC message to the server with flood protection.
 
         Args:
             message (str): The message to send
+            bypass_rate_limit (bool): If True, bypass rate limiting (for critical messages like PONG)
         """
         if not self.connected or not self.socket:
             self.logger.warning("Cannot send message: not connected")
             return
+
+        # Apply rate limiting unless bypassed
+        if not bypass_rate_limit:
+            # Check if this is a critical protocol message that should bypass rate limiting
+            critical_commands = ["PONG", "QUIT", "NICK", "USER"]
+            is_critical = any(message.startswith(cmd) for cmd in critical_commands)
+
+            if not is_critical:
+                # Wait for rate limit, but don't wait forever
+                if not self._wait_for_rate_limit(timeout=5.0):
+                    self.logger.warning(
+                        f"Rate limit exceeded, dropping message: {message[:50]}..."
+                    )
+                    return
 
         try:
             self.socket.sendall(f"{message}\r\n".encode("utf-8"))
