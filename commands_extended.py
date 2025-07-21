@@ -7,6 +7,43 @@ Additional commands including scheduled messages, IPFS, and Eurojackpot function
 
 import os
 import re
+from datetime import datetime
+
+from command_registry import CommandType, command
+
+
+@command(
+    name="leets",
+    command_type=CommandType.PUBLIC,
+    description="Show recent leet detections",
+    usage="!leets [limit]",
+    admin_only=False,
+)
+def command_leets(context, args):
+    """Show recent leet detection history."""
+    from leet_detector import create_leet_detector
+
+    limit = int(args[0]) if args and args[0].isdigit() else 5
+    detector = create_leet_detector()
+    history = detector.get_leet_history(limit=limit)
+
+    if not history:
+        return "No leet detections found."
+
+    response_lines = ["🎉 Recent Leet Detections:"]
+    for detection in history:
+        date_str = datetime.fromisoformat(detection["datetime"]).strftime(
+            "%d.%m %H:%M:%S"
+        )
+        user_msg_part = (
+            f' "{detection["user_message"]}"' if detection["user_message"] else ""
+        )
+        response_lines.append(
+            f"{detection['emoji']} {detection['achievement_name']} [{detection['nick']}] {detection['timestamp']}{user_msg_part} ({date_str})"
+        )
+
+    return "\n".join(response_lines)
+
 
 from command_registry import CommandType, command
 
