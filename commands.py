@@ -296,7 +296,7 @@ def process_console_command(command_text, bot_functions):
         help_text = (
             "📋 Komennot: 🌤️ Sää: !s [kaupunki], !sää, ⚡ Sähkö: !sähkö [tänään|huomenna] [tunti], !sahko [tänään|huomenna] [tunti]\n"
             "📊 Sanat: !sana <sana>, !topwords [nick], !leaderboard, 🍺 Kraks: !drinkstats [nick|server|global], !drinkword <sana>, !drink <tietty>, !drinktop, !kokmäärä [palvelin] - näyttää kaikkien sanojen kokonaismäärät palvelimelta (vapaaehtoinen palvelimen nimi, oletuksena nykyinen), !antikrak - poistaa seurannan\n"
-            "🎯 Muut: !aika, !kaiku, !euribor, !leetwinners, !leets [määrä], !crypto [coin], !youtube <haku|ID>, !url <url>, !ipfs add <url>\n"
+            "🎯 Muut: !aika, !kaiku, !euribor, !leetwinners, !leets [määrä] [ultimate|mega|super|leet|nano|special], !crypto [coin], !youtube <haku|ID>, !url <url>, !ipfs add <url>\n"
             "⚙️ FMI Varoitukset ja Onnettomuustiedotteet: !tilaa <varoitukset|onnettomuustiedotteet>\n"
             "🎰 Eurojackpot: !eurojackpot [arvontapäivä|tilastot|tilastot ext]\n"
             "⏰ Ajastetut viestit: !leet #kanava HH:MM:SS.mmmmmm viesti\n"
@@ -883,7 +883,7 @@ def process_message(irc, message, bot_functions):
                 "📊 Words: !sana <word>, !topwords [nick], !leaderboard\n"
                 "🍺 Drinks: !drinkstats [nick|server|global], !drinkword <word>, !drink <specific>, !drinktop, !antikrak\n"
                 "🐣 Tamagotchi: !tamagotchi, !feed [food], !pet\n"
-                "🎯 Other: !aika, !kaiku, !euribor, !leetwinners, !crypto [coin], !version\n"
+                "🎯 Other: !aika, !kaiku, !euribor, !leetwinners, !leets [limit] [ultimate|mega|super|leet|nano|special], !crypto [coin], !version\n"
                 "🎰 Games: !eurojackpot [date|scrape|stats], !youtube <query>\n"
                 "⚙️ Advanced: !leet, !kokmäärä [palvelin], !tilaa, !url <url>, !ipfs add <url>\n"
                 "🔒 Admin*: !join*, !part*, !nick*, !quit*, !raw*\n"
@@ -1172,29 +1172,83 @@ def process_message(irc, message, bot_functions):
             send_message(irc, target, response)
             log(f"Sent leet winners: {response}")
 
-        # Handle !leets command - Show leet detection history via PRIVMSG
+        # Handle !leets command - Show leet detection history via PRIVMSG with filtering
         elif text.startswith("!leets"):
             try:
                 from leet_detector import create_leet_detector
 
                 leet_detector = create_leet_detector()
 
-                # Parse optional limit parameter
+                # Parse parameters: !leets [limit] [filter_type]
+                # Examples: !leets 10 nano, !leets nano, !leets ultimate, !leets special
                 parts = text.split()
                 limit = 10  # Default limit
-                if len(parts) > 1 and parts[1].isdigit():
-                    limit = min(int(parts[1]), 50)  # Max 50 entries
+                filter_type = None
+
+                # Valid achievement types
+                valid_filters = ["ultimate", "mega", "super", "leet", "nano", "special"]
+
+                # Parse arguments
+                for i, part in enumerate(parts[1:], 1):  # Skip the command itself
+                    if part.isdigit():
+                        limit = min(int(part), 50)  # Max 50 entries
+                    elif part.lower() in valid_filters:
+                        filter_type = part.lower()
 
                 # Get leet history
-                history = leet_detector.get_leet_history(limit)
+                history = leet_detector.get_leet_history(
+                    limit * 3
+                )  # Get more to filter
+
+                # Apply filtering
+                if filter_type:
+                    if filter_type == "special":
+                        # Special filter: exclude regular "leet" achievements, only show nano, super, mega, ultimate
+                        filtered_history = [
+                            h
+                            for h in history
+                            if h.get("achievement_level")
+                            in ["ultimate", "mega", "super", "nano"]
+                        ]
+                        filter_description = (
+                            "special achievements (Ultimate, Mega, Super, Nano)"
+                        )
+                    else:
+                        # Filter by specific achievement level
+                        filtered_history = [
+                            h
+                            for h in history
+                            if h.get("achievement_level") == filter_type
+                        ]
+                        achievement_names = {
+                            "ultimate": "Ultimate Leet",
+                            "mega": "Mega Leet",
+                            "super": "Super Leet",
+                            "leet": "Regular Leet",
+                            "nano": "Nano Leet",
+                        }
+                        filter_description = f"{achievement_names.get(filter_type, filter_type)} achievements"
+
+                    history = filtered_history[:limit]  # Apply limit after filtering
+                else:
+                    history = history[:limit]  # Apply original limit
+                    filter_description = "all leet detections"
 
                 if not history:
-                    notice_message("📋 No leet detections recorded yet.", irc, sender)
+                    if filter_type:
+                        notice_message(
+                            f"📋 No {filter_description} recorded yet.", irc, sender
+                        )
+                    else:
+                        notice_message(
+                            "📋 No leet detections recorded yet.", irc, sender
+                        )
                 else:
-                    # Send header
-                    notice_message(
-                        f"📋 Last {len(history)} leet detections:", irc, sender
-                    )
+                    # Send header with filter info
+                    header = f"📋 Last {len(history)} {filter_description}:"
+                    if filter_type and len(history) == limit:
+                        header += f" (showing {limit} most recent)"
+                    notice_message(header, irc, sender)
 
                     # Send each detection as a separate PRIVMSG
                     for detection in history:
@@ -1218,12 +1272,16 @@ def process_message(irc, message, bot_functions):
                         notice_message(formatted_msg, irc, sender)
 
                 log(
-                    f"Sent {len(history) if history else 0} leet detections to {sender}"
+                    f"Sent {len(history) if history else 0} {filter_description} to {sender}"
                 )
 
             except Exception as e:
                 log(f"Error in !leets command: {e}", "ERROR")
-                notice_message("❌ Error retrieving leet history.", irc, sender)
+                notice_message(
+                    "❌ Error retrieving leet history. Usage: !leets [limit] [ultimate|mega|super|leet|nano|special]",
+                    irc,
+                    sender,
+                )
 
         # !leet - Ajasta viestin lähetys
         elif text.startswith("!leet"):
