@@ -388,12 +388,16 @@ def get_server_configs() -> List[ServerConfig]:
         keys = parse_comma_separated_values(keys_str) if keys_str else None
 
         # Create the server config
+        # Use hostname environment variable if set, otherwise use host (IP address)
+        hostname = os.environ.get(f"{prefix}HOSTNAME")
+        server_name = hostname if hostname else host
+
         config = ServerConfig(
             host=host,
             port=port,
             channels=channels,
             keys=keys,
-            name=f"SERVER{idx}",
+            name=server_name,
             tls=tls,
             allow_insecure_tls=allow_insecure_tls,  # Default to allow insecure TLS connections
         )
@@ -405,7 +409,10 @@ def get_server_configs() -> List[ServerConfig]:
         print("Warning: No server configurations found in .env file. Using defaults.")
         server_configs.append(
             ServerConfig(
-                host="irc.libera.chat", port=6667, channels=["#test"], name="DEFAULT"
+                host="irc.libera.chat",
+                port=6667,
+                channels=["#test"],
+                name="irc.libera.chat",
             )
         )
 

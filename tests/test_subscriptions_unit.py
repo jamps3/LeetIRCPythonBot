@@ -401,19 +401,19 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
     def test_format_user_subscriptions_empty(self):
         """Test formatting user subscriptions when user has no subscriptions."""
         from subscriptions import format_user_subscriptions
-        
+
         result = format_user_subscriptions("testuser", "server1")
         self.assertIn("ei ole tilannut", result)
         self.assertIn("testuser", result)
-    
+
     def test_format_user_subscriptions_with_data(self):
         """Test formatting user subscriptions when user has subscriptions."""
         from subscriptions import format_user_subscriptions, toggle_subscription
-        
+
         # Add some subscriptions
         toggle_subscription("testuser", "server1", "varoitukset")
         toggle_subscription("testuser", "server1", "onnettomuustiedotteet")
-        
+
         result = format_user_subscriptions("testuser", "server1")
         self.assertIn("on tilannut", result)
         self.assertIn("testuser", result)

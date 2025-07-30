@@ -823,8 +823,11 @@ class BotManager:
 
         try:
             if self.otiedote_service is not None:
-                self.logger.info("Stopping Otiedote service (may take up to 10 seconds)...")
+                self.logger.info(
+                    "Stopping Otiedote service (may take up to 10 seconds)..."
+                )
                 self.otiedote_service.stop()
+                time.sleep(10)  # Grace period for the monitor thread
                 self.logger.info("Otiedote service stopped")
         except Exception as e:
             self.logger.error(f"Error stopping Otiedote service: {e}")

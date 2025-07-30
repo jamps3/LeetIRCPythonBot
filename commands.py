@@ -1596,7 +1596,9 @@ def process_message(irc, message, bot_functions):
                         )
                     # In a private message, show user's subscriptions
                     else:
-                        result = subscriptions.format_user_subscriptions(sender, server_name)
+                        result = subscriptions.format_user_subscriptions(
+                            sender, server_name
+                        )
 
                     # Send the result, splitting if necessary
                     for line in result.split("\n"):
@@ -1613,7 +1615,9 @@ def process_message(irc, message, bot_functions):
 
                     # Allow overriding the subscriber (for admins, etc.)
                     if len(parts) >= 3:
-                        subscriber = parts[2]  # e.g., !tilaa varoitukset #another-channel
+                        subscriber = parts[
+                            2
+                        ]  # e.g., !tilaa varoitukset #another-channel
 
                     # Get server name
                     server_name = data_manager.get_server_name(irc)
