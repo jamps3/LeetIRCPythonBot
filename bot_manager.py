@@ -813,16 +813,19 @@ class BotManager:
             f"Shutting down bot manager with message: {self.quit_message}..."
         )
 
-        # Stop monitoring services
+        # Stop monitoring services with logging
         try:
             if self.fmi_warning_service is not None:
+                self.logger.info("Stopping FMI warning service...")
                 self.fmi_warning_service.stop()
         except Exception as e:
             self.logger.error(f"Error stopping FMI warning service: {e}")
 
         try:
             if self.otiedote_service is not None:
+                self.logger.info("Stopping Otiedote service (may take up to 10 seconds)...")
                 self.otiedote_service.stop()
+                self.logger.info("Otiedote service stopped")
         except Exception as e:
             self.logger.error(f"Error stopping Otiedote service: {e}")
 

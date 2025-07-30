@@ -68,18 +68,21 @@ class OtiedoteService:
         """Stop monitoring press releases."""
         self.running = False
         if self.thread:
-            # Join with timeout to prevent hanging during shutdown
-            self.thread.join(timeout=3.0)
+            # Join with longer timeout to allow graceful shutdown
+            self.thread.join(timeout=10.0)
             if self.thread.is_alive():
                 logging.warning(
-                    "⚠️ Otiedote monitor thread did not stop cleanly within timeout"
+                    "⚠️ Otiedote monitor thread did not stop cleanly within 10s timeout"
                 )
         if self.driver:
             try:
+                # First try to close gracefully
+                self.driver.close()
                 self.driver.quit()
-            except Exception:
-                pass
-            self.driver = None
+            except Exception as e:
+                logging.debug(f"WebDriver shutdown exception (expected): {e}")
+            finally:
+                self.driver = None
         logging.info("🛑 Otiedote monitor stopped")
 
     def _setup_driver(self) -> None:
@@ -125,6 +128,15 @@ class OtiedoteService:
         except IOError as e:
             logging.warning(f"Failed to save state: {e}")
 
+    def _interruptible_sleep(self, duration: float) -> None:
+        """Sleep for the specified duration but wake up periodically to check for shutdown."""
+        sleep_chunk = 1.0  # Check every second
+        elapsed = 0.0
+        while elapsed < duration and self.running:
+            chunk_time = min(sleep_chunk, duration - elapsed)
+            time.sleep(chunk_time)
+            elapsed += chunk_time
+
     def _monitor_loop(self) -> None:
         """Main monitoring loop running in background thread."""
         while self.running:
@@ -134,7 +146,8 @@ class OtiedoteService:
 
                 if not self.driver:
                     logging.error("WebDriver not available, retrying later")
-                    time.sleep(self.check_interval)
+                    # Sleep in smaller chunks to be more responsive to shutdown
+                    self._interruptible_sleep(self.check_interval)
                     continue
 
                 self._check_for_new_releases()
@@ -142,7 +155,8 @@ class OtiedoteService:
             except Exception as e:
                 logging.error(f"Error in monitoring loop: {e}")
 
-            time.sleep(self.check_interval)
+            # Sleep in smaller chunks to be more responsive to shutdown
+            self._interruptible_sleep(self.check_interval)
 
     def _check_for_new_releases(self) -> None:
         """Check for new press releases."""
