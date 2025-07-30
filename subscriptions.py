@@ -243,3 +243,85 @@ def get_user_subscriptions(nick: str, server: str) -> List[str]:
         return []
 
     return data[server][nick].copy()
+
+
+def format_user_subscriptions(nick: str, server: str) -> str:
+    """Format user subscriptions for display.
+    
+    Returns:
+        Formatted string showing user's current subscriptions
+    """
+    subscriptions = get_user_subscriptions(nick, server)
+    
+    if not subscriptions:
+        return f"📋 {nick} ei ole tilannut mitään varoituksia tai onnettomuustiedotteita."
+    
+    subscriptions_text = ", ".join(subscriptions)
+    return f"📋 {nick} on tilannut: {subscriptions_text}"
+
+
+def get_all_subscriptions() -> Dict[str, Dict[str, List[str]]]:
+    """Get all subscriptions across all servers.
+    
+    Returns:
+        Dictionary with server -> {nick: [topics]} structure
+    """
+    return load_subscriptions()
+
+
+def format_all_subscriptions() -> str:
+    """Format all subscriptions for display.
+    
+    Returns:
+        Formatted string showing all subscriptions across all servers
+    """
+    data = get_all_subscriptions()
+    
+    if not data:
+        return "📋 Ei tilauksia tallennettuna."
+    
+    lines = ["📋 Kaikki tilaukset:"]
+    
+    for server_name, server_data in data.items():
+        if server_data:
+            lines.append(f"  🌐 {server_name}:")
+            for nick, topics in server_data.items():
+                topics_text = ", ".join(topics)
+                lines.append(f"    • {nick}: {topics_text}")
+    
+    return "\n".join(lines)
+
+
+def format_server_subscriptions(server: str) -> str:
+    """Format all subscriptions for a specific server.
+    
+    Returns:
+        Formatted string showing all subscriptions for the server
+    """
+    data = load_subscriptions()
+    
+    if server not in data or not data[server]:
+        return f"📋 Ei tilauksia palvelimella {server}."
+    
+    lines = [f"📋 Tilaukset palvelimella {server}:"]
+    
+    for nick, topics in data[server].items():
+        topics_text = ", ".join(topics)
+        lines.append(f"  • {nick}: {topics_text}")
+    
+    return "\n".join(lines)
+
+
+def format_channel_subscriptions(channel: str, server: str) -> str:
+    """Format subscriptions for a specific channel.
+    
+    Returns:
+        Formatted string showing subscriptions for the channel
+    """
+    subscriptions = get_user_subscriptions(channel, server)
+    
+    if not subscriptions:
+        return f"📋 Kanava {channel} ei ole tilannut mitään varoituksia tai onnettomuustiedotteita."
+    
+    subscriptions_text = ", ".join(subscriptions)
+    return f"📋 Kanava {channel} on tilannut: {subscriptions_text}"

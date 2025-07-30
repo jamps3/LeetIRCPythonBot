@@ -297,7 +297,7 @@ def process_console_command(command_text, bot_functions):
             "📋 Komennot: 🌤️ Sää: !s [kaupunki], !sää, ⚡ Sähkö: !sähkö [tänään|huomenna] [tunti], !sahko [tänään|huomenna] [tunti]\n"
             "📊 Sanat: !sana <sana>, !topwords [nick], !leaderboard, 🍺 Kraks: !drinkstats [nick|server|global], !drinkword <sana>, !drink <tietty>, !drinktop, !kokmäärä [palvelin] - näyttää kaikkien sanojen kokonaismäärät palvelimelta (vapaaehtoinen palvelimen nimi, oletuksena nykyinen), !antikrak - poistaa seurannan\n"
             "🎯 Muut: !aika, !kaiku, !euribor, !leetwinners, !leets [määrä] [ultimate|mega|super|leet|nano|special], !crypto [coin], !youtube <haku|ID>, !url <url>, !ipfs add <url>\n"
-            "⚙️ FMI Varoitukset ja Onnettomuustiedotteet: !tilaa <varoitukset|onnettomuustiedotteet>\n"
+            "⚙️ FMI Varoitukset ja Onnettomuustiedotteet: !tilaa <varoitukset|onnettomuustiedotteet|list> [käyttäjä/kanava]\n"
             "🎰 Eurojackpot: !eurojackpot [arvontapäivä|tilastot|tilastot ext]\n"
             "⏰ Ajastetut viestit: !leet #kanava HH:MM:SS.mmmmmm viesti\n"
             "🔒 Admin: !version, !join*, !part*, !nick*, !quit*, !raw* | * = Vaatii salasanan | 🐣 Tamagotchi: !tamagotchi, !feed [food], !pet\n"
@@ -673,6 +673,42 @@ def process_console_command(command_text, bot_functions):
                 "DEBUG",
             )
             notice_message(f"Eurojackpot: Virhe - {str(e)}")
+
+    elif command == "!tilaa":
+        # Handle subscription commands in console
+        parts = command_text.strip().split()
+        subscriptions = bot_functions["subscriptions"]
+
+        if len(parts) >= 2:
+            topic = parts[1].lower()
+
+            if topic == "list":
+                # List all subscriptions from console
+                result = subscriptions.format_all_subscriptions()
+                # Split into multiple lines for console output
+                for line in result.split("\n"):
+                    if line.strip():
+                        notice_message(line)
+
+            elif topic in ["varoitukset", "onnettomuustiedotteet"]:
+                # Console subscription toggle
+                console_server = "console"
+                subscriber = "console_user"  # Default console user
+                if len(parts) >= 3:
+                    subscriber = parts[2]  # Allow setting for different user/channel
+
+                result = subscriptions.toggle_subscription(
+                    subscriber, console_server, topic
+                )
+                notice_message(result)
+            else:
+                notice_message(
+                    "⚠ Tuntematon tilaustyyppi. Käytä: varoitukset, onnettomuustiedotteet tai list"
+                )
+        else:
+            notice_message(
+                "⚠ Käyttö: !tilaa <varoitukset|onnettomuustiedotteet|list> [käyttäjä/kanava]"
+            )
 
     elif command == "!version":
         notice_message(f"Bot version: {BOT_VERSION}")
@@ -1540,7 +1576,28 @@ def process_message(irc, message, bot_functions):
             parts = text.strip().split()
             if len(parts) >= 2:
                 topic = parts[1].lower()
-                if topic in ["varoitukset", "onnettomuustiedotteet"]:
+
+                if topic == "list":
+                    server_name = data_manager.get_server_name(irc)
+
+                    # Admin with password can see all subscriptions on the server
+                    if verify_admin_password(text):
+                        result = subscriptions.format_server_subscriptions(server_name)
+                    # In a channel, show channel's subscriptions
+                    elif target.startswith("#"):
+                        result = subscriptions.format_channel_subscriptions(
+                            target, server_name
+                        )
+                    # In a private message, show user's subscriptions
+                    else:
+                        result = subscriptions.format_user_subscriptions(sender, server_name)
+
+                    # Send the result, splitting if necessary
+                    for line in result.split("\n"):
+                        if line.strip():
+                            notice_message(line, irc, target)
+
+                elif topic in ["varoitukset", "onnettomuustiedotteet"]:
                     # Tarkistetaan, onko kohde annettu (esim. #kanava)
                     if len(parts) >= 3:
                         subscriber = parts[2]  # esim. #kanava tai nick

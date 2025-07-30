@@ -10,6 +10,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from subscriptions import (
     VALID_TOPICS,
+    format_all_subscriptions,
+    format_channel_subscriptions,
+    format_server_subscriptions,
+    format_user_subscriptions,
+    get_all_subscriptions,
     get_server_subscribers,
     get_subscribers,
     get_user_subscriptions,
@@ -392,6 +397,97 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
         # Verify only valid data was saved
         data = load_subscriptions()
         self.assertEqual(data, {})  # All data was invalid, so empty result
+
+    def test_format_user_subscriptions_empty(self):
+        """Test formatting user subscriptions when user has no subscriptions."""
+        from subscriptions import format_user_subscriptions
+        
+        result = format_user_subscriptions("testuser", "server1")
+        self.assertIn("ei ole tilannut", result)
+        self.assertIn("testuser", result)
+    
+    def test_format_user_subscriptions_with_data(self):
+        """Test formatting user subscriptions when user has subscriptions."""
+        from subscriptions import format_user_subscriptions, toggle_subscription
+        
+        # Add some subscriptions
+        toggle_subscription("testuser", "server1", "varoitukset")
+        toggle_subscription("testuser", "server1", "onnettomuustiedotteet")
+        
+        result = format_user_subscriptions("testuser", "server1")
+        self.assertIn("on tilannut", result)
+        self.assertIn("testuser", result)
+        self.assertIn("varoitukset", result)
+        self.assertIn("onnettomuustiedotteet", result)
+
+    def test_get_all_subscriptions_empty(self):
+        """Test getting all subscriptions when none exist."""
+        result = get_all_subscriptions()
+        self.assertEqual(result, {})
+
+    def test_get_all_subscriptions_with_data(self):
+        """Test getting all subscriptions with data."""
+        toggle_subscription("user1", "server1", "varoitukset")
+        toggle_subscription("user2", "server2", "onnettomuustiedotteet")
+
+        result = get_all_subscriptions()
+        expected = {
+            "server1": {"user1": ["varoitukset"]},
+            "server2": {"user2": ["onnettomuustiedotteet"]},
+        }
+        self.assertEqual(result, expected)
+
+    def test_format_all_subscriptions_empty(self):
+        """Test formatting all subscriptions when none exist."""
+        result = format_all_subscriptions()
+        self.assertIn("Ei tilauksia", result)
+
+    def test_format_all_subscriptions_with_data(self):
+        """Test formatting all subscriptions with data."""
+        toggle_subscription("user1", "server1", "varoitukset")
+        toggle_subscription("#channel", "server2", "onnettomuustiedotteet")
+
+        result = format_all_subscriptions()
+        self.assertIn("Kaikki tilaukset", result)
+        self.assertIn("server1", result)
+        self.assertIn("user1", result)
+        self.assertIn("varoitukset", result)
+        self.assertIn("server2", result)
+        self.assertIn("#channel", result)
+        self.assertIn("onnettomuustiedotteet", result)
+
+    def test_format_server_subscriptions_empty(self):
+        """Test formatting server subscriptions when none exist."""
+        result = format_server_subscriptions("server1")
+        self.assertIn("Ei tilauksia", result)
+        self.assertIn("server1", result)
+
+    def test_format_server_subscriptions_with_data(self):
+        """Test formatting server subscriptions with data."""
+        toggle_subscription("user1", "server1", "varoitukset")
+        toggle_subscription("#channel", "server1", "onnettomuustiedotteet")
+        toggle_subscription("user2", "server2", "varoitukset")  # Different server
+
+        result = format_server_subscriptions("server1")
+        self.assertIn("Tilaukset palvelimella server1", result)
+        self.assertIn("user1", result)
+        self.assertIn("#channel", result)
+        self.assertNotIn("user2", result)
+
+    def test_format_channel_subscriptions_empty(self):
+        """Test formatting channel subscriptions when none exist."""
+        result = format_channel_subscriptions("#channel", "server1")
+        self.assertIn("ei ole tilannut", result)
+        self.assertIn("#channel", result)
+
+    def test_format_channel_subscriptions_with_data(self):
+        """Test formatting channel subscriptions with data."""
+        toggle_subscription("#channel", "server1", "varoitukset")
+
+        result = format_channel_subscriptions("#channel", "server1")
+        self.assertIn("on tilannut", result)
+        self.assertIn("#channel", result)
+        self.assertIn("varoitukset", result)
 
 
 if __name__ == "__main__":
