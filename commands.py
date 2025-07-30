@@ -852,8 +852,8 @@ def process_message(irc, message, bot_functions):
         sender, _, target, text = match.groups()
 
         # === NEW WORD TRACKING SYSTEM ===
-        # Get server name for tracking
-        server_name = data_manager.get_server_name(irc)
+        # Get server name for tracking from bot_functions (properly configured server name)
+        server_name = bot_functions["server_name"]
 
         # Process each message and count words, except lines starting with !
         if not text.startswith("!"):
@@ -962,7 +962,7 @@ def process_message(irc, message, bot_functions):
             parts = text.split(" ", 1)
             if len(parts) > 1:
                 search_word = parts[1].strip().lower()
-                server_name = data_manager.get_server_name(irc)
+                server_name = bot_functions["server_name"]
                 results = general_words.search_word(search_word)
 
                 if results["total_occurrences"] > 0:
@@ -996,7 +996,7 @@ def process_message(irc, message, bot_functions):
         # !topwords - Käytetyimmät sanat
         elif text.startswith("!topwords"):
             parts = text.split(" ", 1)
-            server_name = data_manager.get_server_name(irc)
+            server_name = bot_functions["server_name"]
 
             if len(parts) > 1:  # Specific nick provided
                 nick = parts[1].strip()
@@ -1024,7 +1024,7 @@ def process_message(irc, message, bot_functions):
 
         # !leaderboard - Aktiivisimmat käyttäjät
         elif text.startswith("!leaderboard"):
-            server_name = data_manager.get_server_name(irc)
+            server_name = bot_functions["server_name"]
             leaderboard = general_words.get_leaderboard(server_name, 5)
 
             if leaderboard:
@@ -1040,7 +1040,7 @@ def process_message(irc, message, bot_functions):
         # !kraks - Krakkaukset (core drink tracking functionality)
         elif text.startswith("!kraks"):
             # Use new drink tracking system for kraks command
-            server_name = data_manager.get_server_name(irc)
+            server_name = bot_functions["server_name"]
             stats = drink_tracker.get_server_stats(server_name)
 
             if stats["total_drink_words"] > 0:
@@ -1584,7 +1584,7 @@ def process_message(irc, message, bot_functions):
                 topic = parts[1].lower()
 
                 if topic == "list":
-                    server_name = data_manager.get_server_name(irc)
+                    server_name = bot_functions["server_name"]
 
                     # Admin with password can see all subscriptions on the server
                     if verify_admin_password(text):
@@ -1620,7 +1620,7 @@ def process_message(irc, message, bot_functions):
                         ]  # e.g., !tilaa varoitukset #another-channel
 
                     # Get server name
-                    server_name = data_manager.get_server_name(irc)
+                    server_name = bot_functions["server_name"]
 
                     result = subscriptions.toggle_subscription(
                         subscriber, server_name, topic
@@ -1643,7 +1643,7 @@ def process_message(irc, message, bot_functions):
         elif text.startswith("!drinkstats"):
             # !drinkstats [nick|server|global]
             parts = text.split(" ", 1)
-            server_name = data_manager.get_server_name(irc)
+            server_name = bot_functions["server_name"]
 
             if len(parts) > 1:
                 arg = parts[1].strip().lower()
@@ -1685,7 +1685,7 @@ def process_message(irc, message, bot_functions):
             parts = text.split(" ", 1)
             if len(parts) > 1:
                 drink_word = parts[1].strip()
-                server_name = data_manager.get_server_name(irc)
+                server_name = bot_functions["server_name"]
                 results = drink_tracker.search_drink_word(drink_word, server_name)
                 if results["total_occurrences"] > 0:
                     top_users = results["users"][:5]
@@ -1704,7 +1704,7 @@ def process_message(irc, message, bot_functions):
             parts = text.split(" ", 1)
             if len(parts) > 1:
                 specific_drink = parts[1].strip()
-                server_name = data_manager.get_server_name(irc)
+                server_name = bot_functions["server_name"]
                 results = drink_tracker.search_specific_drink(
                     specific_drink, server_name
                 )
@@ -1755,7 +1755,7 @@ def process_message(irc, message, bot_functions):
 
         elif text.startswith("!antikrak"):
             # Privacy opt-out/opt-in
-            server_name = data_manager.get_server_name(irc)
+            server_name = bot_functions["server_name"]
             response = drink_tracker.handle_opt_out(server_name, sender)
             notice_message(response, irc, target)
 
@@ -1772,7 +1772,7 @@ def process_message(irc, message, bot_functions):
                     notice_message("Tamagotchi toggle not available.", irc, target)
             else:
                 # Show tamagotchi status
-                server_name = data_manager.get_server_name(irc)
+                server_name = bot_functions["server_name"]
                 status = tamagotchi_bot.get_status(server_name)
                 # Split into multiple messages if too long
                 lines = status.split("\n")
@@ -1782,12 +1782,12 @@ def process_message(irc, message, bot_functions):
         elif text.startswith("!feed"):
             parts = text.split(" ", 1)
             food = parts[1] if len(parts) > 1 else None
-            server_name = data_manager.get_server_name(irc)
+            server_name = bot_functions["server_name"]
             response = tamagotchi_bot.feed(server_name, food)
             notice_message(response, irc, target)
 
         elif text.startswith("!pet"):
-            server_name = data_manager.get_server_name(irc)
+            server_name = bot_functions["server_name"]
             response = tamagotchi_bot.pet(server_name)
             notice_message(response, irc, target)
 
