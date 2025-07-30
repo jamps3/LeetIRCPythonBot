@@ -260,6 +260,102 @@ def test_legacy_console_commands():
         assert responses, f"No response for legacy command: {cmd}"
 
 
+def test_console_tilaa_command():
+    """Test that !tilaa command works in console."""
+    import subscriptions
+    import tempfile
+    import commands
+    # Create temporary file for subscriptions
+    temp_file = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json")
+    temp_file.write("{}")
+    temp_file.close()
+    
+    # Patch the SUBSCRIBERS_FILE constant
+    original_file = subscriptions.SUBSCRIBERS_FILE
+    subscriptions.SUBSCRIBERS_FILE = temp_file.name
+    
+    try:
+        responses = []
+        
+        def mock_notice(msg):
+            responses.append(msg)
+        
+        def mock_log(msg, level="INFO"):
+            pass
+        
+        # Mock subscriptions service with all required functions
+        bot_functions = {
+            "notice_message": mock_notice,
+            "log": mock_log,
+            "subscriptions": subscriptions,
+            "send_electricity_price": lambda *args: None,
+            "load_leet_winners": lambda: {},
+            "send_weather": lambda *args: None,
+            "load": lambda: {},
+            "fetch_title": lambda *args: None,
+            "handle_ipfs_command": lambda *args: None,
+        }
+        
+        # Test !tilaa list command
+        responses.clear()
+        commands.process_console_command("!tilaa list", bot_functions)
+        
+        # Should get subscription list response
+        assert any(
+            "tilauksia" in str(response).lower() or "tilaukset" in str(response).lower() for response in responses
+        ), f"Should get subscription list response, got: {responses}"
+        
+        # Test !tilaa varoitukset command
+        responses.clear()
+        commands.process_console_command("!tilaa varoitukset", bot_functions)
+        
+        # Should get subscription toggle response
+        assert any(
+            "tilaus" in str(response).lower() for response in responses
+        ), f"Should get subscription toggle response, got: {responses}"
+        
+    finally:
+        # Restore original file
+        subscriptions.SUBSCRIBERS_FILE = original_file
+        if os.path.exists(temp_file.name):
+            os.unlink(temp_file.name)
+
+
+def test_console_tilaa_missing_service():
+    """Test console !tilaa command when subscriptions service is missing."""
+    import commands
+    
+    responses = []
+    
+    def mock_notice(msg):
+        responses.append(msg)
+    
+    def mock_log(msg, level="INFO"):
+        pass  # Silent logging for tests
+    
+    # Bot functions without subscriptions service
+    bot_functions = {
+        "notice_message": mock_notice,
+        "log": mock_log,
+        "BOT_VERSION": "2.0.0",
+        "send_electricity_price": lambda *args: None,
+        "load_leet_winners": lambda: {},
+        "send_weather": lambda *args: None,
+        "load": lambda: {},
+        "fetch_title": lambda *args: None,
+        "handle_ipfs_command": lambda *args: None,
+    }
+    
+    # Test !tilaa list command without service
+    responses.clear()
+    commands.process_console_command("!tilaa list", bot_functions)
+    
+    # Should get error response about missing service
+    assert any(
+        "not available" in str(response) for response in responses
+    ), "Should get error about missing subscription service"
+
+
 def test_console_error_handling():
     """Test console command error handling."""
     from command_loader import enhanced_process_console_command

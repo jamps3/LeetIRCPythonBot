@@ -677,6 +677,12 @@ def process_console_command(command_text, bot_functions):
     elif command == "!tilaa":
         # Handle subscription commands in console
         parts = command_text.strip().split()
+        # Make sure bot_functions is properly populated with subscriptions
+        if "subscriptions" not in bot_functions:
+            log("Error: subscriptions module not found in bot_functions", "ERROR")
+            notice_message("Subscription service is not available.")
+            return
+
         subscriptions = bot_functions["subscriptions"]
 
         if len(parts) >= 2:
@@ -1598,11 +1604,16 @@ def process_message(irc, message, bot_functions):
                             notice_message(line, irc, target)
 
                 elif topic in ["varoitukset", "onnettomuustiedotteet"]:
-                    # Tarkistetaan, onko kohde annettu (esim. #kanava)
-                    if len(parts) >= 3:
-                        subscriber = parts[2]  # esim. #kanava tai nick
+                    # If the command is used in a channel, subscribe the channel
+                    # If it's a private message, subscribe the user
+                    if target.startswith("#"):
+                        subscriber = target
                     else:
-                        subscriber = sender  # käytä viestin lähettäjän nimeä oletuksena
+                        subscriber = sender
+
+                    # Allow overriding the subscriber (for admins, etc.)
+                    if len(parts) >= 3:
+                        subscriber = parts[2]  # e.g., !tilaa varoitukset #another-channel
 
                     # Get server name
                     server_name = data_manager.get_server_name(irc)

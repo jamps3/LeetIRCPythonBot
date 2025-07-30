@@ -188,13 +188,11 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
 
     # Use only the new command system
     try:
-        # Run async command processing
-        loop = None
+        # Run async command processing in a compatible way
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_closed():
-                raise RuntimeError("Event loop is closed")
-        except RuntimeError:
+            # Modern way to get or create an event loop
+            loop = asyncio.get_running_loop()
+        except RuntimeError:  # No running loop
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
@@ -266,11 +264,11 @@ def enhanced_process_irc_message(irc, message, bot_functions):
 
     # Try new command system for commands
     try:
-        # Run async command processing
-        loop = None
+        # Run async command processing in a compatible way
         try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
+            # Modern way to get or create an event loop
+            loop = asyncio.get_running_loop()
+        except RuntimeError:  # No running loop
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
