@@ -152,7 +152,7 @@ class Server:
         """
         try:
             raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            raw_socket.settimeout(10)
+            raw_socket.settimeout(60)
 
             if self.config.tls:
                 self.logger.info(
