@@ -68,6 +68,7 @@ class ElectricityService:
                 "tomorrow_price": None,
                 "today_available": not today_prices.get("error", True),
                 "tomorrow_available": False,
+                "include_tomorrow": include_tomorrow,
             }
 
             # Add today's price if available
@@ -373,6 +374,7 @@ class ElectricityService:
         hour = price_data["hour"]
         today_price = price_data.get("today_price")
         tomorrow_price = price_data.get("tomorrow_price")
+        tomorrow_available = price_data.get("tomorrow_available", False)
 
         message_parts = []
 
@@ -382,7 +384,9 @@ class ElectricityService:
                 f"⚡ Tänään {date_str} klo {hour:02d}: {price_snt:.2f} snt/kWh (ALV 25,5%)"
             )
 
-        if tomorrow_price:
+        # Only show tomorrow's price if it's explicitly available
+        # This prevents showing today's price as tomorrow's price when tomorrow is unavailable
+        if tomorrow_price and tomorrow_available:
             tomorrow_date = (
                 datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=1)
             ).strftime("%Y-%m-%d")
@@ -390,6 +394,9 @@ class ElectricityService:
             message_parts.append(
                 f"⚡ Huomenna {tomorrow_date} klo {hour:02d}: {price_snt:.2f} snt/kWh (ALV 25,5%)"
             )
+        elif price_data.get("include_tomorrow", True) and not tomorrow_available:
+            # If tomorrow was requested but not available, show appropriate message
+            message_parts.append("⚡ Huomisen hintaa ei vielä saatavilla")
 
         if not message_parts:
             return f"⚡ Sähkön hintatietoja ei saatavilla tunnille {hour:02d}. https://sahko.tk"

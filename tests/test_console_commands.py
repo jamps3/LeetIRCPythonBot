@@ -262,9 +262,10 @@ def test_legacy_console_commands():
 
 def test_console_tilaa_command():
     """Test that !tilaa command works in console."""
-    import subscriptions
     import tempfile
+
     import commands
+    import subscriptions
 
     # Create temporary file for subscriptions
     temp_file = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json")

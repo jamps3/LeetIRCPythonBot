@@ -7,6 +7,7 @@ command parsing, and message formatting.
 
 import json
 import os
+import sys
 import unittest
 from datetime import datetime, timedelta
 from io import StringIO
@@ -14,7 +15,10 @@ from unittest.mock import Mock, patch
 
 import requests
 
-from services.electricity_service import ElectricityService, create_electricity_service
+# Add the services directory to the path to avoid import dependency issues
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "services"))
+
+from electricity_service import ElectricityService, create_electricity_service
 
 
 class TestElectricityService(unittest.TestCase):
@@ -228,6 +232,8 @@ class TestElectricityService(unittest.TestCase):
                 "snt_per_kwh_with_vat": 5.6475,
                 "snt_per_kwh_no_vat": 4.5,
             },
+            "tomorrow_available": True,  # Need to mark as available
+            "include_tomorrow": True,
         }
 
         result = self.service.format_price_message(price_data)
@@ -253,6 +259,7 @@ class TestElectricityService(unittest.TestCase):
             "hour": 14,
             "today_price": None,
             "tomorrow_price": None,
+            "include_tomorrow": False,  # No tomorrow requested to get the "no data" message
         }
 
         result = self.service.format_price_message(price_data)
@@ -336,6 +343,9 @@ class TestElectricityServiceIntegration(unittest.TestCase):
         self.mock_server.send_message = Mock()
         self.mock_server.send_notice = Mock()
 
+        # Create service instance for testing
+        self.service = ElectricityService("test_integration_key")
+
     def tearDown(self):
         """Clean up after tests."""
         if self.original_env:
@@ -412,6 +422,10 @@ class TestElectricityServiceIntegration(unittest.TestCase):
     @patch.object(ElectricityService, "get_electricity_price")
     def test_electricity_command_flow_with_mock_service(self, mock_get_price):
         """Test complete command flow with mocked electricity service."""
+        # Skip if bot manager doesn't have electricity service due to missing dependencies
+        if not self.bot_manager.electricity_service:
+            self.skipTest("Electricity service not available in bot manager")
+
         # Mock successful API response
         mock_get_price.return_value = {
             "error": False,
@@ -461,6 +475,115 @@ class TestElectricityServiceIntegration(unittest.TestCase):
         finally:
             # Restore service
             self.bot_manager.electricity_service = original_service
+
+    def test_format_price_message_tomorrow_unavailable(self):
+        """Test formatting when tomorrow's price is not available."""
+        price_data = {
+            "error": False,
+            "date": "2025-08-01",
+            "hour": 14,
+            "today_price": {
+                "eur_per_mwh": 12.6,
+                "snt_per_kwh_with_vat": 1.58,
+                "snt_per_kwh_no_vat": 1.26,
+            },
+            "tomorrow_price": None,
+            "today_available": True,
+            "tomorrow_available": False,  # Key: tomorrow is NOT available
+            "include_tomorrow": True,  # Tomorrow was requested
+        }
+
+        message = self.service.format_price_message(price_data)
+
+        # Should show today's price
+        self.assertIn("Tänään 2025-08-01 klo 14: 1.58 snt/kWh", message)
+
+        # Should show "not available" message for tomorrow
+        self.assertIn("Huomisen hintaa ei vielä saatavilla", message)
+
+        # Should NOT show today's price as tomorrow's price
+        self.assertNotRegex(message, r"Huomenna.*1\.58 snt/kWh")
+
+    def test_format_price_message_tomorrow_available(self):
+        """Test formatting when tomorrow's price is available."""
+        price_data = {
+            "error": False,
+            "date": "2025-08-01",
+            "hour": 14,
+            "today_price": {
+                "eur_per_mwh": 12.6,
+                "snt_per_kwh_with_vat": 1.58,
+                "snt_per_kwh_no_vat": 1.26,
+            },
+            "tomorrow_price": {
+                "eur_per_mwh": 15.2,
+                "snt_per_kwh_with_vat": 1.91,
+                "snt_per_kwh_no_vat": 1.52,
+            },
+            "today_available": True,
+            "tomorrow_available": True,  # Key: tomorrow IS available
+            "include_tomorrow": True,
+        }
+
+        message = self.service.format_price_message(price_data)
+
+        # Should show both today's and tomorrow's prices correctly
+        self.assertIn("Tänään 2025-08-01 klo 14: 1.58 snt/kWh", message)
+        self.assertIn("Huomenna 2025-08-02 klo 14: 1.91 snt/kWh", message)
+
+        # Should NOT show "not available" message
+        self.assertNotIn("Huomisen hintaa ei vielä saatavilla", message)
+
+    def test_format_price_message_tomorrow_not_requested(self):
+        """Test formatting when tomorrow's price is not requested."""
+        price_data = {
+            "error": False,
+            "date": "2025-08-01",
+            "hour": 14,
+            "today_price": {
+                "eur_per_mwh": 12.6,
+                "snt_per_kwh_with_vat": 1.58,
+                "snt_per_kwh_no_vat": 1.26,
+            },
+            "tomorrow_price": None,
+            "today_available": True,
+            "tomorrow_available": False,
+            "include_tomorrow": False,  # Tomorrow was NOT requested
+        }
+
+        message = self.service.format_price_message(price_data)
+
+        # Should only show today's price
+        self.assertIn("Tänään 2025-08-01 klo 14: 1.58 snt/kWh", message)
+
+        # Should NOT show tomorrow-related messages
+        self.assertNotIn("Huomenna", message)
+        self.assertNotIn("Huomisen hintaa ei vielä saatavilla", message)
+
+    def test_get_electricity_price_includes_tomorrow_flag(self):
+        """Test that get_electricity_price includes the include_tomorrow flag in result."""
+        with patch.object(self.service, "_fetch_daily_prices") as mock_fetch:
+            # Mock successful today fetch, failed tomorrow fetch
+            mock_fetch.side_effect = [
+                {  # Today's prices
+                    "error": False,
+                    "date": "2025-08-01",
+                    "prices": {14: 12.6},
+                },
+                {  # Tomorrow's prices (failed)
+                    "error": True,
+                    "message": "No data available",
+                },
+            ]
+
+            result = self.service.get_electricity_price(
+                hour=14, date=datetime(2025, 8, 1), include_tomorrow=True
+            )
+
+            # Verify the include_tomorrow flag is preserved
+            self.assertTrue(result.get("include_tomorrow"))
+            self.assertFalse(result.get("tomorrow_available"))
+            self.assertIsNone(result.get("tomorrow_price"))
 
 
 if __name__ == "__main__":
