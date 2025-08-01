@@ -317,6 +317,31 @@ class TestElectricityService(unittest.TestCase):
             result["today_price"]["snt_per_kwh_with_vat"], 6.275, places=2
         )
 
+    @patch.object(ElectricityService, "_fetch_daily_prices")
+    def test_get_electricity_price_hour_0_success(self, mock_fetch):
+        """Test getting electricity price for hour 0 (midnight)."""
+        # For hour 0, we need data from previous day's position 24
+        mock_fetch.return_value = {
+            "error": False,
+            "prices": {
+                24: 30.0,  # Position 24 from previous day for hour 0
+                1: 25.0,  # Position 1 for hour 1
+            },
+        }
+
+        test_date = datetime(2023, 1, 2, 0, 0)  # 00:00 on Jan 2
+        result = self.service.get_electricity_price(hour=0, date=test_date)
+
+        self.assertFalse(result["error"])
+        self.assertEqual(result["hour"], 0)
+        self.assertIsNotNone(result["today_price"])
+        self.assertEqual(result["today_price"]["eur_per_mwh"], 30.0)
+        self.assertAlmostEqual(
+            result["today_price"]["snt_per_kwh_with_vat"], 3.765, places=2
+        )
+        # Should have called _fetch_daily_prices twice: once for yesterday, once for today
+        self.assertEqual(mock_fetch.call_count, 2)
+
     def test_get_electricity_price_invalid_hour(self):
         """Test getting electricity price with invalid hour."""
         result = self.service.get_electricity_price(hour=25)

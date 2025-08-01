@@ -73,37 +73,66 @@ class ElectricityService:
 
             # Add today's price if available
             # ENTSO-E API position mapping:
-            # Hour 1-23 maps directly to position 1-23
-            # Hour 0 (midnight) maps to position 24
-            position = hour if hour > 0 else 24
-            if not today_prices.get("error") and position in today_prices["prices"]:
-                price_eur_mwh = today_prices["prices"][position]
-                price_snt_kwh = self._convert_price(price_eur_mwh)
-                result["today_price"] = {
-                    "eur_per_mwh": price_eur_mwh,
-                    "snt_per_kwh_with_vat": price_snt_kwh,
-                    "snt_per_kwh_no_vat": price_eur_mwh / 10,
-                }
-
-            # Get tomorrow's price if requested
-            if include_tomorrow:
-                tomorrow_date = date + timedelta(days=1)
-                tomorrow_prices = self._fetch_daily_prices(tomorrow_date)
-
-                # Use same position mapping for tomorrow as today
-                tomorrow_position = hour if hour > 0 else 24
+            # Hour 1-23 maps directly to position 1-23 from same day
+            # Hour 0 (midnight) maps to position 24 from PREVIOUS day
+            if hour == 0:
+                # For hour 0, we need data from the previous day's position 24
+                yesterday_date = date - timedelta(days=1)
+                yesterday_prices = self._fetch_daily_prices(yesterday_date)
                 if (
-                    not tomorrow_prices.get("error")
-                    and tomorrow_position in tomorrow_prices["prices"]
+                    not yesterday_prices.get("error")
+                    and 24 in yesterday_prices["prices"]
                 ):
-                    price_eur_mwh = tomorrow_prices["prices"][tomorrow_position]
+                    price_eur_mwh = yesterday_prices["prices"][24]
                     price_snt_kwh = self._convert_price(price_eur_mwh)
-                    result["tomorrow_price"] = {
+                    result["today_price"] = {
                         "eur_per_mwh": price_eur_mwh,
                         "snt_per_kwh_with_vat": price_snt_kwh,
                         "snt_per_kwh_no_vat": price_eur_mwh / 10,
                     }
-                    result["tomorrow_available"] = True
+            else:
+                # For hours 1-23, use the same day's data
+                position = hour
+                if not today_prices.get("error") and position in today_prices["prices"]:
+                    price_eur_mwh = today_prices["prices"][position]
+                    price_snt_kwh = self._convert_price(price_eur_mwh)
+                    result["today_price"] = {
+                        "eur_per_mwh": price_eur_mwh,
+                        "snt_per_kwh_with_vat": price_snt_kwh,
+                        "snt_per_kwh_no_vat": price_eur_mwh / 10,
+                    }
+
+            # Get tomorrow's price if requested
+            if include_tomorrow:
+                tomorrow_date = date + timedelta(days=1)
+
+                if hour == 0:
+                    # For tomorrow's hour 0, we need today's position 24
+                    if not today_prices.get("error") and 24 in today_prices["prices"]:
+                        price_eur_mwh = today_prices["prices"][24]
+                        price_snt_kwh = self._convert_price(price_eur_mwh)
+                        result["tomorrow_price"] = {
+                            "eur_per_mwh": price_eur_mwh,
+                            "snt_per_kwh_with_vat": price_snt_kwh,
+                            "snt_per_kwh_no_vat": price_eur_mwh / 10,
+                        }
+                        result["tomorrow_available"] = True
+                else:
+                    # For tomorrow's hours 1-23, use tomorrow's data
+                    tomorrow_prices = self._fetch_daily_prices(tomorrow_date)
+                    tomorrow_position = hour
+                    if (
+                        not tomorrow_prices.get("error")
+                        and tomorrow_position in tomorrow_prices["prices"]
+                    ):
+                        price_eur_mwh = tomorrow_prices["prices"][tomorrow_position]
+                        price_snt_kwh = self._convert_price(price_eur_mwh)
+                        result["tomorrow_price"] = {
+                            "eur_per_mwh": price_eur_mwh,
+                            "snt_per_kwh_with_vat": price_snt_kwh,
+                            "snt_per_kwh_no_vat": price_eur_mwh / 10,
+                        }
+                        result["tomorrow_available"] = True
 
             return result
 
@@ -187,14 +216,15 @@ class ElectricityService:
         """
         Fetch electricity prices for a specific date.
 
-        The ENTSO-E API returns data in UTC time periods from 22:00 UTC to 22:00 UTC.
-        For Finnish time (UTC+2 in winter, UTC+3 in summer), this means:
-        - The data period actually covers from midnight Finnish time to midnight Finnish time.
-        - Position 1 = 00:00-01:00 Finnish time
-        - Position 23 = 22:00-23:00 Finnish time
+        The ENTSO-E API returns data in periods that align with local time zones.
+        For Finnish electricity prices:
+        - Position 1 = 00:00-01:00 Finnish time (hour 0)
+        - Position 2 = 01:00-02:00 Finnish time (hour 1)
+        - ...
+        - Position 24 = 23:00-24:00 Finnish time (hour 23)
 
-        To get the correct data for a Finnish date, we need to request the previous day
-        from the API, because their "day" starts at 22:00 UTC of the previous day.
+        But for hour 0 specifically, position 24 from the PREVIOUS day contains
+        the price for midnight (00:00) of the requested date.
 
         Args:
             date: Date to fetch prices for (in Finnish time)
@@ -203,10 +233,8 @@ class ElectricityService:
             Dictionary containing daily prices or error details
         """
         try:
-            # CRITICAL FIX: For Finnish local time, we need to request the previous day
-            # from the ENTSO-E API because their day starts at 22:00 UTC (midnight Finnish time)
-            api_date = date - timedelta(days=1)
-            date_str = api_date.strftime("%Y%m%d")
+            # Request the same day for most hours, but we'll need special handling for hour 0
+            date_str = date.strftime("%Y%m%d")
 
             url = f"{self.base_url}"
             params = {
