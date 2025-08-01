@@ -58,8 +58,9 @@ class ElectricityService:
                     "message": f"Invalid hour: {hour}. Must be between 0-23.",
                 }
 
-            # Get prices for today
-            today_prices = self._fetch_daily_prices(date)
+            # Get prices for today - API is one day ahead, so fetch from yesterday
+            yesterday_api_date = date - timedelta(days=1)
+            today_prices = self._fetch_daily_prices(yesterday_api_date)
             result = {
                 "error": False,
                 "date": date.strftime("%Y-%m-%d"),
@@ -76,14 +77,16 @@ class ElectricityService:
             # Hour 1-23 maps directly to position 1-23 from same day
             # Hour 0 (midnight) maps to position 24 from PREVIOUS day
             if hour == 0:
-                # For hour 0, we need data from the previous day's position 24
-                yesterday_date = date - timedelta(days=1)
-                yesterday_prices = self._fetch_daily_prices(yesterday_date)
+                # For today's hour 0, we need position 24 from day before yesterday (due to API offset)
+                day_before_yesterday = date - timedelta(days=2)
+                day_before_yesterday_prices = self._fetch_daily_prices(
+                    day_before_yesterday
+                )
                 if (
-                    not yesterday_prices.get("error")
-                    and 24 in yesterday_prices["prices"]
+                    not day_before_yesterday_prices.get("error")
+                    and 24 in day_before_yesterday_prices["prices"]
                 ):
-                    price_eur_mwh = yesterday_prices["prices"][24]
+                    price_eur_mwh = day_before_yesterday_prices["prices"][24]
                     price_snt_kwh = self._convert_price(price_eur_mwh)
                     result["today_price"] = {
                         "eur_per_mwh": price_eur_mwh,
@@ -104,12 +107,20 @@ class ElectricityService:
 
             # Get tomorrow's price if requested
             if include_tomorrow:
-                tomorrow_date = date + timedelta(days=1)
+                # For tomorrow, use today's API data since API is one day ahead
+                tomorrow_prices = self._fetch_daily_prices(date)
 
                 if hour == 0:
-                    # For tomorrow's hour 0, we need today's position 24
-                    if not today_prices.get("error") and 24 in today_prices["prices"]:
-                        price_eur_mwh = today_prices["prices"][24]
+                    # For tomorrow's hour 0, we need position 24 from YESTERDAY's data (same as today's hours 1-23)
+                    yesterday_date = date - timedelta(days=1)
+                    yesterday_prices_for_tomorrow = self._fetch_daily_prices(
+                        yesterday_date
+                    )
+                    if (
+                        not yesterday_prices_for_tomorrow.get("error")
+                        and 24 in yesterday_prices_for_tomorrow["prices"]
+                    ):
+                        price_eur_mwh = yesterday_prices_for_tomorrow["prices"][24]
                         price_snt_kwh = self._convert_price(price_eur_mwh)
                         result["tomorrow_price"] = {
                             "eur_per_mwh": price_eur_mwh,
@@ -119,7 +130,6 @@ class ElectricityService:
                         result["tomorrow_available"] = True
                 else:
                     # For tomorrow's hours 1-23, use tomorrow's data
-                    tomorrow_prices = self._fetch_daily_prices(tomorrow_date)
                     tomorrow_position = hour
                     if (
                         not tomorrow_prices.get("error")
