@@ -569,33 +569,34 @@ class TestElectricityServiceIntegration(unittest.TestCase):
                     # Exceptions are OK (like API errors), we just want to ensure no crashes
                     pass
 
-    @patch.object(ElectricityService, "get_electricity_price")
-    def test_electricity_command_flow_with_mock_service(self, mock_get_price):
+    def test_electricity_command_flow_with_mock_service(self):
         """Test complete command flow with mocked electricity service."""
         # Skip if bot manager doesn't have electricity service due to missing dependencies
         if not self.bot_manager.electricity_service:
             self.skipTest("Electricity service not available in bot manager")
 
-        # Mock successful API response
-        mock_get_price.return_value = {
-            "error": False,
-            "date": "2023-01-01",
-            "hour": 15,
-            "today_price": {
-                "eur_per_mwh": 50.0,
-                "snt_per_kwh_with_vat": 6.275,
-                "snt_per_kwh_no_vat": 5.0,
-            },
-            "tomorrow_price": None,
-        }
+        # Mock the get_electricity_price method on the actual instance
+        with patch.object(self.bot_manager.electricity_service, "get_electricity_price") as mock_get_price:
+            # Mock successful API response
+            mock_get_price.return_value = {
+                "error": False,
+                "date": "2023-01-01",
+                "hour": 15,
+                "today_price": {
+                    "eur_per_mwh": 50.0,
+                    "snt_per_kwh_with_vat": 6.275,
+                    "snt_per_kwh_no_vat": 5.0,
+                },
+                "tomorrow_price": None,
+            }
 
-        # Test the full flow with list input (IRC command style)
-        self.bot_manager._send_electricity_price(
-            self.mock_server, "#testchannel", ["!sahko", "15"]
-        )
+            # Test the full flow with list input (IRC command style)
+            self.bot_manager._send_electricity_price(
+                self.mock_server, "#testchannel", ["!sahko", "15"]
+            )
 
-        # Verify the service was called correctly
-        mock_get_price.assert_called_once()
+            # Verify the service was called correctly
+            mock_get_price.assert_called_once()
 
         # Verify a response was sent (either NOTICE or PRIVMSG)
         self.assertTrue(
