@@ -58,6 +58,12 @@ class WeatherService:
                 "message": "Weather API request timed out",
                 "exception": "timeout",
             }
+        except requests.exceptions.ConnectionError as e:
+            return {
+                "error": True,
+                "message": f"Weather API connection error: {str(e)}",
+                "exception": str(e),
+            }
         except requests.exceptions.RequestException as e:
             return {
                 "error": True,
@@ -90,10 +96,15 @@ class WeatherService:
             temp = data["main"]["temp"]
             feels_like = data["main"]["feels_like"]
             humidity = data["main"]["humidity"]
-            wind_speed = data["wind"]["speed"]
             pressure = data["main"]["pressure"]
             clouds = data["clouds"]["all"]
             country = data["sys"].get("country", "?")
+
+            # Wind data (handle missing wind data gracefully)
+            wind_data = data.get("wind", {})
+            wind_speed = wind_data.get("speed", 0)
+            wind_deg = wind_data.get("deg", 0)
+            wind_direction = self._get_wind_direction(wind_deg)
 
             # Visibility (convert from meters to kilometers)
             visibility = data.get("visibility", 0) / 1000
@@ -105,10 +116,6 @@ class WeatherService:
             # Sun times
             sunrise = datetime.fromtimestamp(data["sys"]["sunrise"]).strftime("%H:%M")
             sunset = datetime.fromtimestamp(data["sys"]["sunset"]).strftime("%H:%M")
-
-            # Wind direction
-            wind_deg = data["wind"].get("deg", 0)
-            wind_direction = self._get_wind_direction(wind_deg)
 
             # Weather emoji
             main_weather = data["weather"][0]["main"]
@@ -144,6 +151,8 @@ class WeatherService:
                 "weather_emoji": weather_emoji,
                 "uv_index": uv_index,
                 "coordinates": {"lat": lat, "lon": lon},
+                "lat": lat,
+                "lon": lon,
             }
 
         except KeyError as e:
