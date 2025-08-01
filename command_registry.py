@@ -395,6 +395,12 @@ def get_command_registry() -> CommandRegistry:
     return _command_registry
 
 
+def reset_command_registry() -> None:
+    """Reset the global command registry instance. Used for testing."""
+    global _command_registry
+    _command_registry = None
+
+
 def command(
     name: str,
     aliases: List[str] = None,

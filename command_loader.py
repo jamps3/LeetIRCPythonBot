@@ -188,17 +188,62 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
 
     # Use only the new command system
     try:
-        # Run async command processing in a compatible way
+        # Handle async processing more robustly
+        processed = False
+        
+        # Try to detect if we're in an event loop already
+        loop = None
         try:
-            # Modern way to get or create an event loop
             loop = asyncio.get_running_loop()
-        except RuntimeError:  # No running loop
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        processed = loop.run_until_complete(
-            process_console_command_new(command_text, bot_functions)
-        )
+        except RuntimeError:
+            # No running loop
+            loop = None
+        
+        if loop is None:
+            # No event loop running, safe to use asyncio.run
+            try:
+                processed = asyncio.run(
+                    process_console_command_new(command_text, bot_functions)
+                )
+            except Exception as e:
+                if log_func:
+                    log_func(f"Error in asyncio.run: {e}", "ERROR")
+                processed = False
+        else:
+            # Event loop is already running, use thread pool to avoid conflicts
+            import concurrent.futures
+            import threading
+            
+            # Create a new thread with its own event loop
+            def run_in_new_loop():
+                try:
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        return new_loop.run_until_complete(
+                            process_console_command_new(command_text, bot_functions)
+                        )
+                    finally:
+                        new_loop.close()
+                        asyncio.set_event_loop(None)
+                except Exception as e:
+                    if log_func:
+                        log_func(f"Error in new loop: {e}", "ERROR")
+                    return False
+            
+            # Run in thread pool with timeout
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                try:
+                    future = executor.submit(run_in_new_loop)
+                    processed = future.result(timeout=10.0)
+                except concurrent.futures.TimeoutError:
+                    if log_func:
+                        log_func(f"Command processing timed out: {command_text}", "ERROR")
+                    processed = False
+                except Exception as e:
+                    if log_func:
+                        log_func(f"Error in thread pool: {e}", "ERROR")
+                    processed = False
 
         if processed:
             if log_func:

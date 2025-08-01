@@ -1,5 +1,5 @@
 """
-Cryptocurrency Service Tests - Pure Pytest Version
+Cryptocurrency Service Tests - Unified Pytest Version
 
 Comprehensive tests for the cryptocurrency service functionality.
 """
@@ -9,10 +9,78 @@ import os
 import sys
 from unittest.mock import Mock, patch
 
+import pytest
+import requests
+
 # Add the parent directory to Python path to ensure imports work in CI
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
+
+
+@pytest.fixture
+def crypto_service():
+    """Create a CryptoService instance for testing."""
+    from services.crypto_service import CryptoService
+
+    return CryptoService()
+
+
+@pytest.fixture
+def mock_bitcoin_response():
+    """Mock response data for Bitcoin price requests."""
+    return {
+        "bitcoin": {
+            "eur": 45000.50,
+            "eur_24h_change": 2.5,
+            "eur_market_cap": 850000000000,
+            "eur_24h_vol": 15000000000,
+            "last_updated_at": 1640000000,
+        }
+    }
+
+
+@pytest.fixture
+def mock_trending_response():
+    """Mock response data for trending cryptocurrencies."""
+    return {
+        "coins": [
+            {
+                "item": {
+                    "id": "bitcoin",
+                    "name": "Bitcoin",
+                    "symbol": "BTC",
+                    "market_cap_rank": 1,
+                    "score": 100,
+                }
+            },
+            {
+                "item": {
+                    "id": "ethereum",
+                    "name": "Ethereum",
+                    "symbol": "ETH",
+                    "market_cap_rank": 2,
+                    "score": 95,
+                }
+            },
+        ]
+    }
+
+
+@pytest.fixture
+def mock_search_response():
+    """Mock response data for cryptocurrency search."""
+    return {
+        "coins": [
+            {
+                "id": "bitcoin",
+                "name": "Bitcoin",
+                "symbol": "BTC",
+                "market_cap_rank": 1,
+                "thumb": "bitcoin_thumb.png",
+            }
+        ]
+    }
 
 
 def test_crypto_service_creation():
@@ -68,38 +136,19 @@ def test_crypto_price_success():
     assert result["change_24h"] == 2.5, "24h change should match"
 
 
-def test_crypto_alias_handling():
+def test_crypto_alias_handling(crypto_service, mock_bitcoin_response):
     """Test cryptocurrency alias handling."""
-    try:
-        from services.crypto_service import CryptoService
+    with patch("requests.get") as mock_get:
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_bitcoin_response
+        mock_get.return_value = mock_response
 
-        service = CryptoService()
+        # Test BTC alias resolves to bitcoin
+        result = crypto_service.get_crypto_price("btc", "eur")
 
-        # Mock response data for bitcoin
-        mock_response_data = {
-            "bitcoin": {
-                "eur": 45000.50,
-                "eur_24h_change": 2.5,
-                "last_updated_at": 1640000000,
-            }
-        }
-
-        with patch("requests.get") as mock_get:
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = mock_response_data
-            mock_get.return_value = mock_response
-
-            # Test BTC alias resolves to bitcoin
-            result = service.get_crypto_price("btc", "eur")
-
-        assert result["error"] is False, "Should not have error"
-        assert result["coin_id"] == "bitcoin", "BTC should resolve to bitcoin"
-
-        return True
-    except Exception as e:
-        print(f"Crypto alias handling test failed: {e}")
-        return False
+    assert not result["error"], "Should not have error"
+    assert result["coin_id"] == "bitcoin", "BTC should resolve to bitcoin"
 
 
 def test_crypto_api_error():

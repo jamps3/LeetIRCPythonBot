@@ -71,6 +71,28 @@ class IRCMessage:
         """Check if this message contains a bot command (starts with !)."""
         return self.text and self.text.startswith("!")
 
+    @property
+    def nick(self) -> Optional[str]:
+        """Get nickname from sender_host (nick!user@host)."""
+        if self.sender_host and "!" in self.sender_host:
+            return self.sender_host.split("!")[0]
+        return self.sender
+
+    @property
+    def user(self) -> Optional[str]:
+        """Get username from sender_host (nick!user@host)."""
+        if self.sender_host and "!" in self.sender_host and "@" in self.sender_host:
+            user_host = self.sender_host.split("!", 1)[1]
+            return user_host.split("@")[0]
+        return None
+
+    @property
+    def host(self) -> Optional[str]:
+        """Get hostname from sender_host (nick!user@host)."""
+        if self.sender_host and "@" in self.sender_host:
+            return self.sender_host.split("@", 1)[1]
+        return None
+
 
 class IRCConnectionState(Enum):
     """IRC connection states."""

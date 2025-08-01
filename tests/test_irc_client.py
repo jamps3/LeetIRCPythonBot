@@ -1,5 +1,5 @@
 """
-IRC Client Tests - Pure Pytest Version
+IRC Client Tests - Improved Pytest Version
 
 Comprehensive tests for the IRC client functionality.
 """
@@ -7,6 +7,8 @@ Comprehensive tests for the IRC client functionality.
 import os
 import sys
 import time
+
+import pytest
 
 # Add the parent directory to Python path to ensure imports work in CI
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -179,11 +181,69 @@ def test_irc_channel_management():
         # Network error is expected in test environment
         pass
 
+
+# Parametrized test for multiple message parsing scenarios
+@pytest.mark.parametrize(
+    "raw_message,expected_nick,expected_user,expected_host",
+    [
+        (":nick!user@host PRIVMSG #channel :Hello", "nick", "user", "host"),
+        (":testnick!testuser@testhost JOIN #test", "testnick", "testuser", "testhost"),
+        (":bot!botuser@bothost PART #channel :Bye", "bot", "botuser", "bothost"),
+        (":admin!adminuser@adminhost QUIT :Leaving", "admin", "adminuser", "adminhost"),
+    ],
+)
+def test_irc_message_hostmask_parsing(raw_message, expected_nick, expected_user, expected_host):
+    """Test IRC message hostmask parsing with parametrized inputs."""
+    from irc_client import create_irc_client
+
+    client = create_irc_client("SERVER1", "testbot")
+    parsed = client.parse_message(raw_message)
+
+    assert parsed is not None, f"Should parse message: {raw_message}"
+    assert parsed.nick == expected_nick, f"Wrong nick for: {raw_message}"
+    assert parsed.user == expected_user, f"Wrong user for: {raw_message}"
+    assert parsed.host == expected_host, f"Wrong host for: {raw_message}"
+
+
+@pytest.mark.parametrize(
+    "message_text,expected_command",
+    [
+        ("!help", True),
+        ("!version", True),
+        ("!ping arg1 arg2", True),
+        ("hello world", False),
+        ("this is !not a command", False),
+        ("!cmd", True),
+    ],
+)
+def test_irc_command_detection(message_text, expected_command):
+    """Test IRC command detection with various message formats."""
+    from irc_client import create_irc_client
+
+    client = create_irc_client("SERVER1", "testbot")
+    raw_message = f":nick!user@host PRIVMSG #channel :{message_text}"
+    parsed = client.parse_message(raw_message)
+
+    assert parsed is not None, f"Should parse message: {raw_message}"
+    assert parsed.is_command == expected_command, f"Command detection failed for: {message_text}"
+
+
+def test_irc_client_fixtures():
+    """Test IRC client with fixture-like setup."""
+    from irc_client import create_irc_client
+
+    # Test multiple client instances
+    client1 = create_irc_client("SERVER1", "bot1")
+    client2 = create_irc_client("SERVER1", "bot2")
+
+    assert client1.nickname != client2.nickname, "Clients should have different nicknames"
+    assert client1.server_config == client2.server_config, "Clients should share server config"
+
     try:
-        client.part_channel("#test")
+        client1.part_channel("#test")
         # Should remove from channel list
         assert (
-            "#test" not in client.connection_info.channels
+            "#test" not in client1.connection_info.channels
         ), "Channel should be removed from list"
     except Exception:
         # Network error is expected in test environment

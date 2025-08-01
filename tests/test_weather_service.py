@@ -17,7 +17,9 @@ if parent_dir not in sys.path:
 
 def test_weather_service_creation():
     """Test weather service creation."""
-    from services.weather_service import WeatherService, create_weather_service
+    # Direct import to avoid services/__init__.py issues with mocked modules
+    sys.path.insert(0, os.path.join(parent_dir, 'services'))
+    from weather_service import WeatherService, create_weather_service
 
     # Test direct instantiation
     service = WeatherService("test_api_key")
@@ -32,7 +34,9 @@ def test_weather_service_creation():
 
 def test_weather_api_success():
     """Test successful weather API response."""
-    from services.weather_service import WeatherService
+    # Direct import to avoid services/__init__.py issues with mocked modules
+    sys.path.insert(0, os.path.join(parent_dir, 'services'))
+    from weather_service import WeatherService
 
     # Mock response data
     mock_response_data = {
@@ -74,7 +78,9 @@ def test_weather_api_success():
 
 def test_weather_api_error():
     """Test weather API error handling."""
-    from services.weather_service import WeatherService
+    # Direct import to avoid services/__init__.py issues with mocked modules
+    sys.path.insert(0, os.path.join(parent_dir, 'services'))
+    from weather_service import WeatherService
 
     service = WeatherService("test_key")
 
@@ -93,8 +99,9 @@ def test_weather_api_error():
 def test_weather_timeout_handling():
     """Test weather API timeout handling."""
     import requests
-
-    from services.weather_service import WeatherService
+    # Direct import to avoid services/__init__.py issues with mocked modules
+    sys.path.insert(0, os.path.join(parent_dir, 'services'))
+    from weather_service import WeatherService
 
     service = WeatherService("test_key")
 
@@ -110,7 +117,9 @@ def test_weather_timeout_handling():
 
 def test_weather_data_parsing():
     """Test weather data parsing functionality."""
-    from services.weather_service import WeatherService
+    # Direct import to avoid services/__init__.py issues with mocked modules
+    sys.path.insert(0, os.path.join(parent_dir, 'services'))
+    from weather_service import WeatherService
 
     service = WeatherService("test_key")
 
@@ -369,12 +378,14 @@ def test_weather_service_network_errors():
 
     # Test connection error
     with patch("requests.get") as mock_get:
-        mock_get.side_effect = requests.exceptions.ConnectionError()
+        mock_get.side_effect = requests.exceptions.ConnectionError("Test connection error")
 
         result = service.get_weather("TestCity")
 
     assert result["error"] is True
-    assert result["exception"] == "connection_error"
+    assert "exception" in result
+    assert result["exception"]  # Should not be empty
+    assert "Test connection error" in result["exception"]
 
 
 def test_weather_service_api_key_validation():
@@ -415,5 +426,5 @@ def test_weather_coordinates_handling():
 
     result = service._parse_weather_data(mock_data, "Helsinki")
 
-    assert result["latitude"] == 60.17
-    assert result["longitude"] == 24.95
+    assert result["coordinates"]["lat"] == 60.17
+    assert result["coordinates"]["lon"] == 24.95

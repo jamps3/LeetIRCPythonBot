@@ -1,5 +1,5 @@
 """
-Tests for Admin Commands
+Tests for Admin Commands - Unified Version
 
 This module contains comprehensive tests for all admin commands including:
 - quit command (console and IRC)
@@ -16,6 +16,8 @@ import time
 import unittest
 from unittest.mock import MagicMock, Mock, call, patch
 
+import pytest
+
 # Add parent directory to sys.path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -30,67 +32,103 @@ from commands_admin import (
 )
 
 
+@pytest.fixture
+def mock_config():
+    """Create a mock configuration."""
+    config = Mock()
+    config.admin_password = "testpass123"
+    return config
+
+
+@pytest.fixture
+def mock_irc():
+    """Create a mock IRC connection."""
+    irc = Mock()
+    irc.send_raw = Mock()
+    return irc
+
+
+@pytest.fixture
+def mock_stop_event():
+    """Create a mock stop event."""
+    return Mock()
+
+
+@pytest.fixture
+def mock_logger():
+    """Create a mock logger."""
+    return Mock()
+
+
+@pytest.fixture
+def bot_functions(mock_irc, mock_stop_event, mock_logger):
+    """Create bot functions dictionary."""
+    return {
+        "irc": mock_irc,
+        "stop_event": mock_stop_event,
+        "log": mock_logger,
+    }
+
+
+def test_verify_admin_password_valid(mock_config):
+    """Test admin password verification with valid password."""
+    with patch("commands_admin.get_config", return_value=mock_config):
+        assert verify_admin_password(["testpass123"]) is True
+
+
+def test_verify_admin_password_invalid(mock_config):
+    """Test admin password verification with invalid password."""
+    with patch("commands_admin.get_config", return_value=mock_config):
+        assert verify_admin_password(["wrongpass"]) is False
+
+
+def test_verify_admin_password_no_args(mock_config):
+    """Test admin password verification with no arguments."""
+    with patch("commands_admin.get_config", return_value=mock_config):
+        assert verify_admin_password([]) is False
+
+
+def test_quit_command_console_triggers_shutdown(mock_config, bot_functions):
+    """Test that quit command in console actually triggers shutdown."""
+    context = CommandContext(
+        command="quit",
+        args=["testpass123", "goodbye"],
+        raw_message="!quit testpass123 goodbye",
+        sender=None,
+        target=None,
+        is_private=False,
+        is_console=True,
+        server_name="console",
+    )
+
+    with patch("commands_admin.get_config", return_value=mock_config):
+        response = quit_command(context, bot_functions)
+
+    # Verify shutdown was triggered
+    bot_functions["stop_event"].set.assert_called_once()
+    assert "🛑 Shutting down bot" in response
+    assert "goodbye" in response
+
+
 class TestAdminCommands(unittest.TestCase):
-    """Test suite for admin commands."""
+    """Test class for admin commands."""
 
     def setUp(self):
         """Set up test fixtures."""
         self.mock_config = Mock()
         self.mock_config.admin_password = "testpass123"
-
-        # Mock IRC connection (Server instance)
+        
         self.mock_irc = Mock()
         self.mock_irc.send_raw = Mock()
-
-        # Mock stop event
+        
         self.mock_stop_event = Mock()
-
-        # Mock logger
         self.mock_logger = Mock()
-
-        # Basic bot functions
+        
         self.bot_functions = {
             "irc": self.mock_irc,
             "stop_event": self.mock_stop_event,
             "log": self.mock_logger,
         }
-
-    def test_verify_admin_password_valid(self):
-        """Test admin password verification with valid password."""
-        with patch("commands_admin.get_config", return_value=self.mock_config):
-            self.assertTrue(verify_admin_password(["testpass123"]))
-
-    def test_verify_admin_password_invalid(self):
-        """Test admin password verification with invalid password."""
-        with patch("commands_admin.get_config", return_value=self.mock_config):
-            self.assertFalse(verify_admin_password(["wrongpass"]))
-
-    def test_verify_admin_password_no_args(self):
-        """Test admin password verification with no arguments."""
-        with patch("commands_admin.get_config", return_value=self.mock_config):
-            self.assertFalse(verify_admin_password([]))
-
-    def test_quit_command_console_triggers_shutdown(self):
-        """Test that quit command in console actually triggers shutdown."""
-        # Console context
-        context = CommandContext(
-            command="quit",
-            args=["testpass123", "goodbye"],
-            raw_message="!quit testpass123 goodbye",
-            sender=None,
-            target=None,
-            is_private=False,
-            is_console=True,
-            server_name="console",
-        )
-
-        with patch("commands_admin.get_config", return_value=self.mock_config):
-            response = quit_command(context, self.bot_functions)
-
-        # Verify shutdown was triggered
-        self.mock_stop_event.set.assert_called_once()
-        self.assertIn("🛑 Shutting down bot", response)
-        self.assertIn("goodbye", response)
 
     def test_quit_command_console_no_message(self):
         """Test quit command in console without message."""

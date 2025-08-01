@@ -16,10 +16,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from dotenv import load_dotenv
 
-# Mock external dependencies at import time to avoid import errors
+# Mock external dependencies selectively to avoid test interference
 external_deps = [
-    "requests",
-    "feedparser",
     "bs4",
     "selenium",
     "youtube_dl",
@@ -28,9 +26,6 @@ external_deps = [
     "matplotlib",
     "openai",
     "websocket",
-    "urllib3",
-    "certifi",
-    "charset_normalizer",
     "idna",
     "lxml",
     "html5lib",
@@ -39,7 +34,6 @@ external_deps = [
     "cryptography",
     "jwt",
     "aiohttp",
-    "asyncio",
     "websockets",
     "discord",
     "tweepy",
@@ -71,9 +65,6 @@ submodules = {
     "bs4": Mock(),
     "matplotlib.pyplot": Mock(),
     "PIL.Image": Mock(),
-    "requests.adapters": Mock(),
-    "requests.exceptions": Mock(),
-    "urllib3.exceptions": Mock(),
     "cryptography.fernet": Mock(),
     "jwt.exceptions": Mock(),
     "googleapiclient.discovery": Mock(),
