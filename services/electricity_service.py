@@ -72,13 +72,10 @@ class ElectricityService:
             }
 
             # Add today's price if available
-            # CRITICAL FIX: Based on comparison with liukuri.fi data:
-            # Position 22 shows 4.39 snt/kWh, which matches liukuri.fi for hour 22
-            # So the mapping should be: hour 22 -> position 22 (direct mapping)
-            # This means: position = hour (but handle hour 0 specially)
-            position = (
-                hour + 1 if hour > 0 else 1
-            )  # Fix mapping. Hour 0 maps to position 1
+            # ENTSO-E API position mapping:
+            # Hour 1-23 maps directly to position 1-23
+            # Hour 0 (midnight) maps to position 24
+            position = hour if hour > 0 else 24
             if not today_prices.get("error") and position in today_prices["prices"]:
                 price_eur_mwh = today_prices["prices"][position]
                 price_snt_kwh = self._convert_price(price_eur_mwh)
@@ -94,9 +91,7 @@ class ElectricityService:
                 tomorrow_prices = self._fetch_daily_prices(tomorrow_date)
 
                 # Use same position mapping for tomorrow as today
-                tomorrow_position = (
-                    hour + 1 if hour > 0 else 1
-                )  # Ensure correct mapping for tomorrow as well
+                tomorrow_position = hour if hour > 0 else 24
                 if (
                     not tomorrow_prices.get("error")
                     and tomorrow_position in tomorrow_prices["prices"]

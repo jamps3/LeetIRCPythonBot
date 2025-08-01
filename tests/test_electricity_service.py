@@ -171,6 +171,10 @@ class TestElectricityService(unittest.TestCase):
                 <position>2</position>
                 <price.amount>45.5</price.amount>
             </Point>
+            <Point>
+                <position>24</position>
+                <price.amount>20.0</price.amount>
+            </Point>
         </Period>
     </TimeSeries>
 </Publication_MarketDocument>"""
@@ -187,7 +191,8 @@ class TestElectricityService(unittest.TestCase):
         self.assertEqual(result["date"], "2023-01-01")
         self.assertEqual(result["prices"][1], 50.0)
         self.assertEqual(result["prices"][2], 45.5)
-        self.assertEqual(result["total_hours"], 2)
+        self.assertEqual(result["prices"][24], 20.0)  # Hour 0 maps to position 24
+        self.assertEqual(result["total_hours"], 3)
 
     @patch("requests.get")
     def test_fetch_daily_prices_api_error(self, mock_get):
@@ -295,8 +300,9 @@ class TestElectricityService(unittest.TestCase):
         mock_fetch.return_value = {
             "error": False,
             "prices": {
-                14: 50.0,  # Corrected mapping, Hour 14 should map to position 14
-                15: 45.0,
+                24: 20.0,  # Position 24 maps to hour 0
+                14: 50.0,  # Position 14 maps to hour 14
+                15: 45.0,  # Position 15 maps to hour 15
             },
         }
 
