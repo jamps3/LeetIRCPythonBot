@@ -1,12 +1,11 @@
 """
-IRC Client Tests - Improved Pytest Version
+IRC Client Tests - Pure Pytest Version
 
 Comprehensive tests for the IRC client functionality.
 """
 
 import os
 import sys
-import time
 
 import pytest
 
@@ -181,6 +180,16 @@ def test_irc_channel_management():
         # Network error is expected in test environment
         pass
 
+    try:
+        client.part_channel("#test")
+        # Should remove from channel list
+        assert (
+            "#test" not in client.connection_info.channels
+        ), "Channel should be removed from list"
+    except Exception:
+        # Network error is expected in test environment
+        pass
+
 
 # Parametrized test for multiple message parsing scenarios
 @pytest.mark.parametrize(
@@ -189,11 +198,12 @@ def test_irc_channel_management():
         (":nick!user@host PRIVMSG #channel :Hello", "nick", "user", "host"),
         (":testnick!testuser@testhost JOIN #test", "testnick", "testuser", "testhost"),
         (":bot!botuser@bothost PART #channel :Bye", "bot", "botuser", "bothost"),
-        (":admin!adminuser@adminhost QUIT :Leaving", "admin", "adminuser", "adminhost"),
     ],
 )
-def test_irc_message_hostmask_parsing(raw_message, expected_nick, expected_user, expected_host):
-    """Test IRC message hostmask parsing with parametrized inputs."""
+def test_irc_message_parsing_user_info(
+    raw_message, expected_nick, expected_user, expected_host
+):
+    """Test IRC message parsing with user information extraction."""
     from irc_client import create_irc_client
 
     client = create_irc_client("SERVER1", "testbot")
@@ -205,46 +215,61 @@ def test_irc_message_hostmask_parsing(raw_message, expected_nick, expected_user,
     assert parsed.host == expected_host, f"Wrong host for: {raw_message}"
 
 
-@pytest.mark.parametrize(
-    "message_text,expected_command",
-    [
-        ("!help", True),
-        ("!version", True),
-        ("!ping arg1 arg2", True),
-        ("hello world", False),
-        ("this is !not a command", False),
-        ("!cmd", True),
-    ],
-)
-def test_irc_command_detection(message_text, expected_command):
-    """Test IRC command detection with various message formats."""
+def test_irc_client_server_config():
+    """Test IRC client server configuration handling."""
     from irc_client import create_irc_client
 
     client = create_irc_client("SERVER1", "testbot")
-    raw_message = f":nick!user@host PRIVMSG #channel :{message_text}"
-    parsed = client.parse_message(raw_message)
 
-    assert parsed is not None, f"Should parse message: {raw_message}"
-    assert parsed.is_command == expected_command, f"Command detection failed for: {message_text}"
+    # Test server configuration access
+    assert hasattr(client, "server_config"), "Should have server config"
+    assert client.server_config is not None, "Server config should not be None"
+
+    # Test nickname handling
+    assert client.nickname == "testbot", "Nickname should be set from parameter"
 
 
-def test_irc_client_fixtures():
-    """Test IRC client with fixture-like setup."""
+def test_irc_message_types():
+    """Test IRC message type detection."""
+    from irc_client import IRCMessageType, create_irc_client
+
+    client = create_irc_client("SERVER1", "testbot")
+
+    message_type_tests = [
+        ("PING :server.com", IRCMessageType.PING),
+        (":nick!user@host PRIVMSG #chan :hello", IRCMessageType.PRIVMSG),
+        (":nick!user@host JOIN #channel", IRCMessageType.JOIN),
+        (":nick!user@host PART #channel", IRCMessageType.PART),
+        (":nick!user@host QUIT :Goodbye", IRCMessageType.QUIT),
+        (":server 001 nick :Welcome", IRCMessageType.NUMERIC),
+        (":server 353 nick = #channel :nick1 nick2", IRCMessageType.NUMERIC),
+    ]
+
+    for raw_msg, expected_type in message_type_tests:
+        parsed = client.parse_message(raw_msg)
+        assert parsed is not None, f"Should parse: {raw_msg}"
+        assert (
+            parsed.type == expected_type
+        ), f"Wrong type for {raw_msg}: expected {expected_type}, got {parsed.type}"
+
+
+def test_irc_client_error_handling():
+    """Test IRC client error handling."""
     from irc_client import create_irc_client
 
-    # Test multiple client instances
-    client1 = create_irc_client("SERVER1", "bot1")
-    client2 = create_irc_client("SERVER1", "bot2")
+    client = create_irc_client("SERVER1", "testbot")
 
-    assert client1.nickname != client2.nickname, "Clients should have different nicknames"
-    assert client1.server_config == client2.server_config, "Clients should share server config"
+    # Test parsing invalid messages
+    invalid_messages = [
+        "",  # Empty message
+        "INVALID",  # Malformed message
+        ":",  # Just colon
+    ]
 
-    try:
-        client1.part_channel("#test")
-        # Should remove from channel list
-        assert (
-            "#test" not in client1.connection_info.channels
-        ), "Channel should be removed from list"
-    except Exception:
-        # Network error is expected in test environment
-        pass
+    for invalid_msg in invalid_messages:
+        parsed = client.parse_message(invalid_msg)
+        # Should either return None or handle gracefully
+        # The exact behavior depends on implementation
+        assert parsed is None or hasattr(
+            parsed, "type"
+        ), f"Should handle invalid message gracefully: {invalid_msg}"

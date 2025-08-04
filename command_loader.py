@@ -2,7 +2,7 @@
 Command Loader and Integration Module
 
 This module loads all command modules and provides integration between
-the new command registry system and the existing bot infrastructure.
+the command registry system and the bot infrastructure.
 """
 
 import asyncio
@@ -48,7 +48,7 @@ async def process_irc_command(
     bot_functions: Dict[str, Any],
 ) -> bool:
     """
-    Process an IRC message using the new command system.
+    Process an IRC command message through the command registry system.
 
     Args:
         message: The IRC message text
@@ -126,7 +126,7 @@ async def process_console_command_new(
     command_text: str, bot_functions: Dict[str, Any]
 ) -> bool:
     """
-    Process a console command using the new command system.
+    Process a console command through the command registry system.
 
     Args:
         command_text: The command text from console
@@ -182,11 +182,11 @@ async def process_console_command_new(
 
 def enhanced_process_console_command(command_text: str, bot_functions: Dict[str, Any]):
     """
-    Enhanced console command processor using the new command system.
+    Process console commands using the command registry system.
     """
     log_func = bot_functions.get("log")
 
-    # Use only the new command system
+    # Process command through command registry
     try:
         # Handle async processing more robustly
         processed = False
@@ -247,8 +247,8 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
 
         if processed:
             if log_func:
-                log_func(f"Command '{command_text}' processed by new system", "DEBUG")
-            return  # Command was handled by new system
+                log_func(f"Command '{command_text}' processed successfully", "DEBUG")
+            return  # Command was handled
         else:
             # Command not recognized
             notice_message = bot_functions.get("notice_message")
@@ -271,47 +271,31 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
 
 def enhanced_process_irc_message(irc, message, bot_functions):
     """
-    Enhanced IRC message processor that tries the new command system first,
-    then falls back to the legacy system if needed.
-
-    This function bridges the old and new command systems during the transition.
+    Process IRC messages and route commands to the command registry system.
+    
+    Handles both command messages (starting with !) and routes them to the 
+    appropriate command handlers through the command registry.
     """
     import re
 
     # Extract message components
     match = re.search(r":(\S+)!(\S+) PRIVMSG (\S+) :(.+)", message)
     if not match:
-        # Not a PRIVMSG, use legacy system
-        try:
-            from commands import process_message
-
-            process_message(irc, message, bot_functions)
-        except Exception as e:
-            log_func = bot_functions.get("log")
-            if log_func:
-                log_func(f"Legacy message processing failed: {e}", "ERROR")
+        # Not a PRIVMSG, ignore
         return
 
     sender, _, target, text = match.groups()
 
-    # Only try new system for commands (starting with !)
+    # Only process commands (starting with !)
     if not text.startswith("!"):
-        # Use legacy system for non-commands
-        try:
-            from commands import process_message
-
-            process_message(irc, message, bot_functions)
-        except Exception as e:
-            log_func = bot_functions.get("log")
-            if log_func:
-                log_func(f"Legacy message processing failed: {e}", "ERROR")
+        # Non-command messages are handled by bot_manager's word tracking system
         return
 
-    # Try new command system for commands
+    # Process command through command registry
     try:
         # Run async command processing in a compatible way
         try:
-            # Modern way to get or create an event loop
+            # Get or create an event loop
             loop = asyncio.get_running_loop()
         except RuntimeError:  # No running loop
             loop = asyncio.new_event_loop()
@@ -322,24 +306,14 @@ def enhanced_process_irc_message(irc, message, bot_functions):
         )
 
         if processed:
-            return  # Command was handled by new system
+            return  # Command was handled
 
     except Exception as e:
         log_func = bot_functions.get("log")
         if log_func:
             log_func(
-                f"New command system failed for IRC command '{text}': {e}", "WARNING"
+                f"Command processing failed for IRC command '{text}': {e}", "WARNING"
             )
-
-    # Fall back to legacy system
-    try:
-        from commands import process_message
-
-        process_message(irc, message, bot_functions)
-    except Exception as e:
-        log_func = bot_functions.get("log")
-        if log_func:
-            log_func(f"Legacy message processing also failed: {e}", "ERROR")
 
 
 def get_command_help_text() -> str:

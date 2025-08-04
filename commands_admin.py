@@ -1,6 +1,14 @@
 """
 Admin IRC Bot Commands
 
+This module contains commands that require admin privileges.
+"""
+
+from utils import verify_admin_password
+
+"""
+Admin IRC Bot Commands
+
 This module contains administrative commands that require password authentication.
 """
 

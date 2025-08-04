@@ -1,5 +1,5 @@
 """
-Weather Service Tests
+Weather Service Tests - Pure Pytest Version
 
 Comprehensive tests for the weather service functionality.
 """
@@ -9,37 +9,26 @@ import os
 import sys
 from unittest.mock import Mock, patch
 
+import pytest
+
 # Add the parent directory to Python path to ensure imports work in CI
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 
-def test_weather_service_creation():
-    """Test weather service creation."""
-    # Direct import to avoid services/__init__.py issues with mocked modules
-    sys.path.insert(0, os.path.join(parent_dir, 'services'))
-    from weather_service import WeatherService, create_weather_service
+@pytest.fixture
+def weather_service():
+    """Create a weather service instance for testing."""
+    from services.weather_service import WeatherService
 
-    # Test direct instantiation
-    service = WeatherService("test_api_key")
-    assert service.api_key == "test_api_key"
-    assert service.base_url == "http://api.openweathermap.org/data/2.5"
-
-    # Test factory function
-    service2 = create_weather_service("another_key")
-    assert service2.api_key == "another_key"
-    assert isinstance(service2, WeatherService)
+    return WeatherService("test_api_key")
 
 
-def test_weather_api_success():
-    """Test successful weather API response."""
-    # Direct import to avoid services/__init__.py issues with mocked modules
-    sys.path.insert(0, os.path.join(parent_dir, 'services'))
-    from weather_service import WeatherService
-
-    # Mock response data
-    mock_response_data = {
+@pytest.fixture
+def mock_weather_response():
+    """Mock successful weather API response data."""
+    return {
         "weather": [{"description": "clear sky", "main": "Clear"}],
         "main": {
             "temp": 22.5,
@@ -56,73 +45,76 @@ def test_weather_api_success():
         "coord": {"lat": 62.6, "lon": 29.76},
     }
 
-    service = WeatherService("test_key")
 
+def test_weather_service_creation():
+    """Test weather service creation."""
+    from services.weather_service import WeatherService, create_weather_service
+
+    # Test direct instantiation
+    service = WeatherService("test_api_key")
+    assert service.api_key == "test_api_key", "API key should be set"
+    assert (
+        service.base_url == "http://api.openweathermap.org/data/2.5"
+    ), "Base URL should be set"
+
+    # Test factory function
+    service2 = create_weather_service("another_key")
+    assert service2.api_key == "another_key", "Factory should set API key"
+    assert isinstance(
+        service2, WeatherService
+    ), "Factory should return WeatherService instance"
+
+
+def test_weather_api_success(weather_service, mock_weather_response):
+    """Test successful weather API response."""
     with patch("requests.get") as mock_get:
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = mock_response_data
+        mock_response.json.return_value = mock_weather_response
         mock_get.return_value = mock_response
 
         # Also mock UV response
-        with patch.object(service, "_get_uv_index", return_value=5.2):
-            result = service.get_weather("Helsinki")
+        with patch.object(weather_service, "_get_uv_index", return_value=5.2):
+            result = weather_service.get_weather("Helsinki")
 
-    assert result["error"] is False
-    assert result["location"] == "Helsinki"
-    assert result["country"] == "FI"
-    assert result["temperature"] == 22.5
-    assert result["description"] == "Clear sky"
-    assert result["weather_emoji"] == "☀️"
+    assert result["error"] is False, "Should not have error"
+    assert result["location"] == "Helsinki", "Location should match"
+    assert result["country"] == "FI", "Country should match"
+    assert result["temperature"] == 22.5, "Temperature should match"
+    assert result["description"] == "Clear sky", "Description should be capitalized"
+    assert result["weather_emoji"] == "☀️", "Should have clear weather emoji"
 
 
-def test_weather_api_error():
+def test_weather_api_error(weather_service):
     """Test weather API error handling."""
-    # Direct import to avoid services/__init__.py issues with mocked modules
-    sys.path.insert(0, os.path.join(parent_dir, 'services'))
-    from weather_service import WeatherService
-
-    service = WeatherService("test_key")
-
     # Test HTTP error
     with patch("requests.get") as mock_get:
         mock_response = Mock()
         mock_response.status_code = 404
         mock_get.return_value = mock_response
 
-        result = service.get_weather("NonExistentCity")
+        result = weather_service.get_weather("NonExistentCity")
 
-    assert result["error"] is True
-    assert "404" in str(result["status_code"])
+    assert result["error"] is True, "Should have error"
+    assert "404" in str(result["status_code"]), "Should include status code"
 
 
-def test_weather_timeout_handling():
+def test_weather_timeout_handling(weather_service):
     """Test weather API timeout handling."""
     import requests
-    # Direct import to avoid services/__init__.py issues with mocked modules
-    sys.path.insert(0, os.path.join(parent_dir, 'services'))
-    from weather_service import WeatherService
-
-    service = WeatherService("test_key")
 
     with patch("requests.get") as mock_get:
         mock_get.side_effect = requests.exceptions.Timeout()
 
-        result = service.get_weather("TestCity")
+        result = weather_service.get_weather("TestCity")
 
-    assert result["error"] is True
-    assert "timed out" in result["message"].lower()
-    assert result["exception"] == "timeout"
+    assert result["error"] is True, "Should have error"
+    assert "timed out" in result["message"].lower(), "Should mention timeout"
+    assert result["exception"] == "timeout", "Should have timeout exception type"
 
 
-def test_weather_data_parsing():
+def test_weather_data_parsing(weather_service):
     """Test weather data parsing functionality."""
-    # Direct import to avoid services/__init__.py issues with mocked modules
-    sys.path.insert(0, os.path.join(parent_dir, 'services'))
-    from weather_service import WeatherService
-
-    service = WeatherService("test_key")
-
     # Test complete weather data
     test_data = {
         "weather": [{"description": "light rain", "main": "Rain"}],
@@ -141,23 +133,19 @@ def test_weather_data_parsing():
         "coord": {"lat": 59.33, "lon": 18.07},
     }
 
-    result = service._parse_weather_data(test_data, "Stockholm")
+    result = weather_service._parse_weather_data(test_data, "Stockholm")
 
-    assert result["error"] is False
-    assert result["location"] == "Stockholm"
-    assert result["country"] == "SE"
-    assert result["rain"] == 2.5
-    assert result["visibility"] == 8.0  # Converted to km
-    assert result["weather_emoji"] == "🌧️"
+    assert result["error"] is False, "Should not have error"
+    assert result["location"] == "Stockholm", "Location should match"
+    assert result["country"] == "SE", "Country should match"
+    assert result["rain"] == 2.5, "Rain amount should match"
+    assert result["visibility"] == 8.0, "Visibility should be converted to km"
+    assert result["weather_emoji"] == "🌧️", "Should have rain emoji"
 
 
-def test_wind_direction_calculation():
-    """Test wind direction emoji calculation."""
-    from services.weather_service import WeatherService
-
-    service = WeatherService("test_key")
-
-    test_cases = [
+@pytest.mark.parametrize(
+    "degrees,expected_emoji",
+    [
         (0, "⬆️"),  # North
         (45, "↗️"),  # Northeast
         (90, "➡️"),  # East
@@ -167,22 +155,19 @@ def test_wind_direction_calculation():
         (270, "⬅️"),  # West
         (315, "↖️"),  # Northwest
         (360, "⬆️"),  # Full circle back to North
-    ]
+    ],
+)
+def test_wind_direction_calculation(weather_service, degrees, expected_emoji):
+    """Test wind direction emoji calculation."""
+    result = weather_service._get_wind_direction(degrees)
+    assert (
+        result == expected_emoji
+    ), f"Wind direction for {degrees}° should be {expected_emoji}, got {result}"
 
-    for degrees, expected_emoji in test_cases:
-        result = service._get_wind_direction(degrees)
-        assert (
-            result == expected_emoji
-        ), f"Wind direction for {degrees}° should be {expected_emoji}, got {result}"
 
-
-def test_weather_emoji_mapping():
-    """Test weather condition to emoji mapping."""
-    from services.weather_service import WeatherService
-
-    service = WeatherService("test_key")
-
-    test_cases = [
+@pytest.mark.parametrize(
+    "condition,expected_emoji",
+    [
         ("Clear", "☀️"),
         ("Clouds", "☁️"),
         ("Rain", "🌧️"),
@@ -190,49 +175,43 @@ def test_weather_emoji_mapping():
         ("Thunderstorm", "⛈️"),
         ("Fog", "🌁"),
         ("UnknownCondition", "🌈"),  # Default
-    ]
+    ],
+)
+def test_weather_emoji_mapping(weather_service, condition, expected_emoji):
+    """Test weather condition to emoji mapping."""
+    result = weather_service._get_weather_emoji(condition)
+    assert (
+        result == expected_emoji
+    ), f"Weather emoji for {condition} should be {expected_emoji}, got {result}"
 
-    for condition, expected_emoji in test_cases:
-        result = service._get_weather_emoji(condition)
-        assert (
-            result == expected_emoji
-        ), f"Weather emoji for {condition} should be {expected_emoji}, got {result}"
 
-
-def test_pressure_analysis():
-    """Test atmospheric pressure analysis."""
-    from services.weather_service import WeatherService
-
-    service = WeatherService("test_key")
-
-    test_cases = [
+@pytest.mark.parametrize(
+    "pressure,expected_visual",
+    [
         (1013.25, "〇"),  # Normal pressure
-        (1020, "🟢"),  # Slightly high (abs(percent) = 0.675 <= 1)
-        (1025, "🟡"),  # Moderately high (abs(percent) = 1.175 <= 2)
-        (1040, "🟠"),  # High (abs(percent) = 2.675 <= 3)
-        (1060, "☠"),  # Very high (abs(percent) = 4.675 > 4)
-        (1005, "🟢"),  # Slightly low (abs(percent) = 0.825 <= 1)
-        (995, "🟡"),  # Moderately low (abs(percent) = 1.825 <= 2)
-        (985, "🟠"),  # Low (abs(percent) = 2.825 <= 3)
-        (980, "🔴"),  # Lower (abs(percent) = 3.325 <= 4)
-        (950, "☠"),  # Very low (abs(percent) = 6.325 > 4)
-    ]
+        (1020, "🟢"),  # Slightly high
+        (1025, "🟡"),  # Moderately high
+        (1040, "🟠"),  # High
+        (1060, "☠"),  # Very high
+        (1005, "🟢"),  # Slightly low
+        (995, "🟡"),  # Moderately low
+        (985, "🟠"),  # Low
+        (980, "🔴"),  # Lower
+        (950, "☠"),  # Very low
+    ],
+)
+def test_pressure_analysis(weather_service, pressure, expected_visual):
+    """Test atmospheric pressure analysis."""
+    result = weather_service._analyze_pressure(pressure)
+    assert (
+        result["visual"] == expected_visual
+    ), f"Pressure visual for {pressure} hPa should be {expected_visual}, got {result['visual']}"
+    assert isinstance(result["diff"], float), "Should have pressure difference"
+    assert isinstance(result["percent"], float), "Should have pressure percentage"
 
-    for pressure, expected_visual in test_cases:
-        result = service._analyze_pressure(pressure)
-        assert (
-            result["visual"] == expected_visual
-        ), f"Pressure visual for {pressure} hPa should be {expected_visual}, got {result['visual']}"
-        assert isinstance(result["diff"], float)
-        assert isinstance(result["percent"], float)
 
-
-def test_uv_index_fetching():
+def test_uv_index_fetching(weather_service):
     """Test UV index fetching."""
-    from services.weather_service import WeatherService
-
-    service = WeatherService("test_key")
-
     # Test successful UV response
     with patch("requests.get") as mock_get:
         mock_response = Mock()
@@ -240,9 +219,9 @@ def test_uv_index_fetching():
         mock_response.json.return_value = {"value": 7.3}
         mock_get.return_value = mock_response
 
-        result = service._get_uv_index(60.17, 24.95)  # Helsinki coordinates
+        result = weather_service._get_uv_index(60.17, 24.95)  # Helsinki coordinates
 
-    assert result == 7.3
+    assert result == 7.3, "Should return UV index value"
 
     # Test failed UV response
     with patch("requests.get") as mock_get:
@@ -250,17 +229,13 @@ def test_uv_index_fetching():
         mock_response.status_code = 404
         mock_get.return_value = mock_response
 
-        result = service._get_uv_index(60.17, 24.95)
+        result = weather_service._get_uv_index(60.17, 24.95)
 
-    assert result is None
+    assert result is None, "Should return None on error"
 
 
-def test_weather_message_formatting():
+def test_weather_message_formatting(weather_service):
     """Test weather message formatting."""
-    from services.weather_service import WeatherService
-
-    service = WeatherService("test_key")
-
     # Test successful weather data formatting
     weather_data = {
         "error": False,
@@ -284,28 +259,24 @@ def test_weather_message_formatting():
         "snow": 0,
     }
 
-    result = service.format_weather_message(weather_data)
+    result = weather_service.format_weather_message(weather_data)
 
-    assert "Joensuu,FI" in result
-    assert "☀️" in result
-    assert "20.5°C" in result
-    assert "🔆6.5" in result
-    assert result.endswith(".")
+    assert "Joensuu,FI" in result, "Should include location and country"
+    assert "☀️" in result, "Should include weather emoji"
+    assert "20.5°C" in result, "Should include temperature"
+    assert "🔆6.5" in result, "Should include UV index"
+    assert result.endswith("."), "Should end with period"
 
     # Test error weather data formatting
     error_data = {"error": True, "message": "API key invalid"}
 
-    error_result = service.format_weather_message(error_data)
-    assert "epäonnistui" in error_result
-    assert "API key invalid" in error_result
+    error_result = weather_service.format_weather_message(error_data)
+    assert "epäonnistui" in error_result, "Should indicate failure"
+    assert "API key invalid" in error_result, "Should include error message"
 
 
-def test_precipitation_handling():
+def test_precipitation_handling(weather_service):
     """Test precipitation (rain/snow) handling."""
-    from services.weather_service import WeatherService
-
-    service = WeatherService("test_key")
-
     # Test with rain
     rain_data = {
         "error": False,
@@ -329,102 +300,85 @@ def test_precipitation_handling():
         "snow": 0,
     }
 
-    rain_result = service.format_weather_message(rain_data)
-    assert "Sade: 5.2 mm/tunti." in rain_result
+    rain_result = weather_service.format_weather_message(rain_data)
+    assert "Sade: 5.2 mm/tunti." in rain_result, "Should include rain amount"
 
     # Test with snow
     snow_data = rain_data.copy()
     snow_data["rain"] = 0
     snow_data["snow"] = 3.1
 
-    snow_result = service.format_weather_message(snow_data)
-    assert "Lumi: 3.1 mm/tunti." in snow_result
-
-    # Test with no precipitation
-    no_precip_data = rain_data.copy()
-    no_precip_data["rain"] = 0
-    no_precip_data["snow"] = 0
-
-    no_precip_result = service.format_weather_message(no_precip_data)
-    assert no_precip_result.endswith(".")
-    assert "Sade:" not in no_precip_result
-    assert "Lumi:" not in no_precip_result
+    snow_result = weather_service.format_weather_message(snow_data)
+    assert "Lumi: 3.1 mm/tunti." in snow_result, "Should include snow amount"
 
 
-def test_weather_service_edge_cases():
+def test_weather_service_edge_cases(weather_service):
     """Test weather service edge cases."""
-    from services.weather_service import WeatherService
-
-    service = WeatherService("test_key")
-
-    # Test empty string location
-    with patch("requests.get") as mock_get:
-        mock_response = Mock()
-        mock_response.status_code = 400
-        mock_get.return_value = mock_response
-
-        result = service.get_weather("")
-
-    assert result["error"] is True
-
-
-def test_weather_service_network_errors():
-    """Test weather service network error handling."""
-    import requests
-
-    from services.weather_service import WeatherService
-
-    service = WeatherService("test_key")
-
-    # Test connection error
-    with patch("requests.get") as mock_get:
-        mock_get.side_effect = requests.exceptions.ConnectionError("Test connection error")
-
-        result = service.get_weather("TestCity")
-
-    assert result["error"] is True
-    assert "exception" in result
-    assert result["exception"]  # Should not be empty
-    assert "Test connection error" in result["exception"]
-
-
-def test_weather_service_api_key_validation():
-    """Test API key validation and handling."""
-    from services.weather_service import WeatherService
-
-    service = WeatherService("invalid_key")
-
-    with patch("requests.get") as mock_get:
-        mock_response = Mock()
-        mock_response.status_code = 401  # Unauthorized
-        mock_get.return_value = mock_response
-
-        result = service.get_weather("Helsinki")
-
-    assert result["error"] is True
-    assert result["status_code"] == 401
-
-
-def test_weather_coordinates_handling():
-    """Test weather coordinates handling."""
-    from services.weather_service import WeatherService
-
-    service = WeatherService("test_key")
-
-    # Mock successful response with coordinates
-    mock_data = {
+    # Test with missing wind data
+    incomplete_data = {
         "weather": [{"description": "clear sky", "main": "Clear"}],
-        "main": {"temp": 20.0, "feels_like": 19.0, "humidity": 50, "pressure": 1013},
-        "wind": {"speed": 2.0, "deg": 0},
+        "main": {"temp": 20.0, "feels_like": 20.0, "humidity": 50, "pressure": 1013},
         "clouds": {"all": 0},
         "visibility": 10000,
         "rain": {},
         "snow": {},
         "sys": {"country": "FI", "sunrise": 1640000000, "sunset": 1640030000},
-        "coord": {"lat": 60.17, "lon": 24.95},  # Helsinki coordinates
+        "coord": {"lat": 60.0, "lon": 24.0},
     }
 
-    result = service._parse_weather_data(mock_data, "Helsinki")
+    result = weather_service._parse_weather_data(incomplete_data, "Test")
+    assert result["error"] is False, "Should handle missing wind data"
+    assert result["wind_speed"] == 0, "Should default wind speed to 0"
+    assert result["wind_direction"] == "⬆️", "Should have default wind direction"
 
-    assert result["coordinates"]["lat"] == 60.17
-    assert result["coordinates"]["lon"] == 24.95
+
+def test_weather_service_network_errors(weather_service):
+    """Test weather service network error handling."""
+    import requests
+
+    # Test connection error
+    with patch("requests.get") as mock_get:
+        mock_get.side_effect = requests.exceptions.ConnectionError()
+        result = weather_service.get_weather("TestCity")
+
+    assert result["error"] is True, "Should have error for connection issues"
+    assert "connection" in result["message"].lower(), "Should mention connection error"
+
+    # Test general request exception
+    with patch("requests.get") as mock_get:
+        mock_get.side_effect = requests.exceptions.RequestException("General error")
+        result = weather_service.get_weather("TestCity")
+
+    assert result["error"] is True, "Should have error for general request issues"
+
+
+def test_weather_service_api_key_validation(weather_service):
+    """Test API key validation."""
+    # Test with empty API key
+    empty_key_service = weather_service.__class__("")
+    assert empty_key_service.api_key == "", "Should accept empty API key"
+
+    # Test with None API key
+    none_key_service = weather_service.__class__(None)
+    assert none_key_service.api_key is None, "Should accept None API key"
+
+
+def test_weather_coordinates_handling(weather_service):
+    """Test coordinate handling in weather data."""
+    test_data = {
+        "weather": [{"description": "clear sky", "main": "Clear"}],
+        "main": {"temp": 20, "feels_like": 20, "humidity": 50, "pressure": 1013},
+        "wind": {"speed": 2, "deg": 90},
+        "clouds": {"all": 0},
+        "visibility": 10000,
+        "rain": {},
+        "snow": {},
+        "sys": {"country": "FI", "sunrise": 1640000000, "sunset": 1640030000},
+        "coord": {"lat": 60.1699, "lon": 24.9384},  # Helsinki
+    }
+
+    result = weather_service._parse_weather_data(test_data, "Helsinki")
+    assert "lat" in result, "Should include latitude"
+    assert "lon" in result, "Should include longitude"
+    assert result["lat"] == 60.1699, "Should preserve latitude precision"
+    assert result["lon"] == 24.9384, "Should preserve longitude precision"

@@ -249,8 +249,8 @@ def test_console_command_with_services():
         assert responses, f"No response for command: {cmd}"
 
 
-def test_legacy_console_commands():
-    """Test legacy console command system."""
+def test_compatibility_console_commands():
+    """Test compatibility console command system."""
     import commands
 
     responses = []
@@ -258,7 +258,7 @@ def test_legacy_console_commands():
     def mock_notice(msg, irc=None, target=None):
         responses.append(msg)
 
-    # Mock services for legacy system
+    # Mock services for compatibility
     def mock_send_weather(irc, channel, location):
         responses.append(f"Weather for {location}: Test data")
 
@@ -286,7 +286,7 @@ def test_legacy_console_commands():
         "wrap_irc_message_utf8_bytes": lambda msg, **kwargs: [msg],
     }
 
-    # Test legacy commands
+    # Test compatibility commands
     test_commands = ["!s Joensuu", "!crypto btc eur", "!sahko", "!help", "!version"]
 
     for cmd in test_commands:
@@ -294,7 +294,7 @@ def test_legacy_console_commands():
         commands.process_console_command(cmd, bot_functions)
 
         # Each command should generate responses
-        assert responses, f"No response for legacy command: {cmd}"
+        assert responses, f"No response for compatibility command: {cmd}"
 
 
 def test_console_tilaa_command():
@@ -524,10 +524,10 @@ def test_parametrized_console_commands(command, enhanced_command_processor):
 
 
 @pytest.mark.parametrize(
-    "legacy_command", ["!s Joensuu", "!crypto btc eur", "!sahko", "!help", "!version"]
+    "compatibility_command", ["!s Joensuu", "!crypto btc eur", "!sahko", "!help", "!version"]
 )
-def test_parametrized_legacy_console_commands(legacy_command):
-    """Test legacy console command system with parametrization."""
+def test_parametrized_compatibility_console_commands(compatibility_command):
+    """Test compatibility console command system with parametrization."""
     # Skip if dependencies are missing
     commands = pytest.importorskip("commands")
 
@@ -536,7 +536,7 @@ def test_parametrized_legacy_console_commands(legacy_command):
     def mock_notice(msg, irc=None, target=None):
         responses.append(msg)
 
-    # Mock services for legacy system
+    # Mock services for compatibility
     def mock_send_weather(irc, channel, location):
         responses.append(f"Weather for {location}: Test data")
 
@@ -564,12 +564,12 @@ def test_parametrized_legacy_console_commands(legacy_command):
         "wrap_irc_message_utf8_bytes": lambda msg, **kwargs: [msg],
     }
 
-    # Test legacy command
+    # Test compatibility command
     responses.clear()
-    commands.process_console_command(legacy_command, bot_functions)
+    commands.process_console_command(compatibility_command, bot_functions)
 
     # Each command should generate responses
-    assert responses, f"Legacy command {legacy_command} should generate responses"
+    assert responses, f"Compatibility command {compatibility_command} should generate responses"
 
 
 def test_console_command_argument_parsing():

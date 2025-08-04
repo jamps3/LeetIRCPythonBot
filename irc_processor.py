@@ -124,7 +124,7 @@ class IRCMessageProcessor:
             self._log(f"{message.sender} changed nick to {message.text}", "INFO")
 
     def _handle_raw_legacy(self, raw_line: str):
-        """Handle raw messages for legacy system compatibility."""
+        """Handle raw messages for legacy compatibility."""
         # This allows legacy message handlers to still work
         try:
             process_message = self.bot_functions.get("legacy_process_message")
@@ -166,7 +166,7 @@ class IRCMessageProcessor:
         return False
 
     def _process_word_tracking(self, context: MessageContext) -> bool:
-        """Process word tracking (legacy system integration)."""
+        """Process word tracking (legacy compatibility)."""
         if not context.irc_message.text or context.irc_message.text.startswith("!"):
             return False
 

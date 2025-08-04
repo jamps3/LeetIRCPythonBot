@@ -686,8 +686,9 @@ class BotManager:
         mock_message = f":{sender}!{sender}@host.com PRIVMSG {target} :{text}"
 
         try:
-            # Use existing commands.py with new context
-            commands.process_message(server, mock_message, bot_functions)
+            # Use enhanced command processing system
+            from command_loader import enhanced_process_irc_message
+            enhanced_process_irc_message(server, mock_message, bot_functions)
         except Exception as e:
             self.logger.error(f"Error processing command: {e}")
 
