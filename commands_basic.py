@@ -119,6 +119,21 @@ def weather_command(context: CommandContext, bot_functions):
         return "Weather service not available"
 
 
+@command(
+    "solarwind",
+    description="Get solar wind information from NOAA SWPC",
+    usage="!solarwind",
+    examples=["!solarwind"],
+)
+def solarwind_command(context: CommandContext, bot_functions):
+    """Get current solar wind information."""
+    try:
+        from services.solarwind_service import get_solar_wind_info
+        return get_solar_wind_info()
+    except Exception as e:
+        return f"❌ Solar wind error: {str(e)}"
+
+
 @command("about", description="Show information about the bot", usage="!about")
 def about_command(context: CommandContext, bot_functions):
     """Show information about the bot."""

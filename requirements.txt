@@ -5,9 +5,12 @@ feedparser>=6.0.0
 selenium>=4.0.0
 google-api-python-client>=2.0.0
 openai>=1.0.0
+pandas>=1.5.0
+pytz>=2022.1
 # Development dependencies
 # black>=22.0.0
 # flake8>=4.0.0
 # isort>=5.10.0
 # bandit>=1.7.0
 # safety>=2.0.0
+pytest>=8.0.0
