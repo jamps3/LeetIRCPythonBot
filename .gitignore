@@ -184,3 +184,4 @@ eurojackpot.json
 # User data / runtime state files
 drink_tracking.json
 privacy_settings.json
+leet_detections.json
