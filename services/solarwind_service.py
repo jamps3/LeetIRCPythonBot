@@ -114,12 +114,90 @@ class SolarWindService:
         if data.get("error"):
             return f"❌ Solar Wind Error: {data.get('message', 'Unknown error')}"
 
-        # Format the data into a single line
+        # Get visual indicators for each parameter
+        density_indicator = self._get_density_indicator(float(data['density']))
+        speed_indicator = self._get_speed_indicator(float(data['speed']))
+        temp_indicator = self._get_temperature_indicator(float(data['temperature']))
+        mag_indicator = self._get_magnetic_field_indicator(float(data['magnetic_field']))
+
+        # Format the data into a single line with indicators
         return (f"🌌 Solar Wind ({data['timestamp']}): "
-                f"Density: {data['density']}/cm³ | "
-                f"Speed: {data['speed']} km/s | "
-                f"Temperature: {data['temperature']} K | "
-                f"Magnetic Field: {data['magnetic_field']} nT")
+                f"Density: {data['density']}/cm³ {density_indicator} | "
+                f"Speed: {data['speed']} km/s {speed_indicator} | "
+                f"Temperature: {data['temperature']} K {temp_indicator} | "
+                f"Magnetic Field: {data['magnetic_field']} nT {mag_indicator}")
+
+    def _get_density_indicator(self, density: float) -> str:
+        """
+        Get density visual indicator.
+        
+        Args:
+            density: Particle density in particles per cm³
+            
+        Returns:
+            Visual indicator string
+        """
+        if density < 1:
+            return "🟢 C-Hole!"
+        elif 1 <= density <= 6:
+            return "🟢"  # Green circle
+        elif 6 < density <= 20:
+            return "🟡"  # Yellow circle
+        else:  # > 20
+            return "🔴"  # Red circle
+    
+    def _get_speed_indicator(self, speed: float) -> str:
+        """
+        Get speed visual indicator.
+        
+        Args:
+            speed: Solar wind speed in km/s
+            
+        Returns:
+            Visual indicator string
+        """
+        if 400 <= speed <= 600:
+            return "🟢"  # Green circle
+        elif speed < 400:
+            return "🟡"  # Yellow circle
+        else:  # > 600
+            return "🔴"  # Red circle
+    
+    def _get_temperature_indicator(self, temperature: float) -> str:
+        """
+        Get temperature visual indicator.
+        
+        Args:
+            temperature: Temperature in Kelvin
+            
+        Returns:
+            Visual indicator string
+        """
+        if temperature < 200000:
+            return "🟢"  # Green circle
+        elif 200000 <= temperature <= 300000:
+            return "🟡"  # Yellow circle
+        else:  # > 300000
+            return "🔴"  # Red circle
+    
+    def _get_magnetic_field_indicator(self, magnetic_field: float) -> str:
+        """
+        Get magnetic field visual indicator.
+        
+        Args:
+            magnetic_field: Magnetic field strength in nT
+            
+        Returns:
+            Visual indicator string
+        """
+        if magnetic_field < 8:
+            return "🟢"  # Green circle
+        elif 8 <= magnetic_field <= 10:
+            return "🟡"  # Yellow circle
+        elif 10 < magnetic_field <= 20:
+            return "🔴"  # Red circle
+        else:  # > 20
+            return "☠️"  # Skull and crossbones
 
 
 def get_solar_wind_info() -> str:
