@@ -1185,8 +1185,8 @@ def process_message(irc, message, bot_functions):
                 response = "Ei vielä tarpeeksi dataa eka- ja vika-voittajista."
                 notice_message(response, irc, target)
 
-        # !s - Kerro sää
-        elif text.startswith("!s"):
+        # !s - Kerro sää (be more specific to avoid conflict with !solarwind)
+        elif text.startswith("!s ") or text.strip() == "!s":
             parts = text.split(" ", 1)
             location = parts[1].strip() if len(parts) > 1 else "Joensuu"
             if is_private:
