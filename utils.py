@@ -38,11 +38,15 @@ def verify_admin_password(command_text):
 
 
 def send_raw_irc_command(irc, command, log_func):
-    """Send a raw IRC command to the server."""
+    """Send a raw IRC command to the server using the modern interface."""
     try:
-        irc.sendall(f"{command}\r\n".encode("utf-8"))
-        log_func(f"Sent raw IRC command: {command}", "INFO")
-        return True
+        if hasattr(irc, "send_raw") and callable(getattr(irc, "send_raw")):
+            irc.send_raw(command)
+            log_func(f"Sent raw IRC command: {command}", "INFO")
+            return True
+        else:
+            log_func("IRC client does not support send_raw", "ERROR")
+            return False
     except Exception as e:
         log_func(f"Error sending raw IRC command: {e}", "ERROR")
         return False
@@ -149,7 +153,7 @@ def fetch_title_improved(
         if not encoding or encoding.lower() == "iso-8859-1":
             # Check for charset in meta tags
             charset_match = re.search(
-                rb'<meta[^>]*charset=["\'']?([\\w-]+)', content_bytes, re.IGNORECASE
+                rb'<meta[^>]*charset=["\']?([\w-]+)', content_bytes, re.IGNORECASE
             )
             if charset_match:
                 encoding = charset_match.group(1).decode("ascii", errors="ignore")

@@ -131,9 +131,8 @@ class CommandHandler(ABC):
         elif self.info.scope == CommandScope.CONSOLE_ONLY and not context.is_console:
             return False, "This command is only available in console mode"
 
-        # Check admin requirements
-        if self.info.admin_only and not context.is_admin_context:
-            return False, "This command requires admin privileges"
+        # Admin commands: enforcement is handled inside the command function (e.g., password checks).
+        # Do not restrict by context here so admin commands can be executed from IRC as well.
 
         # Check if arguments are required
         if self.info.requires_args and not context.args:

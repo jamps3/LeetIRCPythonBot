@@ -66,7 +66,6 @@ except ImportError:
 
     readline = DummyReadline()
 
-import commands
 from config import get_api_key, get_server_configs, load_env_file
 from leet_detector import create_nanoleet_detector
 from lemmatizer import Lemmatizer
@@ -688,6 +687,7 @@ class BotManager:
         try:
             # Use enhanced command processing system
             from command_loader import enhanced_process_irc_message
+
             enhanced_process_irc_message(server, mock_message, bot_functions)
         except Exception as e:
             self.logger.error(f"Error processing command: {e}")
@@ -1203,10 +1203,6 @@ class BotManager:
         # Send response via IRC if we have server context, otherwise print to console
         if irc and hasattr(irc, "send_message") and channel:
             self._send_response(irc, channel, response)
-        elif irc and hasattr(irc, "sendall") and channel:
-            # Legacy IRC socket interface - use NOTICE or PRIVMSG based on setting
-            msg_type = "NOTICE" if self.use_notices else "PRIVMSG"
-            irc.sendall(f"{msg_type} {channel} :{response}\r\n".encode("utf-8"))
         else:
             print(response)
 

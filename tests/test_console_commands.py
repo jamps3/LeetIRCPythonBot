@@ -24,35 +24,37 @@ def ensure_command_registry():
     """Ensure command registry is properly initialized for console command tests."""
     # Only apply this fixture to tests in this file
     import inspect
+
     frame = inspect.currentframe()
     try:
         # Check if we're in a console command test
         test_name = frame.f_back.f_code.co_name if frame.f_back else "unknown"
-        if not test_name.startswith('test_'):
+        if not test_name.startswith("test_"):
             yield
             return
-            
+
         # Ensure command registry is initialized with commands
         try:
             from command_registry import get_command_registry
+
             registry = get_command_registry()
-            
+
             # If registry is empty, force reload commands
             if len(registry._commands) == 0:
                 # Import command modules to register commands
                 import commands_admin
                 import commands_basic
                 import commands_extended
-                
+
         except Exception:
             # If anything fails, try to import command_loader which loads all commands
             try:
                 import command_loader
-            except:
+            except Exception:
                 pass
-        
+
         yield
-        
+
     finally:
         if frame:
             del frame
@@ -154,9 +156,7 @@ def test_console_help_command():
 
 def test_bot_manager_console_integration():
     """Test BotManager console integration."""
-    import os
-    import sys
-    from io import StringIO
+    # Using module-level imports for os/sys/StringIO to avoid redefinition
 
     # Capture stdout/stderr to avoid encoding issues during testing
     old_stdout = sys.stdout
@@ -251,8 +251,6 @@ def test_console_command_with_services():
 
 def test_compatibility_console_commands():
     """Test compatibility console command system."""
-    import commands
-
     responses = []
 
     def mock_notice(msg, irc=None, target=None):
@@ -291,7 +289,9 @@ def test_compatibility_console_commands():
 
     for cmd in test_commands:
         responses.clear()
-        commands.process_console_command(cmd, bot_functions)
+        from command_loader import enhanced_process_console_command
+
+        enhanced_process_console_command(cmd, bot_functions)
 
         # Each command should generate responses
         assert responses, f"No response for compatibility command: {cmd}"
@@ -301,7 +301,6 @@ def test_console_tilaa_command():
     """Test that !tilaa command works in console."""
     import tempfile
 
-    import commands
     import subscriptions
 
     # Create temporary file for subscriptions
@@ -337,7 +336,9 @@ def test_console_tilaa_command():
 
         # Test !tilaa list command
         responses.clear()
-        commands.process_console_command("!tilaa list", bot_functions)
+        from command_loader import enhanced_process_console_command
+
+        enhanced_process_console_command("!tilaa list", bot_functions)
 
         # Should get subscription list response
         assert any(
@@ -347,7 +348,9 @@ def test_console_tilaa_command():
 
         # Test !tilaa varoitukset command
         responses.clear()
-        commands.process_console_command("!tilaa varoitukset", bot_functions)
+        from command_loader import enhanced_process_console_command
+
+        enhanced_process_console_command("!tilaa varoitukset", bot_functions)
 
         # Should get subscription toggle response
         assert any(
@@ -363,7 +366,6 @@ def test_console_tilaa_command():
 
 def test_console_tilaa_missing_service():
     """Test console !tilaa command when subscriptions service is missing."""
-    import commands
 
     responses = []
 
@@ -388,7 +390,9 @@ def test_console_tilaa_missing_service():
 
     # Test !tilaa list command without service
     responses.clear()
-    commands.process_console_command("!tilaa list", bot_functions)
+    from command_loader import enhanced_process_console_command
+
+    enhanced_process_console_command("!tilaa list", bot_functions)
 
     # Should get error response about missing service
     assert any(
@@ -524,19 +528,20 @@ def test_parametrized_console_commands(command, enhanced_command_processor):
 
 
 @pytest.mark.parametrize(
-    "compatibility_command", ["!s Joensuu", "!crypto btc eur", "!sahko", "!help", "!version"]
+    "compatibility_command",
+    ["!s Joensuu", "!crypto btc eur", "!sahko", "!help", "!version"],
 )
 def test_parametrized_compatibility_console_commands(compatibility_command):
-    """Test compatibility console command system with parametrization."""
-    # Skip if dependencies are missing
-    commands = pytest.importorskip("commands")
+    """Test compatibility commands using the new registry-based processor."""
+    # Use the enhanced processor directly (no legacy commands.py)
+    from command_loader import enhanced_process_console_command
 
     responses = []
 
     def mock_notice(msg, irc=None, target=None):
         responses.append(msg)
 
-    # Mock services for compatibility
+    # Mock services
     def mock_send_weather(irc, channel, location):
         responses.append(f"Weather for {location}: Test data")
 
@@ -564,18 +569,20 @@ def test_parametrized_compatibility_console_commands(compatibility_command):
         "wrap_irc_message_utf8_bytes": lambda msg, **kwargs: [msg],
     }
 
-    # Test compatibility command
+    # Test command
     responses.clear()
-    commands.process_console_command(compatibility_command, bot_functions)
+    enhanced_process_console_command(compatibility_command, bot_functions)
 
     # Each command should generate responses
-    assert responses, f"Compatibility command {compatibility_command} should generate responses"
+    assert (
+        responses
+    ), f"Compatibility command {compatibility_command} should generate responses"
 
 
 def test_console_command_argument_parsing():
     """Test console command argument parsing."""
     from command_loader import enhanced_process_console_command
-    
+
     responses = []
 
     def mock_notice(msg, irc=None, target=None):
@@ -604,7 +611,7 @@ def test_console_command_argument_parsing():
 def test_console_command_case_insensitive():
     """Test console commands are case insensitive."""
     from command_loader import enhanced_process_console_command
-    
+
     responses = []
 
     def mock_notice(msg, irc=None, target=None):
@@ -631,7 +638,7 @@ def test_console_command_case_insensitive():
 def test_console_command_empty_input():
     """Test handling of empty console command input."""
     from command_loader import enhanced_process_console_command
-    
+
     responses = []
 
     def mock_notice(msg, irc=None, target=None):
@@ -655,7 +662,7 @@ def test_console_command_empty_input():
 def test_console_command_unknown_command():
     """Test handling of unknown console commands."""
     from command_loader import enhanced_process_console_command
-    
+
     responses = []
 
     def mock_notice(msg, irc=None, target=None):
@@ -679,7 +686,7 @@ def test_console_command_unknown_command():
 def test_console_command_unicode_handling():
     """Test console command handling with unicode characters."""
     from command_loader import enhanced_process_console_command
-    
+
     responses = []
 
     def mock_notice(msg, irc=None, target=None):

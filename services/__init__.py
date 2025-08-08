@@ -10,6 +10,7 @@ from .weather_service import WeatherService, create_weather_service
 # Conditional imports for services that depend on feedparser
 try:
     from .fmi_warning_service import FMIWarningService, create_fmi_warning_service
+
     _HAS_FMI_SERVICE = True
 except ImportError:
     FMIWarningService = None
@@ -18,6 +19,7 @@ except ImportError:
 
 try:
     from .otiedote_service import OtiedoteService, create_otiedote_service
+
     _HAS_OTIEDOTE_SERVICE = True
 except ImportError:
     OtiedoteService = None

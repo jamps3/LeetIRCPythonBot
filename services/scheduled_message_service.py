@@ -108,11 +108,18 @@ class ScheduledMessageService:
             channel = msg_info["channel"]
             message = msg_info["message"]
 
-            if hasattr(irc_client, "send_message"):
+            if hasattr(irc_client, "send_message") and callable(
+                getattr(irc_client, "send_message")
+            ):
                 irc_client.send_message(channel, message)
+            elif hasattr(irc_client, "send_raw") and callable(
+                getattr(irc_client, "send_raw")
+            ):
+                irc_client.send_raw(f"PRIVMSG {channel} :{message}")
             else:
-                # Legacy socket interface
-                irc_client.sendall(f"PRIVMSG {channel} :{message}\r\n".encode("utf-8"))
+                self.logger.error(
+                    "IRC client does not support send_message or send_raw; cannot send scheduled message"
+                )
 
             actual_time = datetime.now()
             expected_time = msg_info["target_time"]

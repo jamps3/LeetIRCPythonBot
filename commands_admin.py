@@ -4,8 +4,6 @@ Admin IRC Bot Commands
 This module contains commands that require admin privileges.
 """
 
-from utils import verify_admin_password
-
 """
 Admin IRC Bot Commands
 
@@ -174,7 +172,14 @@ def quit_command(context: CommandContext, bot_functions):
         # Send IRC command
         irc = bot_functions.get("irc")
         if irc:
-            irc.send_raw(f"QUIT :{quit_message}")
+            # Use modern client interface
+            if hasattr(irc, "send_raw") and callable(getattr(irc, "send_raw")):
+                irc.send_raw(f"QUIT :{quit_message}")
+            else:
+                # Fallback: log intent if raw not available
+                notice = bot_functions.get("notice_message")
+                if notice:
+                    notice(f"Sending QUIT: {quit_message}")
 
             log_func = bot_functions.get("log")
             if log_func:

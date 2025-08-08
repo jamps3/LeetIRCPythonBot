@@ -642,10 +642,10 @@ def test_legacy_quit_commands_use_set_quit_message():
     }
 
     # Test console quit command
-    from commands import process_console_command
+    from command_loader import enhanced_process_console_command
 
-    with patch("commands.verify_admin_password", return_value=True):
-        process_console_command(
+    with patch("commands_admin.verify_admin_password", return_value=True):
+        enhanced_process_console_command(
             "!quit testpass123 Goodbye from console!", bot_functions
         )
 
@@ -678,14 +678,15 @@ def test_irc_quit_command_integration():
     stop_event = Mock()
     stop_event.set = mock_stop_event_set
 
-    # Mock IRC socket
-    irc_calls = []
+    # Mock IRC connection with modern send_raw
+    irc_raw_calls = []
 
-    def mock_sendall(data):
-        irc_calls.append(data.decode("utf-8"))
+    def mock_send_raw(cmd):
+        irc_raw_calls.append(cmd)
 
     irc = Mock()
-    irc.sendall = mock_sendall
+    irc.send_raw = mock_send_raw
+    irc.set_quit_message = mock_set_quit_message
 
     bot_functions = {
         "set_quit_message": mock_set_quit_message,
@@ -723,11 +724,7 @@ def test_irc_quit_command_integration():
         ":admin!admin@host.com PRIVMSG #test :!quit testpass123 Farewell from IRC"
     )
 
-    with patch("commands_admin.verify_admin_password", return_value=True), patch(
-        "commands.data_manager"
-    ) as mock_dm:
-
-        mock_dm.get_server_name.return_value = "testserver"
+    with patch("commands_admin.verify_admin_password", return_value=True):
         enhanced_process_irc_message(irc, admin_quit_message, bot_functions)
 
     # Verify that set_quit_message was called
@@ -738,11 +735,11 @@ def test_irc_quit_command_integration():
         quit_message_calls[0] == "Farewell from IRC"
     ), f"Expected 'Farewell from IRC', got '{quit_message_calls[0]}'"
 
-    # Verify that IRC QUIT was sent
-    assert len(irc_calls) == 1, f"Expected 1 IRC command, got {len(irc_calls)}"
+    # Verify that IRC QUIT was sent via send_raw
+    assert len(irc_raw_calls) == 1, f"Expected 1 IRC command, got {len(irc_raw_calls)}"
     assert (
-        "QUIT :Farewell from IRC" in irc_calls[0]
-    ), f"Expected 'QUIT :Farewell from IRC' in '{irc_calls[0]}'"
+        "QUIT :Farewell from IRC" in irc_raw_calls[0]
+    ), f"Expected 'QUIT :Farewell from IRC' in '{irc_raw_calls[0]}'"
 
     # Verify that stop_event.set() was called for global shutdown
     assert (

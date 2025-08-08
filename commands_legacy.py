@@ -50,6 +50,9 @@ general_words = GeneralWords(data_manager)
 tamagotchi_bot = TamagotchiBot(data_manager)
 
 
+def fetch_title(
+    irc, channel, url, last_title_ref, send_message_func, log_func
+):
     """
     Improved version of fetch_title from message_handlers.py with better YouTube handling
     and encoding detection.
@@ -1437,10 +1440,10 @@ def process_console_command(command_text, bot_functions):
                     channel = parts[2]
                     key = parts[3] if len(parts) > 3 else ""
                     if key:
-                        irc.sendall(f"JOIN {channel} {key}\r\n".encode("utf-8"))
+                        irc.send_raw(f"JOIN {channel} {key}")
                         log(f"Admin joined channel {channel} with key", "INFO")
                     else:
-                        irc.sendall(f"JOIN {channel}\r\n".encode("utf-8"))
+                        irc.send_raw(f"JOIN {channel}")
                         log(f"Admin joined channel {channel}", "INFO")
                     notice_message(f"Joined {channel}", irc, target)
                 else:
@@ -1456,7 +1459,7 @@ def process_console_command(command_text, bot_functions):
                 parts = text.split()
                 if len(parts) >= 3:
                     channel = parts[2]
-                    irc.sendall(f"PART {channel}\r\n".encode("utf-8"))
+                    irc.send_raw(f"PART {channel}")
                     log(f"Admin left channel {channel}", "INFO")
                     notice_message(f"Left {channel}", irc, target)
                 else:
@@ -1470,7 +1473,7 @@ def process_console_command(command_text, bot_functions):
                 parts = text.split()
                 if len(parts) >= 3:
                     new_nick = parts[2]
-                    irc.sendall(f"NICK {new_nick}\r\n".encode("utf-8"))
+                    irc.send_raw(f"NICK {new_nick}")
                     log(f"Admin changed nick to {new_nick}", "INFO")
                     notice_message(f"Changed nick to {new_nick}", irc, target)
                 else:
@@ -1492,7 +1495,7 @@ def process_console_command(command_text, bot_functions):
                     set_quit_message_func(quit_message)
 
                 # Send QUIT message to this server
-                irc.sendall(f"QUIT :{quit_message}\r\n".encode("utf-8"))
+                irc.send_raw(f"QUIT :{quit_message}")
                 log(f"Admin quit with message: {quit_message}", "INFO")
 
                 # Trigger global shutdown
@@ -1513,7 +1516,7 @@ def process_console_command(command_text, bot_functions):
                 parts = text.split(" ", 2)
                 if len(parts) >= 3:
                     raw_command = parts[2]
-                    irc.sendall(f"{raw_command}\r\n".encode("utf-8"))
+                    irc.send_raw(f"{raw_command}")
                     log(f"Admin sent raw command: {raw_command}", "INFO")
                     notice_message(f"Sent: {raw_command}", irc, target)
                 else:

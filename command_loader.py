@@ -190,7 +190,7 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
     try:
         # Handle async processing more robustly
         processed = False
-        
+
         # Try to detect if we're in an event loop already
         loop = None
         try:
@@ -198,7 +198,7 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
         except RuntimeError:
             # No running loop
             loop = None
-        
+
         if loop is None:
             # No event loop running, safe to use asyncio.run
             try:
@@ -213,7 +213,7 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
             # Event loop is already running, use thread pool to avoid conflicts
             import concurrent.futures
             import threading
-            
+
             # Create a new thread with its own event loop
             def run_in_new_loop():
                 try:
@@ -230,7 +230,7 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
                     if log_func:
                         log_func(f"Error in new loop: {e}", "ERROR")
                     return False
-            
+
             # Run in thread pool with timeout
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 try:
@@ -238,7 +238,9 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
                     processed = future.result(timeout=10.0)
                 except concurrent.futures.TimeoutError:
                     if log_func:
-                        log_func(f"Command processing timed out: {command_text}", "ERROR")
+                        log_func(
+                            f"Command processing timed out: {command_text}", "ERROR"
+                        )
                     processed = False
                 except Exception as e:
                     if log_func:
@@ -272,8 +274,8 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
 def enhanced_process_irc_message(irc, message, bot_functions):
     """
     Process IRC messages and route commands to the command registry system.
-    
-    Handles both command messages (starting with !) and routes them to the 
+
+    Handles both command messages (starting with !) and routes them to the
     appropriate command handlers through the command registry.
     """
     import re

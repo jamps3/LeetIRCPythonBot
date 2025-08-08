@@ -17,7 +17,6 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-import commands
 from word_tracking import DataManager
 
 
@@ -96,6 +95,7 @@ class TestTilaaChannelFix(unittest.TestCase):
 
         # Process the message using enhanced processing system
         from command_loader import enhanced_process_irc_message
+
         enhanced_process_irc_message(self.mock_irc, test_message, bot_functions)
 
         # Check that we got a subscription response
@@ -165,6 +165,7 @@ class TestTilaaChannelFix(unittest.TestCase):
 
         # Process the message using enhanced processing system
         from command_loader import enhanced_process_irc_message
+
         enhanced_process_irc_message(self.mock_irc, test_message, bot_functions)
 
         # Check that we got a subscription response
@@ -235,6 +236,7 @@ class TestTilaaChannelFix(unittest.TestCase):
 
         # Process the message using enhanced processing system
         from command_loader import enhanced_process_irc_message
+
         enhanced_process_irc_message(self.mock_irc, test_message, bot_functions)
 
         # Check that we got a subscription response
@@ -309,6 +311,7 @@ class TestTilaaChannelFix(unittest.TestCase):
         # First, add a subscription using enhanced IRC message processing (to match the server name used by the system)
         test_message = ":jamps!user@host.com PRIVMSG #testchannel :!tilaa varoitukset"
         from command_loader import enhanced_process_irc_message
+
         enhanced_process_irc_message(self.mock_irc, test_message, bot_functions)
 
         # Clear the responses from the subscription command
@@ -320,7 +323,8 @@ class TestTilaaChannelFix(unittest.TestCase):
 
         # Process the message using enhanced processing system
         from command_loader import enhanced_process_irc_message
-        enhanced_process_irc_message(mock_irc, test_message, bot_functions)
+
+        enhanced_process_irc_message(self.mock_irc, test_message, bot_functions)
 
         # Check that we got a list response
         self.assertTrue(responses, "Should have gotten a response")
@@ -385,6 +389,7 @@ class TestTilaaChannelFix(unittest.TestCase):
         responses.clear()
         test_message = ":jamps!user@host.com PRIVMSG #joensuu :!tilaa varoitukset"
         from command_loader import enhanced_process_irc_message
+
         enhanced_process_irc_message(mock_irc, test_message, bot_functions)
 
         # Check response mentions the channel

@@ -4,11 +4,12 @@ Solar Wind Service Module
 Provides solar wind information using NOAA SWPC API.
 """
 
-import requests
-import pandas as pd
 from datetime import datetime
+from typing import Any, Dict
+
+import pandas as pd
 import pytz
-from typing import Dict, Any
+import requests
 
 
 class SolarWindService:
@@ -16,8 +17,12 @@ class SolarWindService:
 
     def __init__(self):
         """Initialize solar wind service."""
-        self.plasma_url = "https://services.swpc.noaa.gov/products/solar-wind/plasma-5-minute.json"
-        self.mag_url = "https://services.swpc.noaa.gov/products/solar-wind/mag-5-minute.json"
+        self.plasma_url = (
+            "https://services.swpc.noaa.gov/products/solar-wind/plasma-5-minute.json"
+        )
+        self.mag_url = (
+            "https://services.swpc.noaa.gov/products/solar-wind/mag-5-minute.json"
+        )
 
     def get_solar_wind_data(self) -> Dict[str, Any]:
         """
@@ -39,11 +44,13 @@ class SolarWindService:
             mag_df["time_tag"] = pd.to_datetime(mag_df["time_tag"], utc=True)
 
             # Find common timestamps
-            common_times = set(plasma_df["time_tag"]).intersection(set(mag_df["time_tag"]))
+            common_times = set(plasma_df["time_tag"]).intersection(
+                set(mag_df["time_tag"])
+            )
             if not common_times:
                 return {
                     "error": True,
-                    "message": "No common timestamps found between plasma and magnetic field data"
+                    "message": "No common timestamps found between plasma and magnetic field data",
                 }
 
             latest_common_time = max(common_times)
@@ -60,32 +67,26 @@ class SolarWindService:
                 "error": False,
                 "timestamp": local_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "density": plasma_row["density"],
-                "speed": plasma_row["speed"], 
+                "speed": plasma_row["speed"],
                 "temperature": plasma_row["temperature"],
                 "magnetic_field": mag_row["bt"],
-                "local_time": local_time
+                "local_time": local_time,
             }
 
         except requests.exceptions.Timeout:
-            return {
-                "error": True,
-                "message": "Solar wind API request timed out"
-            }
+            return {"error": True, "message": "Solar wind API request timed out"}
         except requests.exceptions.ConnectionError as e:
             return {
                 "error": True,
-                "message": f"Solar wind API connection error: {str(e)}"
+                "message": f"Solar wind API connection error: {str(e)}",
             }
         except requests.exceptions.RequestException as e:
             return {
                 "error": True,
-                "message": f"Solar wind API request failed: {str(e)}"
+                "message": f"Solar wind API request failed: {str(e)}",
             }
         except Exception as e:
-            return {
-                "error": True,
-                "message": f"Unexpected error: {str(e)}"
-            }
+            return {"error": True, "message": f"Unexpected error: {str(e)}"}
 
     def _fetch_json(self, url: str) -> Any:
         """
@@ -115,25 +116,29 @@ class SolarWindService:
             return f"❌ Solar Wind Error: {data.get('message', 'Unknown error')}"
 
         # Get visual indicators for each parameter
-        density_indicator = self._get_density_indicator(float(data['density']))
-        speed_indicator = self._get_speed_indicator(float(data['speed']))
-        temp_indicator = self._get_temperature_indicator(float(data['temperature']))
-        mag_indicator = self._get_magnetic_field_indicator(float(data['magnetic_field']))
+        density_indicator = self._get_density_indicator(float(data["density"]))
+        speed_indicator = self._get_speed_indicator(float(data["speed"]))
+        temp_indicator = self._get_temperature_indicator(float(data["temperature"]))
+        mag_indicator = self._get_magnetic_field_indicator(
+            float(data["magnetic_field"])
+        )
 
         # Format the data into a single line with indicators
-        return (f"🌌 Solar Wind ({data['timestamp']}): "
-                f"Density: {data['density']}/cm³ {density_indicator} | "
-                f"Speed: {data['speed']} km/s {speed_indicator} | "
-                f"Temperature: {data['temperature']} K {temp_indicator} | "
-                f"Magnetic Field: {data['magnetic_field']} nT {mag_indicator}")
+        return (
+            f"🌌 Solar Wind ({data['timestamp']}): "
+            f"Density: {data['density']}/cm³ {density_indicator} | "
+            f"Speed: {data['speed']} km/s {speed_indicator} | "
+            f"Temperature: {data['temperature']} K {temp_indicator} | "
+            f"Magnetic Field: {data['magnetic_field']} nT {mag_indicator}"
+        )
 
     def _get_density_indicator(self, density: float) -> str:
         """
         Get density visual indicator.
-        
+
         Args:
             density: Particle density in particles per cm³
-            
+
         Returns:
             Visual indicator string
         """
@@ -145,14 +150,14 @@ class SolarWindService:
             return "🟡"  # Yellow circle
         else:  # > 20
             return "🔴"  # Red circle
-    
+
     def _get_speed_indicator(self, speed: float) -> str:
         """
         Get speed visual indicator.
-        
+
         Args:
             speed: Solar wind speed in km/s
-            
+
         Returns:
             Visual indicator string
         """
@@ -162,14 +167,14 @@ class SolarWindService:
             return "🟡"  # Yellow circle
         else:  # > 600
             return "🔴"  # Red circle
-    
+
     def _get_temperature_indicator(self, temperature: float) -> str:
         """
         Get temperature visual indicator.
-        
+
         Args:
             temperature: Temperature in Kelvin
-            
+
         Returns:
             Visual indicator string
         """
@@ -179,14 +184,14 @@ class SolarWindService:
             return "🟡"  # Yellow circle
         else:  # > 300000
             return "🔴"  # Red circle
-    
+
     def _get_magnetic_field_indicator(self, magnetic_field: float) -> str:
         """
         Get magnetic field visual indicator.
-        
+
         Args:
             magnetic_field: Magnetic field strength in nT
-            
+
         Returns:
             Visual indicator string
         """
@@ -203,7 +208,7 @@ class SolarWindService:
 def get_solar_wind_info() -> str:
     """
     Get formatted solar wind information.
-    
+
     Returns:
         Formatted solar wind information string
     """

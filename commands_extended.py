@@ -24,18 +24,6 @@ tamagotchi_bot = TamagotchiBot(data_manager)
 
 
 @command(
-id="#move-extended"
-@command(
-    name="leet",
-    command_type=CommandType.PRIVATE,
-    description="Schedule a message to be sent at a specific time",
-    usage="!leet #channel HH:MM:SS[.microseconds] message",
-    admin_only=True,
-)
-def command_leet(context, args):
-    return command_schedule(context, args)
-
-@command(
     name="sana",
     command_type=CommandType.PUBLIC,
     description="Search word statistics",
@@ -51,9 +39,7 @@ def command_sana(context, args):
             all_users = []
             for server_name, server_data in results["servers"].items():
                 for user in server_data["users"]:
-                    all_users.append(
-                        f"{user['nick']}@{server_name}: {user['count']}"
-                    )
+                    all_users.append(f"{user['nick']}@{server_name}: {user['count']}")
 
             if all_users:
                 users_text = ", ".join(all_users)
@@ -70,33 +56,37 @@ def command_sana(context, args):
     name="tilaa",
     command_type=CommandType.PUBLIC,
     description="Handle subscription commands",
-    usage="!tilaa varoitukset|onnettomuustiedotteet|list [kanava]",
+    usage="!tilaa \u001cvaroitukset|onnettomuustiedotteet|list\u001e [\u001ckanava\u001e]",
     admin_only=False,
 )
-def command_tilaa(context, args):
-    topic = "".join(context.args).lower() if context.args else None
+def command_tilaa(context, bot_functions):
+    topic = context.args[0].lower() if context.args else None
     if not topic:
-        return "⚠ Käyttö: !tilaa varoitukset|onnettomuustiedotteet|list [kanava]"
-    
-    if "subscriptions" not in bot_functions:
+        return "⚠ Käyttö: !tilaa \u001cvaroitukset|onnettomuustiedotteet|list\u001e [\u001ckanava\u001e]"
+
+    if not bot_functions or "subscriptions" not in bot_functions:
         return "Subscription service is not available."
-    
+
     subscriptions = bot_functions["subscriptions"]
-    
+
     if topic == "list":
         result = subscriptions.format_all_subscriptions()
-        return CommandResponse.text_result(result)
+        return CommandResponse.success_msg(result)
 
     elif topic in ["varoitukset", "onnettomuustiedotteet"]:
-        if context.target and context.target.startswith("#"):
-            subscriber = context.target
-        else:
-            subscriber = context.sender
-        
+        # Determine subscriber (channel/user)
         if len(context.args) >= 2:
-            subscriber = context.args[1]  # Allow setting for a different user/channel
-        
-        result = subscriptions.toggle_subscription(subscriber, context.server, topic)
+            subscriber = context.args[1]  # Explicit override
+        elif context.target and context.target.startswith("#"):
+            subscriber = context.target
+        elif context.sender:
+            subscriber = context.sender
+        else:
+            subscriber = "console"
+
+        # Use server_name from context (fallback to 'console')
+        server_name = getattr(context, "server_name", "") or "console"
+        result = subscriptions.toggle_subscription(subscriber, server_name, topic)
         return result
     else:
         return "⚠ Tuntematon tilaustyyppi. Käytä: varoitukset, onnettomuustiedotteet tai list"
@@ -241,32 +231,15 @@ def command_pet(context, args):
     console_server = "console"
     response = tamagotchi_bot.pet(console_server)
     return response
-def command_leets(context, args):
-    """Show recent leet detection history."""
-def command_leets(context, args):
-    """Show recent leet detection history."""
-    from leet_detector import create_leet_detector
 
-    limit = int(args[0]) if args and args[0].isdigit() else 5
-    detector = create_leet_detector()
-    history = detector.get_leet_history(limit=limit)
 
-    if not history:
-        return "No leet detections found."
-
-    response_lines = ["🎉 Recent Leet Detections:"]
-    for detection in history:
-        date_str = datetime.fromisoformat(detection["datetime"]).strftime(
-            "%d.%m %H:%M:%S"
-        )
-        user_msg_part = (
-            f' "{detection["user_message"]}"' if detection["user_message"] else ""
-        )
-        response_lines.append(
-            f"{detection['emoji']} {detection['achievement_name']} [{detection['nick']}] {detection['timestamp']}{user_msg_part} ({date_str})"
-        )
-
-    return "\n".join(response_lines)
+@command(
+    name="leets",
+    command_type=CommandType.PUBLIC,
+    description="Show recent leet detection history",
+    usage="!leets [limit]",
+    admin_only=False,
+)
 def command_leets(context, args):
     """Show recent leet detection history."""
     from leet_detector import create_leet_detector
@@ -291,9 +264,6 @@ def command_leets(context, args):
         )
 
     return "\n".join(response_lines)
-
-
-from command_registry import CommandType, command
 
 
 @command(

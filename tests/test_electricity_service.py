@@ -330,11 +330,13 @@ class TestElectricityService(unittest.TestCase):
             {  # Day before yesterday's data - has position 24 for today's hour 0
                 "error": False,
                 "prices": {24: 30.0},
-            }
+            },
         ]
 
         test_date = datetime(2023, 1, 2, 0, 0)  # 00:00 on Jan 2
-        result = self.service.get_electricity_price(hour=0, date=test_date, include_tomorrow=False)
+        result = self.service.get_electricity_price(
+            hour=0, date=test_date, include_tomorrow=False
+        )
 
         self.assertFalse(result["error"])
         self.assertEqual(result["hour"], 0)
@@ -357,7 +359,7 @@ class TestElectricityService(unittest.TestCase):
 class TestElectricityMapping(unittest.TestCase):
     """
     Integration tests for electricity price mapping verification.
-    
+
     Tests the correct mapping of hours to API positions, particularly
     for hour 0 (midnight) which requires special handling.
     """
@@ -372,18 +374,23 @@ class TestElectricityMapping(unittest.TestCase):
         """Test that today's hour 0 correctly maps to position 24 from day before yesterday."""
         # Mock the call sequence for hour 0: first yesterday (API offset), then day before yesterday (hour 0)
         mock_fetch.side_effect = [
-            {"error": False, "prices": {1: 25.0}},   # Yesterday for API offset (no hour 0 here)
+            {
+                "error": False,
+                "prices": {1: 25.0},
+            },  # Yesterday for API offset (no hour 0 here)
             {"error": False, "prices": {24: 30.0}},  # Day before yesterday for hour 0
         ]
 
         test_date = datetime(2023, 1, 2, 0, 0)  # 00:00 on Jan 2
-        result = self.service.get_electricity_price(hour=0, date=test_date, include_tomorrow=False)
+        result = self.service.get_electricity_price(
+            hour=0, date=test_date, include_tomorrow=False
+        )
 
         self.assertFalse(result["error"])
         self.assertEqual(result["hour"], 0)
         self.assertIsNotNone(result["today_price"])
         self.assertEqual(result["today_price"]["eur_per_mwh"], 30.0)
-        
+
         # Should call _fetch_daily_prices twice: yesterday (API offset) and day before yesterday (hour 0)
         self.assertEqual(mock_fetch.call_count, 2)
 
@@ -407,11 +414,13 @@ class TestElectricityMapping(unittest.TestCase):
             {  # Yesterday's data (for tomorrow's hour 0)
                 "error": False,
                 "prices": {24: 32.0},
-            }
+            },
         ]
 
         test_date = datetime(2023, 1, 2, 0, 0)  # 00:00 on Jan 2
-        result = self.service.get_electricity_price(hour=0, date=test_date, include_tomorrow=True)
+        result = self.service.get_electricity_price(
+            hour=0, date=test_date, include_tomorrow=True
+        )
 
         self.assertFalse(result["error"])
         self.assertEqual(result["hour"], 0)
@@ -432,19 +441,25 @@ class TestElectricityMapping(unittest.TestCase):
         }
 
         test_date = datetime(2023, 1, 2, 15, 0)
-        
+
         # Test hour 15
-        result = self.service.get_electricity_price(hour=15, date=test_date, include_tomorrow=False)
+        result = self.service.get_electricity_price(
+            hour=15, date=test_date, include_tomorrow=False
+        )
         self.assertFalse(result["error"])
         self.assertEqual(result["today_price"]["eur_per_mwh"], 45.0)
-        
+
         # Test hour 1
-        result = self.service.get_electricity_price(hour=1, date=test_date, include_tomorrow=False)
+        result = self.service.get_electricity_price(
+            hour=1, date=test_date, include_tomorrow=False
+        )
         self.assertFalse(result["error"])
         self.assertEqual(result["today_price"]["eur_per_mwh"], 20.0)
-        
+
         # Test hour 23
-        result = self.service.get_electricity_price(hour=23, date=test_date, include_tomorrow=False)
+        result = self.service.get_electricity_price(
+            hour=23, date=test_date, include_tomorrow=False
+        )
         self.assertFalse(result["error"])
         self.assertEqual(result["today_price"]["eur_per_mwh"], 35.0)
 
@@ -458,12 +473,14 @@ class TestElectricityMapping(unittest.TestCase):
         }
 
         test_date = datetime(2023, 1, 2, 15, 0)  # Jan 2, 15:00
-        result = self.service.get_electricity_price(hour=15, date=test_date, include_tomorrow=False)
+        result = self.service.get_electricity_price(
+            hour=15, date=test_date, include_tomorrow=False
+        )
 
         # Should call _fetch_daily_prices with yesterday's date
         expected_api_date = test_date - timedelta(days=1)  # Jan 1
         mock_fetch.assert_called_with(expected_api_date)
-        
+
         self.assertFalse(result["error"])
         self.assertEqual(result["today_price"]["eur_per_mwh"], 40.0)
 
@@ -576,7 +593,9 @@ class TestElectricityServiceIntegration(unittest.TestCase):
             self.skipTest("Electricity service not available in bot manager")
 
         # Mock the get_electricity_price method on the actual instance
-        with patch.object(self.bot_manager.electricity_service, "get_electricity_price") as mock_get_price:
+        with patch.object(
+            self.bot_manager.electricity_service, "get_electricity_price"
+        ) as mock_get_price:
             # Mock successful API response
             mock_get_price.return_value = {
                 "error": False,

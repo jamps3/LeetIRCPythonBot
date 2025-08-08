@@ -5,6 +5,7 @@ This module contains basic utility commands like help, time, echo, etc.
 """
 
 import time
+
 # Note: utils imports are not needed for basic commands
 from datetime import datetime
 
@@ -130,6 +131,7 @@ def solarwind_command(context: CommandContext, bot_functions):
     """Get current solar wind information."""
     try:
         from services.solarwind_service import get_solar_wind_info
+
         return get_solar_wind_info()
     except Exception as e:
         return f"❌ Solar wind error: {str(e)}"
@@ -188,7 +190,7 @@ def electricity_command(context: CommandContext, bot_functions):
         command_parts = [context.command]
         if context.args_text:
             command_parts.extend(context.args_text.split())
-        
+
         send_electricity_price(None, context.target, command_parts)
         return CommandResponse.no_response()  # Service handles the output
     else:
@@ -206,9 +208,9 @@ def euribor_command(context: CommandContext, bot_functions):
     import platform
     import xml.etree.ElementTree as ElementTree
     from datetime import datetime
-    
+
     import requests
-    
+
     try:
         # XML data URL from Suomen Pankki
         url = "https://reports.suomenpankki.fi/WebForms/ReportViewerPage.aspx?report=/tilastot/markkina-_ja_hallinnolliset_korot/euribor_korot_today_xml_en&output=xml"
@@ -237,7 +239,9 @@ def euribor_command(context: CommandContext, bot_functions):
             else:
                 return "No period data found in XML."
         else:
-            return f"Failed to retrieve XML data. HTTP Status Code: {response.status_code}"
+            return (
+                f"Failed to retrieve XML data. HTTP Status Code: {response.status_code}"
+            )
     except Exception as e:
         return f"Error fetching Euribor rate: {str(e)}"
 
@@ -253,7 +257,7 @@ def crypto_command(context: CommandContext, bot_functions):
     get_crypto_price = bot_functions.get("get_crypto_price")
     if not get_crypto_price:
         return "Crypto price service not available"
-    
+
     if len(context.args) >= 1:
         coin = context.args[0].lower()
         currency = context.args[1] if len(context.args) > 1 else "eur"
@@ -298,19 +302,19 @@ def leetwinners_command(context: CommandContext, bot_functions):
     load_leet_winners = bot_functions.get("load_leet_winners")
     if not load_leet_winners:
         return "Leet winners service not available"
-    
+
     leet_winners = load_leet_winners()
     filtered_winners = {}
     for winner, categories in leet_winners.items():
         for cat, count in categories.items():
             if cat not in filtered_winners or count > filtered_winners[cat][1]:
                 filtered_winners[cat] = (winner, count)
-    
+
     winners_text = ", ".join(
         f"{cat}: {winner} [{count}]"
         for cat, (winner, count) in filtered_winners.items()
     )
-    
+
     return (
         f"𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼: {winners_text}"
         if winners_text
