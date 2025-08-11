@@ -146,8 +146,46 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
 
 Appendix: quick references
 
-- Activate venv (pwsh): .\venv\Scripts\Activate.ps1
+- Activate venv (pwsh): .\\venv\\Scripts\\Activate.ps1
 - Deactivate venv: deactivate
 - Format + lint all: isort --profile black .; black .; flake8 . --max-line-length=127 --extend-ignore=E203,E501,F401,F841,E402
-- Run a single test node: python -m pytest path\to\test_file.py::test_case -v
+- Run a single test node: python -m pytest path\\to\\test_file.py::test_case -v
+
+
+Recent updates and gotchas (Aug 2025)
+
+- Command help (!help)
+  - In IRC, help lists only IRC_ONLY commands and is sent privately to the caller (NOTICE to nick), not to the channel
+  - The help command itself is excluded from listings
+  - Ordering: regular commands A–Z, then Tamagotchi commands (tamagotchi, feed, pet) A–Z, then admin commands A–Z with footer
+  - Duplicates were eliminated by deduping across scopes
+  - Tests: python -m pytest tests/test_irc_help.py -v
+
+- IRC message sending
+  - Multi-line command responses are split into separate notices, and long lines are chunked to <= 400 bytes to avoid truncation
+
+- Commands context fix
+  - Weather (!s) and Electricity (!sahko/!sähkö) now pass the IRC connection and channel properly so replies go to the correct place
+  - Tests: python -m pytest tests/test_irc_basic_commands.py -v
+
+- Rate limiter stabilization
+  - server.Server: token bucket refill skips sub-100ms intervals to avoid micro-increments and flakiness
+  - Related tests (server flood protection) are green
+
+- Otiedote shutdown noise reduction
+  - Selenium Chrome is started with keep_alive=False (where supported)
+  - urllib3.connectionpool warnings are temporarily silenced during driver shutdown to avoid retry spam
+
+- Solar wind
+  - tests/test_solarwind_command.py passing; Windows console may require PYTHONIOENCODING=utf-8 to render emojis in manual runs
+
+- Git hygiene
+  - Commit early and often (project rule). Prefer small commits with clear messages
+
+How to run only the updated/related tests
+
+- Help (IRC): python -m pytest tests/test_irc_help.py -v
+- Basic IRC commands (!s, !sahko): python -m pytest tests/test_irc_basic_commands.py -v
+- Flood protection: python -m pytest tests/test_server_flood_protection.py -v
+- Solar wind: python -m pytest tests/test_solarwind_command.py -v
 
