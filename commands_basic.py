@@ -55,19 +55,17 @@ def help_command(context: CommandContext, bot_functions):
             return CommandResponse.no_response()
         return CommandResponse.success_msg(help_text)
 
-    # Build a deduplicated set of commands for IRC or console context
+    # Build command list depending on context. From IRC, show only IRC_ONLY.
     if context.is_console:
-        infos_a = registry.get_commands_info(scope=_CS.CONSOLE_ONLY)
-        infos_b = registry.get_commands_info(scope=_CS.BOTH)
+        infos = registry.get_commands_info(scope=_CS.CONSOLE_ONLY) + registry.get_commands_info(scope=_CS.BOTH)
     else:
-        infos_a = registry.get_commands_info(scope=_CS.IRC_ONLY)
-        infos_b = registry.get_commands_info(scope=_CS.BOTH)
+        infos = registry.get_commands_info(scope=_CS.IRC_ONLY)
 
     by_name = {}
-    for info in infos_a + infos_b:
+    for info in infos:
         if info.name == "help":
             continue  # exclude help itself
-        by_name[info.name] = info  # later entries overwrite earlier; names are unique anyway
+        by_name[info.name] = info
 
     # Partition into groups
     tama_names = {"tamagotchi", "feed", "pet"}
