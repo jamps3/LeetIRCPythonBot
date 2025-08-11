@@ -53,9 +53,9 @@ def test_help_sends_private_to_nick_and_has_no_duplicates():
 
     # All targets should be the caller nick (private), not the channel
     targets = {t for t, _ in notices}
-    assert targets == {"tester"} or (len(targets) == 1 and next(iter(targets)) == "tester"), (
-        f"Expected notices to be sent to the nick 'tester', got targets: {targets}"
-    )
+    assert targets == {"tester"} or (
+        len(targets) == 1 and next(iter(targets)) == "tester"
+    ), f"Expected notices to be sent to the nick 'tester', got targets: {targets}"
 
     # Extract message lines and check no duplicates (excluding footer blank lines)
     lines = [msg.strip() for _, msg in notices if msg and msg.strip()]

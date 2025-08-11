@@ -34,7 +34,8 @@ def help_command(context: CommandContext, bot_functions):
     - Then list Tamagotchi-related commands (tamagotchi, feed, pet) alphabetically.
     - Finally list admin commands alphabetically (marked with * by the renderer).
     """
-    from command_registry import get_command_registry, CommandScope as _CS
+    from command_registry import CommandScope as _CS
+    from command_registry import get_command_registry
 
     registry = get_command_registry()
 
@@ -57,7 +58,9 @@ def help_command(context: CommandContext, bot_functions):
 
     # Build command list depending on context. From IRC, show only IRC_ONLY.
     if context.is_console:
-        infos = registry.get_commands_info(scope=_CS.CONSOLE_ONLY) + registry.get_commands_info(scope=_CS.BOTH)
+        infos = registry.get_commands_info(
+            scope=_CS.CONSOLE_ONLY
+        ) + registry.get_commands_info(scope=_CS.BOTH)
     else:
         infos = registry.get_commands_info(scope=_CS.IRC_ONLY)
 
@@ -69,7 +72,9 @@ def help_command(context: CommandContext, bot_functions):
 
     # Partition into groups
     tama_names = {"tamagotchi", "feed", "pet"}
-    regular = [i for i in by_name.values() if not i.admin_only and i.name not in tama_names]
+    regular = [
+        i for i in by_name.values() if not i.admin_only and i.name not in tama_names
+    ]
     tamas = [i for i in by_name.values() if not i.admin_only and i.name in tama_names]
     admins = [i for i in by_name.values() if i.admin_only]
 
@@ -80,6 +85,7 @@ def help_command(context: CommandContext, bot_functions):
 
     # Format lines
     lines = ["Available commands:"]
+
     def fmt(info):
         line = info.name
         if info.admin_only:

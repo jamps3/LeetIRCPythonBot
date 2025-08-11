@@ -77,6 +77,7 @@ class OtiedoteService:
         if self.driver:
             # Suppress urllib3 connectionpool warnings while shutting down the driver
             import logging as _pylogging
+
             _urllib3_logger = _pylogging.getLogger("urllib3.connectionpool")
             _prev_level = _urllib3_logger.level
             try:
@@ -124,7 +125,9 @@ class OtiedoteService:
                     )
                 except TypeError:
                     # Older selenium versions don't support keep_alive kwarg
-                    self.driver = webdriver.Chrome(service=service, options=chrome_options)
+                    self.driver = webdriver.Chrome(
+                        service=service, options=chrome_options
+                    )
                 return
             except Exception as e:
                 logging.warning(f"WebDriver setup attempt {attempt + 1} failed: {e}")

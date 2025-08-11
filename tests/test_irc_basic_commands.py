@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 class DummyIrc:
     """Minimal dummy IRC object to pass through the pipeline."""
+
     def __init__(self):
         self.sent = []
 
@@ -91,4 +92,6 @@ def test_irc_electricity_command_passes_irc_context():
     irc_arg, target_arg, parts_arg = calls.args
     assert irc_arg is not None, "IRC context was not provided to send_electricity_price"
     assert target_arg == "#test", "Channel target not passed correctly"
-    assert isinstance(parts_arg, list) and parts_arg and parts_arg[0] in ("sahko", "sähkö"), "Command parts not passed correctly"
+    assert (
+        isinstance(parts_arg, list) and parts_arg and parts_arg[0] in ("sahko", "sähkö")
+    ), "Command parts not passed correctly"

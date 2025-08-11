@@ -27,7 +27,7 @@ tamagotchi_bot = TamagotchiBot(data_manager)
     name="sana",
     command_type=CommandType.PUBLIC,
     description="Search word statistics",
-    usage="!sana word",
+    usage="!sana <sana>",
     admin_only=False,
 )
 def command_sana(context, args):
@@ -56,13 +56,13 @@ def command_sana(context, args):
     name="tilaa",
     command_type=CommandType.PUBLIC,
     description="Handle subscription commands",
-    usage="!tilaa \u001cvaroitukset|onnettomuustiedotteet|list\u001e [\u001ckanava\u001e]",
+    usage="!tilaa varoitukset|onnettomuustiedotteet|list <kanava>",
     admin_only=False,
 )
 def command_tilaa(context, bot_functions):
     topic = context.args[0].lower() if context.args else None
     if not topic:
-        return "⚠ Käyttö: !tilaa \u001cvaroitukset|onnettomuustiedotteet|list\u001e [\u001ckanava\u001e]"
+        return "⚠ Käyttö: !tilaa varoitukset|onnettomuustiedotteet|list <kanava>"
 
     if not bot_functions or "subscriptions" not in bot_functions:
         return "Subscription service is not available."
@@ -96,7 +96,7 @@ def command_tilaa(context, bot_functions):
     name="topwords",
     command_type=CommandType.PRIVATE,
     description="Show top words used",
-    usage="!topwords nick",
+    usage="!topwords <nick>",
     admin_only=False,
 )
 def command_topwords(context, args):
@@ -164,7 +164,7 @@ def command_leaderboard(context, args):
     name="drinkstats",
     command_type=CommandType.PUBLIC,
     description="Show drink stats",
-    usage="!drinkstats [nick|server|global]",
+    usage="!drinkstats <nick|server|global>",
     admin_only=False,
 )
 def command_drinkstats(context, args):
@@ -210,7 +210,7 @@ def command_tamagotchi(context, args):
     name="feed",
     command_type=CommandType.PUBLIC,
     description="Feed your Tamagotchi",
-    usage="!feed [food]",
+    usage="!feed <food>",
     admin_only=False,
 )
 def command_feed(context, args):
@@ -237,7 +237,7 @@ def command_pet(context, args):
     name="leets",
     command_type=CommandType.PUBLIC,
     description="Show recent leet detection history",
-    usage="!leets [limit]",
+    usage="!leets <limit>",
     admin_only=False,
 )
 def command_leets(context, args):
@@ -271,13 +271,13 @@ def command_leets(context, args):
     command_type=CommandType.ADMIN,
     aliases=["leet"],
     description="Schedule a message to be sent at a specific time",
-    usage="!schedule #channel HH:MM:SS[.microseconds] message",
+    usage="!schedule #channel HH:MM:SS<.microseconds> message",
     admin_only=True,
 )
 def command_schedule(context, args):
     """Schedule a message for later delivery."""
     if not args:
-        return "Usage: !schedule #channel HH:MM:SS[.microseconds] message"
+        return "Usage: !schedule #channel HH:MM:SS<.microseconds> message"
 
     # Parse the command format: !schedule #channel HH:MM:SS message
     # or !schedule #channel HH:MM:SS.microseconds message
@@ -287,7 +287,7 @@ def command_schedule(context, args):
     )
 
     if not match:
-        return "Invalid format! Use: !schedule #channel HH:MM:SS[.microseconds] message"
+        return "Invalid format! Use: !schedule #channel HH:MM:SS<.microseconds> message"
 
     channel = match.group(1)
     hour = int(match.group(2))
@@ -338,7 +338,7 @@ def command_ipfs(context, bot_functions):
     """Handle IPFS file operations."""
     # Use parsed args from context to avoid accidental contamination
     if not context.args:
-        return "Usage: !ipfs add \u003curl\u003e or !ipfs \u003cpassword\u003e \u003curl\u003e"
+        return "Usage: !ipfs add <url> or !ipfs <password> <url>"
 
     try:
         from services.ipfs_service import handle_ipfs_command
@@ -358,7 +358,7 @@ def command_ipfs(context, bot_functions):
     name="eurojackpot",
     command_type=CommandType.PUBLIC,
     description="Get Eurojackpot information",
-    usage="!eurojackpot [tulokset]",
+    usage="!eurojackpot <tulokset>",
     admin_only=False,
 )
 def command_eurojackpot(context, args):
@@ -382,7 +382,7 @@ def command_eurojackpot(context, args):
     name="scheduled",
     command_type=CommandType.ADMIN,
     description="List or cancel scheduled messages",
-    usage="!scheduled [list|cancel <id>]",
+    usage="!scheduled list|cancel <id>",
     admin_only=True,
 )
 def command_scheduled(context, args):
@@ -413,7 +413,7 @@ def command_scheduled(context, args):
                 return f"❌ Message not found: {message_id}"
 
         else:
-            return "Usage: !scheduled [list|cancel <id>]"
+            return "Usage: !scheduled list|cancel <id>"
 
     except Exception as e:
         return f"❌ Scheduled messages error: {str(e)}"
