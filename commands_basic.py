@@ -26,31 +26,93 @@ from config import get_config
     examples=["!help", "!help weather"],
 )
 def help_command(context: CommandContext, bot_functions):
-    """Show help for commands."""
-    from command_registry import get_command_registry
+    """Show help for commands without duplicates and with custom ordering.
+
+    Ordering rules:
+    - Do not list the 'help' command itself.
+    - List regular (non-admin, non-Tamagotchi) commands alphabetically.
+    - Then list Tamagotchi-related commands (tamagotchi, feed, pet) alphabetically.
+    - Finally list admin commands alphabetically (marked with * by the renderer).
+    """
+    from command_registry import get_command_registry, CommandScope as _CS
 
     registry = get_command_registry()
 
-    # If specific command requested
+    # If specific command requested, return its detailed help (private on IRC)
     if context.args:
         command_name = context.args[0]
         help_text = registry.generate_help(specific_command=command_name)
+        if context.is_console:
+            return CommandResponse.success_msg(help_text)
+        # IRC: send privately to the caller (nick)
+        notice = bot_functions.get("notice_message")
+        irc = bot_functions.get("irc")
+        to_target = context.sender or context.target
+        if notice and irc:
+            for line in str(help_text).split("\n"):
+                if line.strip():
+                    notice(line, irc, to_target)
+            return CommandResponse.no_response()
         return CommandResponse.success_msg(help_text)
 
-    # General help - show all applicable commands
+    # Build a deduplicated set of commands for IRC or console context
     if context.is_console:
-        # For console, show console and both-scope commands
-        help_text = registry.generate_help(scope=CommandScope.CONSOLE_ONLY)
-        both_help = registry.generate_help(scope=CommandScope.BOTH)
-        if both_help and "No commands available" not in both_help:
-            help_text += "\n\n" + both_help
+        infos_a = registry.get_commands_info(scope=_CS.CONSOLE_ONLY)
+        infos_b = registry.get_commands_info(scope=_CS.BOTH)
     else:
-        # For IRC, show IRC and both-scope commands
-        help_text = registry.generate_help(scope=CommandScope.IRC_ONLY)
-        both_help = registry.generate_help(scope=CommandScope.BOTH)
-        if both_help and "No commands available" not in both_help:
-            help_text += "\n\n" + both_help
-    return CommandResponse.success_msg(help_text)
+        infos_a = registry.get_commands_info(scope=_CS.IRC_ONLY)
+        infos_b = registry.get_commands_info(scope=_CS.BOTH)
+
+    by_name = {}
+    for info in infos_a + infos_b:
+        if info.name == "help":
+            continue  # exclude help itself
+        by_name[info.name] = info  # later entries overwrite earlier; names are unique anyway
+
+    # Partition into groups
+    tama_names = {"tamagotchi", "feed", "pet"}
+    regular = [i for i in by_name.values() if not i.admin_only and i.name not in tama_names]
+    tamas = [i for i in by_name.values() if not i.admin_only and i.name in tama_names]
+    admins = [i for i in by_name.values() if i.admin_only]
+
+    # Sort alphabetically within groups
+    regular.sort(key=lambda x: x.name)
+    tamas.sort(key=lambda x: x.name)
+    admins.sort(key=lambda x: x.name)
+
+    # Format lines
+    lines = ["Available commands:"]
+    def fmt(info):
+        line = info.name
+        if info.admin_only:
+            line += "*"
+        if info.description:
+            line += f" - {info.description}"
+        return line
+
+    lines.extend(fmt(i) for i in regular)
+    if tamas:
+        lines.extend(fmt(i) for i in tamas)
+    if admins:
+        lines.extend(fmt(i) for i in admins)
+        lines.append("")
+        lines.append("* Admin command (requires password)")
+
+    help_text = "\n".join(lines)
+
+    if context.is_console:
+        return CommandResponse.success_msg(help_text)
+    else:
+        # IRC: send privately to the caller (nick)
+        notice = bot_functions.get("notice_message")
+        irc = bot_functions.get("irc")
+        to_target = context.sender or context.target
+        if notice and irc:
+            for line in lines:
+                if line.strip():
+                    notice(line, irc, to_target)
+            return CommandResponse.no_response()
+        return CommandResponse.success_msg(help_text)
 
 
 @command("aika", aliases=["time"], description="Show current time", usage="!aika")
