@@ -204,9 +204,12 @@ class IPFSService:
             with open(temp_file, "rb") as f:
                 file_hash = hashlib.sha256(f.read()).hexdigest()[:16]
 
+            # Include a public HTTPS gateway link to the added content
+            gateway_url = f"https://ipfs.io/ipfs/{ipfs_hash}"
             success_message = (
                 f"✅ File added to IPFS! Hash: {ipfs_hash} "
-                f"({self._format_file_size(file_size)}, SHA256: {file_hash})"
+                f"({self._format_file_size(file_size)}, SHA256: {file_hash}) "
+                f"{gateway_url}"
             )
 
             return {
