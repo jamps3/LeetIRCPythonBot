@@ -75,13 +75,30 @@ class OtiedoteService:
                     "⚠️ Otiedote monitor thread did not stop cleanly within 10s timeout"
                 )
         if self.driver:
+            # Suppress urllib3 connectionpool warnings while shutting down the driver
+            import logging as _pylogging
+            _urllib3_logger = _pylogging.getLogger("urllib3.connectionpool")
+            _prev_level = _urllib3_logger.level
             try:
-                # First try to close gracefully
-                self.driver.close()
-                self.driver.quit()
+                _urllib3_logger.setLevel(_pylogging.CRITICAL)
+                try:
+                    # First try to close gracefully
+                    self.driver.close()
+                except Exception:
+                    # Ignore close errors during shutdown
+                    pass
+                try:
+                    self.driver.quit()
+                except Exception:
+                    # Ignore quit errors during shutdown
+                    pass
             except Exception as e:
                 logging.debug(f"WebDriver shutdown exception (expected): {e}")
             finally:
+                try:
+                    _urllib3_logger.setLevel(_prev_level)
+                except Exception:
+                    pass
                 self.driver = None
         logging.info("🛑 Otiedote monitor stopped")
 
@@ -100,7 +117,14 @@ class OtiedoteService:
 
         for attempt in range(3):
             try:
-                self.driver = webdriver.Chrome(service=service, options=chrome_options)
+                # Prefer to disable keep_alive to avoid HTTP retries on shutdown
+                try:
+                    self.driver = webdriver.Chrome(
+                        service=service, options=chrome_options, keep_alive=False
+                    )
+                except TypeError:
+                    # Older selenium versions don't support keep_alive kwarg
+                    self.driver = webdriver.Chrome(service=service, options=chrome_options)
                 return
             except Exception as e:
                 logging.warning(f"WebDriver setup attempt {attempt + 1} failed: {e}")
