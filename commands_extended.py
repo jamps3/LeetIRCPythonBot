@@ -334,16 +334,17 @@ def command_schedule(context, args):
     usage="!ipfs add <url> or !ipfs <password> <url>",
     admin_only=False,
 )
-def command_ipfs(context, args):
+def command_ipfs(context, bot_functions):
     """Handle IPFS file operations."""
-    if not args:
-        return "Usage: !ipfs add <url> or !ipfs <password> <url>"
+    # Use parsed args from context to avoid accidental contamination
+    if not context.args:
+        return "Usage: !ipfs add \u003curl\u003e or !ipfs \u003cpassword\u003e \u003curl\u003e"
 
     try:
         from services.ipfs_service import handle_ipfs_command
 
-        # Reconstruct the full command
-        command_text = "!ipfs " + " ".join(args)
+        # Reconstruct the full command exactly as user intended (post-!ipfs)
+        command_text = "!ipfs " + " ".join(context.args)
         admin_password = os.getenv("ADMIN_PASSWORD")
 
         response = handle_ipfs_command(command_text, admin_password)
