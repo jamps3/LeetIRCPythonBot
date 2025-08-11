@@ -114,8 +114,10 @@ def weather_command(context: CommandContext, bot_functions):
             logger = logging.getLogger(__name__)
             logger.info(f"Getting weather for {location} from console")
 
+        # Determine IRC/server context if available (for IRC responses)
+        irc_ctx = bot_functions.get("irc") if not context.is_console else None
         # Call the weather service
-        send_weather(None, context.target, location)
+        send_weather(irc_ctx, context.target, location)
         return CommandResponse.no_response()  # Weather service handles the output
     else:
         return "Weather service not available"
@@ -191,7 +193,9 @@ def electricity_command(context: CommandContext, bot_functions):
         if context.args_text:
             command_parts.extend(context.args_text.split())
 
-        send_electricity_price(None, context.target, command_parts)
+        # Determine IRC/server context if available (for IRC responses)
+        irc_ctx = bot_functions.get("irc") if not context.is_console else None
+        send_electricity_price(irc_ctx, context.target, command_parts)
         return CommandResponse.no_response()  # Service handles the output
     else:
         return "Electricity price service not available"
