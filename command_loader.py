@@ -90,19 +90,22 @@ async def process_irc_command(
             if response.should_respond and response.message:
                 notice_message = bot_functions.get("notice_message")
                 if notice_message:
-                    if response.split_long_messages:
-                        # Split long messages intelligently
-                        split_func = bot_functions.get("split_message_intelligently")
-                        if split_func:
-                            parts = split_func(
-                                response.message, 400
-                            )  # IRC message limit
+                    # Always split by newlines for IRC safety (IRC messages cannot contain newlines)
+                    lines = str(response.message).split("\n")
+                    split_func = bot_functions.get("split_message_intelligently")
+                    for line in lines:
+                        line = line.rstrip()
+                        if not line:
+                            continue
+                        if response.split_long_messages and split_func:
+                            # Split per line to respect IRC length limits
+                            parts = split_func(line, 400)
                             for part in parts:
-                                notice_message(part, irc_connection, target)
+                                if part:
+                                    notice_message(part, irc_connection, target)
                         else:
-                            notice_message(response.message, irc_connection, target)
-                    else:
-                        notice_message(response.message, irc_connection, target)
+                            # Fallback: send each line as a separate notice
+                            notice_message(line, irc_connection, target)
 
             return True  # Command was processed
 
