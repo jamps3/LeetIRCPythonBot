@@ -405,3 +405,10 @@ class DataManager:
             return {server: opt_out_data.get(server, [])}
 
         return opt_out_data
+
+    def get_all_servers(self) -> List[str]:
+        """
+        Return a list of all server names present in general words data.
+        """
+        data = self.load_general_words_data()
+        return list(data.get("servers", {}).keys())

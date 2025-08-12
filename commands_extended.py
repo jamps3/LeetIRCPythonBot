@@ -99,8 +99,8 @@ def command_tilaa(context, bot_functions):
     usage="!topwords <nick>",
     admin_only=False,
 )
-def command_topwords(context, args):
-    if args:
+def command_topwords(context, bot_functions):
+    if context.args:
         nick = " ".join(context.args).strip()
         found_user = False
         for server_name in data_manager.get_all_servers():
