@@ -494,7 +494,7 @@ def test_leet_detector_json_storage():
 
         # Create a leet detection
         result = detector.check_message_for_leet(
-            "testuser", "13:37:42.987654321", "Test message"
+            "testuser", "23:13:37.987654321", "Test message"
         )
         assert result is not None, "Should detect leet"
 
@@ -606,7 +606,7 @@ def test_leet_detector_message_inclusion():
         # Test with user message
         test_message = "This is my test message with leet!"
         result = detector.check_message_for_leet(
-            "testuser", "13:37:42.987654321", test_message
+            "testuser", "23:13:37.987654321", test_message
         )
 
         assert result is not None, "Should detect leet"

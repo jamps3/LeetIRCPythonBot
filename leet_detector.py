@@ -24,7 +24,7 @@ class LeetDetector:
     - Ultimate Leet: Perfect "13:37:13.371337133" format
     - Mega Leet: "1337" appears 3+ times in the timestamp
     - Super Leet: "1337" appears 2 times in the timestamp
-    - Leet: "1337" appears once in hours, minutes, or seconds
+    - Leet: "1337" appears once in timestamp (but not only from hours and minutes when time is 13:37)
     - Nano Leet: "1337" appears only in nanosecond digits
     """
 
@@ -174,7 +174,22 @@ class LeetDetector:
         if total_count == 2:
             return "super"
 
-        # Regular leet: 1 occurrence in time part
+        # Ignore trivial 13:37 where the only occurrence comes from hours+minutes
+        try:
+            hh_mm = detection_result["time_part"].split(":", 2)[:2]
+            if (
+                len(hh_mm) == 2
+                and hh_mm[0] == "13"
+                and hh_mm[1] == "37"
+                and total_count == 1
+                and nano_count == 0
+            ):
+                return None
+        except Exception:
+            # If parsing fails, fall through to regular checks
+            pass
+
+        # Regular leet: 1 occurrence in time part (excluding trivial 13:37-only case)
         if time_count > 0:
             return "leet"
 
