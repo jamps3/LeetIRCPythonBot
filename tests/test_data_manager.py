@@ -340,25 +340,6 @@ def test_large_data_handling(data_manager):
     assert len(loaded_data["servers"]) == 10, "There should be 10 servers in the data"
     assert "server_0" in loaded_data["servers"], "server_0 should be in the data"
 
-
-import json
-import os
-import sys
-import tempfile
-import threading
-import time
-from unittest.mock import Mock, patch
-
-import pytest
-
-# Add the parent directory to the path to import the data manager
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from word_tracking.data_manager import DataManager
-
-
-@pytest.fixture
-def data_manager():
     """Set up and tear down temporary data manager for testing."""
     temp_dir = tempfile.mkdtemp()
     dm = DataManager(temp_dir)
@@ -655,7 +636,3 @@ def data_manager():
 
         self.assertEqual(len(loaded_data["servers"]), 10)
         self.assertIn("server_0", loaded_data["servers"])
-
-
-if __name__ == "__main__":
-    unittest.main()

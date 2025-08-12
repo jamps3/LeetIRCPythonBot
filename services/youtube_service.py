@@ -127,7 +127,7 @@ class YouTubeService:
             try:
                 duration = isodate.parse_duration(duration_iso)
                 duration_str = self._format_duration(duration)
-            except:
+            except Exception:
                 duration_str = "Unknown"
 
             # Parse upload date
@@ -138,8 +138,8 @@ class YouTubeService:
                     upload_date = datetime.fromisoformat(
                         published_at.replace("Z", "+00:00")
                     )
-                except:
-                    pass
+                except Exception:
+                    upload_date = None
 
             return {
                 "error": False,
@@ -197,6 +197,18 @@ class YouTubeService:
                     "status_code": response.status_code,
                 }
 
+        except requests.exceptions.Timeout:
+            return {
+                "error": True,
+                "message": "YouTube search API request timed out",
+                "exception": "timeout",
+            }
+        except requests.exceptions.RequestException as e:
+            return {
+                "error": True,
+                "message": f"YouTube search API request failed: {str(e)}",
+                "exception": str(e),
+            }
         except Exception as e:
             return {
                 "error": True,
@@ -232,8 +244,8 @@ class YouTubeService:
                             upload_date = datetime.fromisoformat(
                                 published_at.replace("Z", "+00:00")
                             )
-                        except:
-                            pass
+                        except Exception:
+                            upload_date = None
 
                     results.append(
                         {

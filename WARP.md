@@ -28,18 +28,17 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
     - python main.py -nick MyBot           # override nickname
     - python main.py -api                  # show masked API keys in logs
 
-- Environment config (.env): copy .env.sample to .env and set at least one server and any API keys you intend to use. Minimum example:
-  - SERVER1_HOST=irc.example.com
-  - SERVER1_PORT=6667
-  - SERVER1_CHANNELS=#channel1
-  - BOT_NAME=LeetIRCBot
+- Environment config (.env): copy .env.sample to .env and set at least one server and any API keys you intend to use.
+  - For local test parity with CI, a minimal .env can include: BOT_NAME=TestBot, BOT_VERSION=test, IRC_NICKNAME=test_bot, IRC_REALNAME=Test Bot, IRC_IDENT=testbot, SERVER_HOST=irc.example.com, SERVER_PORT=6667, SERVER_NAME=TestServer, CHANNELS=#test, LOG_LEVEL=INFO, TAMAGOTCHI_ENABLED=true, USE_NOTICES=false
   - Optional API keys: OPENAI_API_KEY, WEATHER_API_KEY, ELECTRICITY_API_KEY, YOUTUBE_API_KEY
   - Behavior toggles: TAMAGOTCHI_ENABLED=true|false, USE_NOTICES=true|false
 
 - Run tests (pytest):
+  - Set PYTHONPATH for local runs (pwsh): $env:PYTHONPATH = (Get-Location)
   - All tests: python -m pytest -v --tb=short
   - Single file: python -m pytest tests/test_config_new.py -v
   - Single test node: python -m pytest tests/test_config_new.py::test_load_env_file -v
+  - Filter by expression: python -m pytest -k "weather and not integration" -v
   - Pattern (e.g., migrated tests): python -m pytest tests/test_*_new.py -v
   - With coverage (if pytest-cov installed): python -m pytest tests -v --cov=.
 
@@ -53,6 +52,18 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
   - Installs: python-dotenv pytest (and optionally requirements.txt)
   - Runs tests via: python -m pytest -v --tb=short
   - Lint job uses: black --check, isort --check-only, flake8 with the ignore list above
+
+- Local commands matching CI (pwsh):
+  - $env:PYTHONPATH = (Get-Location)
+  - python -m pytest -v --tb=short
+  - Lint (check-only):
+    - black --check --diff .
+    - isort --check-only --diff .
+    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --extend-ignore=E203,E501,F401,F841,E402 --statistics
+  - Security (optional, mirrors CI uploads but local files only):
+    - bandit -r . -f json -o bandit-report.json || $true
+    - safety check --json --output safety-report.json || $true
 
 2) High-level architecture
 
@@ -128,7 +139,7 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
 
 4) Testing guidance specific to this repo
 
-- Pytest is the standard. Many tests are being/may be migrated to pure pytest (see tests/MIGRATION_PROGRESS.md and MIGRATION_COMPLETE_SUMMARY.md for context).
+- Pytest is the standard. Many tests are being/may be migrated to pure pytest (see tests/MIGRATION_PROGRESS.md for context).
 - Some tests intentionally skip external integrations; CI installs only minimal deps and relies on mocks/importorskip where needed.
 - To run only migrated tests locally (faster, fewer optional deps):
   - python -m pytest tests/test_*_new.py -v

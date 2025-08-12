@@ -120,7 +120,12 @@ class DataManager:
             data: Data to save
             backup: Whether to create a backup before saving
         """
+        temp_path = None
         try:
+            # Ensure target directory exists
+            target_dir = os.path.dirname(file_path) or "."
+            os.makedirs(target_dir, exist_ok=True)
+
             # Create backup if requested and file exists
             if backup and os.path.exists(file_path):
                 backup_path = f"{file_path}.backup"
@@ -129,19 +134,27 @@ class DataManager:
             # Update timestamp
             data["last_updated"] = datetime.now().isoformat()
 
-            # Save to temporary file first, then rename (atomic operation)
-            temp_path = f"{file_path}.tmp"
-            with open(temp_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
+            # Save to a unique temporary file in the same directory, then rename atomically
+            import tempfile
 
-            # Atomic rename
+            with tempfile.NamedTemporaryFile("w", delete=False, dir=target_dir, suffix=".tmp", encoding="utf-8") as tmp:
+                temp_path = tmp.name
+                json.dump(data, tmp, indent=2, ensure_ascii=False)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+
+            # Atomic replace
             os.replace(temp_path, file_path)
+            temp_path = None  # consumed
 
         except Exception as e:
             print(f"Error saving {file_path}: {e}")
             # Clean up temporary file if it exists
-            if os.path.exists(f"{file_path}.tmp"):
-                os.remove(f"{file_path}.tmp")
+            try:
+                if temp_path and os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except Exception:
+                pass
 
     def get_server_name(self, irc_socket) -> str:
         """

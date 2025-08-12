@@ -149,7 +149,10 @@ def echo_command(context: CommandContext, bot_functions):
 def version_command(context: CommandContext, bot_functions):
     """Show the bot version."""
     config = get_config()
-    return f"Bot version: {config.version}"
+    # Prefer a BOT_VERSION provided by the caller's context (e.g., console tests),
+    # falling back to configured version.
+    version = bot_functions.get("BOT_VERSION", config.version) if isinstance(bot_functions, dict) else config.version
+    return f"Bot version: {version}"
 
 
 @command("ping", description="Check if bot is responsive", usage="!ping")
