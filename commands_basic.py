@@ -375,23 +375,31 @@ def url_command(context: CommandContext, bot_functions):
     examples=["!leetwinners"],
 )
 def leetwinners_command(context: CommandContext, bot_functions):
-    """Show top leet winners by category."""
+    """Show top-3 leet winners by category (ensimmäinen, multileet, viimeinen)."""
     load_leet_winners = bot_functions.get("load_leet_winners")
     if not load_leet_winners:
         return "Leet winners service not available"
 
-    leet_winners = load_leet_winners()
-    filtered_winners = {}
-    for winner, categories in leet_winners.items():
+    # Expected structure: { winner: {category: count, ...}, ... }
+    data = load_leet_winners() or {}
+
+    # Aggregate counts per category -> list of (winner, count)
+    per_category = {}
+    for winner, categories in data.items():
         for cat, count in categories.items():
-            if cat not in filtered_winners or count > filtered_winners[cat][1]:
-                filtered_winners[cat] = (winner, count)
+            if cat not in per_category:
+                per_category[cat] = []
+            per_category[cat].append((winner, count))
 
-    winners_text = ", ".join(
-        f"{cat}: {winner} [{count}]"
-        for cat, (winner, count) in filtered_winners.items()
-    )
+    # Sort each category desc by count, then by winner name for stability
+    lines = []
+    for cat, entries in per_category.items():
+        top = sorted(entries, key=lambda x: (-x[1], x[0]))[:3]
+        if top:
+            formatted = ", ".join(f"{w} [{c}]" for w, c in top)
+            lines.append(f"{cat}: {formatted}")
 
+    winners_text = "; ".join(lines)
     return (
         f"𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼: {winners_text}"
         if winners_text

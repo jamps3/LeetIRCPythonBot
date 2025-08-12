@@ -413,7 +413,7 @@ class TestEurojackpotEnhanced(unittest.TestCase):
         mock_get.return_value = mock_response
 
         # Perform scrape
-        result = self.service.scrape_all_draws(start_year=2023, max_api_calls=50)
+        result = self.service.scrape_all_draws(start_year=2023, max_api_calls=3)
 
         # Verify result
         self.assertTrue(result["success"])

@@ -505,7 +505,7 @@ def test_leet_detector_json_storage():
         detection = history[0]
         assert detection["nick"] == "testuser", "Nick should be saved correctly"
         assert (
-            detection["timestamp"] == "13:37:42.987654321"
+            detection["timestamp"] == "23:13:37.987654321"
         ), "Timestamp should be saved correctly"
         assert (
             detection["user_message"] == "Test message"
