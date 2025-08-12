@@ -23,6 +23,16 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
+
+### Optional: enable pre-commit hooks (format before commit)
+```bash
+pip install pre-commit
+pre-commit install
+# Optionally enforce on push too
+# pre-commit install --hook-type pre-push
+# Format everything once
+pre-commit run -a
+```
 If you want to use Voikko -features you need to install these packages with apt:
 ```bash
 sudo apt install -y libvoikko1 voikko-fi python3-libvoikko

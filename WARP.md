@@ -46,7 +46,11 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
   - Black (format): black .
   - Isort (imports): isort --profile black .
   - Flake8 (lint): flake8 . --max-line-length=127 --extend-ignore=E203,E501,F401,F841,E402
-  - Pre-commit (optional, if installed): pre-commit run --all-files
+  - Pre-commit setup (runs Black + isort before commit):
+    - pip install pre-commit
+    - pre-commit install
+    - Optional: pre-commit install --hook-type pre-push
+    - Run on all files once: pre-commit run -a
 
 - CI reference (GitHub Actions):
   - Installs: python-dotenv pytest (and optionally requirements.txt)
