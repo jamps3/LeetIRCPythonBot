@@ -240,11 +240,18 @@ def command_pet(context, args):
     usage="!leets <limit>",
     admin_only=False,
 )
-def command_leets(context, args):
+def command_leets(context, bot_functions):
     """Show recent leet detection history."""
     from leet_detector import create_leet_detector
 
-    limit = int(args[0]) if args and args[0].isdigit() else 5
+    # Parse optional numeric limit from context.args
+    limit = 5
+    if context.args and isinstance(context.args[0], str) and context.args[0].isdigit():
+        try:
+            limit = max(1, int(context.args[0]))
+        except Exception:
+            limit = 5
+
     detector = create_leet_detector()
     history = detector.get_leet_history(limit=limit)
 
@@ -253,14 +260,17 @@ def command_leets(context, args):
 
     response_lines = ["🎉 Recent Leet Detections:"]
     for detection in history:
-        date_str = datetime.fromisoformat(detection["datetime"]).strftime(
-            "%d.%m %H:%M:%S"
-        )
-        user_msg_part = (
-            f' "{detection["user_message"]}"' if detection["user_message"] else ""
-        )
+        try:
+            date_str = datetime.fromisoformat(detection.get("datetime", "")).strftime(
+                "%d.%m %H:%M:%S"
+            )
+        except Exception:
+            date_str = ""
+        user_msg = detection.get("user_message")
+        user_msg_part = f' "{user_msg}"' if user_msg else ""
         response_lines.append(
-            f"{detection['emoji']} {detection['achievement_name']} [{detection['nick']}] {detection['timestamp']}{user_msg_part} ({date_str})"
+            f"{detection.get('emoji', '')} {detection.get('achievement_name', '')} [{detection.get('nick', '')}] "
+            f"{detection.get('timestamp', '')}{user_msg_part} ({date_str})"
         )
 
     return "\n".join(response_lines)
