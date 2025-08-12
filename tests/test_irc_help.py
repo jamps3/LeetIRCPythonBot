@@ -62,7 +62,9 @@ def test_help_sends_private_to_nick_and_has_no_duplicates():
     # The header line must appear exactly once
     assert lines[0].startswith("Available commands:"), "First line should be the header"
     # help itself must not be present
-    assert not any(line.startswith("help") for line in lines), "!help should not list itself"
+    assert not any(
+        line.startswith("help") for line in lines
+    ), "!help should not list itself"
 
     # Check duplicates ignoring the header
     body = lines[1:]

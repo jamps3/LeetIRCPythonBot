@@ -137,7 +137,9 @@ class DataManager:
             # Save to a unique temporary file in the same directory, then rename atomically
             import tempfile
 
-            with tempfile.NamedTemporaryFile("w", delete=False, dir=target_dir, suffix=".tmp", encoding="utf-8") as tmp:
+            with tempfile.NamedTemporaryFile(
+                "w", delete=False, dir=target_dir, suffix=".tmp", encoding="utf-8"
+            ) as tmp:
                 temp_path = tmp.name
                 json.dump(data, tmp, indent=2, ensure_ascii=False)
                 tmp.flush()
