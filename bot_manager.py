@@ -783,22 +783,45 @@ class BotManager:
                     )
 
     def _handle_otiedote_release(self, title: str, url: str):
-        """Handle new Otiedote press release."""
+        """Handle new Otiedote press release.
+
+        Uses the subscriptions system to deliver messages only to explicit
+        onnettomuustiedotteet subscribers per server, mirroring FMI warnings.
+        """
         message = f"📢 Uusi tiedote: {title} | {url}"
 
-        # Send to all servers and channels configured for news notifications
-        for server_name, server in self.servers.items():
+        # Get subscriptions module and subscribers for onnettomuustiedotteet
+        subscriptions = self._get_subscriptions_module()
+        subscribers = []
+        try:
+            subscribers = subscriptions.get_subscribers("onnettomuustiedotteet")
+        except Exception as e:
+            self.logger.error(f"Error getting onnettomuustiedotteet subscribers: {e}")
+            return
+
+        if not subscribers:
+            self.logger.debug(
+                "No subscribers for onnettomuustiedotteet, not broadcasting Otiedote release"
+            )
+            return
+
+        # Send to subscribed channels/users on their respective servers
+        for subscriber_nick, server_name in subscribers:
             try:
-                channels = server.config.channels
-                # Send to all subscribers
-                for channel in channels:
-                    self._send_response(server, channel, message)
-                    self.logger.info(
-                        f"Sent Otiedote release to {server_name}#{channel}"
+                server = self.servers.get(server_name)
+                if not server:
+                    self.logger.warning(
+                        f"Server {server_name} not found for Otiedote subscriber {subscriber_nick}"
                     )
+                    continue
+
+                self._send_response(server, subscriber_nick, message)
+                self.logger.info(
+                    f"Sent Otiedote release to {subscriber_nick} on {server_name}"
+                )
             except Exception as e:
                 self.logger.error(
-                    f"Error sending Otiedote release to {server_name}: {e}"
+                    f"Error sending Otiedote release to {subscriber_nick} on {server_name}: {e}"
                 )
 
     def stop(self, quit_message: str = None):
