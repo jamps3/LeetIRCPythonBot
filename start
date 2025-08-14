@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Simple launcher for LeetIRCPythonBot when the venv is already active.
+# Usage: ./start [args...]
+# Notes:
+# - Does NOT create/activate a venv
+# - Does NOT install requirements
+# - Simply runs main.py with any passed arguments
+
+PY=python3
+if ! command -v "$PY" >/dev/null 2>&1; then
+  PY=python
+fi
+
+exec "$PY" main.py "$@"
+
