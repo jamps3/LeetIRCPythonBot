@@ -219,8 +219,9 @@ class IRCMessageProcessor:
         try:
             fetch_title = self.bot_functions.get("fetch_title")
             if fetch_title:
+                # Pass the IRC client (server wrapper) so responses can be sent to channel
                 fetch_title(
-                    context.irc_client.socket,
+                    context.irc_client,
                     context.irc_message.target,
                     context.irc_message.text,
                 )
