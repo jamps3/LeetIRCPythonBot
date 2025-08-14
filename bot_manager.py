@@ -566,6 +566,17 @@ class BotManager:
             if self.youtube_service and sender.lower() != self.bot_name.lower():
                 self._handle_youtube_urls(context)
 
+            # Fetch and display page titles for URLs posted in channels (non-commands)
+            if (
+                sender.lower() != self.bot_name.lower()
+                and target.startswith("#")
+                and not text.startswith("!")
+            ):
+                try:
+                    self._fetch_title(context["server"], target, text)
+                except Exception as e:
+                    self.logger.warning(f"Error in URL title fetcher: {e}")
+
             # Process commands
             self._process_commands(context)
 
