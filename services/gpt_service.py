@@ -232,7 +232,7 @@ class GPTService:
 
             # Make API call to OpenAI
             response = self.client.chat.completions.create(
-                model="gpt-4o",  # Available: gpt-4o, gpt-4.1-mini etc.
+                model="gpt-5-mini",  # Available: gpt-5, gpt-5-mini, gpt-5-nano, gpt-4o, gpt-4.1-mini etc.
                 messages=self.conversation_history,
                 max_tokens=100,  # Keep responses concise for IRC
                 temperature=0.6,  # Adjust for creativity
