@@ -582,7 +582,20 @@ class BotManager:
                     ai_response = self._chat_with_gpt(text, sender)
                     if ai_response:
                         reply_target = sender if is_private else target
-                        self._send_response(server, reply_target, ai_response)
+                        # Send as multiple IRC lines (split by newline, wrap long lines)
+                        for line in str(ai_response).split("\n"):
+                            line = line.rstrip()
+                            if not line:
+                                continue
+                            try:
+                                parts = self._wrap_irc_message_utf8_bytes(
+                                    line, reply_target
+                                )
+                            except Exception:
+                                parts = [line]
+                            for part in parts:
+                                if part:
+                                    self._send_response(server, reply_target, part)
             except Exception as e:
                 self.logger.warning(f"AI chat processing error: {e}")
 

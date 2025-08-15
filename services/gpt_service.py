@@ -234,10 +234,10 @@ class GPTService:
             response = self.client.chat.completions.create(
                 model="gpt-4o",  # Available: gpt-4o, gpt-4.1-mini etc.
                 messages=self.conversation_history,
-                max_tokens=150,  # Keep responses concise for IRC
-                temperature=0.7,  # Adjust for creativity
-                presence_penalty=0.2,  # Encourage new topics
-                frequency_penalty=0.2,  # Reduce repetition
+                max_tokens=100,  # Keep responses concise for IRC
+                temperature=0.6,  # Adjust for creativity
+                presence_penalty=0.4,  # Encourage new topics
+                frequency_penalty=0.3,  # Reduce repetition
             )
 
             # Extract response
