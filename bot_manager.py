@@ -566,6 +566,32 @@ class BotManager:
             if self.youtube_service and sender.lower() != self.bot_name.lower():
                 self._handle_youtube_urls(context)
 
+            # Minimal AI chat for IRC: respond to private messages or mentions
+            try:
+                is_private = not target.startswith("#")
+                bot_lower = self.bot_name.lower()
+                text_lower = text.lower() if isinstance(text, str) else ""
+                is_mention = text_lower.startswith(
+                    f"{bot_lower}:"
+                ) or text_lower.startswith(f"{bot_lower},")
+                if (
+                    self.gpt_service
+                    and (is_private or is_mention)
+                    and not text.startswith("!")
+                ):
+                    ai_response = self._chat_with_gpt(text, sender)
+                    if ai_response:
+                        reply_target = sender if is_private else target
+                        self._send_response(server, reply_target, ai_response)
+            except Exception as e:
+                self.logger.warning(f"AI chat processing error: {e}")
+
+            # Process leet winners summary lines (ensimmäinen/viimeinen/multileet)
+            try:
+                self._process_leet_winner_summary(text)
+            except Exception as e:
+                self.logger.warning(f"Error processing leet winners summary: {e}")
+
             # Fetch and display page titles for URLs posted in channels (non-commands)
             if (
                 sender.lower() != self.bot_name.lower()
@@ -1289,6 +1315,47 @@ class BotManager:
         except Exception as e:
             self.logger.error(f"Error searching YouTube: {e}")
             return f"Error searching YouTube: {str(e)}"
+
+    def _process_leet_winner_summary(self, text: str):
+        """Parser for leet winners summary lines.
+
+        Updates leet_winners.json counts for categories:
+        - "ensimmäinen" (first)
+        - "viimeinen" (last)
+        - "multileet" (closest to 13:37)
+
+        This keeps !leetwinners in sync with external announcer messages.
+        """
+        import re
+
+        # Regex pattern for detection
+        pattern = r"Ensimmäinen leettaaja oli (\S+) .*?, viimeinen oli (\S+) .*?Lähimpänä multileettiä oli (\S+)"
+        match = re.search(pattern, text)
+        if not match:
+            return
+
+        first, last, multileet = match.groups()
+
+        # Load current winners
+        winners = self._load_leet_winners()
+
+        # Helper to bump count in winners dict
+        def bump(name: str, category: str):
+            if not name:
+                return
+            if name in winners:
+                winners[name][category] = winners[name].get(category, 0) + 1
+            else:
+                winners[name] = {category: 1}
+
+        bump(first, "ensimmäinen")
+        bump(last, "viimeinen")
+        bump(multileet, "multileet")
+
+        self._save_leet_winners(winners)
+        self.logger.info(
+            f"Updated leet winners (first={first}, last={last}, multileet={multileet})"
+        )
 
     def _handle_ipfs_command(self, command_text, irc_client=None, target=None):
         """Handle IPFS commands."""
