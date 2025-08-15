@@ -276,19 +276,8 @@ class GPTService:
             )
 
             # Extract response text (SDK >= 1.40 provides .output_text)
-            gpt_response = None
-            try:
-                gpt_response = (response.output_text or "").strip()
-            except Exception:
-                # Fallback parsing for older variants
-                try:
-                    # response.output[0].content[0].text
-                    outputs = getattr(response, "output", None) or []
-                    if outputs and getattr(outputs[0], "content", None):
-                        first_content = outputs[0].content[0]
-                        gpt_response = getattr(first_content, "text", "").strip()
-                except Exception:
-                    gpt_response = ""
+            # For openai>=1.0 (like 1.99.9)
+            gpt_response = (getattr(response, "output_text", "") or "").strip()
 
             if not gpt_response:
                 gpt_response = "Sorry, I'm having trouble connecting to the AI service."
