@@ -272,7 +272,6 @@ class GPTService:
             response = self.client.responses.create(
                 model=self.model,
                 input=transcript,
-                temperature=0.6,
                 max_output_tokens=200,
             )
 
