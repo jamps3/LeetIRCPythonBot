@@ -74,8 +74,11 @@ class GPTService:
         self.history_file = history_file
         self.history_limit = history_limit
 
-        # Initialize OpenAI client
+        # Initialize OpenAI client (OpenAI SDK >= 1.x)
         self.client = openai.OpenAI(api_key=api_key)
+
+        # Model selection (Responses API models like gpt-5, gpt-5-mini, etc.)
+        self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 
         # Default conversation history with system prompt
         self.default_history = [
@@ -211,6 +214,38 @@ class GPTService:
 
         return corrected_response
 
+    def _build_transcript_input(self, latest_user: Dict[str, str]) -> str:
+        """Build a plain-text transcript for the Responses API from history + latest user message."""
+        # Start with system prompt if present
+        parts: List[str] = []
+        for msg in self.conversation_history:
+            role = msg.get("role")
+            content = msg.get("content", "")
+            if role == "system":
+                parts.append(f"System: {content}")
+        # Include a subset of recent turns to stay within prompt limits
+        # Keep last ~15 messages after the system message
+        recent = [
+            m
+            for m in self.conversation_history
+            if m.get("role") in ("user", "assistant")
+        ][-15:]
+        for msg in recent:
+            role = msg.get("role")
+            content = msg.get("content", "")
+            if role == "user":
+                parts.append(f"User: {content}")
+            elif role == "assistant":
+                parts.append(f"Assistant: {content}")
+        # Append the latest user input
+        if latest_user:
+            parts.append(f"User: {latest_user.get('content', '')}")
+        # Instruction to keep answers short for IRC
+        parts.append(
+            "Assistant: (Keep answers concise for IRC. Use multiple short lines when appropriate.)"
+        )
+        return "\n".join(parts)
+
     def chat(self, message: str, sender: str = "user") -> str:
         """
         Send a message to GPT and get a response.
@@ -230,18 +265,34 @@ class GPTService:
             }
             self.conversation_history.append(user_message)
 
-            # Make API call to OpenAI
-            response = self.client.chat.completions.create(
-                model="gpt-5-mini",  # Available: gpt-5, gpt-5-mini, gpt-5-nano, gpt-4o, gpt-4.1-mini etc.
-                messages=self.conversation_history,
-                max_tokens=100,  # Keep responses concise for IRC
-                temperature=0.6,  # Adjust for creativity
-                presence_penalty=0.4,  # Encourage new topics
-                frequency_penalty=0.3,  # Reduce repetition
+            # Build a responses API input transcript from history
+            transcript = self._build_transcript_input(user_message)
+
+            # Make API call via Responses API (models like gpt-5-mini)
+            response = self.client.responses.create(
+                model=self.model,
+                input=transcript,
+                temperature=0.6,
+                max_output_tokens=200,
             )
 
-            # Extract response
-            gpt_response = response.choices[0].message.content.strip()
+            # Extract response text (SDK >= 1.40 provides .output_text)
+            gpt_response = None
+            try:
+                gpt_response = (response.output_text or "").strip()
+            except Exception:
+                # Fallback parsing for older variants
+                try:
+                    # response.output[0].content[0].text
+                    outputs = getattr(response, "output", None) or []
+                    if outputs and getattr(outputs[0], "content", None):
+                        first_content = outputs[0].content[0]
+                        gpt_response = getattr(first_content, "text", "").strip()
+                except Exception:
+                    gpt_response = ""
+
+            if not gpt_response:
+                gpt_response = "Sorry, I'm having trouble connecting to the AI service."
 
             # Apply date correction to fix outdated dates
             corrected_response = self._correct_outdated_dates(gpt_response)
@@ -258,15 +309,21 @@ class GPTService:
         except Exception as e:
             # Handle OpenAI exceptions if the module is available
             if OPENAI_AVAILABLE:
-                import openai as openai_module
+                try:
+                    import openai as openai_module
 
-                if isinstance(e, openai_module.RateLimitError):
-                    return "Sorry, I'm currently rate limited. Please try again later."
-                elif isinstance(e, openai_module.AuthenticationError):
-                    return "Authentication error with AI service."
-                elif isinstance(e, openai_module.APIError):
-                    print(f"OpenAI API error: {e}")
-                    return "Sorry, I'm having trouble connecting to the AI service."
+                    if isinstance(e, openai_module.RateLimitError):
+                        return (
+                            "Sorry, I'm currently rate limited. Please try again later."
+                        )
+                    elif isinstance(e, openai_module.AuthenticationError):
+                        return "Authentication error with AI service."
+                    elif isinstance(e, openai_module.APIError):
+                        print(f"OpenAI API error: {e}")
+                        return "Sorry, I'm having trouble connecting to the AI service."
+                except Exception:
+                    # Fall through to generic error
+                    pass
 
             print(f"Unexpected error in GPT chat: {e}")
             return "Sorry, something went wrong with my AI processing."
