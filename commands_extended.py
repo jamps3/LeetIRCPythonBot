@@ -161,36 +161,34 @@ def command_leaderboard(context, args):
 
 
 @command(
-    name="drinkstats",
+    name="kraks",
     command_type=CommandType.PUBLIC,
-    description="Show drink stats",
-    usage="!drinkstats <nick|server|global>",
+    description="Näytä krakit (juomasanat) ja niiden jakauma",
+    usage="!kraks",
     admin_only=False,
 )
-def command_drinkstats(context, args):
-    console_server = "console"
-    if args:
-        arg = " ".join(context.args).strip().lower()
-        if arg == "server":
-            stats = drink_tracker.get_server_stats(console_server)
-            response = f"Server {stats['server']}: {stats['total_users']} users, {stats['total_drink_words']} drink words"
-        elif arg == "global":
-            stats = drink_tracker.get_global_stats()
-            response = f"Global: {stats['total_users']} users, {stats['total_drink_words']} drink words"
-        else:
-            nick = " ".join(context.args).strip()
-            top_drinks = drink_tracker.get_user_top_drinks(console_server, nick, 5)
-            if top_drinks:
-                drinks_text = ", ".join(
-                    [f"{d['drink_word']}:{d['total']}" for d in top_drinks]
-                )
-                response = f"{nick}: {drinks_text}"
-            else:
-                response = f"Ei juomatilastoja käyttäjälle {nick}"
+def command_kraks(context, bot_functions):
+    # Use injected drink tracker to ensure shared persistence
+    drink = bot_functions.get("drink_tracker")
+    if not drink:
+        return "Drink tracker ei ole käytettävissä."
+
+    # Derive server name (works for both IRC and console)
+    server_name = bot_functions.get("server_name") or getattr(context, "server_name", "console") or "console"
+
+    stats = drink.get_server_stats(server_name)
+    if stats.get("total_drink_words", 0) <= 0:
+        return "Ei vielä krakkauksia tallennettuna."
+
+    breakdown = drink.get_drink_word_breakdown(server_name)
+    if breakdown:
+        details = ", ".join(
+            f"{word}: {count} [{top_user}]" for word, count, top_user in breakdown[:10]
+        )
+        return f"Krakit yhteensä: {stats['total_drink_words']}, {details}"
     else:
-        stats = drink_tracker.get_server_stats(console_server)
-        response = f"Top 5: {', '.join([f'{nick}:{count}' for nick, count in stats['top_users'][:5]])}"
-    return response
+        top5 = ", ".join([f"{nick}:{count}" for nick, count in stats.get("top_users", [])[:5]])
+        return f"Krakit yhteensä: {stats['total_drink_words']}. Top 5: {top5}"
 
 
 @command(
