@@ -91,6 +91,6 @@
 
 1. Verify all eurojackpot commands work correctly
 2. Test word tracking commands (`!sana`, `!topwords`, `!leaderboard`)  
-3. Test drink tracking commands (`!drinkstats`, `!drinkword`, `!drink`)
+3. Test drink tracking commands (`!kraks`, `!drinkword`, `!drink`)
 4. Verify tamagotchi commands work properly
 5. Test console vs IRC command parity
