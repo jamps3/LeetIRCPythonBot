@@ -161,6 +161,73 @@ def command_leaderboard(context, args):
 
 
 @command(
+    name="drinkword",
+    command_type=CommandType.PUBLIC,
+    description="Näytä tilastot tietylle juomasanalle (esim. krak)",
+    usage="!drinkword <juomasana>",
+    admin_only=False,
+)
+def command_drinkword(context, bot_functions):
+    drink = bot_functions.get("drink_tracker")
+    if not drink:
+        return "Drink tracker ei ole käytettävissä."
+
+    if not context.args:
+        return "Käyttö: !drinkword <juomasana>"
+
+    server_name = bot_functions.get("server_name") or getattr(context, "server_name", "console") or "console"
+    drink_word = context.args[0].strip().lower()
+
+    results = drink.search_drink_word(drink_word, server_filter=server_name)
+    total = results.get("total_occurrences", 0)
+    if total <= 0:
+        return f"Ei osumia sanalle '{drink_word}'."
+
+    users = results.get("users", [])
+    top = ", ".join([f"{u['nick']}:{u['total']}" for u in users[:10]]) if users else ""
+    return f"{drink_word}: {total} (top: {top})" if top else f"{drink_word}: {total}"
+
+
+@command(
+    name="drink",
+    command_type=CommandType.PUBLIC,
+    description="Hae juomia nimen perusteella (tukee *-jokeria)",
+    usage="!drink <juoman nimi>",
+    admin_only=False,
+)
+def command_drink(context, bot_functions):
+    drink = bot_functions.get("drink_tracker")
+    if not drink:
+        return "Drink tracker ei ole käytettävissä."
+
+    if not context.args_text:
+        return "Käyttö: !drink <juoman nimi>"
+
+    server_name = bot_functions.get("server_name") or getattr(context, "server_name", "console") or "console"
+    query = context.args_text.strip()
+
+    results = drink.search_specific_drink(query, server_filter=server_name)
+    total = results.get("total_occurrences", 0)
+    if total <= 0:
+        return f"Ei osumia juomalle '{query}'."
+
+    # Summarize by drink word and top users
+    drink_words = results.get("drink_words", {})
+    words_part = ", ".join([f"{w}:{c}" for w, c in sorted(drink_words.items(), key=lambda x: x[1], reverse=True)[:5]])
+    users = results.get("users", [])
+    top_users = ", ".join([f"{u['nick']}:{u['total']}" for u in users[:5]])
+
+    details = []
+    if words_part:
+        details.append(words_part)
+    if top_users:
+        details.append(f"top: {top_users}")
+
+    details_text = ", ".join(details)
+    return f"{query}: {total}{(', ' + details_text) if details_text else ''}"
+
+
+@command(
     name="kraks",
     command_type=CommandType.PUBLIC,
     description="Näytä krakit (juomasanat) ja niiden jakauma",
