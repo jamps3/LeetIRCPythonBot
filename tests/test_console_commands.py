@@ -299,8 +299,6 @@ def test_compatibility_console_commands():
 
 def test_console_tilaa_command():
     """Test that !tilaa command works in console."""
-    import tempfile
-
     import subscriptions
 
     # Create temporary file for subscriptions

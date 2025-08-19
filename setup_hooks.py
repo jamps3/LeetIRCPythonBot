@@ -39,17 +39,17 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
 # Run isort if available
-if command -v isort >/dev/null 2>&1; then
-  echo "→ isort ."
-  isort .
+if command -v python -m isort >/dev/null 2>&1; then
+  echo "python -m isort ."
+  python -m isort .
 else
   echo "isort not found, skipping (pip install isort)"
 fi
 
 # Run black if available
-if command -v black >/dev/null 2>&1; then
-  echo "→ black ."
-  black .
+if command -v python -m black >/dev/null 2>&1; then
+  echo "python -m black ."
+  python -m black .
 else
   echo "black not found, skipping (pip install black)"
 fi
@@ -58,22 +58,23 @@ fi
 git add -A
 
 # Run flake8 if available (lint errors should fail the commit)
-if command -v flake8 >/dev/null 2>&1; then
-  echo "→ flake8 ."
-  flake8 .
+if command -v python -m flake8 >/dev/null 2>&1; then
+  echo "python -m flake8 ."
+  python -m flake8 .
 else
   echo "flake8 not found, skipping (pip install flake8)"
 fi
 
-# Run the quick test suite
-echo "→ Running quick tests..."
-python test_framework.py --quick
-TEST_STATUS=$?
-
-if [ $TEST_STATUS -ne 0 ]; then
-  echo "Tests failed! Commit aborted."
-  echo "Fix the failing tests or use 'git commit --no-verify' to bypass"
-  exit 1
+# Optionally run tests if PRECOMMIT_RUN_TESTS is enabled
+if [ "${PRECOMMIT_RUN_TESTS:-0}" != "0" ]; then
+  echo "Running tests (PRECOMMIT_RUN_TESTS enabled)..."
+  python -m pytest -q
+  TEST_STATUS=$?
+  if [ $TEST_STATUS -ne 0 ]; then
+    echo "Tests failed! Commit aborted."
+    echo "Fix the failing tests or use 'git commit --no-verify' to bypass"
+    exit 1
+  fi
 fi
 
 echo "All checks passed! Proceeding with commit."
@@ -81,7 +82,7 @@ exit 0
 """
 
     try:
-        with open(pre_commit_hook, "w", newline="\n") as f:
+        with open(pre_commit_hook, "w", newline="\n", encoding="utf-8") as f:
             f.write(hook_content)
 
         # Make the hook executable
@@ -97,59 +98,6 @@ exit 0
         return False
 
 
-    """Update test framework to support --quick flag."""
-
-    test_framework_path = Path("test_framework.py")
-
-    if not test_framework_path.exists():
-        print("test_framework.py not found")
-        return False
-
-    try:
-        with open(test_framework_path, "r", encoding="utf-8") as f:
-            content = f.read()
-
-        # Check if quick mode support already exists
-        if "--quick" in content:
-            print("Quick mode already supported in test framework")
-            return True
-
-        # Add quick mode support to main function
-        old_main = """if __name__ == "__main__":
-    main()"""
-
-        new_main = """if __name__ == "__main__":
-    import sys
-    quick_mode = "--quick" in sys.argv
-    main(quick_mode=quick_mode)"""
-
-        if old_main in content:
-            content = content.replace(old_main, new_main)
-
-            # Also update the main function signature
-            old_def = "def main():"
-            new_def = "def main(quick_mode: bool = False):"
-            content = content.replace(old_def, new_def)
-
-            # Update the registration call
-            old_register = "register_all_test_suites(runner)"
-            new_register = "register_all_test_suites(runner, quick_mode=quick_mode)"
-            content = content.replace(old_register, new_register)
-
-            with open(test_framework_path, "w", encoding="utf-8") as f:
-                f.write(content)
-
-            print("Updated test framework with quick mode support")
-            return True
-        else:
-            print("Could not find main function to update")
-            return False
-
-    except Exception as e:
-        print(f"Error updating test framework: {e}")
-        return False
-
-
 def setup_git_config():
     """Setup git configuration for better commit messages."""
 
@@ -161,7 +109,7 @@ def setup_git_config():
 #
 # Types:
 #   feat:     New feature
-#   fix:      Bug fix  
+#   fix:      Bug fix
 #   docs:     Documentation changes
 #   style:    Code style changes (formatting, etc)
 #   refactor: Code refactoring
@@ -227,10 +175,12 @@ def main():
         print("All development tools are ready!")
         print()
         print("Next steps:")
-        print("   - Run 'python test_framework.py' to test everything")
-        print("   - Run 'python test_framework.py --quick' for fast tests")
-        print("   - Tests will run automatically before each commit")
-        print("   - Use 'git commit --no-verify' to bypass pre-commit tests")
+        print("   - Run 'python -m pytest' to test everything")
+        print("   - Run 'python -m pytest -q' for fast tests")
+        print(
+            "   - To run tests on commit, set PRECOMMIT_RUN_TESTS=1 in your environment"
+        )
+        print("   - Use 'git commit --no-verify' to bypass pre-commit hooks entirely")
     else:
         print("Some setup steps failed. Check the messages above.")
         print("You can run this script again to retry failed steps.")

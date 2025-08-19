@@ -178,8 +178,6 @@ def test_crypto_api_error():
 def test_crypto_timeout_handling():
     """Test cryptocurrency API timeout handling."""
     try:
-        import requests
-
         from services.crypto_service import CryptoService
 
         service = CryptoService()

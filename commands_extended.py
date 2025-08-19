@@ -175,7 +175,11 @@ def command_drinkword(context, bot_functions):
     if not context.args:
         return "Käyttö: !drinkword <juomasana>"
 
-    server_name = bot_functions.get("server_name") or getattr(context, "server_name", "console") or "console"
+    server_name = (
+        bot_functions.get("server_name")
+        or getattr(context, "server_name", "console")
+        or "console"
+    )
     drink_word = context.args[0].strip().lower()
 
     results = drink.search_drink_word(drink_word, server_filter=server_name)
@@ -203,7 +207,11 @@ def command_drink(context, bot_functions):
     if not context.args_text:
         return "Käyttö: !drink <juoman nimi>"
 
-    server_name = bot_functions.get("server_name") or getattr(context, "server_name", "console") or "console"
+    server_name = (
+        bot_functions.get("server_name")
+        or getattr(context, "server_name", "console")
+        or "console"
+    )
     query = context.args_text.strip()
 
     results = drink.search_specific_drink(query, server_filter=server_name)
@@ -213,7 +221,14 @@ def command_drink(context, bot_functions):
 
     # Summarize by drink word and top users
     drink_words = results.get("drink_words", {})
-    words_part = ", ".join([f"{w}:{c}" for w, c in sorted(drink_words.items(), key=lambda x: x[1], reverse=True)[:5]])
+    words_part = ", ".join(
+        [
+            f"{w}:{c}"
+            for w, c in sorted(drink_words.items(), key=lambda x: x[1], reverse=True)[
+                :5
+            ]
+        ]
+    )
     users = results.get("users", [])
     top_users = ", ".join([f"{u['nick']}:{u['total']}" for u in users[:5]])
 
@@ -241,7 +256,11 @@ def command_kraks(context, bot_functions):
         return "Drink tracker ei ole käytettävissä."
 
     # Derive server name (works for both IRC and console)
-    server_name = bot_functions.get("server_name") or getattr(context, "server_name", "console") or "console"
+    server_name = (
+        bot_functions.get("server_name")
+        or getattr(context, "server_name", "console")
+        or "console"
+    )
 
     stats = drink.get_server_stats(server_name)
     if stats.get("total_drink_words", 0) <= 0:
@@ -254,7 +273,9 @@ def command_kraks(context, bot_functions):
         )
         return f"Krakit yhteensä: {stats['total_drink_words']}, {details}"
     else:
-        top5 = ", ".join([f"{nick}:{count}" for nick, count in stats.get("top_users", [])[:5]])
+        top5 = ", ".join(
+            [f"{nick}:{count}" for nick, count in stats.get("top_users", [])[:5]]
+        )
         return f"Krakit yhteensä: {stats['total_drink_words']}. Top 5: {top5}"
 
 

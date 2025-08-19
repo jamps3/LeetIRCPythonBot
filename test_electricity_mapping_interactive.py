@@ -128,8 +128,6 @@ def test_electricity_mapping():
 
     # Test raw daily prices to understand the data structure
     try:
-        from datetime import timedelta
-
         # Get yesterday's data
         yesterday = current_date - timedelta(days=1)
         yesterday_data = service.get_daily_prices(yesterday)
@@ -141,7 +139,7 @@ def test_electricity_mapping():
         tomorrow = current_date + timedelta(days=1)
         tomorrow_data = service.get_daily_prices(tomorrow)
 
-        print(f"\n📊 Raw data analysis:")
+        print("\n📊 Raw data analysis:")
         print(f"Yesterday ({yesterday.strftime('%Y-%m-%d')}):")
         if not yesterday_data.get("error"):
             positions = sorted(yesterday_data["prices"].keys())

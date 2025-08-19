@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from dotenv import load_dotenv
-from openai import OpenAI, APIError, AuthenticationError, RateLimitError
+from openai import APIError, AuthenticationError, OpenAI, RateLimitError
 
 # Load .env if available
 load_dotenv(override=True)
@@ -49,9 +49,8 @@ class GPTService:
             try:
                 with open(self.history_file, "r", encoding="utf-8") as f:
                     history = json.load(f)
-                if (
-                    isinstance(history, list)
-                    and all("role" in m and "content" in m for m in history)
+                if isinstance(history, list) and all(
+                    "role" in m and "content" in m for m in history
                 ):
                     return history
             except Exception as e:
@@ -61,10 +60,9 @@ class GPTService:
     def _save_conversation_history(self):
         max_total = self.history_limit + 1  # include system prompt
         if len(self.conversation_history) > max_total:
-            self.conversation_history = (
-                [self.conversation_history[0]]
-                + self.conversation_history[-self.history_limit :]
-            )
+            self.conversation_history = [
+                self.conversation_history[0]
+            ] + self.conversation_history[-self.history_limit :]
         try:
             with open(self.history_file, "w", encoding="utf-8") as f:
                 json.dump(self.conversation_history, f, indent=2, ensure_ascii=False)
@@ -87,7 +85,9 @@ class GPTService:
             "marraskuuta",
             "joulukuuta",
         ]
-        today_fi = f"{current_date.day}. {months[current_date.month - 1]} {current_date.year}"
+        today_fi = (
+            f"{current_date.day}. {months[current_date.month - 1]} {current_date.year}"
+        )
 
         patterns = [
             r"Tänään on \d{1,2}\. \w+ \d{4}",
@@ -107,15 +107,16 @@ class GPTService:
             if msg["role"] == "system":
                 parts.append(f"System: {msg['content']}")
         for msg in [
-            m
-            for m in self.conversation_history
-            if m["role"] in ("user", "assistant")
+            m for m in self.conversation_history if m["role"] in ("user", "assistant")
         ][-15:]:
             prefix = "User" if msg["role"] == "user" else "Assistant"
             parts.append(f"{prefix}: {msg['content']}")
         if latest_user:
             parts.append(f"User: {latest_user['content']}")
-        parts.append("Assistant: (Keep answers concise for IRC.)")
+        # Encourage multiline IRC-friendly output; bot_manager will wrap to ~450 bytes per line
+        parts.append(
+            "Assistant: (Keep answers concise for IRC. Use multiple short lines separated by newlines. Aim for each line to be under ~450 characters. Avoid markdown.)"
+        )
         return "\n".join(parts)
 
     def chat(self, message: str, sender: str = "user") -> str:
@@ -127,16 +128,13 @@ class GPTService:
 
         try:
             transcript = self._build_transcript(user_message)
-            response = self.client.responses.create(
-                model=self.model,
-                input=transcript
-            )
+            response = self.client.responses.create(model=self.model, input=transcript)
             reply = (response.output_text or "").strip()
             if not reply:
                 reply = "Sorry, I'm having trouble connecting to the AI service."
-            
+
             # Uncomment if you want to correct dates in the reply, gpt-5-mini handles dates well
-            #reply = self._correct_outdated_dates(reply)
+            # reply = self._correct_outdated_dates(reply)
 
             self.conversation_history.append({"role": "assistant", "content": reply})
             self._save_conversation_history()
@@ -170,7 +168,10 @@ class GPTService:
         }
 
     def set_system_prompt(self, prompt: str) -> str:
-        if self.conversation_history and self.conversation_history[0]["role"] == "system":
+        if (
+            self.conversation_history
+            and self.conversation_history[0]["role"] == "system"
+        ):
             self.conversation_history[0]["content"] = prompt
         else:
             self.conversation_history.insert(0, {"role": "system", "content": prompt})
@@ -178,5 +179,7 @@ class GPTService:
         return f"System prompt updated: {prompt[:50]}..."
 
 
-def create_gpt_service(api_key: str, history_file="conversation_history.json", history_limit=100) -> GPTService:
+def create_gpt_service(
+    api_key: str, history_file="conversation_history.json", history_limit=100
+) -> GPTService:
     return GPTService(api_key, history_file, history_limit)
