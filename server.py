@@ -6,6 +6,7 @@ related to a single IRC server connection, including connection management,
 reconnection logic, message handling, and maintaining the connection lifecycle.
 """
 
+import os
 import re
 import socket  # For TLS support
 import ssl  # For TLS support
@@ -58,6 +59,8 @@ class Server:
         self.last_ping = time.time()
         self.threads = []
         self.quit_message = "Disconnecting"  # Default quit message
+        # Text encoding for IRC I/O (default UTF-8). Override with IRC_ENCODING=latin-1 if your network/client expects ISO-8859-1.
+        self.encoding = os.getenv("IRC_ENCODING", "utf-8")
         self.callbacks = {
             "message": [],  # Callbacks for PRIVMSG
             "join": [],  # Callbacks for user join events
@@ -257,7 +260,9 @@ class Server:
 
             while not self.stop_event.is_set():
                 try:
-                    response = self.socket.recv(2048).decode("utf-8", errors="ignore")
+                    response = self.socket.recv(2048).decode(
+                        self.encoding, errors="ignore"
+                    )
                     if response:
                         last_response_time = time.time()
 
@@ -343,7 +348,9 @@ class Server:
                     return
 
         try:
-            self.socket.sendall(f"{message}\r\n".encode("utf-8"))
+            self.socket.sendall(
+                f"{message}\r\n".encode(self.encoding, errors="replace")
+            )
             # self.logger.debug(f"SENT: {message}")
         except (socket.error, BrokenPipeError) as e:
             self.logger.error(f"Error sending message: {e}")
@@ -395,7 +402,7 @@ class Server:
 
         while not self.stop_event.is_set() and self.connected:
             try:
-                response = self.socket.recv(4096).decode("utf-8", errors="ignore")
+                response = self.socket.recv(4096).decode(self.encoding, errors="ignore")
                 if not response:
                     if not self.stop_event.is_set():
                         self.logger.warning("Connection closed by server")

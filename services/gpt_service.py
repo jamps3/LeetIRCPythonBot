@@ -138,6 +138,8 @@ class GPTService:
 
             self.conversation_history.append({"role": "assistant", "content": reply})
             self._save_conversation_history()
+            # Format the reply for IRC
+            reply = reply.replace("\n", " ").strip()
             return reply
 
         except RateLimitError:

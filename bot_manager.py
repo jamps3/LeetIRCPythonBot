@@ -1419,14 +1419,110 @@ class BotManager:
             return "Sorry, I had trouble processing your message."
 
     def _wrap_irc_message_utf8_bytes(
-        self, message, reply_target=None, max_lines=5, placeholder="..."
+        self, message, reply_target=None, max_lines=10, placeholder="..."
     ):
-        """Wrap IRC message for UTF-8 byte limits."""
-        # Simple implementation - split by lines
-        lines = message.split("\n")[:max_lines]
-        if len(message.split("\n")) > max_lines:
-            lines[-1] = lines[-1][:400] + placeholder
-        return lines
+        """Wrap a message into IRC-safe UTF-8 lines by byte length.
+
+        - IRC protocol limits a message line to 512 bytes total, including prefix.
+          We keep content around ~450 bytes to be safe across networks.
+        - Preserves existing newlines by wrapping each paragraph separately.
+        - Tries to break on spaces; falls back to hard byte-split if needed.
+        - Caps the number of output lines to max_lines and appends a placeholder to the last line if truncated.
+        """
+        if message is None:
+            return []
+
+        safe_byte_limit = 425  # conservative payload limit per line
+        paragraphs = str(message).split("\n")
+        out_lines: list[str] = []
+
+        def flush_chunk(chunk_words: list[str]):
+            if not chunk_words:
+                return
+            out_lines.append(" ".join(chunk_words))
+
+        for para in paragraphs:
+            # If paragraph already short, keep it
+            if not para:
+                out_lines.append("")
+                continue
+
+            words = para.split(" ")
+            current_words: list[str] = []
+            current_bytes = 0
+
+            for w in words:
+                # Compute tentative length with a space if needed
+                sep = 1 if current_words else 0
+                tentative = (len(w.encode("utf-8"))) + sep
+                if current_bytes + tentative <= safe_byte_limit:
+                    current_words.append(w)
+                    current_bytes += tentative
+                else:
+                    # Flush current as a line
+                    flush_chunk(current_words)
+                    if len(out_lines) >= max_lines:
+                        break
+                    # If single word longer than limit, hard split by bytes
+                    if len(w.encode("utf-8")) > safe_byte_limit:
+                        b = w.encode("utf-8")
+                        start = 0
+                        while start < len(b):
+                            remaining_lines = max_lines - len(out_lines)
+                            if remaining_lines <= 0:
+                                break
+                            take = min(safe_byte_limit, len(b) - start)
+                            # Ensure we don't cut a multibyte char: backtrack within current chunk until valid utf-8
+                            while take > 0:
+                                try:
+                                    chunk = b[start : start + take].decode("utf-8")
+                                    break
+                                except UnicodeDecodeError:
+                                    take -= 1
+                            if take <= 0:
+                                # Fallback: skip problematic byte (shouldn't happen often)
+                                start += 1
+                                continue
+                            out_lines.append(chunk)
+                            start += take
+                            if len(out_lines) >= max_lines:
+                                break
+                        current_words = []
+                        current_bytes = 0
+                    else:
+                        # Start new line with this word
+                        current_words = [w]
+                        current_bytes = len(w.encode("utf-8"))
+            # Flush any remaining words for this paragraph
+            if len(out_lines) < max_lines and current_words:
+                flush_chunk(current_words)
+
+            if len(out_lines) >= max_lines:
+                break
+
+        # If we exceeded line cap, trim and append placeholder
+        if len(out_lines) > max_lines:
+            out_lines = out_lines[:max_lines]
+        if len(out_lines) == max_lines:
+            # Append placeholder to last line conservatively by bytes
+            last = out_lines[-1]
+            last_bytes = last.encode("utf-8")
+            ph_bytes = placeholder.encode("utf-8")
+            if len(last_bytes) + len(ph_bytes) > safe_byte_limit:
+                # Trim to fit placeholder
+                trim_to = safe_byte_limit - len(ph_bytes)
+                # Backtrack to valid utf-8 boundary
+                while trim_to > 0:
+                    try:
+                        last = last_bytes[:trim_to].decode("utf-8")
+                        break
+                    except UnicodeDecodeError:
+                        trim_to -= 1
+                out_lines[-1] = last + placeholder
+            else:
+                out_lines[-1] = last + placeholder
+
+        return out_lines
 
     def _load_legacy_data(self):
         """Load legacy pickle data."""
