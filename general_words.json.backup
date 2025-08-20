@@ -1,0 +1,43 @@
+{
+  "servers": {
+    "ssl.irc.atw-inter.net": {
+      "nicks": {
+        "jamps": {
+          "general_words": {
+            "jl3b2": 12,
+            "moi": 12,
+            "mikä": 2,
+            "päivä": 2,
+            "tänään": 2,
+            "jl3b": 6,
+            "onko": 1,
+            "gpt": 1,
+            "5": 1,
+            "mini": 1,
+            "käytössä": 1,
+            "kerro": 2,
+            "fiktiosta": 1,
+            "joensuussa": 1,
+            "tarkoitan": 1,
+            "konemusiikkiyhdistystä": 1,
+            "fiktio": 1,
+            "ry": 1,
+            "sadan": 1,
+            "sanan": 1,
+            "tarina": 1
+          },
+          "first_seen": "2025-08-19T15:31:16.531269",
+          "last_activity": "2025-08-19T17:40:17.913626",
+          "total_words": 52,
+          "channels": {
+            "#joensuutest": {
+              "word_count": 52
+            }
+          }
+        }
+      }
+    }
+  },
+  "last_updated": "2025-08-19T17:40:17.922625",
+  "version": "1.0.0"
+}

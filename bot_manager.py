@@ -219,6 +219,8 @@ class BotManager:
                 self.logger.info(
                     f"🤖 GPT chat service initialized (history limit: {history_limit} messages)"
                 )
+                # Log the OpenAI model in use at startup
+                self.logger.info(f"🧠 OpenAI model: {self.gpt_service.model}")
             else:
                 self.logger.warning(
                     "⚠️  No OpenAI API key found. AI chat will not work."
