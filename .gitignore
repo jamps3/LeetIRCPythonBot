@@ -186,3 +186,7 @@ drink_tracking.json
 privacy_settings.json
 leet_detections.json
 latest_otiedote.txt
+
+# Ignore backup files
+*backup
+*.backup
