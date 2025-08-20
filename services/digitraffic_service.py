@@ -261,7 +261,7 @@ def _format_train_row(
         to_track = _get_track_for(to_code, "ARRIVAL")
 
         def _maybe_track(s: Optional[str]) -> str:
-            return f" (laituri {s})" if s else ""
+            return f" (raide {s})" if s else ""
 
         # Format the final output string with track shown for both ends
         if kind == "DEPARTURE":
@@ -269,7 +269,7 @@ def _format_train_row(
         else:
             route_part = f"{from_name}{_maybe_track(from_track)} → {to_name}{_maybe_track(to_track)}"
         return (
-            f"{status} {time_str} {route_part} {delay_str} [{train_type}{train_number}]"
+            f"{status} {time_str} {route_part}{delay_str} [{train_type}{train_number}]"
         )
     except Exception:
         return None
