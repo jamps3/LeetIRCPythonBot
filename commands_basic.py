@@ -324,6 +324,44 @@ def euribor_command(context: CommandContext, bot_functions):
 
 
 @command(
+    "junat",
+    description="Näytä seuraavat junat asemalta (Digitraffic)",
+    usage="!junat [asema] | !junat saapuvat [asema]",
+    examples=[
+        "!junat",
+        "!junat Joensuu",
+        "!junat JNS",
+        "!junat saapuvat",
+        "!junat saapuvat HKI",
+    ],
+)
+def trains_command(context: CommandContext, bot_functions):
+    """Show upcoming trains for a station using Digitraffic API.
+
+    Defaults to Joensuu (JNS) when no station is given.
+    """
+    try:
+        from services.digitraffic_service import (
+            get_arrivals_for_station,
+            get_trains_for_station,
+        )
+
+        # Parse subcommand 'saapuvat'
+        if context.args and context.args[0].lower() == "saapuvat":
+            station = (
+                " ".join(context.args[1:]).strip() if len(context.args) > 1 else None
+            )
+            result = get_arrivals_for_station(station)
+        else:
+            station = context.args_text.strip() if context.args_text else None
+            result = get_trains_for_station(station)
+        # Let the command framework split by newlines for IRC notices
+        return CommandResponse.success_msg(result)
+    except Exception as e:
+        return f"❌ Digitraffic virhe: {str(e)}"
+
+
+@command(
     "crypto",
     description="Get cryptocurrency prices",
     usage="!crypto [coin] [currency]",
