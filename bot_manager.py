@@ -731,6 +731,7 @@ class BotManager:
             ),
             "stop_event": self.stop_event,  # Allow IRC commands to trigger shutdown
             "set_quit_message": self.set_quit_message,  # Allow setting custom quit message
+            "set_openai_model": self.set_openai_model,  # Allow changing OpenAI model at runtime
         }
 
         # Create a mock IRC message format for commands.py compatibility
@@ -1065,6 +1066,7 @@ class BotManager:
             "server_name": "console",
             "stop_event": self.stop_event,  # Allow console commands to trigger shutdown
             "set_quit_message": self.set_quit_message,  # Allow setting custom quit message
+            "set_openai_model": self.set_openai_model,  # Allow changing OpenAI model at runtime
         }
 
     def set_quit_message(self, message: str):
@@ -1082,6 +1084,39 @@ class BotManager:
             self.logger.debug(
                 f"Updated quit message for server {server_name}: {message}"
             )
+
+    def set_openai_model(self, model: str) -> str:
+        """Set the OpenAI model used by the GPT service and persist to .env.
+
+        Returns a user-friendly status string.
+        """
+        try:
+            if not hasattr(self, "gpt_service") or not self.gpt_service:
+                self.logger.warning(
+                    "Attempted to set OpenAI model but GPT service is not initialized"
+                )
+                return "❌ AI chat is not available (no OpenAI API key configured)"
+
+            old = getattr(self.gpt_service, "model", None)
+            self.gpt_service.model = model
+            # Persist to environment and .env file
+            os.environ["OPENAI_MODEL"] = model
+            persisted = self._update_env_file("OPENAI_MODEL", model)
+
+            self.logger.info(f"🧠 OpenAI model changed from {old} to {model}")
+            # Inform on console too for visibility
+            try:
+                print(f"🧠 OpenAI model set to: {model}")
+            except Exception:
+                pass
+
+            if persisted:
+                return f"✅ OpenAI model set to '{model}' (persisted)"
+            else:
+                return f"✅ OpenAI model set to '{model}' (session only)"
+        except Exception as e:
+            self.logger.error(f"Error setting OpenAI model: {e}")
+            return f"❌ Failed to set OpenAI model: {e}"
 
     def _console_weather(self, irc, channel, location):
         """Console weather command."""

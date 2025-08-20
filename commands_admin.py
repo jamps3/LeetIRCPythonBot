@@ -228,6 +228,48 @@ def raw_command(context: CommandContext, bot_functions):
         return "❌ IRC connection not available"
 
 
+@command(
+    "openai",
+    description="Set the OpenAI model (admin only)",
+    usage="!openai <password> <model>",
+    examples=["!openai mypass gpt-5-mini", "!openai mypass gpt-5"],
+    admin_only=True,
+    requires_args=True,
+)
+def openai_command(context: CommandContext, bot_functions):
+    """Change the OpenAI model used by the GPT service.
+
+    Requires admin password as the first argument and model name as the second.
+    """
+    if not verify_admin_password(context.args):
+        return "❌ Invalid admin password"
+
+    if len(context.args) < 2:
+        return "❌ Usage: !openai <password> <model>"
+
+    model = context.args[1]
+
+    # Use bot function to set the model so it updates runtime and persists
+    setter = bot_functions.get("set_openai_model")
+    if not setter:
+        return "❌ Cannot change model: setter not available"
+
+    result = setter(model)
+
+    # In IRC, prefer sending a NOTICE to the caller; in console, return string
+    if context.is_console:
+        return result
+    else:
+        # Send private notice to the sender if available
+        notice = bot_functions.get("notice_message")
+        irc = bot_functions.get("irc")
+        to_target = context.sender or context.target
+        if notice and irc and to_target:
+            notice(result, irc, to_target)
+            return ""
+        return result
+
+
 # Import this module to register the commands
 def register_admin_commands():
     """Register all admin commands. Called automatically when module is imported."""
