@@ -197,6 +197,87 @@ def weather_command(context: CommandContext, bot_functions):
 
 
 @command(
+    "se",
+    aliases=["sääennuste"],
+    description="Short forecast (single line)",
+    usage="!se [city] [hours]",
+    examples=["!se", "!se Joensuu", "!se Joensuu 12"],
+)
+def short_forecast_command(context: CommandContext, bot_functions):
+    """Return a single-line forecast using Meteosource free API."""
+    try:
+        from services.weather_forecast_service import format_single_line
+    except Exception as e:
+        return f"Forecast service not available: {e}"
+
+    # Parse args: allow city with spaces and optional trailing integer hours
+    text = context.args_text.strip() if context.args_text else ""
+    city = None
+    hours = None
+    if text:
+        parts = text.split()
+        # If last token is an int, treat as hours
+        try:
+            cand = int(parts[-1])
+            hours = cand if cand > 0 else None
+            parts = parts[:-1]
+        except Exception:
+            pass
+        city = " ".join(parts).strip() if parts else None
+
+    try:
+        line = format_single_line(city, hours)
+    except Exception as e:
+        return f"❌ Ennustevirhe: {e}"
+    return line
+
+
+@command(
+    "sel",
+    aliases=["sääennustelista"],
+    description="Short forecast (multiple lines)",
+    usage="!sel [city] [hours]",
+    examples=["!sel", "!sel Joensuu", "!sel Joensuu 12"],
+)
+def short_forecast_list_command(context: CommandContext, bot_functions):
+    """Return a multi-line forecast using Meteosource free API."""
+    try:
+        from services.weather_forecast_service import format_multi_line
+    except Exception as e:
+        return f"Forecast service not available: {e}"
+
+    text = context.args_text.strip() if context.args_text else ""
+    city = None
+    hours = None
+    if text:
+        parts = text.split()
+        try:
+            cand = int(parts[-1])
+            hours = cand if cand > 0 else None
+            parts = parts[:-1]
+        except Exception:
+            pass
+        city = " ".join(parts).strip() if parts else None
+
+    try:
+        lines = format_multi_line(city, hours)
+    except Exception as e:
+        return f"❌ Ennustevirhe: {e}"
+
+    if context.is_console:
+        return "\n".join(lines)
+    # On IRC, send each line as separate notice if available
+    notice = bot_functions.get("notice_message")
+    irc = bot_functions.get("irc")
+    target = context.target or context.sender
+    if notice and irc:
+        for ln in lines:
+            notice(ln, irc, target)
+        return CommandResponse.no_response()
+    return "\n".join(lines)
+
+
+@command(
     "solarwind",
     description="Get solar wind information from NOAA SWPC",
     usage="!solarwind",

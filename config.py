@@ -79,6 +79,7 @@ class BotConfig:
             "krak": 0,
             "kr1k": 0,
             "kr0k": 0,
+            "kr3k": 0,
             "narsk": 0,
             "parsk": 0,
             "tlup": 0,
