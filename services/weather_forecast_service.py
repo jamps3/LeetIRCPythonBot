@@ -10,8 +10,6 @@ try:
 except Exception:  # pragma: no cover
     ZoneInfo = None
 
-from config import get_config
-
 # Load API key from environment (.env)
 API_KEY = os.getenv("WEATHER_FORECAST_API_KEY", "")
 BASE_URL = "https://www.meteosource.com/api/v1/free/point"
@@ -20,7 +18,9 @@ DEFAULT_CITY = "Joensuu"
 
 def _fetch(city: str) -> dict:
     if not API_KEY:
-        raise RuntimeError("WEATHER_FORECAST_API_KEY is not configured in .env")
+        raise RuntimeError(
+            "Weather forecast API key missing. Set WEATHER_FORECAST_API_KEY in .env"
+        )
     params = {
         "place_id": city,
         "sections": "current,hourly",
@@ -28,9 +28,23 @@ def _fetch(city: str) -> dict:
         "units": "metric",
         "key": API_KEY,
     }
-    r = requests.get(BASE_URL, params=params, timeout=10)
-    r.raise_for_status()
-    return r.json()
+    try:
+        r = requests.get(BASE_URL, params=params, timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except requests.exceptions.HTTPError as e:
+        status = None
+        try:
+            status = e.response.status_code if e.response is not None else None
+        except Exception:
+            status = None
+            status = None
+        msg = f"API request failed (HTTP {status})" if status else "API request failed"
+        raise RuntimeError(msg)
+    except requests.exceptions.RequestException:
+        raise RuntimeError("Network error contacting weather API")
+    except ValueError:
+        raise RuntimeError("Invalid JSON from weather API")
 
 
 def _sym(cond: str, icon: int | None) -> str:
