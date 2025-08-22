@@ -246,7 +246,9 @@ class WeatherService:
             return f"Sään haku epäonnistui: {weather_data.get('message', 'Tuntematon virhe')}"
 
         # Random symbol at the beginning
-        random_symbol = random.choice(["🌈", "🔮", "🍺", "☀️", "❄️", "🌊", "🔥", "🚴"])
+        random_symbol = random.choice(
+            ["🌈", "🔮", "🍺", "☀️", "❄️", "🌊", "🔥", "⛄", "☂️", "🌬️", "🌪️"]
+        )
 
         # Build weather message
         weather_info = (
@@ -256,7 +258,7 @@ class WeatherService:
             f"💦{weather_data['humidity']}%, "
             f"🍃{weather_data['wind_speed']}{weather_data['wind_direction']}m/s, "
             f"👁 {weather_data['visibility']:.1f} km, "
-            f"⚖️{weather_data['pressure']} hPa{weather_data['pressure_analysis']['visual']}, "
+            f"⚖️{weather_data['pressure']}hPa{weather_data['pressure_analysis']['visual']}, "
             f"☁️{weather_data['clouds']}%, "
             f"🌄{weather_data['sunrise']}-{weather_data['sunset']}🌅"
         )
