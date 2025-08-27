@@ -152,8 +152,8 @@ class FMIWarningService:
             seen_hashes = set(list(seen_hashes)[-50:])
             self._save_seen_hashes(seen_hashes)
 
-            # Keep only the last 5 warnings for duplicate checking
-            seen_data = seen_data[-5:]
+            # Keep only the last 10 warnings for duplicate checking
+            seen_data = seen_data[-10:]
             self._save_seen_data(seen_data)
 
             return messages
