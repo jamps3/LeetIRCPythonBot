@@ -841,7 +841,7 @@ class BotManager:
         Uses the subscriptions system to deliver messages only to explicit
         onnettomuustiedotteet subscribers per server, mirroring FMI warnings.
         """
-        message = f"📢 Uusi tiedote: {title} | {url}"
+        message = f"📢 {title} | {url}"
 
         # Get subscriptions module and subscribers for onnettomuustiedotteet
         subscriptions = self._get_subscriptions_module()
