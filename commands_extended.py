@@ -370,13 +370,15 @@ def command_leets(context, bot_functions):
     usage="!schedule #channel HH:MM:SS<.microsecs> message",
     admin_only=True,
 )
-def command_schedule(context, args):
+def command_schedule(context, bot_functions):
     """Schedule a message for later delivery."""
+    # Use parsed args from context (as provided by the command registry)
+    args = context.args
     if not args:
         return "Usage: !schedule #channel HH:MM:SS<.microsecs> message"
 
     # Parse the command format: !schedule #channel HH:MM:SS message
-    # or !schedule #channel HH:MM:SS.microsecs message
+    # or !schedule #channel HH:MM:SS.<1..9 digits> message
     text = " ".join(args)
     match = re.match(
         r"(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)", text
@@ -389,14 +391,16 @@ def command_schedule(context, args):
     hour = int(match.group(2))
     minute = int(match.group(3))
     second = int(match.group(4))
-    microsecond_str = match.group(5)
+    frac_str = match.group(5)  # up to 9 digits (nanoseconds resolution in input)
     message = match.group(6)
 
-    # Convert microseconds
-    if microsecond_str:
-        # Pad or truncate to 9 digits
-        microsecond = int(microsecond_str.ljust(9, "0")[:9])
+    # Convert fractional seconds (up to 9 digits) to microseconds for scheduling
+    if frac_str:
+        ns_str = frac_str.ljust(9, "0")[:9]  # normalize to exactly 9 digits for display
+        # Convert nanoseconds to microseconds (floor) for datetime compatibility
+        microsecond = min(999999, int(ns_str[:6]))
     else:
+        ns_str = "000000000"
         microsecond = 0
 
     # Validate time values
@@ -405,19 +409,25 @@ def command_schedule(context, args):
 
     try:
         # Get the scheduled message service
-        from services.scheduled_message_service import send_scheduled_message
+        from services.scheduled_message_service import send_scheduled_message_ns
 
-        server = context.get("server")
+        # Retrieve the IRC/server object from bot_functions
+        server = bot_functions.get("server")
 
         if not server:
             return "❌ Server context not available for scheduling"
 
-        # Schedule the message
-        message_id = send_scheduled_message(
-            server, channel, message, hour, minute, second, microsecond
+        # Convert 9-digit fraction to nanoseconds and schedule
+        nanosecond = int(ns_str)
+        message_id = send_scheduled_message_ns(
+            server, channel, message, hour, minute, second, nanosecond
         )
 
-        return f"✅ Message scheduled with ID: {message_id} for {hour:02d}:{minute:02d}:{second:02d}.{microsecond:09d}"
+        # Show the requested time with 9-digit fractional part (as in logs)
+        return (
+            f"✅ Message scheduled with ID: {message_id} for "
+            f"{hour:02d}:{minute:02d}:{second:02d}.{ns_str}"
+        )
 
     except Exception as e:
         return f"❌ Error scheduling message: {str(e)}"
