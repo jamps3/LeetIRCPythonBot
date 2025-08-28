@@ -31,7 +31,7 @@ class OtiedoteService:
 
     def __init__(
         self,
-        callback: Callable[[str, str], None],
+        callback: Callable[[str, str, Optional[str]], None],
         state_file: str = DEFAULT_STATE_FILE,
         check_interval: int = DEFAULT_CHECK_INTERVAL,
     ):
@@ -39,7 +39,7 @@ class OtiedoteService:
         Initialize Otiedote monitoring service.
 
         Args:
-            callback: Function to call with (title, url) when new release is found
+            callback: Function to call with (title, url, description) when new release is found
             state_file: File to store latest release number
             check_interval: Check interval in seconds
         """
@@ -243,23 +243,52 @@ class OtiedoteService:
             title_tag = release_soup.find("h1")
             title = title_tag.text.strip() if title_tag else f"Release {release_number}"
 
-            # Try to extract description (this selector might need adjustment)
-            description_tag = release_soup.select_one(
-                "#releaseCommentsWrapper > ul > li > p"
-            )
-            if description_tag:
-                description = description_tag.text.strip()
-                if description:
-                    title = f"{title} - {description}"
+            # Extract description by locating the "Tapahtuman kuvaus:" label and collecting following paragraphs
+            description: Optional[str] = None
+            try:
+                # Find the bold label
+                label_b = release_soup.find(
+                    "b",
+                    string=lambda s: isinstance(s, str)
+                    and "tapahtuman kuvaus" in s.lower(),
+                )
+                if label_b:
+                    # Typically inside col-lg-2; the content is in the next sibling col-lg-10
+                    label_container = label_b.find_parent("div")
+                    content_container = (
+                        label_container.find_next_sibling("div")
+                        if label_container
+                        else None
+                    )
+                    if content_container:
+                        # Gather all paragraph texts under the content container
+                        paragraphs = content_container.select("p")
+                        texts = [p.get_text(strip=True) for p in paragraphs]
+                        texts = [t for t in texts if t]
+                        if texts:
+                            description = re.sub(r"\s+", " ", " ".join(texts)).strip()
+                # Fallback: try common wrapper id if present
+                if not description:
+                    fallback_tag = release_soup.select_one("#releaseCommentsWrapper p")
+                    if fallback_tag and fallback_tag.get_text(strip=True):
+                        description = re.sub(
+                            r"\s+", " ", fallback_tag.get_text(strip=True)
+                        ).strip()
+            except Exception as parse_err:
+                logging.debug(
+                    f"Description parsing error for release {release_number}: {parse_err}"
+                )
 
-            # Notify callback
-            self.callback(title, url)
+            # Notify callback with separate description
+            self.callback(title, url, description)
 
             # Update state
             self.latest_release = release_number
             self._save_latest_release(release_number)
 
-            logging.info(f"Processed new release {release_number}: {title}")
+            logging.info(
+                f"Processed new release {release_number}: {title}{' (with description)' if description else ''}"
+            )
 
         except Exception as e:
             logging.error(f"Failed to process release {release_number}: {e}")
@@ -279,7 +308,7 @@ class OtiedoteService:
 
 
 def create_otiedote_service(
-    callback: Callable[[str, str], None],
+    callback: Callable[[str, str, Optional[str]], None],
     state_file: str = OtiedoteService.DEFAULT_STATE_FILE,
     check_interval: int = OtiedoteService.DEFAULT_CHECK_INTERVAL,
 ) -> OtiedoteService:
@@ -287,7 +316,7 @@ def create_otiedote_service(
     Factory function to create an Otiedote service instance.
 
     Args:
-        callback: Function to call with (title, url) when new release is found
+        callback: Function to call with (title, url, description) when new release is found
         state_file: File to store latest release number
         check_interval: Check interval in seconds
 

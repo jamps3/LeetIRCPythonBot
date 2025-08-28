@@ -279,6 +279,9 @@ class BotManager:
         else:
             self.fmi_warning_service = None
 
+        # Storage for the latest Otiedote release info
+        self.latest_otiedote: Optional[dict] = None
+
         # Initialize Otiedote service
         if create_otiedote_service is not None:
             self.otiedote_service = create_otiedote_service(
@@ -679,20 +682,25 @@ class BotManager:
         target = context["target"]
         text = context["text"]
 
-        # Prepare bot functions for commands.py compatibility
+        # Quick built-in handler for latest Otiedote description
+        try:
+            if isinstance(text, str) and text.strip().lower().startswith("!otiedote"):
+                self._send_latest_otiedote(server, target)
+                return
+        except Exception as e:
+            self.logger.warning(f"Error handling !otiedote: {e}")
+
         bot_functions = {
             "data_manager": self.data_manager,
             "drink_tracker": self.drink_tracker,
             "general_words": self.general_words,
-            "tamagotchi": lambda text, irc, target: None,  # No-op for legacy compatibility
             "tamagotchi_bot": self.tamagotchi,
-            "lemmat": self.lemmatizer,  # Legacy compatibility
+            "lemmat": self.lemmatizer,
             "server": server,
             "server_name": context["server_name"],
             "bot_name": self.bot_name,
             "latency_start": lambda: getattr(self, "_latency_start", 0),
             "set_latency_start": lambda value: setattr(self, "_latency_start", value),
-            # Add legacy function implementations
             "count_kraks": self._count_kraks_legacy,
             "notice_message": lambda msg, irc=None, target=None: self._send_response(
                 server, target or context["target"], msg
@@ -835,13 +843,29 @@ class BotManager:
                         f"Error sending FMI warning to {subscriber_nick} on {server_name}: {e}"
                     )
 
-    def _handle_otiedote_release(self, title: str, url: str):
+    def _handle_otiedote_release(
+        self, title: str, url: str, description: Optional[str] = None
+    ):
         """Handle new Otiedote press release.
 
         Uses the subscriptions system to deliver messages only to explicit
         onnettomuustiedotteet subscribers per server, mirroring FMI warnings.
+
+        Automatically broadcasts only title + URL.
+        Stores the full info for the !otiedote command to display description on-demand.
         """
-        message = f"📢 {title} | {url}"
+        # Persist latest release info for on-demand access via !otiedote
+        try:
+            self.latest_otiedote = {
+                "title": title,
+                "url": url,
+                "description": description or "",
+            }
+        except Exception:
+            # Never fail the broadcast due to caching issues
+            pass
+
+        header_message = f"📢 {title} | {url}"
 
         # Get subscriptions module and subscribers for onnettomuustiedotteet
         subscriptions = self._get_subscriptions_module()
@@ -868,7 +892,8 @@ class BotManager:
                     )
                     continue
 
-                self._send_response(server, subscriber_nick, message)
+                # Broadcast only the header (no description here)
+                self._send_response(server, subscriber_nick, header_message)
                 self.logger.info(
                     f"Sent Otiedote release to {subscriber_nick} on {server_name}"
                 )
@@ -1296,6 +1321,34 @@ class BotManager:
             server.send_notice(target, message)
         else:
             server.send_message(target, message)
+
+    def _send_latest_otiedote(self, server, target):
+        """Send the latest cached Otiedote description on-demand (no header)."""
+        try:
+            info = getattr(self, "latest_otiedote", None)
+            if not info:
+                self._send_response(
+                    server,
+                    target,
+                    "📢 Ei tallennettua Onnettomuustiedotetta vielä. Odota uutta ilmoitusta.",
+                )
+                return
+
+            desc = (info.get("description") or "").strip()
+            if not desc:
+                response = f"📢 Ei kuvausta saatavilla. | {info.get('url', '')}"
+                self._send_response(server, target, response)
+                return
+
+            # Wrap and send description only
+            for line in self._wrap_irc_message_utf8_bytes(
+                f"Kuvaus: {desc}", reply_target=target
+            ):
+                if line:
+                    self._send_response(server, target, line)
+        except Exception as e:
+            self.logger.error(f"Error sending latest Otiedote: {e}")
+            self._send_response(server, target, f"❌ Virhe: {e}")
 
     def _send_weather(self, irc, channel, location):
         """Send weather information."""
