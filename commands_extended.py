@@ -367,23 +367,23 @@ def command_leets(context, bot_functions):
     command_type=CommandType.ADMIN,
     aliases=["leet"],
     description="Schedule a message to be sent at a specific time",
-    usage="!schedule #channel HH:MM:SS<.microseconds> message",
+    usage="!schedule #channel HH:MM:SS<.microsecs> message",
     admin_only=True,
 )
 def command_schedule(context, args):
     """Schedule a message for later delivery."""
     if not args:
-        return "Usage: !schedule #channel HH:MM:SS<.microseconds> message"
+        return "Usage: !schedule #channel HH:MM:SS<.microsecs> message"
 
     # Parse the command format: !schedule #channel HH:MM:SS message
-    # or !schedule #channel HH:MM:SS.microseconds message
+    # or !schedule #channel HH:MM:SS.microsecs message
     text = " ".join(args)
     match = re.match(
-        r"(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,6}))?\s+(.+)", text
+        r"(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)", text
     )
 
     if not match:
-        return "Invalid format! Use: !schedule #channel HH:MM:SS<.microseconds> message"
+        return "Invalid format! Use: !schedule #channel HH:MM:SS<.microsecs> message"
 
     channel = match.group(1)
     hour = int(match.group(2))
@@ -394,8 +394,8 @@ def command_schedule(context, args):
 
     # Convert microseconds
     if microsecond_str:
-        # Pad or truncate to 6 digits
-        microsecond = int(microsecond_str.ljust(6, "0")[:6])
+        # Pad or truncate to 9 digits
+        microsecond = int(microsecond_str.ljust(9, "0")[:9])
     else:
         microsecond = 0
 
@@ -417,7 +417,7 @@ def command_schedule(context, args):
             server, channel, message, hour, minute, second, microsecond
         )
 
-        return f"✅ Message scheduled with ID: {message_id} for {hour:02d}:{minute:02d}:{second:02d}.{microsecond:06d}"
+        return f"✅ Message scheduled with ID: {message_id} for {hour:02d}:{minute:02d}:{second:02d}.{microsecond:09d}"
 
     except Exception as e:
         return f"❌ Error scheduling message: {str(e)}"
