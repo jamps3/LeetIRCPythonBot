@@ -4,16 +4,25 @@
 Simple IRC Bot made with Python and as few libraries as possible.
 
 ## Features
-- 🚀 OpenAI - Responds using GPT-4o-mini (or others)
-- 🔥 Weather
-- ✅ URL Titles
-- ⚡ Electricity prices in Finland for today/tomorrow
-- ✅ Scheduled messages
-- 🔥 Statistics for words and special (drinking) words
-- ✅ Multiple channels support, multiple servers support in progress
-- 📺 Youtube search with text and ID
-- 🔥 Keeping track of channel notifications
-- ⚠️ Accident reports monitoring
+- 🚀 OpenAI - Responds using GPT-5-mini (or others)        <automatic> from messages starting with bot name or private messages
+- 🔥 Weather                                               !s, !sää
+- 🔥 Weather Forecast                                      !se, !sel
+- ✅ URL Titles                                            <automatic> from http(s) links
+- ⚡ Electricity prices in Finland for today/tomorrow      !sahko
+- ✅ Scheduled messages                                    !schedule
+- 🔥 Statistics for words and special (drinking) words     <automatic> from channel messages | !sana, !leaderboard, !kraks, !drink, !drinkword
+- ✅ Multiple servers and channels support                 Configured in .env file
+- 📺 Youtube search with text and ID                       <automatic> from Youtube links | !youtube <searchwords>/<ID>
+- 🔥 Keeping track of channel notifications                !leets, !leetwinners
+- ⚠️ Accident reports monitoring                           !tilaa onnettomuustiedotteet
+- ⚠️ FMI warnings monitoring                               !tilaa varoitukset
+- 🚉 Arriving and departing trains information             !junat, !junat saapuvat
+- 🌌 Solar wind status                                     !solarwind
+- ✅ Tamagotchi-like pet functionality                     !tamagotchi
+- ✅ Current time, echo message, ping                      !aika, !kaiku, !ping
+- ✅ Eurojackpot statistics and draws                      !eurojackpot
+- ✅ IPFS file upload                                      !ipfs add <url>
+- ✅ Cryptocurrency price information                      !crypto
 
 ## Installation
 Not needed!
@@ -24,7 +33,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Optional: enable pre-commit hooks (format before commit)
+### For development: enable pre-commit hooks (format before commit)
 ```bash
 pip install pre-commit
 pre-commit install
@@ -38,46 +47,29 @@ If you want to use Voikko -features you need to install these packages with apt:
 sudo apt install -y libvoikko1 voikko-fi python3-libvoikko
 ```
 ## .env file for configuration:
-You need this for all the APIs to work and for the server and channel information.
-```bash
-# API Keys
-# Replace these placeholders with your actual API keys
-WEATHER_API_KEY = ""
-ELECTRICITY_API_KEY = ""
-OPENAI_API_KEY = ""
-YOUTUBE_API_KEY = ""
-
-# Server Configurations
-# Format: SERVERx_HOST, SERVERx_PORT, SERVERx_CHANNELS, SERVERx_KEYS
-# Where x is a unique identifier for each server
-
-# Server 1
-SERVER1_HOST=irc.server.ip
-SERVER1_PORT=6667
-SERVER1_CHANNELS="#channel1,channel2"
-SERVER1_KEYS="channel1key"
-```
+You need this for all the APIs to work and for the server and channel information:
+Copy .env.sample to .env and make relevant changes like bot name, servers, channels and API-keys.
 
 # Running
 ## Simple
-Options to run in: Screen, Tmux. I now prefer Tmux as it has more capabilities.
+Options to run in: Screen, Tmux or plain Python. I prefer Tmux.
 ```bash
 screen python3 main.py
 tmux new-session -d -s bot
 python3 main.py
 ```
-## using run file for Linux
+## Using run/start file to start the bot
 ```bash
 ./run
+
+After shutting down the bot, we can reuse the activated venv, tmux and skip installing requirements.txt and just use ./start:
+./start
 ```
-What does it do?
+What does the ./run script do?
 
 ✅Creates or activates virtual environment
-
 ✅Starts new tmux session with the name "bot"
-
 ✅Installs requirements with pip
-
 ✅Starts the bot with python3 main.py
 
 ## run (might be updated in the source):
