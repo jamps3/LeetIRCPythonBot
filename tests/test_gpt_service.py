@@ -2,7 +2,7 @@
 """
 GPT Service Test Suite - Pure Pytest Version
 
-Tests for GPT service functionality including date correction.
+Tests for GPT service functionality.
 """
 
 import os
