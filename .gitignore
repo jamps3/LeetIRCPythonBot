@@ -190,3 +190,7 @@ latest_otiedote.txt
 # Ignore backup files
 *backup
 *.backup
+
+# Test reports
+test-coverage.txt
+test-results.txt
