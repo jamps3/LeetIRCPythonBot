@@ -4,27 +4,29 @@
 Simple IRC Bot made with Python and as few libraries as possible.
 
 ## Features
-- 🚀 OpenAI - Responds using GPT-5-mini (or others)        <automatic> from messages starting with bot name or private messages
-- 🔥 Weather                                               !s, !sää
-- 🔥 Weather Forecast                                      !se, !sel
-- ✅ URL Titles                                            <automatic> from http(s) links | !url
-- ⚡ Electricity prices in Finland for today/tomorrow      !sahko
-- ✅ Scheduled messages                                    !schedule, !scheduled
-- 🔥 Statistics for words and special (drinking) words     <automatic> from channel messages | !sana, !leaderboard, !topwords, !kraks, !drink, !drinkword
-- ✅ Multiple servers and channels support                 Configured in .env file
-- 📺 Youtube search with text and ID                       <automatic> from Youtube links | !youtube <searchwords>/<ID>
-- 🔥 Keeping track of channel notifications                !leets, !leetwinners
-- ⚠️ Accident reports monitoring                           !tilaa onnettomuustiedotteet
-- ⚠️ FMI warnings monitoring                               !tilaa varoitukset
-- 🚉 Arriving and departing trains information             !junat, !junat saapuvat
-- 🌌 Solar wind status                                     !solarwind
-- ✅ Tamagotchi-like pet functionality                     !tamagotchi, !feed, !pet
-- ✅ Current time, echo message, ping, about, version      !aika, !kaiku, !ping, !about, !version
-- ✅ Eurojackpot statistics and draws                      !eurojackpot
-- ✅ IPFS file upload                                      !ipfs add <url>
-- ✅ Cryptocurrency price information                      !crypto
-- ✅ Euribor interest rate from yesterday                  !euribor
-- ✅ Basic IRC commands: join, nick, part, quit, raw       !join, !nick, !part, !quit, !raw
+| Feature | Commands/Info |
+|----------------|-----------------|
+| - 🚀 OpenAI - Responds using GPT-5-mini (or others)        |<automatic> from messages starting with bot name or private messages|
+| - 🔥 Weather                                               |!s, !sää|
+| - 🔥 Weather Forecast                                      |!se, !sel|
+| - ✅ URL Titles                                            |<automatic> from http(s) links, !url|
+| - ⚡ Electricity prices in Finland for today/tomorrow      |!sahko|
+| - ✅ Scheduled messages                                    |!schedule, !scheduled|
+| - 🔥 Statistics for words and special (drinking) words     |<automatic> from channel messages, !sana, !leaderboard, !topwords, !kraks, !drink, !drinkword|
+| - ✅ Multiple servers and channels support                 |Configured in .env file|
+| - 📺 Youtube search with text and ID                       |<automatic> from Youtube links, !youtube <searchwords>/<ID>|
+| - 🔥 Keeping track of channel notifications                |!leets, !leetwinners|
+| - ⚠️ Accident reports monitoring                           |!tilaa onnettomuustiedotteet|
+| - ⚠️ FMI warnings monitoring                               |!tilaa varoitukset|
+| - 🚉 Arriving and departing trains information             |!junat, !junat saapuvat|
+| - 🌌 Solar wind status                                     |!solarwind|
+| - ✅ Tamagotchi-like pet functionality                     |!tamagotchi, !feed, !pet|
+| - ✅ Current time, echo message, ping, about, version      |!aika, !kaiku, !ping, !about, !version|
+| - ✅ Eurojackpot statistics and draws                      |!eurojackpot|
+| - ✅ IPFS file upload                                      |!ipfs add <url>|
+| - ✅ Cryptocurrency price information                      |!crypto|
+| - ✅ Euribor interest rate from yesterday                  |!euribor|
+| - ✅ Basic IRC commands: join, nick, part, quit, raw       |!join, !nick, !part, !quit, !raw|
 
 ## Installation
 Not needed!
