@@ -22,11 +22,13 @@ class GPTService:
 
     def __init__(
         self,
-        api_key: str,
+        api_key: str = "",
         history_file: str = "conversation_history.json",
         history_limit: int = 100,
     ):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # Prefer explicitly provided key; fall back to environment (.env)
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
+        self.client = OpenAI(api_key=self.api_key)
         self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
         self.history_file = history_file
         self.history_limit = history_limit
