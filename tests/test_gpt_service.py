@@ -6,10 +6,8 @@ Tests for GPT service functionality including date correction.
 """
 
 import os
-import re
 import sys
-from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 # Add the parent directory to sys.path to import our modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
