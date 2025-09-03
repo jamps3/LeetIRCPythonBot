@@ -72,6 +72,7 @@ python -m pytest -v
 
 ### Run with Coverage (if pytest-cov installed)
 ```bash
+pytest --cov --cov-config=.coveragerc
 python -m pytest --cov=. -v
 ```
 
