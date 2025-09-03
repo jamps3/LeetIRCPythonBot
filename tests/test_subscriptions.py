@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
 """
-Consolidated subscription-related tests.
-This file combines tests from:
-- tests/test_subscription_toggle.py
-- tests/test_subscription_warnings.py
-- tests/test_subscriptions_integration.py
-- tests/test_subscriptions_unit.py
+Subscription-related tests.
 """
 
 import json
@@ -377,7 +372,7 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
     def test_is_valid_nick_or_channel(self):
         """Test IRC nick and channel validation."""
         # Valid nicks
-        self.assertTrue(is_valid_nick_or_channel("jampsix"))
+        self.assertTrue(is_valid_nick_or_channel("jamps3"))
         self.assertTrue(is_valid_nick_or_channel("test_user"))
         self.assertTrue(is_valid_nick_or_channel("user-123"))
         self.assertTrue(is_valid_nick_or_channel("nick[]{}"))
@@ -400,7 +395,7 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
         """Test data validation and cleaning."""
         # Valid data
         valid_data = {
-            "server1": {"jampsix": ["varoitukset"], "#test": ["onnettomuustiedotteet"]},
+            "server1": {"jamps3": ["varoitukset"], "#test": ["onnettomuustiedotteet"]},
             "server2": {"user123": ["varoitukset", "onnettomuustiedotteet"]},
         }
         cleaned = validate_and_clean_data(valid_data)
@@ -409,7 +404,7 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
         # Invalid data that should be cleaned
         invalid_data = {
             "server1": {
-                "jampsix": ["varoitukset", "invalid_topic"],  # Invalid topic
+                "jamps3": ["varoitukset", "invalid_topic"],  # Invalid topic
                 "123invalid": ["varoitukset"],  # Invalid nick
                 "#test": ["onnettomuustiedotteet"],
             },
@@ -422,7 +417,7 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
 
         cleaned = validate_and_clean_data(invalid_data)
         expected = {
-            "server1": {"jampsix": ["varoitukset"], "#test": ["onnettomuustiedotteet"]}
+            "server1": {"jamps3": ["varoitukset"], "#test": ["onnettomuustiedotteet"]}
         }
         self.assertEqual(cleaned, expected)
 
@@ -434,7 +429,7 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
     def test_load_subscriptions_valid_data(self):
         """Test loading subscriptions with valid data."""
         test_data = {
-            "server1": {"jampsix": ["varoitukset"], "#test": ["onnettomuustiedotteet"]}
+            "server1": {"jamps3": ["varoitukset"], "#test": ["onnettomuustiedotteet"]}
         }
 
         with open(self.temp_file.name, "w", encoding="utf-8") as f:
@@ -464,7 +459,7 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
         """Test loading subscriptions with malformed data that needs cleaning."""
         malformed_data = {
             "server1": {
-                "jampsix": ["varoitukset", "invalid_topic"],
+                "jamps3": ["varoitukset", "invalid_topic"],
                 "123invalid": ["varoitukset"],
                 "#test": ["onnettomuustiedotteet"],
             }
@@ -475,7 +470,7 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
 
         result = load_subscriptions()
         expected = {
-            "server1": {"jampsix": ["varoitukset"], "#test": ["onnettomuustiedotteet"]}
+            "server1": {"jamps3": ["varoitukset"], "#test": ["onnettomuustiedotteet"]}
         }
         self.assertEqual(result, expected)
 
@@ -487,7 +482,7 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
     def test_save_subscriptions_success(self):
         """Test successful subscription saving."""
         test_data = {
-            "server1": {"jampsix": ["varoitukset"], "#test": ["onnettomuustiedotteet"]}
+            "server1": {"jamps3": ["varoitukset"], "#test": ["onnettomuustiedotteet"]}
         }
 
         result = save_subscriptions(test_data)
@@ -524,31 +519,31 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
 
     def test_toggle_subscription_add(self):
         """Test adding a subscription."""
-        result = toggle_subscription("jampsix", "server1", "varoitukset")
+        result = toggle_subscription("jamps3", "server1", "varoitukset")
         self.assertIn("✅ Tilaus lisätty", result)
-        self.assertIn("jampsix", result)
+        self.assertIn("jamps3", result)
         self.assertIn("server1", result)
         self.assertIn("varoitukset", result)
 
         # Verify subscription was added
         subscribers = get_subscribers("varoitukset")
-        self.assertIn(("jampsix", "server1"), subscribers)
+        self.assertIn(("jamps3", "server1"), subscribers)
 
     def test_toggle_subscription_remove(self):
         """Test removing a subscription."""
         # First add a subscription
-        toggle_subscription("jampsix", "server1", "varoitukset")
+        toggle_subscription("jamps3", "server1", "varoitukset")
 
         # Then remove it
-        result = toggle_subscription("jampsix", "server1", "varoitukset")
+        result = toggle_subscription("jamps3", "server1", "varoitukset")
         self.assertIn("❌ Poistettu tilaus", result)
-        self.assertIn("jampsix", result)
+        self.assertIn("jamps3", result)
         self.assertIn("server1", result)
         self.assertIn("varoitukset", result)
 
         # Verify subscription was removed
         subscribers = get_subscribers("varoitukset")
-        self.assertNotIn(("jampsix", "server1"), subscribers)
+        self.assertNotIn(("jamps3", "server1"), subscribers)
 
     def test_toggle_subscription_invalid_topic(self):
         """Test toggling subscription with invalid topic."""
@@ -611,18 +606,18 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
     def test_get_user_subscriptions(self):
         """Test getting all subscriptions for a specific user."""
         # Add multiple subscriptions for a user
-        toggle_subscription("jampsix", "server1", "varoitukset")
-        toggle_subscription("jampsix", "server1", "onnettomuustiedotteet")
-        toggle_subscription("jampsix", "server2", "varoitukset")
+        toggle_subscription("jamps3", "server1", "varoitukset")
+        toggle_subscription("jamps3", "server1", "onnettomuustiedotteet")
+        toggle_subscription("jamps3", "server2", "varoitukset")
 
         # Get subscriptions for user on server1
-        subscriptions = get_user_subscriptions("jampsix", "server1")
+        subscriptions = get_user_subscriptions("jamps3", "server1")
         self.assertEqual(
             sorted(subscriptions), sorted(["varoitukset", "onnettomuustiedotteet"])
         )
 
         # Get subscriptions for user on server2
-        subscriptions = get_user_subscriptions("jampsix", "server2")
+        subscriptions = get_user_subscriptions("jamps3", "server2")
         self.assertEqual(subscriptions, ["varoitukset"])
 
         # Test non-existent user
@@ -632,33 +627,33 @@ class TestSubscriptionsEnhanced(unittest.TestCase):
     def test_multiple_subscriptions_same_user(self):
         """Test handling multiple subscriptions for the same user."""
         # Add multiple subscriptions
-        toggle_subscription("jampsix", "server1", "varoitukset")
-        toggle_subscription("jampsix", "server1", "onnettomuustiedotteet")
+        toggle_subscription("jamps3", "server1", "varoitukset")
+        toggle_subscription("jamps3", "server1", "onnettomuustiedotteet")
 
         # Check both subscriptions exist
         varoitukset_subs = get_server_subscribers("varoitukset", "server1")
         onnettomuus_subs = get_server_subscribers("onnettomuustiedotteet", "server1")
 
-        self.assertIn("jampsix", varoitukset_subs)
-        self.assertIn("jampsix", onnettomuus_subs)
+        self.assertIn("jamps3", varoitukset_subs)
+        self.assertIn("jamps3", onnettomuus_subs)
 
         # Remove one subscription
-        toggle_subscription("jampsix", "server1", "varoitukset")
+        toggle_subscription("jamps3", "server1", "varoitukset")
 
         # Check that only one was removed
         varoitukset_subs = get_server_subscribers("varoitukset", "server1")
         onnettomuus_subs = get_server_subscribers("onnettomuustiedotteet", "server1")
 
-        self.assertNotIn("jampsix", varoitukset_subs)
-        self.assertIn("jampsix", onnettomuus_subs)
+        self.assertNotIn("jamps3", varoitukset_subs)
+        self.assertIn("jamps3", onnettomuus_subs)
 
     def test_cleanup_empty_entries(self):
         """Test that empty entries are cleaned up properly."""
         # Add a subscription
-        toggle_subscription("jampsix", "server1", "varoitukset")
+        toggle_subscription("jamps3", "server1", "varoitukset")
 
         # Remove it
-        toggle_subscription("jampsix", "server1", "varoitukset")
+        toggle_subscription("jamps3", "server1", "varoitukset")
 
         # Check that empty entries are cleaned up
         data = load_subscriptions()
@@ -934,7 +929,7 @@ class TestTilaaChannelFix(unittest.TestCase):
             "set_latency_start": lambda x: None,
         }
 
-        test_message = ":jamps!user@host.com PRIVMSG testbot :!tilaa varoitukset"
+        test_message = ":jamps3!user@host.com PRIVMSG testbot :!tilaa varoitukset"
         from command_loader import enhanced_process_irc_message
 
         enhanced_process_irc_message(self.mock_irc, test_message, bot_functions)
@@ -942,12 +937,12 @@ class TestTilaaChannelFix(unittest.TestCase):
         self.assertTrue(responses, "Should have gotten a response")
         response = responses[0]
         self.assertIn("✅", response)
-        self.assertIn("jamps", response)
+        self.assertIn("jamps3", response)
         self.assertIn("varoitukset", response)
 
         all_subs = subscriptions.get_all_subscriptions()
         user_subscribed = any(
-            "jamps" in server_subs and "varoitukset" in server_subs["jamps"]
+            "jamps3" in server_subs and "varoitukset" in server_subs["jamps3"]
             for server_subs in all_subs.values()
         )
         self.assertTrue(
@@ -993,7 +988,7 @@ class TestTilaaChannelFix(unittest.TestCase):
         }
 
         test_message = (
-            ":jamps!user@host.com PRIVMSG #joensuu :!tilaa varoitukset #other-channel"
+            ":jamps3!user@host.com PRIVMSG #joensuu :!tilaa varoitukset #other-channel"
         )
         from command_loader import enhanced_process_irc_message
 
@@ -1066,7 +1061,7 @@ class TestTilaaChannelFix(unittest.TestCase):
 
         enhanced_process_irc_message(
             self.mock_irc,
-            ":jamps!user@host.com PRIVMSG #testchannel :!tilaa varoitukset",
+            ":jamps3!user@host.com PRIVMSG #testchannel :!tilaa varoitukset",
             bot_functions,
         )
 
@@ -1074,7 +1069,7 @@ class TestTilaaChannelFix(unittest.TestCase):
         # Now list
         enhanced_process_irc_message(
             self.mock_irc,
-            ":jamps!user@host.com PRIVMSG #testchannel :!tilaa list",
+            ":jamps3!user@host.com PRIVMSG #testchannel :!tilaa list",
             bot_functions,
         )
 
@@ -1082,6 +1077,103 @@ class TestTilaaChannelFix(unittest.TestCase):
         full_response = " ".join(responses)
         self.assertIn("#testchannel", full_response)
         self.assertNotIn("ei ole tilannut mitään", full_response)
+
+
+# =========================
+# Otiedote subscription tests
+# =========================
+
+
+class TestOtiedoteSubscriptions(unittest.TestCase):
+    def setUp(self):
+        # Minimal env to avoid external service initialization side effects
+        os.environ.setdefault("USE_NOTICES", "false")
+
+        # Create BotManager with one server configured via environment
+        # Simulate one server in config by patching get_server_configs
+        self.server_name = "test_server"
+
+        server_config_mock = Mock()
+        server_config_mock.name = self.server_name
+        server_config_mock.host = "localhost"
+        server_config_mock.port = 6667
+        server_config_mock.channels = ["#general", "#random"]
+
+        # Create a fake Server with send_message/notice capturing
+        self.fake_server = Mock()
+        self.fake_server.config.name = self.server_name
+        self.sent_messages = []
+
+        def capture_send_message(target, message):
+            self.sent_messages.append((target, message))
+
+        def capture_send_notice(target, message):
+            self.sent_messages.append((target, message))
+
+        self.fake_server.send_message.side_effect = capture_send_message
+        self.fake_server.send_notice.side_effect = capture_send_notice
+
+        # Patch BotManager dependencies to control environment
+        patches = [
+            patch("config.get_server_configs", return_value=[server_config_mock]),
+            patch(
+                "services.electricity_service.create_electricity_service",
+                side_effect=ImportError("skip"),
+            ),
+            patch("services.gpt_service.GPTService", side_effect=ImportError("skip")),
+            patch(
+                "services.youtube_service.create_youtube_service",
+                side_effect=ImportError("skip"),
+            ),
+            patch(
+                "services.fmi_warning_service.create_fmi_warning_service",
+                side_effect=ImportError("skip"),
+            ),
+            patch(
+                "services.crypto_service.create_crypto_service",
+                side_effect=ImportError("skip"),
+            ),
+        ]
+        self._patchers = [p.start() for p in patches]
+        self.addCleanup(lambda: [p.stop() for p in patches])
+
+        # Build BotManager and inject our server
+        self.manager = BotManager("TestBot")
+        self.manager.servers = {self.server_name: self.fake_server}
+
+    def test_otiedote_sends_only_to_subscribers(self):
+        # Mock subscriptions to return explicit onnettomuustiedotteet subscribers
+        mock_subscriptions = Mock()
+        mock_subscriptions.get_subscribers.return_value = [
+            ("#general", self.server_name),
+            ("user1", self.server_name),
+        ]
+
+        with patch.object(
+            self.manager, "_get_subscriptions_module", return_value=mock_subscriptions
+        ):
+            # Trigger Otiedote release
+            self.manager._handle_otiedote_release("Test Title", "https://example.com")
+
+        # Verify messages sent only to listed subscribers
+        targets = [t for (t, _msg) in self.sent_messages]
+        assert "#general" in targets
+        assert "user1" in targets
+        # Should NOT send to other configured channels like #random by broadcast
+        assert "#random" not in targets
+
+    def test_otiedote_no_subscribers_sends_nothing(self):
+        mock_subscriptions = Mock()
+        mock_subscriptions.get_subscribers.return_value = []
+
+        with patch.object(
+            self.manager, "_get_subscriptions_module", return_value=mock_subscriptions
+        ):
+            # Trigger Otiedote release
+            self.manager._handle_otiedote_release("Test Title", "https://example.com")
+
+        # Nothing should be sent
+        assert self.sent_messages == []
 
 
 if __name__ == "__main__":

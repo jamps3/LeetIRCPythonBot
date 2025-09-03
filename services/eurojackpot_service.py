@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
 """
-Eurojackpot Service for LeetIRC Bot
+Eurojackpot Service for LeetIRCPythonBot
 
 This service handles Eurojackpot lottery information using the Magayo API.
-Integrated from eurojackpot.py functionality.
+
+Features:
+  - Next draw information
+  - Database storage
+  - Web scraping capabilities
+  - Statistical analysis
+  - Multiple query types
+  - Admin commands for data management
+  - Fallbacks for API unavailability
+  - Frequent number analysis
+  - Robust error handling
 """
 
 import json
@@ -69,9 +79,7 @@ class EurojackpotService:
                     session = requests.Session()
                     session.headers.update(headers)
 
-                    response = session.get(
-                        url, params=params, timeout=timeout, allow_redirects=True
-                    )
+                    response = session.get(url, params=params, timeout=timeout)
                     self.logger.debug(
                         f"Approach {i+1} - Response status: {response.status_code}, URL: {response.url}"
                     )

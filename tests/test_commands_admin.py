@@ -20,6 +20,9 @@ import pytest
 # Add parent directory to sys.path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# Mock dotenv to avoid dependency issues in environments where it's absent
+sys.modules["dotenv"] = Mock()
+
 from command_registry import CommandContext, CommandResponse
 from commands_admin import (
     join_command,
@@ -228,6 +231,44 @@ def test_quit_command_irc_no_connection(mock_config, mock_stop_event, mock_logge
         response = quit_command(context, bot_functions_no_irc)
 
     assert response == "❌ IRC connection not available"
+
+
+@pytest.mark.parametrize(
+    "command_func,args",
+    [
+        (join_command, ["testpass123", "#test"]),
+        (part_command, ["testpass123", "#test"]),
+        (nick_command, ["testpass123", "testnick"]),
+        (raw_command, ["testpass123", "MODE", "#test", "+o", "user"]),
+    ],
+)
+def test_other_commands_irc_no_connection(
+    command_func, args, mock_config, mock_logger, mock_stop_event
+):
+    """Other admin commands should error when IRC connection is not available."""
+    bot_functions_no_irc = {
+        "stop_event": mock_stop_event,
+        "log": mock_logger,
+    }
+
+    # Derive command name for context
+    command_name = command_func.__name__.replace("_command", "")
+
+    context = CommandContext(
+        command=command_name,
+        args=args,
+        raw_message=f"!{command_name} {' '.join(args)}",
+        sender="admin",
+        target="#test",
+        is_private=False,
+        is_console=False,
+        server_name="testserver",
+    )
+
+    with patch("commands_admin.get_config", return_value=mock_config):
+        response = command_func(context, bot_functions_no_irc)
+
+    assert "❌ IRC connection not available" in response
 
 
 def test_join_command_console(mock_config, bot_functions):
