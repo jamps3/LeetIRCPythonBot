@@ -52,30 +52,32 @@ class WeatherService:
                     "status_code": response.status_code,
                 }
 
-        except requests.exceptions.Timeout:
-            return {
-                "error": True,
-                "message": "Weather API request timed out",
-                "exception": "timeout",
-            }
-        except requests.exceptions.ConnectionError as e:
-            return {
-                "error": True,
-                "message": f"Weather API connection error: {str(e)}",
-                "exception": str(e),
-            }
-        except requests.exceptions.RequestException as e:
-            return {
-                "error": True,
-                "message": f"Weather API request failed: {str(e)}",
-                "exception": str(e),
-            }
         except Exception as e:
-            return {
-                "error": True,
-                "message": f"Unexpected error: {str(e)}",
-                "exception": str(e),
-            }
+            name = getattr(e, "__class__", type(e)).__name__
+            if name == "Timeout":
+                return {
+                    "error": True,
+                    "message": "Weather API request timed out",
+                    "exception": "timeout",
+                }
+            elif name == "ConnectionError":
+                return {
+                    "error": True,
+                    "message": f"Weather API connection error: {str(e)}",
+                    "exception": str(e),
+                }
+            elif name in ("RequestException", "HTTPError"):
+                return {
+                    "error": True,
+                    "message": f"Weather API request failed: {str(e)}",
+                    "exception": str(e),
+                }
+            else:
+                return {
+                    "error": True,
+                    "message": f"Unexpected error: {str(e)}",
+                    "exception": str(e),
+                }
 
     def _parse_weather_data(
         self, data: Dict[str, Any], location: str

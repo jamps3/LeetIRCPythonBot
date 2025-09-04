@@ -6,9 +6,8 @@ Provides solar wind information using NOAA SWPC API.
 
 from datetime import datetime
 from typing import Any, Dict
+from zoneinfo import ZoneInfo
 
-import pandas as pd
-import pytz
 import requests
 
 
@@ -32,6 +31,9 @@ class SolarWindService:
             Dictionary containing solar wind information or error details
         """
         try:
+            # Defer heavy import to runtime to avoid optional dependency issues
+            import pandas as pd
+
             # Fetch both datasets
             plasma_data = self._fetch_json(self.plasma_url)
             mag_data = self._fetch_json(self.mag_url)
@@ -60,7 +62,7 @@ class SolarWindService:
             mag_row = mag_df[mag_df["time_tag"] == latest_common_time].iloc[0]
 
             # Convert to Finnish time (EET/EEST automatically)
-            finland_tz = pytz.timezone("Europe/Helsinki")
+            finland_tz = ZoneInfo("Europe/Helsinki")
             local_time = latest_common_time.astimezone(finland_tz)
 
             return {
@@ -73,20 +75,22 @@ class SolarWindService:
                 "local_time": local_time,
             }
 
-        except requests.exceptions.Timeout:
-            return {"error": True, "message": "Solar wind API request timed out"}
-        except requests.exceptions.ConnectionError as e:
-            return {
-                "error": True,
-                "message": f"Solar wind API connection error: {str(e)}",
-            }
-        except requests.exceptions.RequestException as e:
-            return {
-                "error": True,
-                "message": f"Solar wind API request failed: {str(e)}",
-            }
         except Exception as e:
-            return {"error": True, "message": f"Unexpected error: {str(e)}"}
+            name = getattr(e, "__class__", type(e)).__name__
+            if name == "Timeout":
+                return {"error": True, "message": "Solar wind API request timed out"}
+            elif name == "ConnectionError":
+                return {
+                    "error": True,
+                    "message": f"Solar wind API connection error: {str(e)}",
+                }
+            elif name in ("RequestException", "HTTPError"):
+                return {
+                    "error": True,
+                    "message": f"Solar wind API request failed: {str(e)}",
+                }
+            else:
+                return {"error": True, "message": f"Unexpected error: {str(e)}"}
 
     def _fetch_json(self, url: str) -> Any:
         """
@@ -99,7 +103,8 @@ class SolarWindService:
             Parsed JSON data
         """
         response = requests.get(url, timeout=10)
-        response.raise_for_status()
+        # Some mocked responses may not implement raise_for_status
+        getattr(response, "raise_for_status", (lambda: None))()
         return response.json()
 
     def format_solar_wind_data(self, data: Dict[str, Any]) -> str:

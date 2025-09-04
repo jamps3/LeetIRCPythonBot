@@ -1652,7 +1652,12 @@ class BotManager:
         import re
 
         import requests
-        from bs4 import BeautifulSoup
+
+        # Try to import BeautifulSoup, but fall back to regex if unavailable
+        try:
+            from bs4 import BeautifulSoup  # type: ignore
+        except Exception:
+            BeautifulSoup = None  # type: ignore
 
         # Find URLs in the text
         urls = re.findall(
@@ -1679,12 +1684,38 @@ class BotManager:
                         self.logger.debug(f"Skipping non-HTML content: {content_type}")
                         continue
 
-                    soup = BeautifulSoup(response.content, "html.parser")
-                    title = soup.find("title")
-                    if title and title.string:
-                        # Clean the title
-                        cleaned_title = re.sub(r"\s+", " ", title.string.strip())
+                    cleaned_title = None
+                    if BeautifulSoup is not None:
+                        try:
+                            soup = BeautifulSoup(response.content, "html.parser")
+                            title_tag = soup.find("title")
+                            if title_tag and getattr(title_tag, "string", None):
+                                cleaned_title = re.sub(
+                                    r"\s+", " ", title_tag.string.strip()
+                                )
+                        except Exception:
+                            cleaned_title = None
 
+                    # Fallback: extract title with regex if bs4 is not available or failed
+                    if not cleaned_title:
+                        try:
+                            # Decode bytes safely; ignore errors
+                            text_content = (
+                                response.content.decode("utf-8", errors="ignore")
+                                if isinstance(response.content, (bytes, bytearray))
+                                else str(response.content)
+                            )
+                            m = re.search(
+                                r"<title[^>]*>(.*?)</title>",
+                                text_content,
+                                re.IGNORECASE | re.DOTALL,
+                            )
+                            if m:
+                                cleaned_title = re.sub(r"\s+", " ", m.group(1).strip())
+                        except Exception:
+                            cleaned_title = None
+
+                    if cleaned_title:
                         # Check if title is banned
                         if self._is_title_banned(cleaned_title):
                             self.logger.debug(f"Skipping banned title: {cleaned_title}")
