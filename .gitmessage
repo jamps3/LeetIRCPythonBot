@@ -16,3 +16,4 @@
 #   fix(irc): resolve connection timeout issue
 #   test(crypto): add comprehensive price formatting tests
 #
+# Remember: Tests run automatically before commit!
