@@ -29,38 +29,53 @@ def _check_and_repair_command_loader() -> None:
     """
     try:
         mod = _sys.modules.get("command_loader")
-        if mod is not None and not hasattr(mod, "enhanced_process_console_command"):
+
+        def _has_required(m) -> bool:
+            return hasattr(m, "enhanced_process_console_command") and hasattr(
+                m, "enhanced_process_irc_message"
+            )
+
+        if mod is not None and not _has_required(mod):
             _log(
-                f"command_loader present but missing attribute; type={type(mod)} repr={repr(mod)[:120]}"
+                "command_loader present but missing required attributes; "
+                f"has_console={hasattr(mod, 'enhanced_process_console_command')} "
+                f"has_irc={hasattr(mod, 'enhanced_process_irc_message')} "
+                f"type={type(mod)} repr={repr(mod)[:120]}"
             )
             try:
                 del _sys.modules["command_loader"]
                 _importlib.invalidate_caches()
                 mod = _importlib.import_module("command_loader")
                 _log(
-                    "command_loader repaired via re-import; has func="
+                    "command_loader repaired via re-import; has_console="
                     + str(hasattr(mod, "enhanced_process_console_command"))
+                    + " has_irc="
+                    + str(hasattr(mod, "enhanced_process_irc_message"))
                 )
             except Exception:
                 _log("command_loader repair failed:\n" + _tb.format_exc())
                 return
 
-        # If not in sys.modules or first-time import, ensure it loads and has attribute
+        # If not in sys.modules or first-time import, ensure it loads and has attributes
         if mod is None:
             try:
                 mod = _importlib.import_module("command_loader")
                 _log(
-                    "command_loader imported; has func="
+                    "command_loader imported; has_console="
                     + str(hasattr(mod, "enhanced_process_console_command"))
+                    + " has_irc="
+                    + str(hasattr(mod, "enhanced_process_irc_message"))
                 )
             except Exception:
                 _log("command_loader import failed:\n" + _tb.format_exc())
                 return
 
         # Final sanity
-        if not hasattr(mod, "enhanced_process_console_command"):
+        if not _has_required(mod):
             _log(
-                "command_loader still missing enhanced_process_console_command after repair"
+                "command_loader still missing required attributes after repair: "
+                f"has_console={hasattr(mod, 'enhanced_process_console_command')} "
+                f"has_irc={hasattr(mod, 'enhanced_process_irc_message')}"
             )
     except Exception:
         _log("_check_and_repair_command_loader exception:\n" + _tb.format_exc())

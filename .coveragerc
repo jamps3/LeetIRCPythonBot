@@ -13,3 +13,4 @@ omit =
     test_gpt.py
     test_nanoleet.py
     test_saaennuste.py
+    setup_hooks.py
