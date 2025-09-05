@@ -30,8 +30,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Common imports used by various merged tests
 from command_registry import CommandContext
-from commands_basic import solarwind_command
-from commands_extended import command_leets
+from commands import command_leets, solarwind_command
 from word_tracking import DataManager, DrinkTracker
 
 

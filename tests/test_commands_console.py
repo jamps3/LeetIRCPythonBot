@@ -42,9 +42,8 @@ def ensure_command_registry():
             # If registry is empty, force reload commands
             if len(registry._commands) == 0:
                 # Import command modules to register commands
+                import commands
                 import commands_admin
-                import commands_basic
-                import commands_extended
 
         except Exception:
             # If anything fails, try to import command_loader which loads all commands

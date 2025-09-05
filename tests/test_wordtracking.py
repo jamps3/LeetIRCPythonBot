@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 # Import command and word tracking classes
-import commands_extended as cmds
+import commands as cmds
 from word_tracking import DataManager, GeneralWords
 
 
