@@ -1271,7 +1271,7 @@ def test_kraks_no_breakdown(monkeypatch, tmp_path):
 
 
 def test_schedule_management_list_and_cancel(monkeypatch):
-    """Test !scheduled list and cancel flows."""
+    """Test !scheduled list and cancel flows (require admin password)."""
     from command_loader import enhanced_process_console_command
 
     class FakeService:
@@ -1291,17 +1291,23 @@ def test_schedule_management_list_and_cancel(monkeypatch):
         lambda: FakeService(),
     )
 
+    # Set admin password expected by commands_admin.verify_admin_password
+    class _Cfg:
+        admin_password = "adm"
+
+    monkeypatch.setattr("commands_admin.get_config", lambda: _Cfg())
+
     responses = []
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
 
     # List
     responses.clear()
-    enhanced_process_console_command("!scheduled list", botf)
+    enhanced_process_console_command("!scheduled adm list", botf)
     assert any("Scheduled messages" in r or "📅" in r for r in responses)
 
     # Cancel
     responses.clear()
-    enhanced_process_console_command("!scheduled cancel id1", botf)
+    enhanced_process_console_command("!scheduled adm cancel id1", botf)
     assert any("Cancelled" in r or "✅" in r for r in responses)
 
 

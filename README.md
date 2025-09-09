@@ -54,6 +54,11 @@ sudo apt install -y libvoikko1 voikko-fi python3-libvoikko
 You need this for all the APIs to work and for the server and channel information:
 Copy .env.sample to .env and make relevant changes like bot name, servers, channels and API-keys.
 
+### Add admin password to your `.env` file:
+```env
+ADMIN_PASSWORD=your_secure_password_here
+```
+
 # Running
 ## Simple
 Options to run in: Screen, Tmux or plain Python. I prefer Tmux.
@@ -106,3 +111,151 @@ else
     tmux attach -t $SESSION_NAME
 fi
 ```
+
+## Features Implemented
+
+### 1. ⏰ Scheduled Messages
+
+**Commands:**
+- `!schedule #channel HH:MM:SS message` - Schedule a message
+- `!schedule #channel HH:MM:SS.microseconds message` - Schedule with microsecond precision
+- `!scheduled list` - List all scheduled messages (admin)
+- `!scheduled cancel <message_id>` - Cancel a scheduled message (admin)
+
+**Examples:**
+```
+!schedule #general 13:37:00 Leet time!
+!schedule #test 15:30:45.123456 Precise timing message
+!scheduled list
+!scheduled cancel scheduled_1703012345_0
+```
+
+**Features:**
+- **Threading**: Daemon threads for clean shutdown
+- **Accuracy**: Sub-millisecond timing precision (up to 9 decimal places)
+- **Admin** control for listing and cancelling messages
+- **Memory Management**: Automatic cleanup of expired messages
+- Automatic next-day scheduling if time has passed
+- **Logging** Detailed logging of timing accuracy
+
+### 2. 📁 IPFS Integration
+
+**Commands:**
+- `!ipfs add <url>` - Add file to IPFS (100MB limit)
+- `!ipfs <password> <url>` - Add file to IPFS with admin password (no size limit)
+- `!ipfs info <hash>` - Get IPFS object information
+
+**Examples:**
+```
+!ipfs add https://example.com/document.pdf
+!ipfs mypassword123 https://example.com/large_video.mp4
+!ipfs info QmXYZ123...
+```
+
+**Features:**
+- **Process Management**: Subprocess calls to IPFS CLI
+- **Stream Processing**: Chunk-based downloads with size monitoring, no memory issues
+- **Validation**: Pre-download size checking
+- **Security**: Admin password validation for large files, unlimited size with correct admin password
+- 100MB size limit without password
+- **Reliability**: Comprehensive error handling and cleanup
+- Real-time download progress monitoring
+- File integrity verification (SHA256 hash)
+- Graceful error handling for network issues
+- Automatic IPFS daemon availability checking
+
+### 3. 🎰 Eurojackpot Information
+
+**Commands:**
+- `!eurojackpot` - Get next draw information (date, time, jackpot amount)
+- `!eurojackpot tulokset` - Get last draw results (numbers, date, winners)
+
+**Examples:**
+```
+!eurojackpot
+> 🎰 Seuraava Eurojackpot: 15.03.2024 klo 21:00 | Potti: 15.0 miljoonaa EUR
+
+!eurojackpot tulokset  
+> 🎰 Viimeisin Eurojackpot (12.03.2024): 07 - 14 - 21 - 28 - 35 + 03 - 08 | 2 jackpot-voittajaa
+```
+
+**Features:**
+- Real-time data from API
+- **Caching**: Service instance reuse for efficiency
+- **Error Handling**: Graceful API failure handling
+- **Rate Limiting**: Respectful API usage
+- Automatic timezone conversion to Finnish time
+
+## Technical Implementation
+
+### Architecture
+
+All features are implemented as independent services:
+
+```
+services/
+├── scheduled_message_service.py  # Threading-based scheduling
+├── ipfs_service.py              # IPFS CLI integration
+└── eurojackpot_service.py       # Veikkaus API integration
+```
+
+## Usage Examples
+
+### Setting up IPFS (Optional)
+```bash
+# Install IPFS (if you want IPFS functionality)
+# Download from: https://ipfs.io/docs/install/
+ipfs init
+ipfs daemon
+```
+
+### Command Examples in IRC
+
+```
+# Schedule a message for later today
+!schedule #general 20:00:00 Evening announcement!
+
+# Schedule with ultimate precision  
+!schedule #dev 09:30:15.123456789 Daily standup reminder
+
+# Add a small file to IPFS
+!ipfs add https://httpbin.org/bytes/1024
+
+# Add a large file with password
+!ipfs mypassword123 https://example.com/large_dataset.zip
+
+# Get Eurojackpot info
+!eurojackpot [next|tulokset|last|date <DD.MM.YY|DD.MM.YYYY|YYYY-MM-DD>|freq [--extended|--ext] [--limit N]|stats|hot|cold|pairs|trends|streaks|help]
+
+# Admin: List scheduled messages
+!scheduled mypassword123 list
+
+# Admin: Cancel a scheduled message
+!scheduled mypassword123 cancel scheduled_1703012345_0
+```
+
+## Testing
+
+All features have been thoroughly tested.
+
+## Next Steps (Optional Enhancements/TODO)
+
+1. **Scheduled Messages**:
+   - Persistent storage for messages across restarts
+   - Recurring/cron-style scheduling
+   - Message templates and variables
+
+2. **IPFS Integration**:
+   - Progress bars for large uploads
+   - IPFS pinning management
+   - File type validation
+
+3. **Eurojackpot**:
+   - Historical data collection
+   - Multiple lottery support
+
+## 🎯 Summary
+
+1. ⏰ **Scheduled Messages**: Microsecond-precision timing with admin controls
+2. 📁 **IPFS Integration**: Size-limited uploads with password override
+3. 🎰 **Eurojackpot**: Real-time lottery information from official API

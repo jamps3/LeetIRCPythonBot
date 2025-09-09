@@ -984,18 +984,25 @@ def command_eurojackpot(context, bot_functions):
     name="scheduled",
     command_type=CommandType.ADMIN,
     description="List or cancel scheduled messages",
-    usage="!scheduled list|cancel <id>",
+    usage="!scheduled <password> list|cancel <id>",
     admin_only=True,
 )
 def command_scheduled(context, bot_functions):
-    """Manage scheduled messages."""
+    """Manage scheduled messages (admin password required)."""
     try:
+        # Verify admin password as first argument
+        from commands_admin import verify_admin_password
+
+        if not verify_admin_password(context.args or []):
+            return "❌ Invalid admin password"
+
         from services.scheduled_message_service import get_scheduled_message_service
 
         service = get_scheduled_message_service()
 
-        args = context.args or []
-        if not args or args[0].lower() == "list":
+        # Sub-arguments after password
+        sub_args = (context.args or [])[1:]
+        if not sub_args or sub_args[0].lower() == "list":
             # List scheduled messages
             messages = service.list_scheduled_messages()
             if not messages:
@@ -1007,16 +1014,16 @@ def command_scheduled(context, bot_functions):
 
             return result.strip()
 
-        elif args[0].lower() == "cancel" and len(args) > 1:
+        elif sub_args[0].lower() == "cancel" and len(sub_args) > 1:
             # Cancel a scheduled message
-            message_id = args[1]
+            message_id = sub_args[1]
             if service.cancel_message(message_id):
                 return f"✅ Cancelled scheduled message: {message_id}"
             else:
                 return f"❌ Message not found: {message_id}"
 
         else:
-            return "Usage: !scheduled list|cancel <id>"
+            return "Usage: !scheduled <password> list|cancel <id>"
 
     except Exception as e:
         return f"❌ Scheduled messages error: {str(e)}"
