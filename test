@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
 set -euo pipefail
 
-# Run pytest with coverage configured via .coveragerc; forward all args
-python -m pytest --cov --cov-config=.coveragerc "$@"
+# Run pytest with coverage configured via .coveragerc and xdist; forward all args
+python -m pytest --cov --cov-config=.coveragerc -n auto "$@"
