@@ -1,35 +1,81 @@
 # 🎉 TEST FRAMEWORK! 🎉
 
-We have successfully migrated the LeetIRCPythonBot project from a custom test framework to industry-standard **pytest** with **coverage**!
+## 🥳 **We have successfully migrated the LeetIRCPythonBot project from a custom test framework to industry-standard _pytest_ with _coverage_!** 🥳
 
 ---
 
 ## 📊 Statistics
 
 - ✅ `test_bot_functionality.py` - Bot functionality (3 tests)
+- ✅ `test_bot_manager.py` - Bot manager functionality (35 tests)
 - ✅ `test_command_registry.py` - Commands (10 tests)
-- ✅ `test_commands_admin.py` - Admin commands (33 tests)
-- ✅ `test_commands_console.py` - Console commands (25 tests)
-- ✅ `test_commands_irc.py` - IRC commands (2 tests)
-- ✅ `test_commands.py` - Bot commands (38 tests)
-- ✅ `test_config.py` - Configuration management (6 tests)
+- ✅ `test_commands_admin.py` - Admin commands (39 tests)
+- ✅ `test_commands_console.py` - Console commands (72 tests)
+- ✅ `test_commands_irc.py` - IRC commands (41 tests)
+- ✅ `test_config.py` - Configuration management (16 tests)
 - ✅ `test_data_manager.py` - Data persistence (20 tests)
-- ✅ `test_irc_client.py` - IRC client functionality (13 tests)
-- ✅ `test_leet_detector.py` - leet detector functionality (11 tests)
+- ✅ `test_irc_client.py` - IRC client functionality (31 tests)
+- ✅ `test_leet_detector.py` - leet detector functionality (19 tests)
+- ✅ `test_logger.py` - Logging (2 tests)
+- ✅ `test_main.py` - Bot startup/main.py (17 tests)
 - ✅ `test_quit_all_servers.py` - Quit functionality with a custom message (2 tests)
 - ✅ `test_server_flood_protection.py` - Flood protection (10 tests)
+- ✅ `test_server_full_coverage.py` - server.py (40 tests)
 - ✅ `test_service_crypto.py` - Cryptocurrency service (14 tests)
+- ✅ `test_service_digitraffic.py` - Digitraffic service (19 tests)
 - ✅ `test_service_electricity.py` - Electricity service (36 tests)
-- ✅ `test_service_eurojackpot.py` - Eurojackpot service (42 tests)
-- ✅ `test_service_fmi_warning.py` - FMI warning service (2 tests)
+- ✅ `test_service_eurojackpot.py` - Eurojackpot service (35 tests)
+- ✅ `test_service_fmi_warning.py` - FMI warning service (24 tests)
 - ✅ `test_service_gpt.py` - ChatGPT service (1 test)
-- ✅ `test_service_weather.py` - Weather service API (38 tests)
+- ✅ `test_service_weather.py` - Weather service (42 tests)
+- ✅ `test_service_weather_forecast.py` - Weather Forecast service (35 tests)
 - ✅ `test_subscriptions.py` - Subscriptions (54 tests)
 - ✅ `test_tamagotchi.py` - Tamagotchi (1 test)
 - ✅ `test_wordtracking.py` - Word tracking (5 tests)
 
-### Test Results: **566 Total Tests**
-- **✅ 566 PASSED**
+### Test Results: **620 Total Tests**
+- **✅ 620 PASSED**
+---
+
+## 🛡️ Coverage
+
+| Name                                      | Stmts | Miss | Cover |
+|--------------------------------------------|-------|------|-------|
+| bot_manager.py                            | 1075  | 212  | 80%   |
+| command_loader.py                         | 183   | 90   | 51%   |
+| command_registry.py                       | 242   | 58   | 76%   |
+| commands.py                               | 525   | 0    | 100%  |
+| commands_admin.py                         | 130   | 0    | 100%  |
+| config.py                                 | 153   | 0    | 100%  |
+| conftest.py                               | 69    | 16   | 77%   |
+| irc_client.py                             | 383   | 6    | 98%   |
+| leet_detector.py                          | 104   | 0    | 100%  |
+| lemmatizer.py                             | 102   | 75   | 26%   |
+| logger.py                                 | 58    | 0    | 100%  |
+| main.py                                   | 100   | 0    | 100%  |
+| server.py                                 | 343   | 0    | 100%  |
+| services/crypto_service.py                | 117   | 20   | 83%   |
+| services/digitraffic_service.py           | 300   | 2    | 99%   |
+| services/electricity_service.py           | 221   | 70   | 68%   |
+| services/eurojackpot_service.py           | 532   | 214  | 60%   |
+| services/fmi_warning_service.py           | 169   | 2    | 99%   |
+| services/gpt_service.py                   | 96    | 68   | 29%   |
+| services/ipfs_service.py                  | 134   | 88   | 34%   |
+| services/otiedote_service.py              | 177   | 136  | 23%   |
+| services/scheduled_message_service.py     | 143   | 60   | 58%   |
+| services/solarwind_service.py             | 79    | 42   | 47%   |
+| services/weather_forecast_service.py      | 100   | 0    | 100%  |
+| services/weather_service.py               | 105   | 0    | 100%  |
+| services/youtube_service.py               | 142   | 121  | 15%   |
+| subscriptions.py                          | 165   | 22   | 87%   |
+| utils.py                                  | 120   | 103  | 14%   |
+| word_tracking/data_manager.py             | 174   | 45   | 74%   |
+| word_tracking/drink_tracker.py            | 162   | 25   | 85%   |
+| word_tracking/general_words.py            | 103   | 42   | 59%   |
+| word_tracking/tamagotchi_bot.py           | 150   | 57   | 62%   |
+| **TOTAL**                                 | 6656  | 1574 | 76%   |
+
+## Total tests coverage: **76%**
 
 ---
 
@@ -67,6 +113,8 @@ python -m pytest tests/test_config.py -v
 
 ### Run All Tests
 ```bash
+.\test
+or
 python -m pytest -v
 ```
 
@@ -79,6 +127,18 @@ python -m pytest --cov=. -v
 ### Count tests
 ```bash
 python -m pytest --collect-only <test_file.py> | Select-String -Pattern "Function .*test_" | Measure-Object -Line
+```
+Per-file counts
+```bash
+python -m pytest --collect-only -q tests 2>$null | ForEach-Object { ($_ -split '::')[0] } | Group-Object | Sort-Object Name | Select-Object @{n='File';e={$.Name}}, @{n='Tests';e={$.Count}}
+```
+Total tests
+```bash
+python -m pytest --collect-only -q tests 2>$null | Measure-Object -Line
+```
+Everything in one go (nice output)
+```bash
+$nodes = python -m pytest --collect-only -qq tests 2>$null | Where-Object { $_ -match '::' }; $files = $nodes | ForEach-Object { ($_ -split '::')[0] }; $group = $files | Group-Object | Sort-Object Name; $group | Select-Object @{n='File';e={$_.Name}}, @{n='Tests';e={$_.Count}} | Format-Table -AutoSize; "Total tests: $($nodes.Count)"
 ```
 
 ---

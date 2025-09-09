@@ -7,6 +7,7 @@ source =
 omit =
     tests/*
     */__init__.py
+    conftest.py
     test_digitraffic-api.py
     test_electricity_mapping_interactive.py
     test_find_price.py

@@ -402,6 +402,22 @@ def test_kraks_command_all_drink_word_patterns(drink_tracker):
     ), f"Breakdown should have {len(drink_words)} different words"
 
 
+def test_help_specific_irc_sends_lines_to_nick():
+    from command_loader import enhanced_process_irc_message
+
+    notices = []
+
+    def mock_notice(msg, irc=None, target=None):
+        notices.append((target, msg))
+
+    botf = {"notice_message": mock_notice}
+    raw = ":tester!user@host PRIVMSG #test :!help ping"
+    _run_help(enhanced_process_irc_message, raw, botf)
+
+    assert notices and all(t == "tester" for t, _ in notices)
+    assert any("ping" in m.lower() for _, m in notices)
+
+
 @pytest.mark.parametrize(
     "word,expected_normalized",
     [
