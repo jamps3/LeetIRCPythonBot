@@ -1329,6 +1329,44 @@ def test_ipfs_and_eurojackpot_error_paths(monkeypatch):
     assert any("Eurojackpot error" in r for r in resps)
 
 
+def test_eurojackpot_freq_stats_hot(monkeypatch):
+    from command_loader import enhanced_process_console_command
+
+    # Fake service with selected methods
+    class FakeService:
+        def get_frequent_numbers(self, limit=10, extended=False):
+            return {"success": True, "message": f"FREQ ext={extended} limit={limit}"}
+
+        def get_database_stats(self):
+            return {"success": True, "message": "DB STATS"}
+
+        def get_hot_cold_numbers(self, mode="hot", window=None, top=5):
+            return {"success": True, "message": f"HOTCOLD {mode}"}
+
+    monkeypatch.setattr(
+        "services.eurojackpot_service.get_eurojackpot_service",
+        lambda: FakeService(),
+    )
+
+    responses = []
+    botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
+
+    # freq with flags
+    responses.clear()
+    enhanced_process_console_command("!eurojackpot freq --extended --limit 7", botf)
+    assert any("FREQ ext=True limit=7" in r for r in responses)
+
+    # stats
+    responses.clear()
+    enhanced_process_console_command("!eurojackpot stats", botf)
+    assert any("DB STATS" in r for r in responses)
+
+    # hot analytics
+    responses.clear()
+    enhanced_process_console_command("!eurojackpot hot", botf)
+    assert any("HOTCOLD hot" in r for r in responses)
+
+
 def test_services_missing_branches():
     from command_loader import enhanced_process_console_command
 

@@ -10,7 +10,7 @@
 - ✅ `test_bot_manager.py` - Bot manager functionality (35 tests)
 - ✅ `test_command_registry.py` - Commands (10 tests)
 - ✅ `test_commands_admin.py` - Admin commands (39 tests)
-- ✅ `test_commands_console.py` - Console commands (72 tests)
+- ✅ `test_commands_console.py` - Console commands (73 tests)
 - ✅ `test_commands_irc.py` - IRC commands (41 tests)
 - ✅ `test_config.py` - Configuration management (16 tests)
 - ✅ `test_data_manager.py` - Data persistence (20 tests)
@@ -24,17 +24,18 @@
 - ✅ `test_service_crypto.py` - Cryptocurrency service (14 tests)
 - ✅ `test_service_digitraffic.py` - Digitraffic service (19 tests)
 - ✅ `test_service_electricity.py` - Electricity service (36 tests)
-- ✅ `test_service_eurojackpot.py` - Eurojackpot service (35 tests)
+- ✅ `test_service_eurojackpot.py` - Eurojackpot service (64 tests)
 - ✅ `test_service_fmi_warning.py` - FMI warning service (24 tests)
 - ✅ `test_service_gpt.py` - ChatGPT service (1 test)
 - ✅ `test_service_weather.py` - Weather service (42 tests)
-- ✅ `test_service_weather_forecast.py` - Weather Forecast service (35 tests)
+- ✅ `test_service_weather_forecast.py` - Weather Forecast service (32 tests)
+- ✅ `test_service_youtube.py` - YouTube service (21 test)
 - ✅ `test_subscriptions.py` - Subscriptions (54 tests)
 - ✅ `test_tamagotchi.py` - Tamagotchi (1 test)
 - ✅ `test_wordtracking.py` - Word tracking (5 tests)
 
-### Test Results: **620 Total Tests**
-- **✅ 620 PASSED**
+### Test Results: **671 Total Tests PASSED ✅**
+
 ---
 
 ## 🛡️ Coverage
@@ -44,7 +45,7 @@
 | bot_manager.py                            | 1075  | 212  | 80%   |
 | command_loader.py                         | 183   | 90   | 51%   |
 | command_registry.py                       | 242   | 58   | 76%   |
-| commands.py                               | 525   | 0    | 100%  |
+| commands.py                               | 525   | 31   | 95%   |
 | commands_admin.py                         | 130   | 0    | 100%  |
 | config.py                                 | 153   | 0    | 100%  |
 | irc_client.py                             | 383   | 6    | 98%   |
@@ -56,7 +57,7 @@
 | services/crypto_service.py                | 117   | 20   | 83%   |
 | services/digitraffic_service.py           | 300   | 2    | 99%   |
 | services/electricity_service.py           | 221   | 32   | 86%   |
-| services/eurojackpot_service.py           | 532   | 214  | 60%   |
+| services/eurojackpot_service.py           | 532   | 151  | 78%   |
 | services/fmi_warning_service.py           | 169   | 2    | 99%   |
 | services/gpt_service.py                   | 96    | 68   | 29%   |
 | services/ipfs_service.py                  | 134   | 88   | 34%   |
@@ -71,10 +72,10 @@
 | word_tracking/data_manager.py             | 174   | 45   | 74%   |
 | word_tracking/drink_tracker.py            | 162   | 25   | 85%   |
 | word_tracking/general_words.py            | 103   | 42   | 59%   |
-| word_tracking/tamagotchi_bot.py           | 150   | 55   | 63%   |
-| **TOTAL**                                 | 6656  | 1401 | 79%   |
+| word_tracking/tamagotchi_bot.py           | 150   | 57   | 62%   |
+| **TOTAL**                                 | 6656  | 1369 | 80%   |
 
-## Total tests coverage: **79%**
+## Total tests coverage: **80%**
 
 ---
 

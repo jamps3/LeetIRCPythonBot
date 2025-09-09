@@ -865,25 +865,116 @@ def command_ipfs(context, bot_functions):
     name="eurojackpot",
     command_type=CommandType.PUBLIC,
     description="Get Eurojackpot information",
-    usage="!eurojackpot <tulokset>",
+    usage=(
+        "!eurojackpot [next|tulokset|last|date <DD.MM.YY|DD.MM.YYYY|YYYY-MM-DD>|"
+        "freq [--extended|--ext] [--limit N]|stats|hot|cold|pairs|trends|streaks|help]"
+    ),
     admin_only=False,
 )
 def command_eurojackpot(context, bot_functions):
     """Get Eurojackpot lottery information."""
     try:
-        # Check if user wants results or next draw info
-        if context.args and context.args[0].lower() in [
-            "tulokset",
-            "results",
-            "viimeisin",
-        ]:
+        args = [a.lower() for a in (context.args or [])]
+
+        # Backwards-compatible branches
+        if not args:
+            from services.eurojackpot_service import get_eurojackpot_numbers
+
+            # Default: next draw info (backwards-compatible)
+            return get_eurojackpot_numbers()
+
+        if args[0] in ["tulokset", "results", "viimeisin", "last"]:
             from services.eurojackpot_service import get_eurojackpot_results
 
             return get_eurojackpot_results()
-        else:
+
+        # Explicit next
+        if args[0] in ["next", "seuraava"]:
             from services.eurojackpot_service import get_eurojackpot_numbers
 
             return get_eurojackpot_numbers()
+
+        # Draw by date
+        if args[0] in ["date", "päivä", "pvm"]:
+            if len(context.args) < 2:
+                return "Usage: !eurojackpot date <DD.MM.YY|DD.MM.YYYY|YYYY-MM-DD>"
+            from services.eurojackpot_service import get_eurojackpot_service
+
+            service = get_eurojackpot_service()
+            res = service.get_draw_by_date(context.args[1])
+            return res.get("message", "Eurojackpot: Virhe haussa")
+
+        # Frequent numbers with flags
+        if args[0] in ["freq", "frequency", "yleisimmat", "yleisimmät"]:
+            from services.eurojackpot_service import get_eurojackpot_service
+
+            service = get_eurojackpot_service()
+            extended = any(a in ["--extended", "--ext"] for a in args[1:])
+            # parse --limit N
+            limit = None
+            if "--limit" in args:
+                try:
+                    li = args.index("--limit")
+                    limit = (
+                        int(context.args[li + 1])
+                        if li + 1 < len(context.args)
+                        else None
+                    )
+                except Exception:
+                    limit = None
+            res = service.get_frequent_numbers(limit=limit or 10, extended=extended)
+            return res.get("message", "📊 Virhe yleisimpien numeroiden haussa")
+
+        # Database stats
+        if args[0] in ["stats", "tietokanta"]:
+            from services.eurojackpot_service import get_eurojackpot_service
+
+            service = get_eurojackpot_service()
+            res = service.get_database_stats()
+            return res.get("message", "📊 Virhe tietokannan tilastoissa")
+
+        # Analytics: hot/cold/pairs/trends/streaks
+        if args[0] in ["hot", "cold", "pairs", "trends", "streaks", "analytics"]:
+            from services.eurojackpot_service import get_eurojackpot_service
+
+            service = get_eurojackpot_service()
+            sub = args[0]
+            # If 'analytics' used, expect a subtype
+            if sub == "analytics":
+                if len(args) < 2:
+                    return (
+                        "Usage: !eurojackpot analytics <hot|cold|pairs|trends|streaks>"
+                    )
+                sub = args[1]
+
+            if sub == "hot":
+                res = service.get_hot_cold_numbers(mode="hot")
+                return res.get("message", "📊 Virhe hot-numeroissa")
+            if sub == "cold":
+                res = service.get_hot_cold_numbers(mode="cold")
+                return res.get("message", "📊 Virhe cold-numeroissa")
+            if sub == "pairs":
+                res = service.get_common_pairs()
+                return res.get("message", "📊 Virhe paritilastoissa")
+            if sub == "trends":
+                res = service.get_trends()
+                return res.get("message", "📊 Virhe trendeissä")
+            if sub == "streaks":
+                res = service.get_streaks()
+                return res.get("message", "📊 Virhe putkitilastoissa")
+
+        if args[0] == "help":
+            return (
+                "Usage: !eurojackpot [next|tulokset|last|date <date>|freq [--extended] [--limit N]|"
+                "stats|hot|cold|pairs|trends|streaks|help]"
+            )
+
+        # Fallback: treat as date
+        from services.eurojackpot_service import get_eurojackpot_service
+
+        service = get_eurojackpot_service()
+        res = service.get_draw_by_date(context.args[0])
+        return res.get("message", "Eurojackpot: Virhe haussa")
 
     except Exception as e:
         return f"❌ Eurojackpot error: {str(e)}"
