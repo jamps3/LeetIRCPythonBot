@@ -431,29 +431,50 @@ def exit_command(context: CommandContext, bot_functions):
     name="sana",
     command_type=CommandType.PUBLIC,
     description="Search word statistics",
-    usage="!sana <sana>",
+    usage="!sana <sana> [limit]",
     admin_only=False,
 )
 def command_sana(context, bot_functions):
     if context.args:
-        search_word = " ".join(context.args).strip().lower()
+        # Parse optional limit as last numeric arg
+        args = context.args[:]
+        limit = 10
+        if args and isinstance(args[-1], str) and args[-1].isdigit():
+            try:
+                limit = max(1, min(50, int(args[-1])))
+            except Exception:
+                limit = 10
+            args = args[:-1]
+
+        search_word = " ".join(args).strip().lower()
+        if not search_word:
+            return "Käytä komentoa: !sana <sana> [limit]"
+
         results = _general_words.search_word(search_word)
 
-        if results["total_occurrences"] > 0:
-            all_users = []
-            for server_name, server_data in results["servers"].items():
-                for user in server_data["users"]:
-                    all_users.append(f"{user['nick']}@{server_name}: {user['count']}")
+        # Determine current server (fallback to 'console' if missing)
+        current_server = getattr(context, "server_name", "") or "console"
 
-            if all_users:
-                users_text = ", ".join(all_users)
+        if results["total_occurrences"] > 0:
+            # Only show users for the current server, without server suffix
+            server_data = results.get("servers", {}).get(current_server, {})
+            users = server_data.get("users", [])
+            if users:
+                # Sort by count desc and apply limit
+                users_sorted = sorted(
+                    users, key=lambda u: u.get("count", 0), reverse=True
+                )
+                users_sorted = users_sorted[:limit]
+                users_text = ", ".join(
+                    f"{u['nick']}: {u['count']}" for u in users_sorted
+                )
                 return f"Sana '{search_word}' on sanottu: {users_text}"
             else:
                 return f"Kukaan ei ole sanonut sanaa '{search_word}' vielä."
         else:
             return f"Kukaan ei ole sanonut sanaa '{search_word}' vielä."
     else:
-        return "Käytä komentoa: !sana <sana>"
+        return "Käytä komentoa: !sana <sana> [limit]"
 
 
 @command(
