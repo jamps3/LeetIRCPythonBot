@@ -57,6 +57,8 @@ async def process_irc_command(
 
     config = get_config()
     is_private = target.lower() == config.name.lower()
+    # For private messages, we should reply to the sender nick instead of the target (bot's nick)
+    reply_target = sender if is_private else target
 
     context = CommandContext(
         command="",  # Will be filled by process_command_message
@@ -96,10 +98,10 @@ async def process_irc_command(
                             parts = split_func(line, 400)
                             for part in parts:
                                 if part:
-                                    notice_message(part, irc_connection, target)
+                                    notice_message(part, irc_connection, reply_target)
                         else:
                             # Fallback: send each line as a separate notice
-                            notice_message(line, irc_connection, target)
+                            notice_message(line, irc_connection, reply_target)
 
             return True  # Command was processed
 
@@ -112,7 +114,7 @@ async def process_irc_command(
         # Send error message to user
         notice_message = bot_functions.get("notice_message")
         if notice_message:
-            notice_message(f"Command error: {str(e)}", irc_connection, target)
+            notice_message(f"Command error: {str(e)}", irc_connection, reply_target)
 
         return True  # Still consider it processed to avoid fallback
 
