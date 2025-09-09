@@ -40,14 +40,13 @@
 ## 🛡️ Coverage
 
 | Name                                      | Stmts | Miss | Cover |
-|--------------------------------------------|-------|------|-------|
+|-------------------------------------------|-------|------|-------|
 | bot_manager.py                            | 1075  | 212  | 80%   |
 | command_loader.py                         | 183   | 90   | 51%   |
 | command_registry.py                       | 242   | 58   | 76%   |
 | commands.py                               | 525   | 0    | 100%  |
 | commands_admin.py                         | 130   | 0    | 100%  |
 | config.py                                 | 153   | 0    | 100%  |
-| conftest.py                               | 69    | 16   | 77%   |
 | irc_client.py                             | 383   | 6    | 98%   |
 | leet_detector.py                          | 104   | 0    | 100%  |
 | lemmatizer.py                             | 102   | 75   | 26%   |
@@ -56,7 +55,7 @@
 | server.py                                 | 343   | 0    | 100%  |
 | services/crypto_service.py                | 117   | 20   | 83%   |
 | services/digitraffic_service.py           | 300   | 2    | 99%   |
-| services/electricity_service.py           | 221   | 70   | 68%   |
+| services/electricity_service.py           | 221   | 32   | 86%   |
 | services/eurojackpot_service.py           | 532   | 214  | 60%   |
 | services/fmi_warning_service.py           | 169   | 2    | 99%   |
 | services/gpt_service.py                   | 96    | 68   | 29%   |
@@ -66,16 +65,16 @@
 | services/solarwind_service.py             | 79    | 42   | 47%   |
 | services/weather_forecast_service.py      | 100   | 0    | 100%  |
 | services/weather_service.py               | 105   | 0    | 100%  |
-| services/youtube_service.py               | 142   | 121  | 15%   |
+| services/youtube_service.py               | 142   | 2    | 99%   |
 | subscriptions.py                          | 165   | 22   | 87%   |
 | utils.py                                  | 120   | 103  | 14%   |
 | word_tracking/data_manager.py             | 174   | 45   | 74%   |
 | word_tracking/drink_tracker.py            | 162   | 25   | 85%   |
 | word_tracking/general_words.py            | 103   | 42   | 59%   |
-| word_tracking/tamagotchi_bot.py           | 150   | 57   | 62%   |
-| **TOTAL**                                 | 6656  | 1574 | 76%   |
+| word_tracking/tamagotchi_bot.py           | 150   | 55   | 63%   |
+| **TOTAL**                                 | 6656  | 1401 | 79%   |
 
-## Total tests coverage: **76%**
+## Total tests coverage: **79%**
 
 ---
 
@@ -113,8 +112,9 @@ python -m pytest tests/test_config.py -v
 
 ### Run All Tests
 ```bash
+Run all tests with coverage and xdist:
 .\test
-or
+or without them:
 python -m pytest -v
 ```
 

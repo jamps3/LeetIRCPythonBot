@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import pytest
 import requests
 
+import services.youtube_service as ys
 from services.youtube_service import YouTubeService, create_youtube_service
 
 
@@ -349,3 +350,69 @@ def test_format_duration_and_factory(svc):
     # factory
     new_svc = create_youtube_service("K")
     assert isinstance(new_svc, YouTubeService)
+
+
+def test_format_duration_fallback_and_unknown_paths(svc):
+    # Fallback path: object without total_seconds but with day/hour/minute/second attributes
+    class DummyDur:
+        days = 1
+        hours = 2
+        minutes = 3
+        seconds = 4
+        # No total_seconds method
+
+    assert svc._format_duration(DummyDur()) == "26:03:04"  # 24h + 2h = 26h
+
+    # Unknown path: seconds value that cannot be cast to int or float
+    class BadDur:
+        days = 0
+        hours = 0
+        minutes = 0
+        seconds = "oops"  # int("oops") and float("oops") both raise
+
+        def total_seconds(self):
+            raise RuntimeError("nope")
+
+    assert svc._format_duration(BadDur()) == "Unknown"
+
+
+def test_parse_iso8601_duration_seconds_edge_cases(svc, monkeypatch):
+    # Non-string input returns None
+    assert svc._parse_iso8601_duration_seconds(None) is None
+
+    # Regex path with weeks and days
+    assert (
+        svc._parse_iso8601_duration_seconds("P1W1DT1H1M1S")
+        == 7 * 86400 + 1 * 86400 + 3600 + 60 + 1
+    )
+
+    # Force isodate fallback success with a dummy object lacking total_seconds
+    class FallbackDur:
+        days = 0
+        hours = 1
+        minutes = 2
+        seconds = "3"  # int("3") works, exercise int() branch
+        # no total_seconds
+
+    monkeypatch.setattr(ys.isodate, "parse_duration", lambda s: FallbackDur())
+    assert svc._parse_iso8601_duration_seconds("INVALID_NOT_MATCHING_REGEX") == 3723
+
+    # Force isodate fallback failure to hit return None branch
+    class FallbackBadDur:
+        days = 0
+        hours = 0
+        minutes = 0
+        seconds = "oops"  # both int() and float() will raise -> None
+        # no total_seconds
+
+    monkeypatch.setattr(ys.isodate, "parse_duration", lambda s: FallbackBadDur())
+    assert svc._parse_iso8601_duration_seconds("ALSO_INVALID") is None
+
+
+def test_parse_iso8601_duration_seconds_outer_exception(svc, monkeypatch):
+    # Force an unexpected exception before parse_duration to cover outer except
+    def _raise(*a, **k):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(ys.re, "fullmatch", _raise)
+    assert svc._parse_iso8601_duration_seconds("PT1S") is None
