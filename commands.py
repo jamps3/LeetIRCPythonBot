@@ -592,7 +592,7 @@ def command_drinkword(context, bot_functions):
         return f"Ei osumia sanalle '{drink_word}'."
 
     users = results.get("users", [])
-    top = ", ".join([f"{u['nick']}:{u['total']}]" for u in users[:10]]) if users else ""
+    top = ", ".join([f"{u['nick']}:{u['total']}" for u in users[:10]]) if users else ""
     return f"{drink_word}: {total} (top: {top})" if top else f"{drink_word}: {total}"
 
 
@@ -634,7 +634,7 @@ def command_drink(context, bot_functions):
         ]
     )
     users = results.get("users", [])
-    top_users = ", ".join([f"{u['nick']}:{u['total']}]" for u in users[:5]])
+    top_users = ", ".join([f"{u['nick']}:{u['total']}" for u in users[:5]])
 
     details = []
     if words_part:
