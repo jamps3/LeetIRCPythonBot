@@ -498,38 +498,47 @@ def command_tilaa(context, bot_functions):
 
 @command(
     name="topwords",
-    command_type=CommandType.PRIVATE,
+    command_type=CommandType.PUBLIC,
     description="Show top words used",
-    usage="!topwords <nick>",
+    usage="!topwords [nick] [limit]",
     admin_only=False,
 )
 def command_topwords(context, bot_functions):
-    if context.args:
-        nick = " ".join(context.args).strip()
-        found_user = False
+    # Default limit
+    limit = 10
+
+    args = context.args or []
+
+    # If last argument is an integer, treat it as limit
+    if args and isinstance(args[-1], str) and args[-1].isdigit():
+        try:
+            limit = max(1, min(50, int(args[-1])))
+        except Exception:
+            limit = 10
+        args = args[:-1]  # remove limit token from args
+
+    if args:  # User-specific top words
+        nick = " ".join(args).strip()
         for server_name in data_manager.get_all_servers():
             user_stats = general_words.get_user_stats(server_name, nick)
-            if user_stats["total_words"] > 0:
-                top_words = general_words.get_user_top_words(server_name, nick, 5)
+            if user_stats.get("total_words", 0) > 0:
+                top_words = general_words.get_user_top_words(server_name, nick, limit)
                 word_list = ", ".join(
                     f"{word['word']}: {word['count']}" for word in top_words
                 )
                 return f"{nick}@{server_name}: {word_list}"
-                found_user = True
-
-        if not found_user:
-            return f"Käyttäjää '{nick}' ei löydy."
-    else:
+        return f"Käyttäjää '{nick}' ei löydy."
+    else:  # Global top words across servers
         global_word_counts = {}
         for server_name in data_manager.get_all_servers():
             server_stats = general_words.get_server_stats(server_name)
-            for word, count in server_stats["top_words"]:
+            for word, count in server_stats.get("top_words", []):
                 global_word_counts[word] = global_word_counts.get(word, 0) + count
 
         if global_word_counts:
             top_words = sorted(
                 global_word_counts.items(), key=lambda x: x[1], reverse=True
-            )[:5]
+            )[:limit]
             word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
             return f"Käytetyimmät sanat (globaali): {word_list}"
         else:
