@@ -21,7 +21,7 @@ load_dotenv(override=True)
 
 
 # Custom exception classes that properly inherit from BaseException
-class RateLimitError(Exception):
+class RateLimitError(BaseException):
     """Rate limit error for AI service."""
 
     def __init__(self, message, response=None, body=None):
@@ -30,7 +30,7 @@ class RateLimitError(Exception):
         self.body = body
 
 
-class AuthenticationError(Exception):
+class AuthenticationError(BaseException):
     """Authentication error for AI service."""
 
     def __init__(self, message, response=None, body=None):
@@ -39,7 +39,7 @@ class AuthenticationError(Exception):
         self.body = body
 
 
-class APIError(Exception):
+class APIError(BaseException):
     """API error for AI service."""
 
     def __init__(self, message, request=None, body=None):
