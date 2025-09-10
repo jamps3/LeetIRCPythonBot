@@ -245,6 +245,54 @@ Developer Tools & Scripts /
 └── conftest.py                   # Pytest fixtures and shared test config
 ```
 
+#### 📁 File Links (Core)
+- **Entry Point**: [`main.py`](main.py) - Bot startup, signal handling, BotManager initialization
+- **Bot Orchestration**: [`bot_manager.py`](bot_manager.py) - Multi-server management, service coordination, console interface
+- **Server Management**: [`server.py`](server.py) - IRC server wrapper, connection handling, callbacks
+- **IRC Protocol**: [`irc_client.py`](irc_client.py) - Low-level IRC client, message sending, raw commands
+- **Command Processing**: [`command_loader.py`](command_loader.py) - Command module loader, IRC/console message routing
+- **Command System**: [`command_registry.py`](command_registry.py) - Command registration, parsing, dispatch, help generation
+- **Public Commands**: [`commands.py`](commands.py) - Weather, stats, utilities, echo, version, electricity, etc.
+- **Admin Commands**: [`commands_admin.py`](commands_admin.py) - Join/part/nick/quit/raw/openai/scheduled (password-protected)
+- **Configuration**: [`config.py`](config.py) - Environment variable loading, server configs, API keys
+- **Logging**: [`logger.py`](logger.py) - High-precision timestamped logging, console output protection
+- **Subscriptions**: [`subscriptions.py`](subscriptions.py) - User notification preferences (warnings, releases)
+- **Leet Detection**: [`leet_detector.py`](leet_detector.py) - 1337 timestamp detection with nanosecond precision
+- **Lemmatization**: [`lemmatizer.py`](lemmatizer.py) - Optional Finnish word lemmatization (Voikko)
+- **Utilities**: [`utils.py`](utils.py) - Helper functions for tests and utilities
+- **Development**: [`setup_hooks.py`](setup_hooks.py) - Pre-commit hooks and code formatting
+
+#### 🌐 Service Links
+- **Crypto**: [`services/crypto_service.py`](services/crypto_service.py) - CoinGecko API, price fetching
+- **Trains**: [`services/digitraffic_service.py`](services/digitraffic_service.py) - Finnish train schedules, station search
+- **Electricity**: [`services/electricity_service.py`](services/electricity_service.py) - Nord Pool spot prices, hourly data
+- **Eurojackpot**: [`services/eurojackpot_service.py`](services/eurojackpot_service.py) - Lottery results, statistics, analytics
+- **Weather Warnings**: [`services/fmi_warning_service.py`](services/fmi_warning_service.py) - FMI warning monitoring
+- **AI Chat**: [`services/gpt_service.py`](services/gpt_service.py) - OpenAI GPT integration, conversation history
+- **IPFS**: [`services/ipfs_service.py`](services/ipfs_service.py) - Decentralized file storage, streaming uploads
+- **Incident Reports**: [`services/otiedote_service.py`](services/otiedote_service.py) - Accident report monitoring
+- **Scheduling**: [`services/scheduled_message_service.py`](services/scheduled_message_service.py) - Precise message timing
+- **Solar Wind**: [`services/solarwind_service.py`](services/solarwind_service.py) - NOAA space weather data
+- **Weather**: [`services/weather_service.py`](services/weather_service.py) - Current weather conditions
+- **Forecasts**: [`services/weather_forecast_service.py`](services/weather_forecast_service.py) - Short weather forecasts
+- **YouTube**: [`services/youtube_service.py`](services/youtube_service.py) - Video search, URL metadata
+
+#### 📊 Word Tracking Links
+- **Data Storage**: [`word_tracking/data_manager.py`](word_tracking/data_manager.py) - Persistent data management
+- **Drink Tracking**: [`word_tracking/drink_tracker.py`](word_tracking/drink_tracker.py) - Drinking word monitoring
+- **Word Stats**: [`word_tracking/general_words.py`](word_tracking/general_words.py) - Message analysis, leaderboards
+- **Virtual Pet**: [`word_tracking/tamagotchi_bot.py`](word_tracking/tamagotchi_bot.py) - Interactive tamagotchi features
+
+#### 🔧 Configuration & Tools Links
+- **Environment**: [`.env.sample`](.env.sample) - Configuration template with all options
+- **Testing**: [`pytest.ini`](pytest.ini) - Test runner configuration
+- **Documentation**: [`README.md`](README.md) - This comprehensive guide
+- **Diagrams**: [`UML.md`](UML.md) - System architecture diagrams
+- **Warp Notes**: [`WARP.md`](WARP.md) - Terminal/Agent usage notes
+- **Bootstrap**: [`run`](run) - Full setup script (venv + tmux + install + start)
+- **Quick Start**: [`start`](start) - Fast restart script (reuse existing setup)
+- **Test Config**: [`conftest.py`](conftest.py) - Pytest fixtures and shared test setup
+
 Data flow overview:
 - IRC messages -> BotManager._handle_message -> command_loader.enhanced_process_irc_message -> command_registry -> commands/commands_admin -> Services
 - Console input -> command_loader.enhanced_process_console_command -> command_registry -> commands/commands_admin -> Services
