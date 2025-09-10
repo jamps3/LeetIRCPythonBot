@@ -358,9 +358,17 @@ def leetwinners_command(context: CommandContext, bot_functions):
     # Expected structure: { winner: {category: count, ...}, ... }
     data = load_leet_winners() or {}
 
+    # Extract metadata if present
+    metadata = data.get("_metadata", {})
+    start_date = metadata.get("statistics_started")
+
     # Aggregate counts per category -> list of (winner, count)
     per_category = {}
     for winner, categories in data.items():
+        # Skip metadata entries
+        if winner.startswith("_"):
+            continue
+
         for cat, count in categories.items():
             if cat not in per_category:
                 per_category[cat] = []
@@ -369,17 +377,24 @@ def leetwinners_command(context: CommandContext, bot_functions):
     # Sort each category desc by count, then by winner name for stability
     lines = []
     for cat, entries in per_category.items():
-        top = sorted(entries, key=lambda x: (-x[1], x[0]))[:3]
+        top = sorted(entries, key=lambda x: (-x[1], x[0]))[:5]
         if top:
             formatted = ", ".join(f"{w} [{c}]" for w, c in top)
             lines.append(f"{cat}: {formatted}")
 
     winners_text = "; ".join(lines)
-    return (
-        f"𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼: {winners_text}"
-        if winners_text
-        else "No 𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼 recorded yet."
-    )
+
+    # Build response with optional start date
+    if winners_text:
+        response = f"𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼: {winners_text}"
+        if start_date:
+            response += f" (since {start_date})"
+        return response
+    else:
+        if start_date:
+            return f"No 𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼 recorded yet (tracking since {start_date})."
+        else:
+            return "No 𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼 recorded yet."
 
 
 @command("about", description="Show information about the bot", usage="!about")

@@ -1414,6 +1414,7 @@ class BotManager:
         This keeps !leetwinners in sync with external announcer messages.
         """
         import re
+        from datetime import datetime
 
         # Regex pattern for detection
         pattern = r"Ensimmäinen leettaaja oli (\S+) .*?, viimeinen oli (\S+) .*?Lähimpänä multileettiä oli (\S+)"
@@ -1425,6 +1426,11 @@ class BotManager:
 
         # Load current winners
         winners = self._load_leet_winners()
+
+        # Initialize metadata if this is the first time we're tracking
+        if not winners or "_metadata" not in winners:
+            current_date = datetime.now().strftime("%d.%m.%Y")
+            winners["_metadata"] = {"statistics_started": current_date}
 
         # Helper to bump count in winners dict
         def bump(name: str, category: str):

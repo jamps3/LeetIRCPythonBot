@@ -332,6 +332,48 @@ def scheduled_command(context: CommandContext, bot_functions):
         return f"❌ Scheduled messages error: {str(e)}"
 
 
+@command(
+    "leetwinners",
+    description="Reset leetwinners statistics (admin only)",
+    usage="!leetwinners <password> reset",
+    examples=["!leetwinners mypass reset"],
+    admin_only=True,
+    requires_args=True,
+)
+def leetwinners_reset_command(context: CommandContext, bot_functions):
+    """Reset leetwinners statistics and set new start date."""
+    if not verify_admin_password(context.args):
+        return "❌ Invalid admin password"
+
+    if len(context.args) < 2 or context.args[1].lower() != "reset":
+        return "❌ Usage: !leetwinners <password> reset"
+
+    try:
+        from datetime import datetime
+
+        # Get save function from bot_functions
+        save_leet_winners = bot_functions.get("save_leet_winners")
+        if not save_leet_winners:
+            return "❌ Leet winners service not available"
+
+        # Create empty data with start date
+        current_date = datetime.now().strftime("%d.%m.%Y")
+        reset_data = {
+            "_metadata": {
+                "statistics_started": current_date,
+                "last_reset": current_date,
+            }
+        }
+
+        # Save the reset data
+        save_leet_winners(reset_data)
+
+        return f"✅ Leetwinners statistics reset successfully. New tracking period started: {current_date}"
+
+    except Exception as e:
+        return f"❌ Error resetting leetwinners: {str(e)}"
+
+
 # Import this module to register the commands
 def register_admin_commands():
     """Register all admin commands. Called automatically when module is imported."""
