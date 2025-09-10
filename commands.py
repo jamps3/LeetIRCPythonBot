@@ -1,9 +1,5 @@
 """
-Unified Commands Module for LeetIRC Bot
-
-This module merges the functionality of commands_basic.py and commands_extended.py
-into a single source of truth (commands.py). The legacy modules are converted to
-thin shims that re-export from here to preserve backwards compatibility.
+Unified Commands Module for LeetIRCPythonBot
 """
 
 import os
@@ -19,10 +15,6 @@ from command_registry import (
     command,
 )
 from config import get_config
-
-# Utilities (some commands/services may rely on these via bot_functions)
-# Kept aligned with legacy modules to avoid lint/config churn.
-from utils import fetch_title_improved, split_message_intelligently  # noqa: F401
 
 # Word tracking system (extended features)
 from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
@@ -691,7 +683,7 @@ def command_drink(context, bot_functions):
         details.append(f"top: {top_users}")
 
     details_text = ", ".join(details)
-    return f"{query}: {total}{(', ' + details_text) if details_text else ''}"
+    return f"{(', ' + details_text) if details_text else ''}"
 
 
 @command(
@@ -1026,57 +1018,6 @@ def command_eurojackpot(context, bot_functions):
 
     except Exception as e:
         return f"❌ Eurojackpot error: {str(e)}"
-
-
-@command(
-    name="scheduled",
-    command_type=CommandType.ADMIN,
-    description="List or cancel scheduled messages",
-    usage="!scheduled <password> list|cancel <id>",
-    admin_only=True,
-)
-def command_scheduled(context, bot_functions):
-    """Manage scheduled messages (admin password required)."""
-    try:
-        # Verify admin password as first argument, but allow console usage without it
-        from commands_admin import verify_admin_password
-
-        require_password = not getattr(context, "is_console", False)
-        if require_password and not verify_admin_password(context.args or []):
-            return "❌ Invalid admin password"
-
-        from services.scheduled_message_service import get_scheduled_message_service
-
-        service = get_scheduled_message_service()
-
-        # Determine sub-arguments (skip password only when required)
-        full_args = context.args or []
-        sub_args = full_args[1:] if require_password else full_args
-        if not sub_args or sub_args[0].lower() == "list":
-            # List scheduled messages
-            messages = service.list_scheduled_messages()
-            if not messages:
-                return "📅 No messages currently scheduled"
-
-            result = "📅 Scheduled messages:\n"
-            for msg_id, info in messages.items():
-                result += f"• {msg_id}: '{info['message']}' to {info['channel']} at {info['target_time']}\n"
-
-            return result.strip()
-
-        elif sub_args[0].lower() == "cancel" and len(sub_args) > 1:
-            # Cancel a scheduled message
-            message_id = sub_args[1]
-            if service.cancel_message(message_id):
-                return f"✅ Cancelled scheduled message: {message_id}"
-            else:
-                return f"❌ Message not found: {message_id}"
-
-        else:
-            return "Usage: !scheduled <password> list|cancel <id>"
-
-    except Exception as e:
-        return f"❌ Scheduled messages error: {str(e)}"
 
 
 # Moved from basic: weather and solar wind commands

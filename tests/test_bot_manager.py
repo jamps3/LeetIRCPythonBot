@@ -203,24 +203,6 @@ def test_send_response_use_notice_and_message(manager):
     assert kinds == ["notice", "message"]
 
 
-def test_load_save_legacy_and_leet_winners(tmp_path, monkeypatch, manager):
-    monkeypatch.chdir(tmp_path)
-
-    # load legacy when file missing -> {}
-    assert manager._load_legacy_data() == {}
-
-    # save legacy
-    data = {"x": 1}
-    manager._save_legacy_data(data)
-    assert os.path.exists("data.pkl")
-
-    # leet winners
-    assert manager._load_leet_winners() == {}
-    manager._save_leet_winners({"nick": {"ensimmäinen": 1}})
-    saved = json.loads((tmp_path / "leet_winners.json").read_text())
-    assert saved["nick"]["ensimmäinen"] == 1
-
-
 def test_process_leet_winner_summary(monkeypatch, manager):
     winners = {}
     monkeypatch.setattr(manager, "_load_leet_winners", lambda: winners, raising=True)

@@ -71,38 +71,6 @@ class GPTService:
         except Exception as e:
             print(f"Error saving conversation history: {e}")
 
-    def _correct_outdated_dates(self, text: str) -> str:
-        current_date = datetime.now()
-        months = [
-            "tammikuuta",
-            "helmikuuta",
-            "maaliskuuta",
-            "huhtikuuta",
-            "toukokuuta",
-            "kesäkuuta",
-            "heinäkuuta",
-            "elokuuta",
-            "syyskuuta",
-            "lokakuuta",
-            "marraskuuta",
-            "joulukuuta",
-        ]
-        today_fi = (
-            f"{current_date.day}. {months[current_date.month - 1]} {current_date.year}"
-        )
-
-        patterns = [
-            r"Tänään on \d{1,2}\. \w+ \d{4}",
-            r"today is \w+ \d{1,2}, \d{4}",
-            r"current date is \d{1,2}\. \w+ \d{4}",
-            r"Nykyinen päivämäärä on \d{1,2}\. \w+ \d{4}",
-            r"Päivämäärä on \d{1,2}\. \w+ \d{4}",
-            r"Olemme nyt \d{1,2}\. \w+ \d{4}",
-        ]
-        for pat in patterns:
-            text = re.sub(pat, today_fi, text, flags=re.IGNORECASE)
-        return text
-
     def _build_transcript(self, latest_user: Dict[str, str]) -> str:
         parts: List[str] = []
         for msg in self.conversation_history:
@@ -134,9 +102,6 @@ class GPTService:
             reply = (response.output_text or "").strip()
             if not reply:
                 reply = "Sorry, I'm having trouble connecting to the AI service."
-
-            # Uncomment if you want to correct dates in the reply, gpt-5-mini handles dates well
-            # reply = self._correct_outdated_dates(reply)
 
             self.conversation_history.append({"role": "assistant", "content": reply})
             self._save_conversation_history()

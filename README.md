@@ -190,14 +190,65 @@ fi
 
 ### Architecture
 
-All features are implemented as independent services:
+Key components of the codebase and how they fit together:
 
 ```
-services/
-├── scheduled_message_service.py  # Threading-based scheduling
-├── ipfs_service.py              # IPFS CLI integration
-└── eurojackpot_service.py       # Veikkaus API integration
+Core /
+├── main.py                       # Entry point: starts BotManager and event loop
+├── bot_manager.py                # Orchestrates servers, services, command routing, console
+├── server.py                     # Server wrapper, callbacks, message dispatch
+├── irc_client.py                 # IRC protocol client (send_message/NOTICE/raw)
+├── command_loader.py             # Loads command modules, processes IRC/console commands
+├── command_registry.py           # Command system (registry, parsing, dispatch, help)
+├── commands.py                   # Public & console commands (weather, stats, etc.)
+├── commands_admin.py             # Admin commands (join/part/nick/quit/raw/openai/scheduled)
+├── config.py                     # Environment and settings loader (.env support)
+├── logger.py                     # High-precision logger and safe console output
+├── subscriptions.py              # User/topic subscription system (warnings, releases)
+├── leet_detector.py              # 1337 timestamp detector (nanosecond precision)
+├── lemmatizer.py                 # Optional Finnish lemmatization support (graceful fallback)
+├── utils.py                      # Small helpers used in tests and utilities
+└── setup_hooks.py                # Dev hooks (e.g., pre-commit formatting)
+
+Services /
+├── crypto_service.py             # Cryptocurrency prices (CoinGecko)
+├── digitraffic_service.py        # Train schedules and station info (Fintraffic Digitraffic)
+├── electricity_service.py        # Hourly electricity prices (Nord Pool / Fingrid)
+├── eurojackpot_service.py        # Lottery info, stats, analytics
+├── fmi_warning_service.py        # Finnish Meteorological Institute warnings monitor
+├── gpt_service.py                # GPT chat service (OpenAI Responses API)
+├── ipfs_service.py               # IPFS add/info via CLI, streaming and validation
+├── otiedote_service.py           # Accident/incident press release monitoring
+├── scheduled_message_service.py  # Nanosecond scheduling, threading, precise timing
+├── solarwind_service.py          # NOAA SWPC space weather (solar wind)
+├── weather_service.py            # Current weather data & formatting
+├── weather_forecast_service.py   # Short forecasts (single/multi-line)
+└── youtube_service.py            # YouTube search and URL metadata
+
+Word Tracking /
+├── word_tracking/
+│   ├── data_manager.py           # Storage for words, stats, config, persistence
+│   ├── drink_tracker.py          # Drink-related word tracking, privacy/opt-out
+│   ├── general_words.py          # Word counters, top words, leaderboards
+│   └── tamagotchi_bot.py         # Virtual pet reactions (toggleable)
+
+Configuration & Docs /
+├── .env.sample                   # Example configuration and feature toggles
+├── pytest.ini                    # Test configuration
+├── README.md                     # This file (features, usage, architecture)
+├── UML.md                        # Optional diagrams/notes
+└── WARP.md                       # Notes for Warp terminal/Agent usage
+
+Developer Tools & Scripts /
+├── run                           # Bootstrap script: venv + tmux + install + start
+├── start                         # Fast start: reuse venv/tmux and run main.py
+└── conftest.py                   # Pytest fixtures and shared test config
 ```
+
+Data flow overview:
+- IRC messages -> BotManager._handle_message -> command_loader.enhanced_process_irc_message -> command_registry -> commands/commands_admin -> Services
+- Console input -> command_loader.enhanced_process_console_command -> command_registry -> commands/commands_admin -> Services
+- Background monitors (FMI/Otiedote) -> Subscriptions -> BotManager -> Servers/IRC
 
 ## Usage Examples
 
@@ -254,8 +305,77 @@ All features have been thoroughly tested.
    - Historical data collection
    - Multiple lottery support
 
+4. **Tamagotchi**:
+   - Verify tamagotchi commands work properly
+
 ## 🎯 Summary
 
-1. ⏰ **Scheduled Messages**: Microsecond-precision timing with admin controls
-2. 📁 **IPFS Integration**: Size-limited uploads with password override
-3. 🎰 **Eurojackpot**: Real-time lottery information from official API
+LeetIRCPythonBot is a comprehensive IRC bot with 50+ features across multiple categories:
+
+### 🤖 **AI & Chat Features**
+- **GPT Integration**: Responds to mentions and private messages using OpenAI GPT-5-mini
+- **Smart Conversations**: Context-aware responses with conversation history
+- **Multi-language Support**: Finnish and English responses
+
+### ⏰ **Scheduling & Automation**
+- **Scheduled Messages**: Microsecond-precision timing with admin controls (!schedule, !scheduled)
+- **Automatic Monitoring**: FMI weather warnings, accident reports (Otiedote)
+- **Background Services**: Multi-threaded execution with daemon cleanup
+
+### 🌐 **Web & API Integration**
+- **Weather Services**: Current conditions (!s, !sää) and forecasts (!se, !sel)
+- **Electricity Prices**: Finnish spot prices with hourly/daily data (!sahko)
+- **YouTube Integration**: Auto-detection of URLs and search functionality (!youtube)
+- **Cryptocurrency**: Real-time price information (!crypto)
+- **Solar Wind**: Space weather monitoring (!solarwind)
+- **Eurojackpot**: Complete lottery information with analytics (!eurojackpot)
+- **URL Title Fetching**: Automatic webpage title extraction with blacklisting
+
+### 📊 **Statistics & Tracking**
+- **Word Statistics**: Track and analyze channel conversations (!sana, !topwords, !leaderboard)
+- **Drink Tracking**: Monitor drinking-related words with privacy controls (!kraks, !drink, !antikrak)
+- **Leet Detection**: Nanosecond-precision 1337 timestamp detection with achievements
+- **User Analytics**: Server-wide and per-user statistics
+
+### 🐾 **Interactive Features**
+- **Tamagotchi Bot**: Virtual pet with feeding, care, and status (!tamagotchi, !feed, !pet)
+- **Subscription System**: User-configurable notifications (!tilaa, !lopeta)
+- **Echo & Utility**: Time display, ping/pong, version info (!aika, !ping, !version)
+
+### 🚉 **Transportation**
+- **Train Information**: Real-time arrivals/departures from Finnish stations (!junat)
+- **Station Search**: Find stations and their live schedules
+
+### 📁 **File & Storage**
+- **IPFS Integration**: Decentralized file storage with size limits (!ipfs)
+- **Stream Processing**: Large file handling without memory issues
+- **Admin Override**: Unlimited uploads with password authentication
+
+### 🔧 **Administration**
+- **IRC Control**: Channel join/part, nickname changes (!join, !part, !nick)
+- **Server Management**: Multi-server support with independent configurations
+- **Raw Commands**: Direct IRC protocol access for advanced control (!raw)
+- **Graceful Shutdown**: Clean disconnection with custom messages (!quit)
+- **Model Management**: Runtime OpenAI model switching (!openai)
+
+### 🔒 **Security & Privacy**
+- **Password Authentication**: Secure admin command access
+- **Opt-out Controls**: User privacy for tracking features
+- **Rate Limiting**: API abuse prevention with cooldowns
+- **Input Validation**: Comprehensive security checks
+
+### 🏗️ **Technical Features**
+- **Command Registry**: Modular command system with metadata
+- **Multi-threading**: Concurrent service execution
+- **Error Handling**: Comprehensive exception management
+- **Logging**: High-precision timestamped logs
+- **Console Interface**: Interactive command-line control
+- **Memory Management**: Automatic cleanup and optimization
+- **UTF-8 Support**: Full Unicode message handling with IRC compliance
+- **Configurable Output**: NOTICE vs PRIVMSG message types
+
+### 📈 **Analytics & Monitoring**
+- **Service Health**: Automatic API availability checking
+- **Performance Metrics**: Response time and accuracy tracking
+- **Data Persistence**: JSON-based storage with automatic backups
+- **Real-time Alerts**: Instant notifications for important events

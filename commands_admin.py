@@ -270,6 +270,68 @@ def openai_command(context: CommandContext, bot_functions):
         return result
 
 
+@command(
+    "scheduled",
+    description="List or cancel scheduled messages (admin only)",
+    usage="!scheduled <password> <list|cancel> [message_id]",
+    examples=[
+        "!scheduled mypass list",
+        "!scheduled mypass cancel scheduled_1712345678_0",
+    ],
+    admin_only=True,
+    requires_args=True,
+)
+def scheduled_command(context: CommandContext, bot_functions):
+    """Manage scheduled messages (admin password required on IRC; optional on console)."""
+    try:
+        # Determine how to handle password based on context
+        args = list(context.args or [])
+        if context.is_console:
+            # Console: allow optional password. If the first arg matches the password, strip it
+            if verify_admin_password(args):
+                args = args[1:]
+        else:
+            # IRC: require password as first argument
+            if not verify_admin_password(args):
+                return "❌ Invalid admin password"
+            args = args[1:]
+
+        from services.scheduled_message_service import get_scheduled_message_service
+
+        service = get_scheduled_message_service()
+
+        # Process sub-commands using args
+        if not args or args[0].lower() == "list":
+            # List scheduled messages
+            messages = service.list_scheduled_messages()
+            if not messages:
+                return "📅 No messages currently scheduled"
+
+            result = "📅 Scheduled messages:\n"
+            for msg_id, info in messages.items():
+                chan = info.get("channel", "?") if isinstance(info, dict) else "?"
+                msg = info.get("message", "") if isinstance(info, dict) else str(info)
+                t = None
+                if isinstance(info, dict):
+                    t = info.get("target_time") or info.get("target_display")
+                result += f"• {msg_id}: '{msg}' to {chan} at {t or '?'}\n"
+
+            return result.strip()
+
+        if args[0].lower() == "cancel" and len(args) > 1:
+            # Cancel a scheduled message
+            message_id = args[1]
+            if service.cancel_message(message_id):
+                return f"✅ Cancelled scheduled message: {message_id}"
+            else:
+                return f"❌ Message not found: {message_id}"
+
+        return "Usage: !scheduled <password> list|cancel <id>"
+
+    except Exception as e:
+        return f"❌ Scheduled messages error: {str(e)}"
+
+
 # Import this module to register the commands
 def register_admin_commands():
     """Register all admin commands. Called automatically when module is imported."""
