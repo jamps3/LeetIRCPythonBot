@@ -87,7 +87,8 @@ What does the ./run script do?
 
 SESSION_NAME="bot"
 VENV_PATH="venv/bin/activate"
-BOT_COMMAND="python3 main.py"
+BOT_COMMAND="python3 main.py $@"
+LOG_FILE="crashlog.txt"
 
 # Check if virtual environment exists, create if not
 if [ ! -d "venv" ]; then
@@ -105,11 +106,13 @@ else
 
     # Activate venv, install requirements, and run bot inside tmux
     tmux send-keys -t $SESSION_NAME "source $VENV_PATH" C-m
-    tmux send-keys -t $SESSION_NAME "pip install -r requirements.txt" C-m
+    tmux send-keys -t $SESSION_NAME "pip install --upgrade -r requirements.txt" C-m
     tmux send-keys -t $SESSION_NAME "$BOT_COMMAND" C-m
+    #tmux send-keys -t $SESSION_NAME "$BOT_COMMAND; exit" C-m
+    #tmux send-keys -t $SESSION_NAME "$BOT_COMMAND >> $LOG_FILE 2>&1; exit" C-m  # Redirect stdout and stderr to log file
 
     tmux attach -t $SESSION_NAME
-fi
+fi  # This closes the if-else block correctly
 ```
 
 ## Features Implemented
