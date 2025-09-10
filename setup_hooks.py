@@ -98,6 +98,85 @@ exit 0
         return False
 
 
+def create_pre_push_hook():
+    """Create a pre-push hook that runs tests before allowing push."""
+
+    hooks_dir = Path(".git/hooks")
+    if not hooks_dir.exists():
+        print("Git hooks directory not found. Is this a git repository?")
+        return False
+
+    pre_push_hook = hooks_dir / "pre-push"
+
+    hook_content = """#!/bin/sh
+#
+# Pre-push hook that runs all tests before allowing push
+# If tests fail, the push is canceled
+#
+# This hook is called with the following parameters:
+# $1 -- Name of the remote to which the push is being done
+# $2 -- URL to which the push is being done
+#
+# If this script exits with a non-zero status, the push is aborted.
+
+echo "🧪 Running tests before push..."
+echo "⏳ This may take a moment..."
+
+# Change to the repository root directory
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT" || exit 1
+
+# Run tests using the test script
+# Try different approaches for Windows compatibility
+if [ -f "test" ]; then
+    # Try running the test script directly
+    if command -v pwsh >/dev/null 2>&1; then
+        pwsh -ExecutionPolicy Bypass -Command "./test -q"
+        test_exit_code=$?
+    elif command -v powershell >/dev/null 2>&1; then
+        powershell -ExecutionPolicy Bypass -Command "./test -q"
+        test_exit_code=$?
+    else
+        # Fallback: run pytest directly
+        python -m pytest -q
+        test_exit_code=$?
+    fi
+else
+    # Fallback: run pytest directly if test script doesn't exist
+    python -m pytest -q
+    test_exit_code=$?
+fi
+
+# Check if tests passed
+if [ $test_exit_code -eq 0 ]; then
+    echo "✅ All tests passed! Push allowed."
+    exit 0
+else
+    echo "❌ Tests failed! Push canceled."
+    echo "💡 Fix failing tests before pushing:"
+    echo "   Run: .\\test (or python -m pytest)"
+    echo "   Then: git push"
+    exit 1
+fi
+"""
+
+    try:
+        with open(pre_push_hook, "w", newline="\n", encoding="utf-8") as f:
+            f.write(hook_content)
+
+        # Make the hook executable
+        if os.name != "nt":  # Unix-like systems
+            st = os.stat(pre_push_hook)
+            os.chmod(pre_push_hook, st.st_mode | stat.S_IEXEC)
+
+        print(f"Pre-push hook created: {pre_push_hook}")
+        return True
+
+    except Exception as e:
+        print(f"Error creating pre-push hook: {e}")
+        return False
+
+
 def setup_git_config():
     """Setup git configuration for better commit messages."""
 
@@ -121,7 +200,7 @@ def setup_git_config():
 #   fix(irc): resolve connection timeout issue
 #   test(crypto): add comprehensive price formatting tests
 #
-# Remember: Tests run automatically before commit!
+# Remember: Tests run automatically before commit AND push!
 """
 
         template_path = Path(".gitmessage")
@@ -153,7 +232,7 @@ def main():
     print()
 
     success_count = 0
-    total_steps = 2
+    total_steps = 3
 
     # Step 1: Create pre-commit hook
     print("1️⃣  Setting up pre-commit hook...")
@@ -161,8 +240,14 @@ def main():
         success_count += 1
     print()
 
-    # Step 2: Setup git configuration
-    print("2️⃣  Configuring git settings...")
+    # Step 2: Create pre-push hook
+    print("2️⃣  Setting up pre-push hook (runs tests before push)...")
+    if create_pre_push_hook():
+        success_count += 1
+    print()
+
+    # Step 3: Setup git configuration
+    print("3️⃣  Configuring git settings...")
     if setup_git_config():
         success_count += 1
     print()
@@ -180,7 +265,13 @@ def main():
         print(
             "   - To run tests on commit, set PRECOMMIT_RUN_TESTS=1 in your environment"
         )
-        print("   - Use 'git commit --no-verify' to bypass pre-commit hooks entirely")
+        print(
+            "   - Tests now run automatically before every push (cancels if they fail)"
+        )
+        print("   - Use 'git commit --no-verify' to bypass pre-commit hooks")
+        print(
+            "   - Use 'git push --no-verify' to bypass pre-push hooks (not recommended)"
+        )
     else:
         print("Some setup steps failed. Check the messages above.")
         print("You can run this script again to retry failed steps.")

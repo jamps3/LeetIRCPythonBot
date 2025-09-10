@@ -46,6 +46,17 @@ pre-commit install
 # Format everything once
 pre-commit run -a
 ```
+
+### Or use the built-in setup script (includes test-before-push protection):
+```bash
+python setup_hooks.py
+```
+This sets up:
+- **Pre-commit hook**: Code formatting (black, isort, flake8)
+- **Pre-push hook**: Runs `.	est -q` automatically before every push
+- **Git commit template**: Helpful commit message format
+
+⚠️ **Important**: All tests must pass before pushing! If tests fail, the push is automatically canceled.
 If you want to use Voikko -features you need to install these packages with apt:
 ```bash
 sudo apt install -y libvoikko1 voikko-fi python3-libvoikko
@@ -266,6 +277,25 @@ ipfs daemon
 
 All features have been thoroughly tested.
 
+### Automatic Testing
+With the pre-push hook enabled, all tests run automatically before every `git push`:
+```bash
+git push  # Runs tests first, cancels if any fail
+```
+
+### Manual Testing
+```bash
+.\test         # Run all tests (full output)
+.\test -q      # Run all tests (quiet mode)
+python -m pytest tests/specific_test.py  # Run specific test
+```
+
+### Bypass Git Hooks (Emergency Use Only)
+```bash
+git commit --no-verify   # Skip pre-commit formatting
+git push --no-verify     # Skip pre-push tests (NOT RECOMMENDED)
+```
+
 ## Next Steps (Optional Enhancements/TODO)
 
 1. **Scheduled Messages**:
@@ -350,6 +380,7 @@ LeetIRCPythonBot is a comprehensive IRC bot with 50+ features across multiple ca
 - **Memory Management**: Automatic cleanup and optimization
 - **UTF-8 Support**: Full Unicode message handling with IRC compliance
 - **Configurable Output**: NOTICE vs PRIVMSG message types
+- **Git Hooks**: Automatic test execution before push (cancels failed pushes)
 
 ### 📈 **Analytics & Monitoring**
 - **Service Health**: Automatic API availability checking
