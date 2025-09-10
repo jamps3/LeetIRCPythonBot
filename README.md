@@ -81,7 +81,7 @@ What does the ./run script do?
 ✅Installs requirements with pip
 ✅Starts the bot with python3 main.py
 
-## run (might be updated in the source):
+## .\run Script:
 ```bash
 #!/bin/bash
 
@@ -114,80 +114,6 @@ else
     tmux attach -t $SESSION_NAME
 fi  # This closes the if-else block correctly
 ```
-
-## Features Implemented
-
-### 1. ⏰ Scheduled Messages
-
-**Commands:**
-- `!schedule #channel HH:MM:SS message` - Schedule a message
-- `!schedule #channel HH:MM:SS.microseconds message` - Schedule with microsecond precision
-- `!scheduled list` - List all scheduled messages (admin)
-- `!scheduled cancel <message_id>` - Cancel a scheduled message (admin)
-
-**Examples:**
-```
-!schedule #general 13:37:00 Leet time!
-!schedule #test 15:30:45.123456 Precise timing message
-!scheduled list
-!scheduled cancel scheduled_1703012345_0
-```
-
-**Features:**
-- **Threading**: Daemon threads for clean shutdown
-- **Accuracy**: Sub-millisecond timing precision (up to 9 decimal places)
-- **Admin** control for listing and cancelling messages
-- **Memory Management**: Automatic cleanup of expired messages
-- Automatic next-day scheduling if time has passed
-- **Logging** Detailed logging of timing accuracy
-
-### 2. 📁 IPFS Integration
-
-**Commands:**
-- `!ipfs add <url>` - Add file to IPFS (100MB limit)
-- `!ipfs <password> <url>` - Add file to IPFS with admin password (no size limit)
-- `!ipfs info <hash>` - Get IPFS object information
-
-**Examples:**
-```
-!ipfs add https://example.com/document.pdf
-!ipfs mypassword123 https://example.com/large_video.mp4
-!ipfs info QmXYZ123...
-```
-
-**Features:**
-- **Process Management**: Subprocess calls to IPFS CLI
-- **Stream Processing**: Chunk-based downloads with size monitoring, no memory issues
-- **Validation**: Pre-download size checking
-- **Security**: Admin password validation for large files, unlimited size with correct admin password
-- 100MB size limit without password
-- **Reliability**: Comprehensive error handling and cleanup
-- Real-time download progress monitoring
-- File integrity verification (SHA256 hash)
-- Graceful error handling for network issues
-- Automatic IPFS daemon availability checking
-
-### 3. 🎰 Eurojackpot Information
-
-**Commands:**
-- `!eurojackpot` - Get next draw information (date, time, jackpot amount)
-- `!eurojackpot tulokset` - Get last draw results (numbers, date, winners)
-
-**Examples:**
-```
-!eurojackpot
-> 🎰 Seuraava Eurojackpot: 15.03.2024 klo 21:00 | Potti: 15.0 miljoonaa EUR
-
-!eurojackpot tulokset  
-> 🎰 Viimeisin Eurojackpot (12.03.2024): 07 - 14 - 21 - 28 - 35 + 03 - 08 | 2 jackpot-voittajaa
-```
-
-**Features:**
-- Real-time data from API
-- **Caching**: Service instance reuse for efficiency
-- **Error Handling**: Graceful API failure handling
-- **Rate Limiting**: Respectful API usage
-- Automatic timezone conversion to Finnish time
 
 ## Technical Implementation
 
