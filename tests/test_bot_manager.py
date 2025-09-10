@@ -12,12 +12,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+import bot_manager as bm
+
 # Ensure project root on path
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+"""parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
-
-import bot_manager as bm  # noqa: E402
+"""
 
 
 class DummyLogger:

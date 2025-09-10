@@ -17,8 +17,8 @@ def load_all_commands():
     """Load all command modules to register their commands."""
     try:
         # Import all command modules to trigger registration
-        import commands  # unified commands module  # noqa: F401
-        import commands_admin  # noqa: F401
+        import commands  # unified commands module
+        import commands_admin
 
         # Resolve registry at call time to avoid early imports
         from command_registry import get_command_registry

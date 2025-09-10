@@ -468,7 +468,7 @@ class IRCClient:
             if ":" in raw_line:
                 colon_index = raw_line.find(" :")
                 if colon_index != -1:
-                    text = raw_line[colon_index + 2 :]
+                    text = raw_line[colon_index + 2 :]  # noqa E203 - Black formatting
                     # Remove text from params
                     params = [p for p in params if not p.startswith(":")]
 

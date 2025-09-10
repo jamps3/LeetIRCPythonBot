@@ -95,7 +95,9 @@ class GPTService:
         if len(self.conversation_history) > max_total:
             self.conversation_history = [
                 self.conversation_history[0]
-            ] + self.conversation_history[-self.history_limit :]
+            ] + self.conversation_history[
+                -self.history_limit :  # noqa E203 - Black formatting
+            ]
         try:
             with open(self.history_file, "w", encoding="utf-8") as f:
                 json.dump(self.conversation_history, f, indent=2, ensure_ascii=False)

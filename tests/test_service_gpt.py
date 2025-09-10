@@ -11,13 +11,12 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-# Ensure project root on sys.path
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, ROOT)
+from services import gpt_service as gpt_mod
+from services.gpt_service import GPTService, create_gpt_service
 
-# Import the module under test via package path to ensure coverage gets collected
-from services import gpt_service as gpt_mod  # noqa: E402
-from services.gpt_service import GPTService, create_gpt_service  # noqa: E402
+# Ensure project root on sys.path
+# ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+# sys.path.insert(0, ROOT)
 
 
 class FakeResponse:
@@ -30,7 +29,7 @@ class FakeClient:
         self._text = text
         self.responses = SimpleNamespace(create=self._create)
 
-    def _create(self, model: str, input: str):  # noqa: A002 - match signature in code
+    def _create(self, model: str, input: str):
         # Minimal API-compatible return
         return FakeResponse(self._text)
 

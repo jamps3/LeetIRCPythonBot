@@ -7,9 +7,7 @@ import os
 import sys
 from datetime import datetime, timedelta
 
-# Add the services directory to path to import directly
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "services"))
-from electricity_service import ElectricityService  # noqa: E402
+from services.electricity_service import ElectricityService
 
 # Load environment variables from .env file
 try:

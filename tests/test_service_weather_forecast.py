@@ -12,12 +12,13 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-# Ensure project root on path
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+import services.weather_forecast_service as wf
 
-import services.weather_forecast_service as wf  # noqa: E402
+# Ensure project root on path
+# parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# if parent_dir not in sys.path:
+#     sys.path.insert(0, parent_dir)
+
 
 # ---------------- Tests for _fetch ---------------- #
 

@@ -14,6 +14,11 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+# Common imports used by various merged tests
+from command_registry import CommandContext
+from commands import command_leets, solarwind_command
+from word_tracking import DataManager, DrinkTracker
+
 # Optional dotenv loading (graceful no-op if not available)
 try:
     from dotenv import load_dotenv  # type: ignore
@@ -24,14 +29,6 @@ except Exception:  # pragma: no cover - fallback for environments without dotenv
 
 
 load_dotenv()
-
-# Ensure project root is on sys.path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-# Common imports used by various merged tests
-from command_registry import CommandContext  # noqa: E402
-from commands import command_leets, solarwind_command  # noqa: E402
-from word_tracking import DataManager, DrinkTracker  # noqa: E402
 
 
 class DummyIrc:

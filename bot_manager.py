@@ -1432,7 +1432,9 @@ class BotManager:
             if admin_password and text.startswith(admin_password):
                 admin_override = True
                 # Remove admin password from text for processing
-                text = text[len(admin_password) :].strip()
+                text = text[
+                    len(admin_password) :  # noqa E203 - Black formatting
+                ].strip()
 
         # Check sender authorization (case-insensitive)
         if not admin_override and (not sender or sender.lower() not in ALLOWED_NICKS):
@@ -1516,7 +1518,9 @@ class BotManager:
             clean_message = message
             if clean_message.lower().startswith(self.bot_name.lower()):
                 # Remove bot name and common separators
-                clean_message = clean_message[len(self.bot_name) :].lstrip(":, ")
+                clean_message = clean_message[
+                    len(self.bot_name) :  # noqa E203 - Black formatting
+                ].lstrip(":, ")
 
             # Get response from GPT service
             response = self.gpt_service.chat(clean_message, sender)
@@ -1583,7 +1587,10 @@ class BotManager:
                             # Ensure we don't cut a multibyte char: backtrack within current chunk until valid utf-8
                             while take > 0:
                                 try:
-                                    chunk = b[start : start + take].decode("utf-8")
+                                    chunk = b[
+                                        start : start  # noqa E203 - Black formatting
+                                        + take
+                                    ].decode("utf-8")
                                     break
                                 except UnicodeDecodeError:
                                     take -= 1

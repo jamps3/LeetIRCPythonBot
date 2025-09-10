@@ -18,14 +18,8 @@ from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
 
-# Add parent directory to sys.path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-# Mock dotenv to avoid dependency issues in environments where it's absent
-sys.modules["dotenv"] = Mock()
-
-from command_registry import CommandContext, CommandResponse  # noqa: E402
-from commands_admin import (  # noqa: E402
+from command_registry import CommandContext, CommandResponse
+from commands_admin import (
     join_command,
     nick_command,
     openai_command,
@@ -34,6 +28,9 @@ from commands_admin import (  # noqa: E402
     raw_command,
     verify_admin_password,
 )
+
+# Mock dotenv to avoid dependency issues in environments where it's absent
+sys.modules["dotenv"] = Mock()
 
 
 @pytest.fixture

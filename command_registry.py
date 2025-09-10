@@ -463,7 +463,7 @@ def parse_command_message(
         return None, [], message
 
     # Remove prefix and split
-    parts = message[len(command_prefix) :].split()
+    parts = message[len(command_prefix) :].split()  # noqa E203 - Black formatting
     if not parts:
         return None, [], message
 

@@ -12,8 +12,7 @@ from unittest.mock import Mock, mock_open, patch
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from services.fmi_warning_service import (  # noqa: E402
+from services.fmi_warning_service import (
     FMIWarningService,
     create_fmi_warning_service,
 )

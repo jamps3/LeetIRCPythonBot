@@ -912,7 +912,7 @@ class EurojackpotService:
                 draws, key=lambda d: d.get("date_iso", ""), reverse=True
             )
             recent = draws_sorted[:window]
-            prior = draws_sorted[window : 2 * window]
+            prior = draws_sorted[window : 2 * window]  # noqa E203 - Black formatting
 
             def count_main(ds):
                 counts = {}

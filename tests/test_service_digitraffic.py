@@ -11,12 +11,7 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-# Ensure project root on path
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-
-import services.digitraffic_service as ds  # noqa: E402
+import services.digitraffic_service as ds
 
 
 @pytest.fixture(autouse=True)

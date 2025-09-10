@@ -30,19 +30,19 @@ except ImportError:
 # 'services.solarwind_service.requests.get' resolve even if the submodule
 # hasn't been explicitly imported yet in a given test.
 try:
-    from . import solarwind_service as solarwind_service  # noqa: F401
+    from . import solarwind_service as solarwind_service
 except Exception:
     pass
 try:
-    from . import ipfs_service as ipfs_service  # noqa: F401
+    from . import ipfs_service as ipfs_service
 except Exception:
     pass
 try:
-    from . import electricity_service as electricity_service  # noqa: F401
+    from . import electricity_service as electricity_service
 except Exception:
     pass
 try:
-    from . import eurojackpot_service as eurojackpot_service  # noqa: F401
+    from . import eurojackpot_service as eurojackpot_service
 except Exception:
     pass
 
