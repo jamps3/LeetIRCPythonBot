@@ -11,10 +11,41 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from dotenv import load_dotenv
-from openai import APIError, AuthenticationError, OpenAI, RateLimitError
+from openai import APIError as OpenAIAPIError
+from openai import AuthenticationError as OpenAIAuthenticationError
+from openai import OpenAI
+from openai import RateLimitError as OpenAIRateLimitError
 
 # Load .env if available
 load_dotenv(override=True)
+
+
+# Custom exception classes that properly inherit from BaseException
+class RateLimitError(Exception):
+    """Rate limit error for AI service."""
+
+    def __init__(self, message, response=None, body=None):
+        super().__init__(message)
+        self.response = response
+        self.body = body
+
+
+class AuthenticationError(Exception):
+    """Authentication error for AI service."""
+
+    def __init__(self, message, response=None, body=None):
+        super().__init__(message)
+        self.response = response
+        self.body = body
+
+
+class APIError(Exception):
+    """API error for AI service."""
+
+    def __init__(self, message, request=None, body=None):
+        super().__init__(message)
+        self.request = request
+        self.body = body
 
 
 class GPTService:
@@ -109,6 +140,13 @@ class GPTService:
             reply = reply.replace("\n", " ").strip()
             return reply
 
+        except OpenAIRateLimitError:
+            return "Sorry, I'm currently rate limited. Please try again later."
+        except OpenAIAuthenticationError:
+            return "Authentication error with AI service."
+        except OpenAIAPIError as e:
+            print(f"OpenAI API error: {e}")
+            return f"Sorry, AI service error: {e}"
         except RateLimitError:
             return "Sorry, I'm currently rate limited. Please try again later."
         except AuthenticationError:
