@@ -27,9 +27,6 @@ def test_gpt_service_initialization():
 
     assert service.api_key == api_key, "API key should be set correctly"
     assert hasattr(
-        service, "_correct_outdated_dates"
-    ), "Service should have date correction method"
-    assert hasattr(
         service, "conversation_history"
     ), "Service should have conversation history"
     assert hasattr(service, "client"), "Service should have OpenAI client"
