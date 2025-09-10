@@ -4,7 +4,7 @@ This document presents a high-level UML class diagram for the LeetIRCPythonBot p
 
 This document provides a high-level UML class diagram of the LeetIRCPythonBot project. It focuses on key classes, their responsibilities, and relationships across core modules: bot orchestration, IRC connectivity, command system, configuration, services, and word tracking.
 
-```mermaid path=null start=null
+```mermaid
 classDiagram
 
 class BotManager {

@@ -7,7 +7,7 @@
 ## 📊 Statistics
 
 - ✅ `test_bot_functionality.py` - Bot functionality (3 tests)
-- ✅ `test_bot_manager.py` - Bot manager functionality (35 tests)
+- ✅ `test_bot_manager.py` - Bot manager functionality (34 tests)
 - ✅ `test_command_registry.py` - Commands (10 tests)
 - ✅ `test_commands_admin.py` - Admin commands (39 tests)
 - ✅ `test_commands_console.py` - Console commands (73 tests)
@@ -34,7 +34,7 @@
 - ✅ `test_tamagotchi.py` - Tamagotchi (1 test)
 - ✅ `test_wordtracking.py` - Word tracking (5 tests)
 
-### Test Results: **671 Total Tests PASSED ✅**
+### Test Results: **670 Total Tests PASSED ✅**
 
 ---
 
@@ -45,37 +45,36 @@
 | bot_manager.py                            | 1075  | 212  | 80%   |
 | command_loader.py                         | 183   | 90   | 51%   |
 | command_registry.py                       | 242   | 58   | 76%   |
-| commands.py                               | 525   | 31   | 95%   |
-| commands_admin.py                         | 130   | 0    | 100%  |
+| commands.py                               | 525   | 43   | 93%   |
+| commands_admin.py                         | 130   | 3    | 98%   |
 | config.py                                 | 153   | 0    | 100%  |
 | irc_client.py                             | 383   | 6    | 98%   |
 | leet_detector.py                          | 104   | 0    | 100%  |
-| lemmatizer.py                             | 102   | 75   | 26%   |
+| lemmatizer.py                             | 102   | 66   | 35%   |
 | logger.py                                 | 58    | 0    | 100%  |
 | main.py                                   | 100   | 0    | 100%  |
 | server.py                                 | 343   | 0    | 100%  |
 | services/crypto_service.py                | 117   | 20   | 83%   |
 | services/digitraffic_service.py           | 300   | 2    | 99%   |
 | services/electricity_service.py           | 221   | 32   | 86%   |
-| services/eurojackpot_service.py           | 532   | 151  | 78%   |
+| services/eurojackpot_service.py           | 532   | 153  | 78%   |
 | services/fmi_warning_service.py           | 169   | 2    | 99%   |
-| services/gpt_service.py                   | 96    | 68   | 29%   |
+| services/gpt_service.py                   | 96    | 61   | 31%   |
 | services/ipfs_service.py                  | 134   | 88   | 34%   |
-| services/otiedote_service.py              | 177   | 136  | 23%   |
+| services/otiedote_service.py              | 177   | 134  | 24%   |
 | services/scheduled_message_service.py     | 143   | 60   | 58%   |
 | services/solarwind_service.py             | 79    | 42   | 47%   |
 | services/weather_forecast_service.py      | 100   | 0    | 100%  |
 | services/weather_service.py               | 105   | 0    | 100%  |
 | services/youtube_service.py               | 142   | 2    | 99%   |
 | subscriptions.py                          | 165   | 22   | 87%   |
-| utils.py                                  | 120   | 103  | 14%   |
-| word_tracking/data_manager.py             | 174   | 45   | 74%   |
+| word_tracking/data_manager.py             | 174   | 16   | 89%   |
 | word_tracking/drink_tracker.py            | 162   | 25   | 85%   |
-| word_tracking/general_words.py            | 103   | 42   | 59%   |
+| word_tracking/general_words.py            | 103   | 37   | 64%   |
 | word_tracking/tamagotchi_bot.py           | 150   | 57   | 62%   |
-| **TOTAL**                                 | 6656  | 1369 | 80%   |
+| **TOTAL**                                 | 6656  | 1231 | 82%   |
 
-## Total tests coverage: **80%**
+## Total tests coverage: **82%**
 
 ---
 
