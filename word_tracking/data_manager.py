@@ -30,9 +30,6 @@ class DataManager:
         self.tamagotchi_state_file = os.path.join(data_dir, "tamagotchi_state.json")
         self.privacy_settings_file = os.path.join(data_dir, "privacy_settings.json")
 
-        # Legacy files for migration
-        self.legacy_kraks_file = os.path.join(data_dir, "kraks_data.pkl")
-
         # Initialize data structures
         self._ensure_data_files()
 
@@ -177,64 +174,6 @@ class DataManager:
                 return remote_ip  # Fallback to IP if no reverse DNS or any DNS error
         except Exception:
             return "unknown_server"
-
-    def migrate_from_pickle(self) -> bool:
-        """
-        Migrate data from old pickle format to new JSON format.
-
-        Returns:
-            True if migration was successful or not needed, False if failed
-        """
-        if not os.path.exists(self.legacy_kraks_file):
-            return True  # No migration needed
-
-        try:
-            # Load old pickle data
-            with open(self.legacy_kraks_file, "rb") as f:
-                old_data = pickle.load(f)
-
-            print(f"Migrating {len(old_data)} users from pickle to JSON format...")
-
-            # Load current general words data
-            general_words_data = self.load_json(self.general_words_file)
-
-            # Ensure servers structure exists
-            if "servers" not in general_words_data:
-                general_words_data["servers"] = {}
-
-            # Default server name for migrated data
-            default_server = "migrated_data"
-            if default_server not in general_words_data["servers"]:
-                general_words_data["servers"][default_server] = {"nicks": {}}
-
-            # Migrate data
-            migrated_count = 0
-            for nick, words in old_data.items():
-                general_words_data["servers"][default_server]["nicks"][nick] = {
-                    "general_words": words,
-                    "first_seen": datetime.now().isoformat(),
-                    "last_activity": datetime.now().isoformat(),
-                    "total_words": (
-                        sum(words.values()) if isinstance(words, dict) else 0
-                    ),
-                }
-                migrated_count += 1
-
-            # Save migrated data
-            self.save_json(self.general_words_file, general_words_data)
-
-            # Backup old file and remove it
-            backup_path = f"{self.legacy_kraks_file}.migrated_backup"
-            shutil.move(self.legacy_kraks_file, backup_path)
-
-            print(
-                f"Successfully migrated {migrated_count} users. Old file backed up to {backup_path}"
-            )
-            return True
-
-        except Exception as e:
-            print(f"Migration failed: {e}")
-            return False
 
     # Data accessor methods
     def load_drink_data(self) -> Dict[str, Any]:

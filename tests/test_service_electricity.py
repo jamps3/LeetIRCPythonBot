@@ -559,8 +559,8 @@ class TestElectricityServiceIntegration(unittest.TestCase):
                     pass
 
     def test_electricity_command_with_string_input(self):
-        """Test electricity command when called with string input (legacy/console mode)."""
-        # This simulates how the command might be called from console or legacy code
+        """Test electricity command when called with string input (console mode)."""
+        # This simulates how the command might be called from console
         test_cases = [
             "",  # Empty string
             "15",  # Just hour

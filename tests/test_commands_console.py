@@ -530,7 +530,6 @@ def test_parametrized_console_commands(command, enhanced_command_processor):
 )
 def test_parametrized_compatibility_console_commands(compatibility_command):
     """Test compatibility commands using the new registry-based processor."""
-    # Use the enhanced processor directly (no legacy commands.py)
     from command_loader import enhanced_process_console_command
 
     responses = []

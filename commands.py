@@ -456,9 +456,24 @@ def command_sana(context, bot_functions):
         current_server = getattr(context, "server_name", "") or "console"
 
         if results["total_occurrences"] > 0:
-            # Only show users for the current server, without server suffix
+            # Prefer users for the current server; if none, aggregate across all servers
             server_data = results.get("servers", {}).get(current_server, {})
             users = server_data.get("users", [])
+
+            if not users:
+                # Fallback: combine users from all servers
+                all_users = []
+                for sdata in results.get("servers", {}).values():
+                    all_users.extend(sdata.get("users", []))
+                # Aggregate counts by nick
+                agg = {}
+                for u in all_users:
+                    nick = u.get("nick")
+                    if not nick:
+                        continue
+                    agg[nick] = agg.get(nick, 0) + int(u.get("count", 0))
+                users = [{"nick": n, "count": c} for n, c in agg.items()]
+
             if users:
                 # Sort by count desc and apply limit
                 users_sorted = sorted(
@@ -1020,18 +1035,20 @@ def command_eurojackpot(context, bot_functions):
 def command_scheduled(context, bot_functions):
     """Manage scheduled messages (admin password required)."""
     try:
-        # Verify admin password as first argument
+        # Verify admin password as first argument, but allow console usage without it
         from commands_admin import verify_admin_password
 
-        if not verify_admin_password(context.args or []):
+        require_password = not getattr(context, "is_console", False)
+        if require_password and not verify_admin_password(context.args or []):
             return "❌ Invalid admin password"
 
         from services.scheduled_message_service import get_scheduled_message_service
 
         service = get_scheduled_message_service()
 
-        # Sub-arguments after password
-        sub_args = (context.args or [])[1:]
+        # Determine sub-arguments (skip password only when required)
+        full_args = context.args or []
+        sub_args = full_args[1:] if require_password else full_args
         if not sub_args or sub_args[0].lower() == "list":
             # List scheduled messages
             messages = service.list_scheduled_messages()

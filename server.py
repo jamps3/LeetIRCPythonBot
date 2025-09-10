@@ -185,7 +185,6 @@ class Server:
                         context.check_hostname = True
                         context.verify_mode = ssl.CERT_REQUIRED
 
-                    # Legacy support (optional, uncomment if needed)
                     context.minimum_version = ssl.TLSVersion.TLSv1_2
                     context.options |= ssl.OP_LEGACY_SERVER_CONNECT
                     context.set_ciphers("HIGH:!aNULL:!MD5:!RC4:!LOW:!EXP")

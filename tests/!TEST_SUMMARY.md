@@ -170,7 +170,6 @@ $nodes = python -m pytest --collect-only -qq tests 2>$null | Where-Object { $_ -
 - **Features**:
   - Pytest fixtures for mock bot functions
   - Parametrized testing for various console commands
-  - Legacy command system compatibility testing
   - Error handling and edge case testing
   - Unicode and argument parsing tests
   - Enhanced mocking with pytest.importorskip for optional dependencies

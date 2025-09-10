@@ -701,7 +701,6 @@ class BotManager:
             "bot_name": self.bot_name,
             "latency_start": lambda: getattr(self, "_latency_start", 0),
             "set_latency_start": lambda value: setattr(self, "_latency_start", value),
-            "count_kraks": self._count_kraks_legacy,
             "notice_message": lambda msg, irc=None, target=None: self._send_response(
                 server, target or context["target"], msg
             ),
@@ -724,9 +723,6 @@ class BotManager:
             ),
             "wrap_irc_message_utf8_bytes": self._wrap_irc_message_utf8_bytes,
             "send_message": lambda irc, target, msg: server.send_message(target, msg),
-            "load": self._load_legacy_data,
-            "save": self._save_legacy_data,
-            "update_kraks": self._update_kraks_legacy,
             "log": self._log,
             "fetch_title": self._fetch_title,
             "subscriptions": self._get_subscriptions_module(),
@@ -759,10 +755,6 @@ class BotManager:
             return False
 
         self.register_callbacks()
-
-        # Migrate legacy data if needed
-        if not self.data_manager.migrate_from_pickle():
-            self.logger.warning("Data migration failed, but continuing...")
 
         # Start monitoring services
         if self.fmi_warning_service is not None:
@@ -1085,8 +1077,6 @@ class BotManager:
                 if self.gpt_service
                 else "AI not available"
             ),
-            "load": self._load_legacy_data,
-            "save": self._save_legacy_data,
             "BOT_VERSION": "2.0.0",
             "server_name": "console",
             "stop_event": self.stop_event,  # Allow console commands to trigger shutdown
@@ -1197,12 +1187,6 @@ class BotManager:
                 server.send_notice(target, message)
             except Exception as e:
                 self.logger.error(f"Error sending notice to {server.config.name}: {e}")
-
-    # Legacy function implementations for commands.py compatibility
-    def _count_kraks_legacy(self, word: str, beverage: str):
-        """Legacy drink counting function."""
-        self.logger.debug(f"Legacy drink count: {word} ({beverage})")
-        # This is now handled by DrinkTracker automatically
 
     def _send_notice(self, server, target: str, message: str):
         """Send a notice message."""
@@ -1613,35 +1597,6 @@ class BotManager:
                 out_lines[-1] = last + placeholder
 
         return out_lines
-
-    def _load_legacy_data(self):
-        """Load legacy pickle data."""
-        try:
-            import pickle
-
-            with open("data.pkl", "rb") as f:
-                return pickle.load(f)
-        except (FileNotFoundError, pickle.PickleError):
-            return {}
-
-    def _save_legacy_data(self, data):
-        """Save legacy pickle data."""
-        try:
-            import pickle
-
-            with open("data.pkl", "wb") as f:
-                pickle.dump(data, f)
-        except Exception as e:
-            self.logger.error(f"Error saving legacy data: {e}")
-
-    def _update_kraks_legacy(self, kraks, sender, words):
-        """Update legacy kraks data."""
-        if sender not in kraks:
-            kraks[sender] = {}
-        for word in words:
-            if word not in kraks[sender]:
-                kraks[sender][word] = 0
-            kraks[sender][word] += 1
 
     def _log(self, message, level="INFO"):
         """Log a message."""
