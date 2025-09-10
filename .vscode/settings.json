@@ -23,5 +23,7 @@
         "editor.codeActionsOnSave": {
             "source.organizeImports": "explicit"
         }
-    }
+    },
+    "plantuml.exportFormat": "svg",
+    "plantuml.exportOutDir": "."
 }

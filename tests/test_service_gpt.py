@@ -44,7 +44,7 @@ def make_service(
     history_limit=100,
     reply_text="ok",
 ):
-    # Control environment
+    # Control environment with complete isolation
     env_patch = {
         "OPENAI_API_KEY": api_key,
     }
@@ -54,10 +54,23 @@ def make_service(
     history_file = tmp_path / history_file_name
 
     with patch.object(gpt_mod, "OpenAI", return_value=FakeClient(reply_text)):
-        with patch.dict(os.environ, env_patch, clear=False):
-            svc = GPTService(
-                api_key="", history_file=str(history_file), history_limit=history_limit
-            )
+        # Use complete environment isolation - clear=True means only our patch is used
+        if model_env is None:
+            # When model_env is None, completely exclude OPENAI_MODEL from environment
+            with patch.dict(os.environ, env_patch, clear=True):
+                svc = GPTService(
+                    api_key="",
+                    history_file=str(history_file),
+                    history_limit=history_limit,
+                )
+        else:
+            # When model_env is set, include it in the environment
+            with patch.dict(os.environ, env_patch, clear=True):
+                svc = GPTService(
+                    api_key="",
+                    history_file=str(history_file),
+                    history_limit=history_limit,
+                )
     return svc, history_file
 
 

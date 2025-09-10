@@ -20,8 +20,8 @@ from openai import RateLimitError as OpenAIRateLimitError
 load_dotenv(override=True)
 
 
-# Custom exception classes that properly inherit from BaseException
-class RateLimitError(BaseException):
+# Custom exception classes that properly inherit from Exception
+class RateLimitError(Exception):
     """Rate limit error for AI service."""
 
     def __init__(self, message, response=None, body=None):
@@ -30,7 +30,7 @@ class RateLimitError(BaseException):
         self.body = body
 
 
-class AuthenticationError(BaseException):
+class AuthenticationError(Exception):
     """Authentication error for AI service."""
 
     def __init__(self, message, response=None, body=None):
@@ -39,7 +39,7 @@ class AuthenticationError(BaseException):
         self.body = body
 
 
-class APIError(BaseException):
+class APIError(Exception):
     """API error for AI service."""
 
     def __init__(self, message, request=None, body=None):
@@ -140,13 +140,6 @@ class GPTService:
             reply = reply.replace("\n", " ").strip()
             return reply
 
-        except OpenAIRateLimitError:
-            return "Sorry, I'm currently rate limited. Please try again later."
-        except OpenAIAuthenticationError:
-            return "Authentication error with AI service."
-        except OpenAIAPIError as e:
-            print(f"OpenAI API error: {e}")
-            return f"Sorry, AI service error: {e}"
         except RateLimitError:
             return "Sorry, I'm currently rate limited. Please try again later."
         except AuthenticationError:
