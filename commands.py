@@ -584,27 +584,30 @@ def command_topwords(context, bot_functions):
 @command(
     name="leaderboard",
     command_type=CommandType.PUBLIC,
-    description="Show global leaderboard",
+    description="Show server-specific leaderboard",
     usage="!leaderboard",
     admin_only=False,
 )
 def command_leaderboard(context, bot_functions):
-    global_user_counts = {}
+    # Determine current server (works for console and IRC)
+    server_name = (
+        bot_functions.get("server_name")
+        or getattr(context, "server_name", "console")
+        or "console"
+    )
 
-    for server_name in data_manager.get_all_servers():
-        leaderboard = general_words.get_leaderboard(server_name, 100)
-        for user in leaderboard:
-            user_key = f"{user['nick']}@{server_name}"
-            global_user_counts[user_key] = (
-                global_user_counts.get(user_key, 0) + user["total_words"]
-            )
+    # Fetch leaderboard only for the current server
+    entries = general_words.get_leaderboard(server_name, 100) or []
 
-    if global_user_counts:
+    if entries:
+        # Sort by total_words desc, take top 5, and hide server from output
         top_users = sorted(
-            global_user_counts.items(), key=lambda x: x[1], reverse=True
+            entries, key=lambda u: u.get("total_words", 0), reverse=True
         )[:5]
-        leaderboard_msg = ", ".join(f"{nick}: {count}" for nick, count in top_users)
-        return f"Aktiivisimmat käyttäjät (globaali): {leaderboard_msg}"
+        leaderboard_msg = ", ".join(
+            f"{u['nick']}: {u['total_words']}" for u in top_users
+        )
+        return f"Aktiivisimmat käyttäjät: {leaderboard_msg}"
     else:
         return "Ei vielä tarpeeksi dataa leaderboardille."
 
