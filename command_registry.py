@@ -1,5 +1,5 @@
 """
-Command Registry System for LeetIRC Bot
+Command Registry System for LeetIRCPythonBot
 
 This module provides a clean, modular command system that replaces the large
 elif chains with a registry-based approach. Commands can be registered with

@@ -387,7 +387,7 @@ def about_command(context: CommandContext, bot_functions):
     """Show information about the bot."""
     config = get_config()
     return (
-        f"LeetIRC Bot v{config.version} - A Finnish IRC bot with word tracking, "
+        f"LeetIRCPythonBot v{config.version} - A Leet IRC bot with word tracking, "
         f"weather, drink statistics, and more! Type !help for commands."
     )
 

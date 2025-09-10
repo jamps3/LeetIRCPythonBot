@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Scheduled Message Service for LeetIRC Bot
+Scheduled Message Service for LeetIRCPythonBot
 
 This service handles the scheduling and execution of messages at specific times
 with microsecond precision.

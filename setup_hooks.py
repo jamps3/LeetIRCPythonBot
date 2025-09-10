@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup Git Pre-commit Hooks for LeetIRC Bot
+Setup Git Pre-commit Hooks for LeetIRCPythonBot
 
 This script sets up git pre-commit hooks to run tests automatically before commits.
 """
@@ -26,7 +26,7 @@ def create_pre_commit_hook():
     pre_commit_hook = hooks_dir / "pre-commit"
 
     hook_content = """#!/bin/bash
-# LeetIRC Bot Pre-commit Hook
+# LeetIRCPythonBot Pre-commit Hook
 # Formats code with isort and black, lints with flake8, then runs quick tests.
 # If any step fails, the commit is aborted.
 
@@ -182,7 +182,7 @@ def setup_git_config():
 
     try:
         # Set up commit message template with helpful hints
-        commit_template = """# LeetIRC Bot Commit Message
+        commit_template = """# LeetIRCPythonBot Commit Message
 #
 # Format: <type>(<scope>): <description>
 #
@@ -228,7 +228,7 @@ def setup_git_config():
 def main():
     """Main setup function."""
 
-    print("Setting up LeetIRC Bot development environment...")
+    print("Setting up LeetIRCPythonBot development environment...")
     print()
 
     success_count = 0
