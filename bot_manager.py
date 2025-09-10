@@ -606,7 +606,7 @@ class BotManager:
 
             # Process leet winners summary lines (ensimmäinen/viimeinen/multileet)
             try:
-                self._process_leet_winner_summary(text)
+                self._process_leet_winner_summary(text, sender)
             except Exception as e:
                 self.logger.warning(f"Error processing leet winners summary: {e}")
 
@@ -1403,7 +1403,7 @@ class BotManager:
             self.logger.error(f"Error searching YouTube: {e}")
             return f"Error searching YouTube: {str(e)}"
 
-    def _process_leet_winner_summary(self, text: str):
+    def _process_leet_winner_summary(self, text: str, sender: str = None):
         """Parser for leet winners summary lines.
 
         Updates leet_winners.json counts for categories:
@@ -1411,10 +1411,35 @@ class BotManager:
         - "viimeinen" (last)
         - "multileet" (closest to 13:37)
 
+        Only accepts messages from authorized nicks (Beici, Beibi, Beiki)
+        or messages that start with admin password.
+
         This keeps !leetwinners in sync with external announcer messages.
         """
         import re
         from datetime import datetime
+
+        from config import get_config
+
+        # Define allowed nicks for leet winner tracking
+        ALLOWED_NICKS = {"beici", "beibi", "beiki"}
+
+        # Check if message starts with admin password (case-sensitive check)
+        admin_override = False
+        if text and text.strip():
+            config = get_config()
+            admin_password = config.admin_password
+            if admin_password and text.startswith(admin_password):
+                admin_override = True
+                # Remove admin password from text for processing
+                text = text[len(admin_password) :].strip()
+
+        # Check sender authorization (case-insensitive)
+        if not admin_override and (not sender or sender.lower() not in ALLOWED_NICKS):
+            self.logger.debug(
+                f"Ignoring leet winner message from unauthorized sender: {sender}"
+            )
+            return
 
         # Regex pattern for detection
         pattern = r"Ensimmäinen leettaaja oli (\S+) .*?, viimeinen oli (\S+) .*?Lähimpänä multileettiä oli (\S+)"
@@ -1446,8 +1471,11 @@ class BotManager:
         bump(multileet, "multileet")
 
         self._save_leet_winners(winners)
+
+        # Log with authorization info
+        auth_info = "admin override" if admin_override else f"authorized nick: {sender}"
         self.logger.info(
-            f"Updated leet winners (first={first}, last={last}, multileet={multileet})"
+            f"Updated leet winners (first={first}, last={last}, multileet={multileet}) via {auth_info}"
         )
 
     def _handle_ipfs_command(self, command_text, irc_client=None, target=None):

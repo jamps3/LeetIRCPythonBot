@@ -333,10 +333,10 @@ def scheduled_command(context: CommandContext, bot_functions):
 
 
 @command(
-    "leetwinners",
+    "leetwinnersreset",
     description="Reset leetwinners statistics (admin only)",
-    usage="!leetwinners <password> reset",
-    examples=["!leetwinners mypass reset"],
+    usage="!leetwinnersreset <password>",
+    examples=["!leetwinnersreset mypass"],
     admin_only=True,
     requires_args=True,
 )
@@ -345,8 +345,8 @@ def leetwinners_reset_command(context: CommandContext, bot_functions):
     if not verify_admin_password(context.args):
         return "❌ Invalid admin password"
 
-    if len(context.args) < 2 or context.args[1].lower() != "reset":
-        return "❌ Usage: !leetwinners <password> reset"
+    if len(context.args) < 1:
+        return "❌ Usage: !leetwinnersreset <password>"
 
     try:
         from datetime import datetime

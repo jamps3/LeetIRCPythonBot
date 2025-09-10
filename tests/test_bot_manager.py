@@ -213,11 +213,22 @@ def test_process_leet_winner_summary(monkeypatch, manager):
 
     monkeypatch.setattr(manager, "_save_leet_winners", save, raising=True)
 
-    text = "Ensimmäinen leettaaja oli Alice , viimeinen oli Bob  Lähimpänä multileettiä oli Carol"
-    manager._process_leet_winner_summary(text)
+    text = "Ensimmäinen leettaaja oli Alice kello 13.37.00,218154740 (”leet”), viimeinen oli Bob kello 13.37.56,267236192 (”leet”). Lähimpänä multileettiä oli Carol kello 13.37.13,242345678 (”leet”)."
+    sender = "Beici"
+    manager._process_leet_winner_summary(text, sender)
     assert saved.get("Alice", {}).get("ensimmäinen") == 1
     assert saved.get("Bob", {}).get("viimeinen") == 1
     assert saved.get("Carol", {}).get("multileet") == 1
+    sender = "Beiki"
+    manager._process_leet_winner_summary(text, sender)
+    assert saved.get("Alice", {}).get("ensimmäinen") == 2
+    assert saved.get("Bob", {}).get("viimeinen") == 2
+    assert saved.get("Carol", {}).get("multileet") == 2
+    sender = "Beibi"
+    manager._process_leet_winner_summary(text, sender)
+    assert saved.get("Alice", {}).get("ensimmäinen") == 3
+    assert saved.get("Bob", {}).get("viimeinen") == 3
+    assert saved.get("Carol", {}).get("multileet") == 3
 
 
 def test_chat_with_gpt_paths(monkeypatch, manager):
