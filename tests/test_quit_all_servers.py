@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Test quit functionality with a custom message across all servers.
 """

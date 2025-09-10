@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Pytest tests for services.youtube_service module.
+"""
+
 import types
 from datetime import datetime, timedelta
 

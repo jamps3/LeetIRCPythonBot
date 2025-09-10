@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Pytest tests for services.weather_forecast_service module.
+"""
+
 import builtins
 import os
 import sys
@@ -12,7 +17,7 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-import services.weather_forecast_service as wf
+import services.weather_forecast_service as wf  # noqa: E402
 
 # ---------------- Tests for _fetch ---------------- #
 

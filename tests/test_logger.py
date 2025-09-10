@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-Tests for logger module to achieve 100% coverage.
+Pytest tests for logger module.
 """
 
 import importlib

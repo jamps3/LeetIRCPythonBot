@@ -13,8 +13,8 @@ from unittest.mock import Mock, mock_open, patch
 # Add the parent directory to sys.path to import modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from bot_manager import BotManager
-from subscriptions import (
+from bot_manager import BotManager  # noqa: E402
+from subscriptions import (  # noqa: E402
     VALID_TOPICS,
     format_all_subscriptions,
     format_channel_subscriptions,

@@ -34,8 +34,12 @@ import os
 import sys
 from datetime import datetime
 
+# Import multi-server architecture
+from bot_manager import BotManager
+from config import load_env_file
+
 # Import existing components that are still needed
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 
 # Configure console encoding for Windows Unicode support
@@ -79,11 +83,6 @@ def safe_print(text, fallback_text=None):
                 .replace("💥", "[ERROR]")
             )
             print(safe_text)
-
-
-# Import our new multi-server architecture
-from bot_manager import BotManager
-from config import load_env_file
 
 
 def setup_environment():

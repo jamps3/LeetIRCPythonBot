@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Pytest tests for word tracking functionality.
+"""
+
 import json
 import os
 import tempfile

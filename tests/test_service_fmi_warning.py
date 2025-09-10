@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Pytest tests for services.fmi_warning_service module.
+"""
+
 import json
 import os
 import sys
@@ -8,7 +13,10 @@ from unittest.mock import Mock, mock_open, patch
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from services.fmi_warning_service import FMIWarningService, create_fmi_warning_service
+from services.fmi_warning_service import (  # noqa: E402
+    FMIWarningService,
+    create_fmi_warning_service,
+)
 
 
 class TestFMIWarningService(unittest.TestCase):

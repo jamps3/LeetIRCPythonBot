@@ -1,9 +1,8 @@
 """
 Command Registry System for LeetIRCPythonBot
 
-This module provides a clean, modular command system that replaces the large
-elif chains with a registry-based approach. Commands can be registered with
-metadata, and the system handles dispatch and help generation automatically.
+This module provides a clean, modular command system with a registry-based approach.
+Commands can be registered with metadata, and the system handles dispatch and help generation automatically.
 """
 
 import inspect

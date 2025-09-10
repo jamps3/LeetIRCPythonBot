@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-Tests for Admin Commands - Pure Pytest Version
+Pytest tests for Admin Commands
 
 This module contains comprehensive tests for all admin commands including:
 - quit command (console and IRC)
@@ -23,8 +24,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # Mock dotenv to avoid dependency issues in environments where it's absent
 sys.modules["dotenv"] = Mock()
 
-from command_registry import CommandContext, CommandResponse
-from commands_admin import (
+from command_registry import CommandContext, CommandResponse  # noqa: E402
+from commands_admin import (  # noqa: E402
     join_command,
     nick_command,
     openai_command,

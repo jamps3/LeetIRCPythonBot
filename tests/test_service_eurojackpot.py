@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-Pytest test suite for Eurojackpot Service.
+Pytest tests for services.eurojackpot_service module.
 """
 
 import os

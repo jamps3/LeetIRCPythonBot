@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Pytest tests for IRC server connectivity.
+"""
+
 import socket
 import ssl
 import threading

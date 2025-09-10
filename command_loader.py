@@ -1,5 +1,5 @@
 """
-Command Loader and Integration Module
+Command Loader and Integration Module for LeetIRCPythonBot
 
 This module loads all command modules and provides integration between
 the command registry system and the bot infrastructure.

@@ -1,3 +1,19 @@
+#!/usr/bin/env python3
+"""
+Pytest tests for main.py
+"""
+
+import io
+import os
+import sys
+import types
+from argparse import Namespace
+
+import pytest
+
+import main as main_mod
+
+
 def test_setup_environment_warns_when_env_file_missing(monkeypatch):
     # load_env_file returns False -> warning path
     monkeypatch.setattr(main_mod, "load_env_file", lambda: False, raising=True)
@@ -65,17 +81,6 @@ def test_dunder_main_guard_execution(monkeypatch):
         runpy.run_module("main", run_name="__main__")
     # exit code should be int
     assert isinstance(se.value.code, int)
-
-
-import io
-import os
-import sys
-import types
-from argparse import Namespace
-
-import pytest
-
-import main as main_mod
 
 
 def test_setup_console_encoding_runs(monkeypatch):

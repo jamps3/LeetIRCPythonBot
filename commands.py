@@ -1,5 +1,6 @@
 """
 Unified Commands Module for LeetIRCPythonBot
+Admin commands in commands_admin.py
 """
 
 import os

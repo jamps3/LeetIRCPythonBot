@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-IRC command integration tests for basic commands.
+Pytest tests for IRC commands.
 
 These tests ensure that IRC context (irc connection and channel) is properly
 propagated to service functions for commands like !s (weather) and !sahko (electricity).
@@ -29,9 +29,9 @@ load_dotenv()
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Common imports used by various merged tests
-from command_registry import CommandContext
-from commands import command_leets, solarwind_command
-from word_tracking import DataManager, DrinkTracker
+from command_registry import CommandContext  # noqa: E402
+from commands import command_leets, solarwind_command  # noqa: E402
+from word_tracking import DataManager, DrinkTracker  # noqa: E402
 
 
 class DummyIrc:

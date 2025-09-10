@@ -1,11 +1,5 @@
 """
-Admin IRC Bot Commands
-
-This module contains commands that require admin privileges.
-"""
-
-"""
-Admin IRC Bot Commands
+Admin Commands for LeetIRCPythonBot
 
 This module contains administrative commands that require password authentication.
 """

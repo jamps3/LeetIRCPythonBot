@@ -3,9 +3,13 @@
 
 import datetime as _dt
 import importlib as _importlib
+import importlib as _il
 import os as _os
 import sys as _sys
 import traceback as _tb
+from types import ModuleType as _ModuleType
+
+import pytest as _pytest
 
 _LOG_PATH = _os.path.join(_os.getcwd(), ".pytest_import_diag.log")
 
@@ -100,10 +104,6 @@ def pytest_sessionfinish(session, exitstatus):
 # ---------------------------------------------------------------------------
 # Isolation fixture to restore commonly patched modules between tests
 # ---------------------------------------------------------------------------
-import importlib as _il
-from types import ModuleType as _ModuleType
-
-import pytest as _pytest
 
 
 def _ensure_real_module(module_name: str):

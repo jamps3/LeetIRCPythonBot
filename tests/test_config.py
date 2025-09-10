@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-Configuration System Tests - Pure Pytest Version
+Pytest Configuration System tests
 
 Comprehensive tests for the configuration management system.
 """

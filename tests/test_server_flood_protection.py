@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test suite for IRC server flood protection functionality.
+Pytest tests for IRC server flood protection functionality.
 """
 
 import threading

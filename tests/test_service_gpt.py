@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GPT Service Test Suite - Pytest
+Pytest GPT Service tests
 
 Covers all code paths in services/gpt_service.py to achieve 100% coverage.
 """
@@ -16,8 +16,8 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
 
 # Import the module under test via package path to ensure coverage gets collected
-from services import gpt_service as gpt_mod
-from services.gpt_service import GPTService, create_gpt_service
+from services import gpt_service as gpt_mod  # noqa: E402
+from services.gpt_service import GPTService, create_gpt_service  # noqa: E402
 
 
 class FakeResponse:

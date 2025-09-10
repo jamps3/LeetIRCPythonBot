@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Pytest tests for Leet Detector module.
+"""
+
 import os
 
 import pytest

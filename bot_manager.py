@@ -11,6 +11,13 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
+from config import get_api_key, get_server_configs, load_env_file
+from leet_detector import create_nanoleet_detector
+from lemmatizer import Lemmatizer
+from logger import get_logger
+from server import Server
+from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
+
 
 # Safe print function that handles Unicode gracefully
 def safe_print(text, fallback_text=None):
@@ -65,13 +72,6 @@ except ImportError:
             pass
 
     readline = DummyReadline()
-
-from config import get_api_key, get_server_configs, load_env_file
-from leet_detector import create_nanoleet_detector
-from lemmatizer import Lemmatizer
-from logger import get_logger
-from server import Server
-from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
 
 # Optional service imports - handle gracefully if dependencies are missing
 try:

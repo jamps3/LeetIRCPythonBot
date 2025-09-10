@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-Cryptocurrency Service Tests - Unified Pytest Version
+Pytest Cryptocurrency Service tests
 
 Comprehensive tests for the cryptocurrency service functionality.
 """

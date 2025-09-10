@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Console Commands Test Suite - Unified Pytest Version
+Pytest Console Commands tests
 
 Tests for console command functionality, including command processing,
 bot manager integration, and command responses.

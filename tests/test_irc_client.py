@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-IRC Client Tests - Pure Pytest Version
+Pytest IRC Client tests
 
 Comprehensive tests for the IRC client functionality.
 """

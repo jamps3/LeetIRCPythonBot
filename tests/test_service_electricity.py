@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-Tests for ElectricityService module.
+Pytest tests for services.electricity_service module.
 
 Tests electricity price functionality including API integration,
 command parsing, and message formatting.
@@ -18,7 +19,10 @@ import requests
 # Add the services directory to the path to avoid import dependency issues
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "services"))
 
-from electricity_service import ElectricityService, create_electricity_service
+from electricity_service import (  # noqa: E402
+    ElectricityService,
+    create_electricity_service,
+)
 
 
 class TestElectricityService(unittest.TestCase):

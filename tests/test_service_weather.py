@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-Weather Service Tests - Pure Pytest Version
+Pytest Weather Service tests
 
 Comprehensive tests for the weather service functionality.
 """
