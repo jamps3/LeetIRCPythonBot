@@ -11,6 +11,8 @@ class BotManager {
   +bot_name: str
   +servers: Dict~str, Server~
   +server_threads: Dict~str, Thread~
+  +stop_event: Event
+  +quit_message: str
   +use_notices: bool
   +tamagotchi_enabled: bool
   +weather_service: WeatherService?
@@ -21,10 +23,12 @@ class BotManager {
   +fmi_warning_service: FMIWarningService?
   +otiedote_service: OtiedoteService?
   +nanoleet_detector: LeetDetector
+  +lemmatizer: Lemmatizer?
   +data_manager: DataManager
   +drink_tracker: DrinkTracker
   +general_words: GeneralWords
   +tamagotchi: TamagotchiBot
+  +latest_otiedote: dict?
   +start(): bool
   +stop(quit_message: str)
   +wait_for_shutdown()
@@ -32,6 +36,10 @@ class BotManager {
   +register_callbacks()
   +_handle_message(server, sender, target, text)
   +_process_commands(context)
+  +_handle_fmi_warnings(warnings)
+  +_handle_otiedote_release(release)
+  +_setup_readline_history()
+  +_setup_console_output_protection()
 }
 
 class Server {
@@ -54,6 +62,7 @@ BotManager "1" o-- "*" Server : manages
 BotManager ..> WeatherService : uses
 BotManager ..> GPTService : uses
 BotManager ..> LeetDetector : uses
+BotManager ..> Lemmatizer : uses
 BotManager *-- DataManager
 BotManager *-- DrinkTracker
 BotManager *-- GeneralWords
@@ -128,6 +137,64 @@ class GPTService {
   +set_system_prompt(prompt: str): str
 }
 
+class Lemmatizer {
+  +voikko_enabled: bool
+  +v: Voikko?
+  +data_dir: str
+  +_get_baseform(word: str): str
+  +_simple_normalize(word: str): str
+  +process_message(text: str, server_name: str, source_id: str): dict
+  +get_total_counts(server_name: str): dict
+  +get_counts_for_source(server_name: str, source_id: str): dict
+  +get_top_words(server_name: str, top_n: int): List~tuple~
+}
+
+class DigitalTrafficService {
+  +get_trains_for_station(station: str?): str
+  +_normalize_station(input_station: str?): str
+  +_code_to_name(code: str?): str
+  +_format_train_row(train: dict, station: str, kind: str): str?
+}
+
+class EurojackpotService {
+  +api_key: str
+  +next_draw_url: str
+  +jackpot_url: str
+  +results_url: str
+  +db_file: str
+  +get_week_number(date_str: str): int
+  +_make_request(url: str, params: dict, timeout: int): dict?
+  +_load_database(): dict
+  +_save_database(data: dict)
+  +_save_draw_to_database(draw_data: dict)
+  +get_next_draw(): str
+  +get_jackpot_amount(): str
+  +get_results(): str
+}
+
+class SolarWindService {
+  +plasma_url: str
+  +mag_url: str
+  +get_solar_wind_data(): dict
+  +format_solar_wind_data(data: dict): str
+  +_fetch_json(url: str): Any
+  +_get_density_indicator(density: float): str
+  +_get_speed_indicator(speed: float): str
+  +_get_temperature_indicator(temperature: float): str
+  +_get_magnetic_field_indicator(magnetic_field: float): str
+}
+
+class ScheduledMessageService {
+  +scheduled_messages: Dict~str, dict~
+  +thread_pool: dict
+  +schedule_message(irc_client, channel: str, message: str, target_hour: int, target_minute: int, target_second: int, target_microsecond: int, message_id: str?): str
+  +schedule_message_ns(irc_client, channel: str, message: str, target_hour: int, target_minute: int, target_second: int, target_nanosecond: int, message_id: str?): str
+  +cancel_message(message_id: str): bool
+  +list_scheduled_messages(): Dict~str, dict~
+  +_send_scheduled_message(message_id: str)
+  +_wait_and_send(message_id: str)
+}
+
 class DataManager {
   +data_dir: str
   +load_drink_data(): dict
@@ -141,6 +208,20 @@ class DataManager {
   +set_user_opt_out(server: str, nick: str, opt_out: bool): bool
   +get_opted_out_users(server: str?): dict
   +get_all_servers(): List~str~
+}
+
+class WeatherForecastService {
+  +api_key: str
+  +get_forecast(location: str, days: int): dict
+  +format_forecast_message(data: dict): str
+  +_fetch_weather_data(url: str, params: dict): dict
+}
+
+class IPFSService {
+  +add_file(file_path: str): str
+  +get_file(hash: str): bytes
+  +pin_file(hash: str): bool
+  +list_pins(): List~str~
 }
 
 class DrinkTracker {
@@ -299,7 +380,11 @@ IRCClient ..> ServerConfig
 ```
 
 Notes:
-- Some service classes (e.g., Electricity, FMI warnings, YouTube, IPFS, Otiedote) are omitted for brevity; BotManager interacts with them similarly to WeatherService and GPTService.
-- Commands are registered via decorators in commands_basic.py, commands_extended.py, and commands_admin.py using the CommandRegistry system.
-- IRCClient is a clean abstraction separate from the lower-level Server class; BotManager currently coordinates via Server and routes commands through command_loader.
+- Additional service classes include DigitalTrafficService (train information), EurojackpotService (lottery data), SolarWindService (space weather), ScheduledMessageService (timed messages), WeatherForecastService (extended weather forecasts), and IPFSService (distributed file storage).
+- The Lemmatizer class provides Finnish word lemmatization using Voikko library with fallback to simple normalization when Voikko is unavailable.
+- BotManager now includes console output protection, readline history support, and enhanced signal handling for graceful shutdown.
+- Commands are registered via decorators in commands.py, commands_admin.py using the CommandRegistry system.
+- IRCClient is a clean abstraction separate from the lower-level Server class; BotManager coordinates via Server and routes commands through command_loader.
+- The word_tracking module is organized as a separate package containing DataManager, DrinkTracker, GeneralWords, and TamagotchiBot classes.
+- All services implement graceful fallback handling when external dependencies or API keys are unavailable.
 
