@@ -46,7 +46,7 @@ class OtiedoteService:
         self.callback = callback
         self.state_file = state_file
         self.check_interval = check_interval
-        self.latest_release = 2039  # Default fallback
+        self.latest_release = 2597  # Default fallback 11.9.2025
         self.driver: Optional[webdriver.Chrome] = None
         self.thread: Optional[threading.Thread] = None
         self.running = False
@@ -69,10 +69,10 @@ class OtiedoteService:
         self.running = False
         if self.thread:
             # Join with longer timeout to allow graceful shutdown
-            self.thread.join(timeout=10.0)
+            self.thread.join(timeout=30.0)
             if self.thread.is_alive():
                 logging.warning(
-                    "⚠️ Otiedote monitor thread did not stop cleanly within 10s timeout"
+                    "⚠️ Otiedote monitor thread did not stop cleanly within 30s timeout"
                 )
         if self.driver:
             # Suppress urllib3 connectionpool warnings while shutting down the driver
