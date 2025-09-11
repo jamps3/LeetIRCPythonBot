@@ -306,7 +306,6 @@ git push --no-verify     # Skip pre-push tests (NOT RECOMMENDED)
 2. **IPFS Integration**:
    - Progress bars for large uploads
    - IPFS pinning management
-   - File type validation
 
 3. **Eurojackpot**:
    - Historical data collection
