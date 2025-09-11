@@ -229,7 +229,9 @@ class Server:
         except ssl.SSLCertVerificationError as e:
             self.logger.error(f"TLS certificate verification failed: {e}")
         except ssl.SSLError as e:
-            self.logger.error(f"SSL error during connect: {e}")
+            self.logger.error(
+                f"SSL error during connect: {e}. Are you sure the server supports TLS? Is the PORT correct?"
+            )
         except (socket.error, ConnectionError) as e:
             self.logger.error(f"Failed to connect: {e}")
         except Exception as e:
