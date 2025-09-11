@@ -727,9 +727,8 @@ class BotManager:
             "fetch_title": self._fetch_title,
             "subscriptions": self._get_subscriptions_module(),
             "DRINK_WORDS": self._get_drink_words(),
-            "EKAVIKA_FILE": "ekavika.json",
             "get_latency_start": lambda: getattr(self, "_latency_start", 0),
-            "BOT_VERSION": "2.0.0",
+            "BOT_VERSION": "2.1.0",
             "toggle_tamagotchi": lambda srv, tgt, snd: self.toggle_tamagotchi(
                 srv, tgt, snd
             ),
