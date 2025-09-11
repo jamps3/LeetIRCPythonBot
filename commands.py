@@ -593,10 +593,21 @@ def command_topwords(context, bot_functions):
     name="leaderboard",
     command_type=CommandType.PUBLIC,
     description="Show server-specific leaderboard",
-    usage="!leaderboard",
+    usage="!leaderboard [limit]",
     admin_only=False,
 )
 def command_leaderboard(context, bot_functions):
+    # Default limit
+    limit = 10
+
+    args = context.args or []
+    if args and isinstance(args[-1], str) and args[-1].isdigit():
+        try:
+            limit = max(1, min(50, int(args[-1])))
+        except Exception:
+            limit = 10
+        args = args[:-1]  # remove limit token from args
+
     # Determine current server (works for console and IRC)
     server_name = (
         bot_functions.get("server_name")

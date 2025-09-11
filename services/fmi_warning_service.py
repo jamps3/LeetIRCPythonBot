@@ -307,8 +307,10 @@ class FMIWarningService:
         self, title: str, lower_title: str, lower_summary: str
     ) -> str:
         """Apply warning type symbols to title."""
-        if "tuulivaroitus" in lower_title or "tuulivaroitus" in lower_summary:
-            title = title.replace("tuulivaroitus", "🌪️")
+        if "sadevaroitus" in lower_title or "sadevaroitus" in lower_summary:
+            title = title.replace("sadevaroitus", "🌧️ ")
+        elif "tuulivaroitus" in lower_title or "tuulivaroitus" in lower_summary:
+            title = title.replace("tuulivaroitus", "🌪️ ")
         elif (
             "maastopalovaroitus" in lower_title or "maastopalovaroitus" in lower_summary
         ):
