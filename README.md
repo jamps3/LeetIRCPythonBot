@@ -1,7 +1,7 @@
 # LeetIRCPythonBot
 
 ## Description
-Simple IRC Bot made with Python and as few libraries as possible.
+Advanced IRC Bot made with Python. Extended API use and highly customizable.
 
 ## Features
 | Feature | Commands/Info |
