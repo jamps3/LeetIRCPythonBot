@@ -180,8 +180,6 @@ subscriptions.json
 voikko*
 tamagotchi_state.json
 eurojackpot.json
-
-# User data / runtime state files
 drink_tracking.json
 privacy_settings.json
 leet_detections.json
@@ -194,3 +192,6 @@ latest_otiedote.txt
 # Test reports
 test-coverage.txt
 test-results.txt
+
+# Others
+commits.csv

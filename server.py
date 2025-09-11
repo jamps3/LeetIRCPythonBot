@@ -489,6 +489,25 @@ class Server:
                     self.logger.error(f"Error in quit callback: {e}")
             return
 
+    def _process_notice(self, message: str):
+        """
+        Process an incoming IRC notice.
+
+        Args:
+            message (str): The raw IRC message
+        """
+        # Process NOTICE
+        notice_match = re.search(r":(\S+)!(\S+) NOTICE (\S+) :(.+)", message)
+        if notice_match:
+            sender, hostmask, target, text = notice_match.groups()
+            # Call all registered message callbacks
+            for callback in self.callbacks["notice"]:
+                try:
+                    callback(self, sender, target, text)
+                except Exception as e:
+                    self.logger.error(f"Error in message callback: {e}")
+            return
+
     def start(self):
         """
         Start the server connection and message processing threads.
