@@ -229,7 +229,9 @@ class Server:
         except ssl.SSLCertVerificationError as e:
             self.logger.error(f"TLS certificate verification failed: {e}")
         except ssl.SSLError as e:
-            self.logger.error(f"SSL error during connect: {e}")
+            self.logger.error(
+                f"SSL error during connect: {e}. Are you sure the server supports TLS? Is the PORT correct?"
+            )
         except (socket.error, ConnectionError) as e:
             self.logger.error(f"Failed to connect: {e}")
         except Exception as e:
@@ -487,6 +489,25 @@ class Server:
                     callback(self, sender)
                 except Exception as e:
                     self.logger.error(f"Error in quit callback: {e}")
+            return
+
+    def _process_notice(self, message: str):
+        """
+        Process an incoming IRC notice.
+
+        Args:
+            message (str): The raw IRC message
+        """
+        # Process NOTICE
+        notice_match = re.search(r":(\S+)!(\S+) NOTICE (\S+) :(.+)", message)
+        if notice_match:
+            sender, hostmask, target, text = notice_match.groups()
+            # Call all registered message callbacks
+            for callback in self.callbacks["notice"]:
+                try:
+                    callback(self, sender, target, text)
+                except Exception as e:
+                    self.logger.error(f"Error in message callback: {e}")
             return
 
     def start(self):

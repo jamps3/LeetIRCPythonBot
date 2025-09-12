@@ -525,6 +525,9 @@ class BotManager:
             # Register message callback for command processing
             server.register_callback("message", self._handle_message)
 
+            # Register notice callback for processing notices
+            server.register_callback("notice", self._handle_notice)
+
             # Register join callback for user tracking
             server.register_callback("join", self._handle_join)
 
@@ -535,6 +538,37 @@ class BotManager:
             server.register_callback("quit", self._handle_quit)
 
             self.logger.info(f"Registered callbacks for server: {server_name}")
+
+    def _handle_notice(self, server: Server, sender: str, target: str, text: str):
+        """
+        Handle incoming notices from any server.
+
+        Args:
+            server: The Server instance that received the notice
+            sender: The nickname who sent the notice
+            target: The target (channel or bot's nick)
+            text: The notice content
+        """
+        try:
+            # Create context for the notice
+            context = {
+                "server": server,
+                "server_name": server.config.name,
+                "sender": sender,
+                "target": target,
+                "text": text,
+                "is_private": not target.startswith("#"),
+                "bot_name": self.bot_name,
+            }
+
+            # Process leet winners summary lines (ensimmäinen/viimeinen/multileet)
+            try:
+                self._process_leet_winner_summary(text, sender)
+            except Exception as e:
+                self.logger.warning(f"Error processing leet winners summary: {e}")
+
+        except Exception as e:
+            self.logger.error(f"Error handling notice from {server.config.name}: {e}")
 
     def _handle_message(self, server: Server, sender: str, target: str, text: str):
         """
@@ -603,12 +637,6 @@ class BotManager:
                                     self._send_response(server, reply_target, part)
             except Exception as e:
                 self.logger.warning(f"AI chat processing error: {e}")
-
-            # Process leet winners summary lines (ensimmäinen/viimeinen/multileet)
-            try:
-                self._process_leet_winner_summary(text, sender)
-            except Exception as e:
-                self.logger.warning(f"Error processing leet winners summary: {e}")
 
             # Fetch and display page titles for URLs posted in channels (non-commands)
             if (
