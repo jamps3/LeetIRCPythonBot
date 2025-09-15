@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-Tests for Admin Commands - Pure Pytest Version
+Pytest tests for Admin Commands
 
 This module contains comprehensive tests for all admin commands including:
 - quit command (console and IRC)
@@ -17,18 +18,19 @@ from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
 
-# Add parent directory to sys.path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
 from command_registry import CommandContext, CommandResponse
 from commands_admin import (
     join_command,
     nick_command,
+    openai_command,
     part_command,
     quit_command,
     raw_command,
     verify_admin_password,
 )
+
+# Mock dotenv to avoid dependency issues in environments where it's absent
+sys.modules["dotenv"] = Mock()
 
 
 @pytest.fixture
@@ -228,6 +230,44 @@ def test_quit_command_irc_no_connection(mock_config, mock_stop_event, mock_logge
         response = quit_command(context, bot_functions_no_irc)
 
     assert response == "❌ IRC connection not available"
+
+
+@pytest.mark.parametrize(
+    "command_func,args",
+    [
+        (join_command, ["testpass123", "#test"]),
+        (part_command, ["testpass123", "#test"]),
+        (nick_command, ["testpass123", "testnick"]),
+        (raw_command, ["testpass123", "MODE", "#test", "+o", "user"]),
+    ],
+)
+def test_other_commands_irc_no_connection(
+    command_func, args, mock_config, mock_logger, mock_stop_event
+):
+    """Other admin commands should error when IRC connection is not available."""
+    bot_functions_no_irc = {
+        "stop_event": mock_stop_event,
+        "log": mock_logger,
+    }
+
+    # Derive command name for context
+    command_name = command_func.__name__.replace("_command", "")
+
+    context = CommandContext(
+        command=command_name,
+        args=args,
+        raw_message=f"!{command_name} {' '.join(args)}",
+        sender="admin",
+        target="#test",
+        is_private=False,
+        is_console=False,
+        server_name="testserver",
+    )
+
+    with patch("commands_admin.get_config", return_value=mock_config):
+        response = command_func(context, bot_functions_no_irc)
+
+    assert "❌ IRC connection not available" in response
 
 
 def test_join_command_console(mock_config, bot_functions):
@@ -456,6 +496,7 @@ def test_admin_commands_invalid_password(mock_config, bot_functions):
         ("nick", nick_command),
         ("raw", raw_command),
         ("quit", quit_command),
+        ("openai", openai_command),
     ]
 
     for command_name, command_func in commands_and_funcs:
@@ -798,3 +839,161 @@ def test_quit_command_actually_stops_thread():
     # Verify thread has stopped
     assert not thread.is_alive()
     assert stop_event.is_set()
+
+
+def test_quit_command_irc_without_send_raw_uses_notice(mock_config):
+    """If irc lacks send_raw, quit_command should call notice_message and still shutdown."""
+
+    # IRC object without send_raw
+    class NoRawIRC:
+        pass
+
+    notice_calls = []
+
+    def notice_collector(msg, *args, **kwargs):
+        notice_calls.append(msg)
+
+    bot_functions = {
+        "irc": NoRawIRC(),
+        "stop_event": Mock(),
+        "log": Mock(),
+        "notice_message": notice_collector,
+    }
+
+    context = CommandContext(
+        command="quit",
+        args=["testpass123", "fallback", "path"],
+        raw_message="!quit testpass123 fallback path",
+        sender="admin",
+        target="#test",
+        is_private=False,
+        is_console=False,
+        server_name="testserver",
+    )
+
+    with patch("commands_admin.get_config", return_value=mock_config):
+        response = quit_command(context, bot_functions)
+
+    # Notice should be called with the fallback message
+    assert notice_calls and "Sending QUIT: fallback path" in notice_calls[0]
+    # Shutdown should be triggered
+    bot_functions["stop_event"].set.assert_called_once()
+    # Function returns empty string for IRC path
+    assert response == ""
+
+
+def test_openai_command_no_setter(mock_config):
+    """openai command returns error when setter not available."""
+    context = CommandContext(
+        command="openai",
+        args=["testpass123", "gpt-5"],
+        raw_message="!openai testpass123 gpt-5",
+        sender="admin",
+        target="#test",
+        is_private=False,
+        is_console=True,
+        server_name="console",
+    )
+
+    bot_functions = {"log": Mock()}
+
+    with patch("commands_admin.get_config", return_value=mock_config):
+        result = openai_command(context, bot_functions)
+
+    assert result == "❌ Cannot change model: setter not available"
+
+
+def test_openai_command_console_returns_result(mock_config):
+    """Console path should return the setter's result string."""
+    context = CommandContext(
+        command="openai",
+        args=["testpass123", "gpt-5"],
+        raw_message="!openai testpass123 gpt-5",
+        sender=None,
+        target=None,
+        is_private=False,
+        is_console=True,
+        server_name="console",
+    )
+
+    bot_functions = {"set_openai_model": Mock(return_value="Model set to gpt-5")}
+
+    with patch("commands_admin.get_config", return_value=mock_config):
+        result = openai_command(context, bot_functions)
+
+    assert result == "Model set to gpt-5"
+
+
+def test_openai_command_irc_with_notice_returns_empty(mock_config):
+    """IRC path with notice and irc present sends a notice and returns empty string."""
+    context = CommandContext(
+        command="openai",
+        args=["testpass123", "gpt-5-mini"],
+        raw_message="!openai testpass123 gpt-5-mini",
+        sender="admin",
+        target="#test",
+        is_private=False,
+        is_console=False,
+        server_name="testserver",
+    )
+
+    irc = Mock()
+    notice = Mock()
+    bot_functions = {
+        "set_openai_model": Mock(return_value="Model set to gpt-5-mini"),
+        "notice_message": notice,
+        "irc": irc,
+    }
+
+    with patch("commands_admin.get_config", return_value=mock_config):
+        result = openai_command(context, bot_functions)
+
+    notice.assert_called_once()
+    # First arg is the message
+    assert "Model set to gpt-5-mini" in notice.call_args[0][0]
+    assert result == ""
+
+
+def test_openai_command_irc_without_notice_returns_result(mock_config):
+    """If notice not available, IRC path should return the result string."""
+    context = CommandContext(
+        command="openai",
+        args=["testpass123", "gpt-5-large"],
+        raw_message="!openai testpass123 gpt-5-large",
+        sender="admin",
+        target="#test",
+        is_private=False,
+        is_console=False,
+        server_name="testserver",
+    )
+
+    bot_functions = {
+        "set_openai_model": Mock(return_value="Model set to gpt-5-large"),
+        "irc": Mock(),
+    }
+
+    with patch("commands_admin.get_config", return_value=mock_config):
+        result = openai_command(context, bot_functions)
+
+    assert result == "Model set to gpt-5-large"
+
+
+def test_openai_command_missing_args_usage_error(mock_config):
+    """openai command should validate required args."""
+    context = CommandContext(
+        command="openai",
+        args=["testpass123"],
+        raw_message="!openai testpass123",
+        sender="admin",
+        target="#test",
+        is_private=False,
+        is_console=False,
+        server_name="testserver",
+    )
+
+    bot_functions = {"set_openai_model": Mock(return_value="OK")}
+
+    with patch("commands_admin.get_config", return_value=mock_config):
+        result = openai_command(context, bot_functions)
+
+    assert "Usage" in result or result.startswith("❌")

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-IPFS Service for LeetIRC Bot
+IPFS Service for LeetIRCPythonBot
 
 This service handles IPFS file operations including adding files from URLs
 with size limits and password protection for large files.

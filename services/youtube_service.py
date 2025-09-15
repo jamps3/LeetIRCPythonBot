@@ -122,12 +122,14 @@ class YouTubeService:
             statistics = video.get("statistics", {})
             content_details = video.get("contentDetails", {})
 
-            # Parse duration
+            # Parse duration using a robust helper that doesn't rely solely on isodate
             duration_iso = content_details.get("duration", "PT0S")
-            try:
-                duration = isodate.parse_duration(duration_iso)
-                duration_str = self._format_duration(duration)
-            except Exception:
+            duration_seconds = self._parse_iso8601_duration_seconds(duration_iso)
+            if duration_seconds is not None:
+                duration_str = self._format_duration(
+                    timedelta(seconds=duration_seconds)
+                )
+            else:
                 duration_str = "Unknown"
 
             # Parse upload date
@@ -274,23 +276,103 @@ class YouTubeService:
 
     def _format_duration(self, duration: timedelta) -> str:
         """
-        Format duration timedelta to readable string.
+        Format duration (timedelta or isodate Duration) to readable string.
 
         Args:
-            duration: Duration as timedelta
+            duration: Duration as timedelta or isodate.duration.Duration
 
         Returns:
             Formatted duration string (e.g., "3:45", "1:23:45")
         """
-        total_seconds = int(duration.total_seconds())
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        seconds = total_seconds % 60
+        # Try the straightforward path first (datetime.timedelta)
+        total_seconds_val: Optional[int] = None
+        try:
+            # duration may be datetime.timedelta
+            total_seconds_val = int(duration.total_seconds())  # type: ignore[attr-defined]
+        except Exception:
+            # Fall back for isodate.duration.Duration which may not have total_seconds
+            try:
+                days = int(getattr(duration, "days", 0) or 0)  # type: ignore[assignment]
+                hours = int(getattr(duration, "hours", 0) or 0)
+                minutes = int(getattr(duration, "minutes", 0) or 0)
+                seconds_val = getattr(duration, "seconds", 0) or 0
+                try:
+                    seconds_int = int(seconds_val)
+                except Exception:
+                    # In case seconds is Decimal/float-like
+                    seconds_int = int(float(seconds_val))
+                total_seconds_val = (
+                    days * 86400 + hours * 3600 + minutes * 60 + seconds_int
+                )
+            except Exception:
+                # If everything fails, return Unknown
+                return "Unknown"
+
+        hours = total_seconds_val // 3600
+        minutes = (total_seconds_val % 3600) // 60
+        seconds = total_seconds_val % 60
 
         if hours > 0:
             return f"{hours}:{minutes:02d}:{seconds:02d}"
         else:
             return f"{minutes}:{seconds:02d}"
+
+    def _parse_iso8601_duration_seconds(self, duration_iso: str) -> Optional[int]:
+        """
+        Parse an ISO 8601 duration string (as returned by YouTube API) to total seconds.
+        Tries a lightweight regex first; falls back to isodate if needed.
+        Returns None if parsing fails.
+        """
+        try:
+            if not isinstance(duration_iso, str):
+                return None
+
+            # Quick path: handle common YouTube patterns: PnW nD T nH nM nS
+            m = re.fullmatch(
+                r"^P(?:(?P<w>\d+)W)?(?:(?P<d>\d+)D)?(?:T(?:(?P<h>\d+)H)?(?:(?P<m>\d+)M)?(?:(?P<s>\d+)S)?)?$",
+                duration_iso,
+            )
+            if m:
+                weeks = int(m.group("w") or 0)
+                days = int(m.group("d") or 0)
+                hours = int(m.group("h") or 0)
+                minutes = int(m.group("m") or 0)
+                seconds = int(m.group("s") or 0)
+                return (
+                    weeks * 7 * 86400
+                    + days * 86400
+                    + hours * 3600
+                    + minutes * 60
+                    + seconds
+                )
+
+            # Fallback: use isodate to parse, then convert to seconds
+            try:
+                dur = isodate.parse_duration(duration_iso)
+            except Exception:
+                return None
+
+            # Try timedelta path first
+            try:
+                return int(dur.total_seconds())  # type: ignore[attr-defined]
+            except Exception:
+                pass
+
+            # Fallback for isodate.duration.Duration
+            try:
+                days = int(getattr(dur, "days", 0) or 0)
+                hours = int(getattr(dur, "hours", 0) or 0)
+                minutes = int(getattr(dur, "minutes", 0) or 0)
+                seconds_val = getattr(dur, "seconds", 0) or 0
+                try:
+                    seconds_int = int(seconds_val)
+                except Exception:
+                    seconds_int = int(float(seconds_val))
+                return days * 86400 + hours * 3600 + minutes * 60 + seconds_int
+            except Exception:
+                return None
+        except Exception:
+            return None
 
     def format_video_info_message(self, video_data: Dict[str, Any]) -> str:
         """

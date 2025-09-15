@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Pytest tests for data_manager module.
+"""
+
 import json
 import os
 import tempfile

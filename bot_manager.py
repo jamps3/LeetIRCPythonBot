@@ -11,6 +11,13 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
+from config import get_api_key, get_server_configs, load_env_file
+from leet_detector import create_nanoleet_detector
+from lemmatizer import Lemmatizer
+from logger import get_logger
+from server import Server
+from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
+
 
 # Safe print function that handles Unicode gracefully
 def safe_print(text, fallback_text=None):
@@ -65,13 +72,6 @@ except ImportError:
             pass
 
     readline = DummyReadline()
-
-from config import get_api_key, get_server_configs, load_env_file
-from leet_detector import create_nanoleet_detector
-from lemmatizer import Lemmatizer
-from logger import get_logger
-from server import Server
-from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
 
 # Optional service imports - handle gracefully if dependencies are missing
 try:
@@ -278,6 +278,9 @@ class BotManager:
             self.logger.info("⚠️ FMI warning service initialized")
         else:
             self.fmi_warning_service = None
+
+        # Storage for the latest Otiedote release info
+        self.latest_otiedote: Optional[dict] = None
 
         # Initialize Otiedote service
         if create_otiedote_service is not None:
@@ -522,6 +525,9 @@ class BotManager:
             # Register message callback for command processing
             server.register_callback("message", self._handle_message)
 
+            # Register notice callback for processing notices
+            server.register_callback("notice", self._handle_notice)
+
             # Register join callback for user tracking
             server.register_callback("join", self._handle_join)
 
@@ -532,6 +538,37 @@ class BotManager:
             server.register_callback("quit", self._handle_quit)
 
             self.logger.info(f"Registered callbacks for server: {server_name}")
+
+    def _handle_notice(self, server: Server, sender: str, target: str, text: str):
+        """
+        Handle incoming notices from any server.
+
+        Args:
+            server: The Server instance that received the notice
+            sender: The nickname who sent the notice
+            target: The target (channel or bot's nick)
+            text: The notice content
+        """
+        try:
+            # Create context for the notice
+            context = {
+                "server": server,
+                "server_name": server.config.name,
+                "sender": sender,
+                "target": target,
+                "text": text,
+                "is_private": not target.startswith("#"),
+                "bot_name": self.bot_name,
+            }
+
+            # Process leet winners summary lines (first/last/multileet)
+            try:
+                self._process_leet_winner_summary(text, sender)
+            except Exception as e:
+                self.logger.warning(f"Error processing leet winners summary: {e}")
+
+        except Exception as e:
+            self.logger.error(f"Error handling notice from {server.config.name}: {e}")
 
     def _handle_message(self, server: Server, sender: str, target: str, text: str):
         """
@@ -600,12 +637,6 @@ class BotManager:
                                     self._send_response(server, reply_target, part)
             except Exception as e:
                 self.logger.warning(f"AI chat processing error: {e}")
-
-            # Process leet winners summary lines (ensimmäinen/viimeinen/multileet)
-            try:
-                self._process_leet_winner_summary(text)
-            except Exception as e:
-                self.logger.warning(f"Error processing leet winners summary: {e}")
 
             # Fetch and display page titles for URLs posted in channels (non-commands)
             if (
@@ -679,21 +710,25 @@ class BotManager:
         target = context["target"]
         text = context["text"]
 
-        # Prepare bot functions for commands.py compatibility
+        # Quick built-in handler for latest Otiedote description
+        try:
+            if isinstance(text, str) and text.strip().lower().startswith("!otiedote"):
+                self._send_latest_otiedote(server, target)
+                return
+        except Exception as e:
+            self.logger.warning(f"Error handling !otiedote: {e}")
+
         bot_functions = {
             "data_manager": self.data_manager,
             "drink_tracker": self.drink_tracker,
             "general_words": self.general_words,
-            "tamagotchi": lambda text, irc, target: None,  # No-op for legacy compatibility
             "tamagotchi_bot": self.tamagotchi,
-            "lemmat": self.lemmatizer,  # Legacy compatibility
+            "lemmat": self.lemmatizer,
             "server": server,
             "server_name": context["server_name"],
             "bot_name": self.bot_name,
             "latency_start": lambda: getattr(self, "_latency_start", 0),
             "set_latency_start": lambda value: setattr(self, "_latency_start", value),
-            # Add legacy function implementations
-            "count_kraks": self._count_kraks_legacy,
             "notice_message": lambda msg, irc=None, target=None: self._send_response(
                 server, target or context["target"], msg
             ),
@@ -716,16 +751,12 @@ class BotManager:
             ),
             "wrap_irc_message_utf8_bytes": self._wrap_irc_message_utf8_bytes,
             "send_message": lambda irc, target, msg: server.send_message(target, msg),
-            "load": self._load_legacy_data,
-            "save": self._save_legacy_data,
-            "update_kraks": self._update_kraks_legacy,
             "log": self._log,
             "fetch_title": self._fetch_title,
             "subscriptions": self._get_subscriptions_module(),
             "DRINK_WORDS": self._get_drink_words(),
-            "EKAVIKA_FILE": "ekavika.json",
             "get_latency_start": lambda: getattr(self, "_latency_start", 0),
-            "BOT_VERSION": "2.0.0",
+            "BOT_VERSION": "2.1.0",
             "toggle_tamagotchi": lambda srv, tgt, snd: self.toggle_tamagotchi(
                 srv, tgt, snd
             ),
@@ -751,10 +782,6 @@ class BotManager:
             return False
 
         self.register_callbacks()
-
-        # Migrate legacy data if needed
-        if not self.data_manager.migrate_from_pickle():
-            self.logger.warning("Data migration failed, but continuing...")
 
         # Start monitoring services
         if self.fmi_warning_service is not None:
@@ -835,13 +862,29 @@ class BotManager:
                         f"Error sending FMI warning to {subscriber_nick} on {server_name}: {e}"
                     )
 
-    def _handle_otiedote_release(self, title: str, url: str):
+    def _handle_otiedote_release(
+        self, title: str, url: str, description: Optional[str] = None
+    ):
         """Handle new Otiedote press release.
 
         Uses the subscriptions system to deliver messages only to explicit
         onnettomuustiedotteet subscribers per server, mirroring FMI warnings.
+
+        Automatically broadcasts only title + URL.
+        Stores the full info for the !otiedote command to display description on-demand.
         """
-        message = f"📢 Uusi tiedote: {title} | {url}"
+        # Persist latest release info for on-demand access via !otiedote
+        try:
+            self.latest_otiedote = {
+                "title": title,
+                "url": url,
+                "description": description or "",
+            }
+        except Exception:
+            # Never fail the broadcast due to caching issues
+            pass
+
+        header_message = f"📢 {title} | {url}"
 
         # Get subscriptions module and subscribers for onnettomuustiedotteet
         subscriptions = self._get_subscriptions_module()
@@ -868,7 +911,8 @@ class BotManager:
                     )
                     continue
 
-                self._send_response(server, subscriber_nick, message)
+                # Broadcast only the header (no description here)
+                self._send_response(server, subscriber_nick, header_message)
                 self.logger.info(
                     f"Sent Otiedote release to {subscriber_nick} on {server_name}"
                 )
@@ -1060,8 +1104,6 @@ class BotManager:
                 if self.gpt_service
                 else "AI not available"
             ),
-            "load": self._load_legacy_data,
-            "save": self._save_legacy_data,
             "BOT_VERSION": "2.0.0",
             "server_name": "console",
             "stop_event": self.stop_event,  # Allow console commands to trigger shutdown
@@ -1172,12 +1214,6 @@ class BotManager:
                 server.send_notice(target, message)
             except Exception as e:
                 self.logger.error(f"Error sending notice to {server.config.name}: {e}")
-
-    # Legacy function implementations for commands.py compatibility
-    def _count_kraks_legacy(self, word: str, beverage: str):
-        """Legacy drink counting function."""
-        self.logger.debug(f"Legacy drink count: {word} ({beverage})")
-        # This is now handled by DrinkTracker automatically
 
     def _send_notice(self, server, target: str, message: str):
         """Send a notice message."""
@@ -1297,6 +1333,34 @@ class BotManager:
         else:
             server.send_message(target, message)
 
+    def _send_latest_otiedote(self, server, target):
+        """Send the latest cached Otiedote description on-demand (no header)."""
+        try:
+            info = getattr(self, "latest_otiedote", None)
+            if not info:
+                self._send_response(
+                    server,
+                    target,
+                    "📢 Ei tallennettua Onnettomuustiedotetta vielä. Odota uutta ilmoitusta.",
+                )
+                return
+
+            desc = (info.get("description") or "").strip()
+            if not desc:
+                response = f"📢 Ei kuvausta saatavilla. | {info.get('url', '')}"
+                self._send_response(server, target, response)
+                return
+
+            # Wrap and send description only
+            for line in self._wrap_irc_message_utf8_bytes(
+                f"Kuvaus: {desc}", reply_target=target
+            ):
+                if line:
+                    self._send_response(server, target, line)
+        except Exception as e:
+            self.logger.error(f"Error sending latest Otiedote: {e}")
+            self._send_response(server, target, f"❌ Virhe: {e}")
+
     def _send_weather(self, irc, channel, location):
         """Send weather information."""
         if not self.weather_service:
@@ -1366,17 +1430,46 @@ class BotManager:
             self.logger.error(f"Error searching YouTube: {e}")
             return f"Error searching YouTube: {str(e)}"
 
-    def _process_leet_winner_summary(self, text: str):
+    def _process_leet_winner_summary(self, text: str, sender: str = None):
         """Parser for leet winners summary lines.
 
         Updates leet_winners.json counts for categories:
-        - "ensimmäinen" (first)
-        - "viimeinen" (last)
+        - "first" (first)
+        - "last" (last)
         - "multileet" (closest to 13:37)
+
+        Only accepts messages from authorized nicks (Beici, Beibi, Beiki)
+        or messages that start with admin password.
 
         This keeps !leetwinners in sync with external announcer messages.
         """
+        self.logger.debug(f"Processing leet winner summary: {text} from {sender}")
         import re
+        from datetime import datetime
+
+        from config import get_config
+
+        # Define allowed nicks for leet winner tracking
+        ALLOWED_NICKS = {"beici", "beibi", "beiki"}
+
+        # Check if message starts with admin password (case-sensitive check)
+        admin_override = False
+        if text and text.strip():
+            config = get_config()
+            admin_password = config.admin_password
+            if admin_password and text.startswith(admin_password):
+                admin_override = True
+                # Remove admin password from text for processing
+                text = text[
+                    len(admin_password) :  # noqa E203 - Black formatting
+                ].strip()
+
+        # Check sender authorization (case-insensitive)
+        if not admin_override and (not sender or sender.lower() not in ALLOWED_NICKS):
+            self.logger.debug(
+                f"Ignoring leet winner message from unauthorized sender: {sender}"
+            )
+            return
 
         # Regex pattern for detection
         pattern = r"Ensimmäinen leettaaja oli (\S+) .*?, viimeinen oli (\S+) .*?Lähimpänä multileettiä oli (\S+)"
@@ -1389,6 +1482,11 @@ class BotManager:
         # Load current winners
         winners = self._load_leet_winners()
 
+        # Initialize metadata if this is the first time we're tracking
+        if not winners or "_metadata" not in winners:
+            current_date = datetime.now().strftime("%d.%m.%Y")
+            winners["_metadata"] = {"statistics_started": current_date}
+
         # Helper to bump count in winners dict
         def bump(name: str, category: str):
             if not name:
@@ -1398,13 +1496,16 @@ class BotManager:
             else:
                 winners[name] = {category: 1}
 
-        bump(first, "ensimmäinen")
-        bump(last, "viimeinen")
+        bump(first, "first")
+        bump(last, "last")
         bump(multileet, "multileet")
 
         self._save_leet_winners(winners)
+
+        # Log with authorization info
+        auth_info = "admin override" if admin_override else f"authorized nick: {sender}"
         self.logger.info(
-            f"Updated leet winners (first={first}, last={last}, multileet={multileet})"
+            f"Updated leet winners (first={first}, last={last}, multileet={multileet}) via {auth_info}"
         )
 
     def _handle_ipfs_command(self, command_text, irc_client=None, target=None):
@@ -1445,7 +1546,9 @@ class BotManager:
             clean_message = message
             if clean_message.lower().startswith(self.bot_name.lower()):
                 # Remove bot name and common separators
-                clean_message = clean_message[len(self.bot_name) :].lstrip(":, ")
+                clean_message = clean_message[
+                    len(self.bot_name) :  # noqa E203 - Black formatting
+                ].lstrip(":, ")
 
             # Get response from GPT service
             response = self.gpt_service.chat(clean_message, sender)
@@ -1512,7 +1615,10 @@ class BotManager:
                             # Ensure we don't cut a multibyte char: backtrack within current chunk until valid utf-8
                             while take > 0:
                                 try:
-                                    chunk = b[start : start + take].decode("utf-8")
+                                    chunk = b[
+                                        start : start  # noqa E203 - Black formatting
+                                        + take
+                                    ].decode("utf-8")
                                     break
                                 except UnicodeDecodeError:
                                     take -= 1
@@ -1561,35 +1667,6 @@ class BotManager:
 
         return out_lines
 
-    def _load_legacy_data(self):
-        """Load legacy pickle data."""
-        try:
-            import pickle
-
-            with open("data.pkl", "rb") as f:
-                return pickle.load(f)
-        except (FileNotFoundError, pickle.PickleError):
-            return {}
-
-    def _save_legacy_data(self, data):
-        """Save legacy pickle data."""
-        try:
-            import pickle
-
-            with open("data.pkl", "wb") as f:
-                pickle.dump(data, f)
-        except Exception as e:
-            self.logger.error(f"Error saving legacy data: {e}")
-
-    def _update_kraks_legacy(self, kraks, sender, words):
-        """Update legacy kraks data."""
-        if sender not in kraks:
-            kraks[sender] = {}
-        for word in words:
-            if word not in kraks[sender]:
-                kraks[sender][word] = 0
-            kraks[sender][word] += 1
-
     def _log(self, message, level="INFO"):
         """Log a message."""
         self.logger.log(message, level)
@@ -1599,7 +1676,12 @@ class BotManager:
         import re
 
         import requests
-        from bs4 import BeautifulSoup
+
+        # Try to import BeautifulSoup, but fall back to regex if unavailable
+        try:
+            from bs4 import BeautifulSoup  # type: ignore
+        except Exception:
+            BeautifulSoup = None  # type: ignore
 
         # Find URLs in the text
         urls = re.findall(
@@ -1626,12 +1708,38 @@ class BotManager:
                         self.logger.debug(f"Skipping non-HTML content: {content_type}")
                         continue
 
-                    soup = BeautifulSoup(response.content, "html.parser")
-                    title = soup.find("title")
-                    if title and title.string:
-                        # Clean the title
-                        cleaned_title = re.sub(r"\s+", " ", title.string.strip())
+                    cleaned_title = None
+                    if BeautifulSoup is not None:
+                        try:
+                            soup = BeautifulSoup(response.content, "html.parser")
+                            title_tag = soup.find("title")
+                            if title_tag and getattr(title_tag, "string", None):
+                                cleaned_title = re.sub(
+                                    r"\s+", " ", title_tag.string.strip()
+                                )
+                        except Exception:
+                            cleaned_title = None
 
+                    # Fallback: extract title with regex if bs4 is not available or failed
+                    if not cleaned_title:
+                        try:
+                            # Decode bytes safely; ignore errors
+                            text_content = (
+                                response.content.decode("utf-8", errors="ignore")
+                                if isinstance(response.content, (bytes, bytearray))
+                                else str(response.content)
+                            )
+                            m = re.search(
+                                r"<title[^>]*>(.*?)</title>",
+                                text_content,
+                                re.IGNORECASE | re.DOTALL,
+                            )
+                            if m:
+                                cleaned_title = re.sub(r"\s+", " ", m.group(1).strip())
+                        except Exception:
+                            cleaned_title = None
+
+                    if cleaned_title:
                         # Check if title is banned
                         if self._is_title_banned(cleaned_title):
                             self.logger.debug(f"Skipping banned title: {cleaned_title}")

@@ -1,0 +1,18 @@
+[run]
+source =
+    .
+    services
+
+[report]
+omit =
+    tests/*
+    */__init__.py
+    conftest.py
+    test_digitraffic-api.py
+    test_electricity_mapping_interactive.py
+    test_find_price.py
+    test_gpt.py
+    test_leet_winners.py
+    test_nanoleet.py
+    test_saaennuste.py
+    setup_hooks.py

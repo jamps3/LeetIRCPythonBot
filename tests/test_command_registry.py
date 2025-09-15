@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-Command Registry Tests - Pure Pytest Version
+Pytest Command Registry Tests
 
 Comprehensive tests for the command registry system.
 """

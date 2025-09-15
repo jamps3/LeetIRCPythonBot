@@ -1,5 +1,4 @@
 [flake8]
-exclude = .venv, .git, __pycache__, build, dist
+exclude = __pycache__, .git, .github, .venv, venv, .vscode, PlantUML
 max-line-length = 127
-extend-ignore = E203,E501,F401,F841,E402
-
+extend-ignore = E501,F401,F841

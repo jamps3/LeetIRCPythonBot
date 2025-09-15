@@ -1,4 +1,4 @@
-# LeetIRC Bot Commit Message
+# LeetIRCPythonBot Commit Message
 #
 # Format: <type>(<scope>): <description>
 #
@@ -16,4 +16,4 @@
 #   fix(irc): resolve connection timeout issue
 #   test(crypto): add comprehensive price formatting tests
 #
-# Remember: Tests run automatically before commit!
+# Remember: isort, black and flake8 are run automatically before commit and tests run automatically push!

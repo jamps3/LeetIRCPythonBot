@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+set -euo pipefail
+
+# Build optional args based on installed pytest plugins
+EXTRA_ARGS=""
+
+# Add -n auto if pytest-xdist is available
+if python - <<'PY'
+import importlib.util, sys
+sys.exit(0 if importlib.util.find_spec('xdist') else 1)
+PY
+then
+  EXTRA_ARGS="$EXTRA_ARGS -n auto"
+fi
+
+# Add coverage flags if pytest-cov is available
+if python - <<'PY'
+import importlib.util, sys
+sys.exit(0 if importlib.util.find_spec('pytest_cov') else 1)
+PY
+then
+  EXTRA_ARGS="$EXTRA_ARGS --cov --cov-config=.coveragerc"
+fi
+
+# Run pytest and forward all args
+python -m pytest $EXTRA_ARGS "$@"

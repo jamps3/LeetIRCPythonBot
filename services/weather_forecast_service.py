@@ -104,9 +104,7 @@ def _list_lines(data: dict, limit: int = 8) -> list[str]:
         temp_fmt = _fmt_num(temp, 1) + "°C"
         precip_fmt = _fmt_num(precip, 1) + "mm"
         wind_fmt = _fmt_num(wind, 1) + "m/s"
-        out.append(
-            f"{t.strftime('%H')}: 🌡️ {temp_fmt} | 🌧️ {precip_fmt} | 💨 {wind_fmt} {s}"
-        )
+        out.append(f"{t.strftime('%H')}: 🌡️{temp_fmt} 🌧️{precip_fmt} 💨{wind_fmt} {s}")
         if len(out) >= limit:
             break
     return out
@@ -116,7 +114,7 @@ def format_single_line(city: str | None = None, hours: int | None = None) -> str
     """Return a single line: 'City: HH: ... | HH: ...' with up to 'hours' items (default 8)."""
     city_use = (city or DEFAULT_CITY).strip() or DEFAULT_CITY
     limit = hours if (isinstance(hours, int) and hours > 0) else 8
-    limit = min(limit, 24)
+    limit = min(limit, 48)
     data = _fetch(city_use)
     segments = _list_lines(data, limit=limit)
     return f"{city_use}: " + " | ".join(segments)
@@ -126,7 +124,7 @@ def format_multi_line(city: str | None = None, hours: int | None = None) -> list
     """Return a list of lines: first the city, then up to 'hours' hourly lines (default 8)."""
     city_use = (city or DEFAULT_CITY).strip() or DEFAULT_CITY
     limit = hours if (isinstance(hours, int) and hours > 0) else 8
-    limit = min(limit, 24)
+    limit = min(limit, 48)
     data = _fetch(city_use)
     segments = _list_lines(data, limit=limit)
     return [city_use] + segments

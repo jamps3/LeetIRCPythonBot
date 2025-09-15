@@ -63,6 +63,7 @@ class Server:
         self.encoding = os.getenv("IRC_ENCODING", "utf-8")
         self.callbacks = {
             "message": [],  # Callbacks for PRIVMSG
+            "notice": [],  # Callbacks for NOTICE
             "join": [],  # Callbacks for user join events
             "part": [],  # Callbacks for user part events
             "quit": [],  # Callbacks for user quit events
@@ -141,7 +142,7 @@ class Server:
         Register a callback function for a specific event type.
 
         Args:
-            event_type (str): The type of event to register for (message, join, part, quit)
+            event_type (str): The type of event to register for (message, notice, join, part, quit)
             callback (Callable): The callback function to register
         """
         if event_type in self.callbacks:
@@ -185,7 +186,6 @@ class Server:
                         context.check_hostname = True
                         context.verify_mode = ssl.CERT_REQUIRED
 
-                    # Legacy support (optional, uncomment if needed)
                     context.minimum_version = ssl.TLSVersion.TLSv1_2
                     context.options |= ssl.OP_LEGACY_SERVER_CONNECT
                     context.set_ciphers("HIGH:!aNULL:!MD5:!RC4:!LOW:!EXP")
@@ -230,7 +230,9 @@ class Server:
         except ssl.SSLCertVerificationError as e:
             self.logger.error(f"TLS certificate verification failed: {e}")
         except ssl.SSLError as e:
-            self.logger.error(f"SSL error during connect: {e}")
+            self.logger.error(
+                f"SSL error during connect: {e}. Are you sure the server supports TLS? Is the PORT correct?"
+            )
         except (socket.error, ConnectionError) as e:
             self.logger.error(f"Failed to connect: {e}")
         except Exception as e:
@@ -457,6 +459,18 @@ class Server:
                     self.logger.error(f"Error in message callback: {e}")
             return
 
+        # Process NOTICE
+        notice_match = re.search(r":(\S+)!(\S+) NOTICE (\S+) :(.+)", message)
+        if notice_match:
+            sender, hostmask, target, text = notice_match.groups()
+            # Call all registered notice callbacks
+            for callback in self.callbacks["notice"]:
+                try:
+                    callback(self, sender, target, text)
+                except Exception as e:
+                    self.logger.error(f"Error in notice callback: {e}")
+            return
+
         # Process JOIN
         join_match = re.search(r":(\S+)!(\S+) JOIN (\S+)", message)
         if join_match:
@@ -488,6 +502,25 @@ class Server:
                     callback(self, sender)
                 except Exception as e:
                     self.logger.error(f"Error in quit callback: {e}")
+            return
+
+    def _process_notice(self, message: str):
+        """
+        Process an incoming IRC notice.
+
+        Args:
+            message (str): The raw IRC message
+        """
+        # Process NOTICE
+        notice_match = re.search(r":(\S+)!(\S+) NOTICE (\S+) :(.+)", message)
+        if notice_match:
+            sender, hostmask, target, text = notice_match.groups()
+            # Call all registered message callbacks
+            for callback in self.callbacks["notice"]:
+                try:
+                    callback(self, sender, target, text)
+                except Exception as e:
+                    self.logger.error(f"Error in message callback: {e}")
             return
 
     def start(self):

@@ -11,10 +11,41 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from dotenv import load_dotenv
-from openai import APIError, AuthenticationError, OpenAI, RateLimitError
+from openai import APIError as OpenAIAPIError
+from openai import AuthenticationError as OpenAIAuthenticationError
+from openai import OpenAI
+from openai import RateLimitError as OpenAIRateLimitError
 
 # Load .env if available
 load_dotenv(override=True)
+
+
+# Custom exception classes that properly inherit from Exception
+class RateLimitError(Exception):
+    """Rate limit error for AI service."""
+
+    def __init__(self, message, response=None, body=None):
+        super().__init__(message)
+        self.response = response
+        self.body = body
+
+
+class AuthenticationError(Exception):
+    """Authentication error for AI service."""
+
+    def __init__(self, message, response=None, body=None):
+        super().__init__(message)
+        self.response = response
+        self.body = body
+
+
+class APIError(Exception):
+    """API error for AI service."""
+
+    def __init__(self, message, request=None, body=None):
+        super().__init__(message)
+        self.request = request
+        self.body = body
 
 
 class GPTService:
@@ -22,11 +53,13 @@ class GPTService:
 
     def __init__(
         self,
-        api_key: str,
+        api_key: str = "",
         history_file: str = "conversation_history.json",
         history_limit: int = 100,
     ):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # Prefer explicitly provided key; fall back to environment (.env)
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
+        self.client = OpenAI(api_key=self.api_key)
         self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
         self.history_file = history_file
         self.history_limit = history_limit
@@ -62,44 +95,14 @@ class GPTService:
         if len(self.conversation_history) > max_total:
             self.conversation_history = [
                 self.conversation_history[0]
-            ] + self.conversation_history[-self.history_limit :]
+            ] + self.conversation_history[
+                -self.history_limit :  # noqa E203 - Black formatting
+            ]
         try:
             with open(self.history_file, "w", encoding="utf-8") as f:
                 json.dump(self.conversation_history, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Error saving conversation history: {e}")
-
-    def _correct_outdated_dates(self, text: str) -> str:
-        current_date = datetime.now()
-        months = [
-            "tammikuuta",
-            "helmikuuta",
-            "maaliskuuta",
-            "huhtikuuta",
-            "toukokuuta",
-            "kesäkuuta",
-            "heinäkuuta",
-            "elokuuta",
-            "syyskuuta",
-            "lokakuuta",
-            "marraskuuta",
-            "joulukuuta",
-        ]
-        today_fi = (
-            f"{current_date.day}. {months[current_date.month - 1]} {current_date.year}"
-        )
-
-        patterns = [
-            r"Tänään on \d{1,2}\. \w+ \d{4}",
-            r"today is \w+ \d{1,2}, \d{4}",
-            r"current date is \d{1,2}\. \w+ \d{4}",
-            r"Nykyinen päivämäärä on \d{1,2}\. \w+ \d{4}",
-            r"Päivämäärä on \d{1,2}\. \w+ \d{4}",
-            r"Olemme nyt \d{1,2}\. \w+ \d{4}",
-        ]
-        for pat in patterns:
-            text = re.sub(pat, today_fi, text, flags=re.IGNORECASE)
-        return text
 
     def _build_transcript(self, latest_user: Dict[str, str]) -> str:
         parts: List[str] = []
@@ -132,9 +135,6 @@ class GPTService:
             reply = (response.output_text or "").strip()
             if not reply:
                 reply = "Sorry, I'm having trouble connecting to the AI service."
-
-            # Uncomment if you want to correct dates in the reply, gpt-5-mini handles dates well
-            # reply = self._correct_outdated_dates(reply)
 
             self.conversation_history.append({"role": "assistant", "content": reply})
             self._save_conversation_history()

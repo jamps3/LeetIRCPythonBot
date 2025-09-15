@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-Weather Service Tests - Pure Pytest Version
+Pytest Weather Service tests
 
 Comprehensive tests for the weather service functionality.
 """
@@ -382,3 +383,59 @@ def test_weather_coordinates_handling(weather_service):
     assert "lon" in result, "Should include longitude"
     assert result["lat"] == 60.1699, "Should preserve latitude precision"
     assert result["lon"] == 24.9384, "Should preserve longitude precision"
+
+
+def test_weather_generic_exception_handling(weather_service):
+    """Test generic exception handling in get_weather."""
+    with patch("requests.get") as mock_get:
+        mock_get.side_effect = ValueError("boom")
+        result = weather_service.get_weather("TestCity")
+
+    assert result["error"] is True, "Should have error for unexpected exceptions"
+    assert "Unexpected error" in result["message"], "Should indicate unexpected error"
+
+
+def test_parse_weather_data_missing_field_returns_error(weather_service):
+    """Test that missing required fields result in a proper error."""
+    data = {
+        "weather": [{"description": "clear sky", "main": "Clear"}],
+        # 'main' is intentionally missing to trigger KeyError
+        "clouds": {"all": 0},
+        "visibility": 10000,
+        "sys": {"country": "FI", "sunrise": 1640000000, "sunset": 1640030000},
+        "coord": {"lat": 60.0, "lon": 24.0},
+    }
+
+    result = weather_service._parse_weather_data(data, "Test")
+
+    assert result["error"] is True, "Should have error when required field is missing"
+    assert "Missing required field" in result["message"], "Should mention missing field"
+    assert "main" in result["message"].lower(), "Should include the missing key name"
+
+
+def test_parse_weather_data_general_exception_returns_error(weather_service):
+    """Test that non-KeyError exceptions are handled gracefully."""
+    data = {
+        "weather": None,  # Will cause TypeError when indexing
+        "main": {"temp": 20, "feels_like": 20, "humidity": 50, "pressure": 1013},
+        "clouds": {"all": 0},
+        "visibility": 10000,
+        "sys": {"country": "FI", "sunrise": 1640000000, "sunset": 1640030000},
+        "coord": {"lat": 60.0, "lon": 24.0},
+    }
+
+    result = weather_service._parse_weather_data(data, "Test")
+
+    assert result["error"] is True, "Should have error when parsing fails"
+    assert (
+        "Error parsing weather data" in result["message"]
+    ), "Should indicate parsing error"
+
+
+def test_uv_index_exception_returns_none(weather_service):
+    """Test that exceptions in UV index fetching return None."""
+    with patch("requests.get") as mock_get:
+        mock_get.side_effect = Exception("network down")
+        result = weather_service._get_uv_index(1.0, 2.0)
+
+    assert result is None, "Should return None on exception"

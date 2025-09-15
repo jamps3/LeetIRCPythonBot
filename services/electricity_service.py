@@ -296,24 +296,26 @@ class ElectricityService:
                     "exception": str(e),
                 }
 
-        except requests.exceptions.Timeout:
-            return {
-                "error": True,
-                "message": "ENTSO-E API request timed out",
-                "exception": "timeout",
-            }
-        except requests.exceptions.RequestException as e:
-            return {
-                "error": True,
-                "message": f"ENTSO-E API request failed: {str(e)}",
-                "exception": str(e),
-            }
         except Exception as e:
-            return {
-                "error": True,
-                "message": f"Unexpected error fetching prices: {str(e)}",
-                "exception": str(e),
-            }
+            name = getattr(e, "__class__", type(e)).__name__
+            if name == "Timeout":
+                return {
+                    "error": True,
+                    "message": "ENTSO-E API request timed out",
+                    "exception": "timeout",
+                }
+            elif name in ("RequestException", "HTTPError", "ConnectionError"):
+                return {
+                    "error": True,
+                    "message": f"ENTSO-E API request failed: {str(e)}",
+                    "exception": str(e),
+                }
+            else:
+                return {
+                    "error": True,
+                    "message": f"Unexpected error fetching prices: {str(e)}",
+                    "exception": str(e),
+                }
 
     def _convert_price(self, eur_per_mwh: float) -> float:
         """

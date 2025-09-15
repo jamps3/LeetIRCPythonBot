@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-Tests for ElectricityService module.
+Pytest tests for services.electricity_service module.
 
 Tests electricity price functionality including API integration,
 command parsing, and message formatting.
@@ -15,10 +16,13 @@ from unittest.mock import Mock, patch
 
 import requests
 
-# Add the services directory to the path to avoid import dependency issues
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "services"))
+from services.electricity_service import (
+    ElectricityService,
+    create_electricity_service,
+)
 
-from electricity_service import ElectricityService, create_electricity_service
+# Add the services directory to the path to avoid import dependency issues
+# sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "services"))
 
 
 class TestElectricityService(unittest.TestCase):
@@ -559,8 +563,8 @@ class TestElectricityServiceIntegration(unittest.TestCase):
                     pass
 
     def test_electricity_command_with_string_input(self):
-        """Test electricity command when called with string input (legacy/console mode)."""
-        # This simulates how the command might be called from console or legacy code
+        """Test electricity command when called with string input (console mode)."""
+        # This simulates how the command might be called from console
         test_cases = [
             "",  # Empty string
             "15",  # Just hour

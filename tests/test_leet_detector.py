@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Pytest tests for Leet Detector module.
+"""
+
 import os
 
 import pytest
@@ -7,11 +12,17 @@ from leet_detector import LeetDetector
 
 def test_ignore_trivial_1337_at_13_37_only():
     d = LeetDetector()
-    # Time is 23:37 with seconds that don't contain 1337 and no nano 1337
-    ts = "23:37:42.987654321"
+    # Time is 13:37 with no other 1337 in seconds or nanos -> should be ignored
+    ts = "13:37:42.000000000"
     result = d.detect_leet_patterns(ts)
     level = d.determine_achievement_level(result)
     assert level is None, "Should ignore trivial 13:37-only occurrence"
+
+    # Also a non-1337 minute but contains no 1337 anywhere -> None as well (sanity)
+    ts2 = "23:37:42.987654321"
+    result2 = d.detect_leet_patterns(ts2)
+    level2 = d.determine_achievement_level(result2)
+    assert level2 is None
 
 
 def test_detect_leet_when_additional_occurrence_present_in_seconds():
@@ -389,3 +400,110 @@ def test_leets_command_formatting():
         # Clean up
         if os.path.exists(test_file):
             os.unlink(test_file)
+
+
+def test_get_timestamp_with_nanoseconds_format():
+    """get_timestamp_with_nanoseconds returns HH:MM:SS.fffffffff format."""
+    d = LeetDetector()
+    ts = d.get_timestamp_with_nanoseconds()
+    assert len(ts.split(".")) == 2, "Should contain a nanosecond part"
+    hhmmss, nanos = ts.split(".")
+    assert len(hhmmss) == 8 and hhmmss.count(":") == 2
+    assert len(nanos) == 9 and nanos.isdigit()
+
+
+def test_detect_leet_patterns_without_dot():
+    """detect_leet_patterns handles timestamps without nanoseconds."""
+    d = LeetDetector()
+    ts = "12:34:56"  # no dot
+    result = d.detect_leet_patterns(ts)
+    assert result["time_part"] == ts
+    assert result["nano_part"] == ""
+
+
+def test_determine_achievement_parsing_exception_fallback():
+    """determine_achievement_level falls back gracefully if time_part parsing fails."""
+    d = LeetDetector()
+    # Craft a minimal detection_result that will raise when splitting time_part
+    detection_result = {
+        "is_ultimate": False,
+        "total_count": 1,
+        "time_count": 1,  # ensures we can still classify after exception
+        "nano_count": 0,
+        "time_part": None,  # will cause AttributeError on split
+    }
+    level = d.determine_achievement_level(detection_result)
+    assert level == "leet"
+
+
+def test_determine_achievement_final_none():
+    """determine_achievement_level returns None for inconsistent counts (final return)."""
+    d = LeetDetector()
+    detection_result = {
+        "is_ultimate": False,
+        "total_count": 1,
+        "time_count": 0,
+        "nano_count": 0,
+        "time_part": "12:00",
+    }
+    assert d.determine_achievement_level(detection_result) is None
+
+
+def test_load_leet_history_missing_file(tmp_path):
+    """_load_leet_history returns [] when file does not exist."""
+    missing = tmp_path / "no_such_file.json"
+    d = LeetDetector(str(missing))
+    # Use public API which calls the loader
+    assert d.get_leet_history() == []
+
+
+def test_save_leet_detection_ioerror(tmp_path, monkeypatch):
+    """_save_leet_detection handles IOError during write."""
+    target = tmp_path / "history.json"
+    d = LeetDetector(str(target))
+
+    # Ensure loader returns a list and then cause IOError on write
+    monkeypatch.setattr(d, "_load_leet_history", lambda: [], raising=True)
+
+    class BoomIO:
+        def __enter__(self):
+            raise IOError("disk full")
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_open(*a, **k):
+        # Trigger only on write to our target file
+        if str(a[0]) == str(target) and (len(a) > 1 and a[1] == "w"):
+            return BoomIO()
+        import builtins
+
+        return builtins.open(*a, **k)
+
+    monkeypatch.setattr("builtins.open", fake_open, raising=True)
+    # Should not raise
+    d._save_leet_detection("n", "23:13:37.000000000", "leet")
+
+
+def test_check_message_for_leet_uses_current_time_and_none_return(monkeypatch):
+    """check_message_for_leet covers current time path and None return branch."""
+    d = LeetDetector()
+    # Force a timestamp without any 1337 to ensure None return
+    monkeypatch.setattr(
+        d,
+        "get_timestamp_with_nanoseconds",
+        lambda: "12:34:56.000000000",
+        raising=True,
+    )
+    assert d.check_message_for_leet("u") is None
+
+
+def test_get_achievement_stats_returns_copy():
+    d = LeetDetector()
+    stats = d.get_achievement_stats()
+    assert isinstance(stats, dict) and "ultimate" in stats and "nano" in stats
+    # Shallow copy: adding a new key to the copy should not affect the original
+    stats["new_key"] = {}
+    assert "new_key" not in d.achievement_levels
+    # The returned object should not be the same object
+    assert id(stats) != id(d.achievement_levels)

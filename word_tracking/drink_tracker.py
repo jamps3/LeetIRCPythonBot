@@ -28,6 +28,8 @@ class DrinkTracker:
         # Define drink words to track
         self.drink_words = {
             "krak",
+            "kr3k",
+            "kr2k",
             "kr1k",
             "kr0k",
             "narsk",

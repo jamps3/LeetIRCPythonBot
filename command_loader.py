@@ -1,5 +1,5 @@
 """
-Command Loader and Integration Module
+Command Loader and Integration Module for LeetIRCPythonBot
 
 This module loads all command modules and provides integration between
 the command registry system and the bot infrastructure.
@@ -8,35 +8,26 @@ the command registry system and the bot infrastructure.
 import asyncio
 from typing import Any, Dict, Optional
 
-from command_registry import (
-    CommandContext,
-    CommandResponse,
-    CommandScope,
-    CommandType,
-    get_command_registry,
-    process_command_message,
-)
-from config import get_config
+# Defer local imports to function bodies to avoid import-time side effects during
+# the full test run, where some tests monkeypatch modules in ways that can break
+# imports if they happen too early.
 
 
 def load_all_commands():
     """Load all command modules to register their commands."""
     try:
         # Import all command modules to trigger registration
+        import commands  # unified commands module
         import commands_admin
-        import commands_basic
-        import commands_extended  # Add new extended commands
 
-        # Additional command modules can be imported here
-        # import commands_weather
-        # import commands_crypto
-        # etc.
+        # Resolve registry at call time to avoid early imports
+        from command_registry import get_command_registry
 
         registry = get_command_registry()
         command_count = len(registry._commands)
         print(f"Loaded {command_count} commands from command modules")
 
-    except ImportError as e:
+    except Exception as e:
         print(f"Warning: Could not load all command modules: {e}")
 
 
@@ -61,8 +52,13 @@ async def process_irc_command(
         bool: True if a command was processed, False otherwise
     """
     # Create command context
+    from command_registry import CommandContext, process_command_message
+    from config import get_config
+
     config = get_config()
     is_private = target.lower() == config.name.lower()
+    # For private messages, we should reply to the sender nick instead of the target (bot's nick)
+    reply_target = sender if is_private else target
 
     context = CommandContext(
         command="",  # Will be filled by process_command_message
@@ -102,10 +98,10 @@ async def process_irc_command(
                             parts = split_func(line, 400)
                             for part in parts:
                                 if part:
-                                    notice_message(part, irc_connection, target)
+                                    notice_message(part, irc_connection, reply_target)
                         else:
                             # Fallback: send each line as a separate notice
-                            notice_message(line, irc_connection, target)
+                            notice_message(line, irc_connection, reply_target)
 
             return True  # Command was processed
 
@@ -118,7 +114,7 @@ async def process_irc_command(
         # Send error message to user
         notice_message = bot_functions.get("notice_message")
         if notice_message:
-            notice_message(f"Command error: {str(e)}", irc_connection, target)
+            notice_message(f"Command error: {str(e)}", irc_connection, reply_target)
 
         return True  # Still consider it processed to avoid fallback
 
@@ -139,6 +135,8 @@ async def process_console_command_new(
         bool: True if a command was processed, False otherwise
     """
     # Create console command context
+    from command_registry import CommandContext, process_command_message
+
     context = CommandContext(
         command="",  # Will be filled by process_command_message
         args=[],  # Will be filled by process_command_message
@@ -188,6 +186,9 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
     Process console commands using the command registry system.
     """
     log_func = bot_functions.get("log")
+
+    # Ensure commands are loaded before processing
+    ensure_commands_loaded()
 
     # Process command through command registry
     try:
@@ -296,6 +297,9 @@ def enhanced_process_irc_message(irc, message, bot_functions):
         # Non-command messages are handled by bot_manager's word tracking system
         return
 
+    # Ensure commands are loaded before processing
+    ensure_commands_loaded()
+
     # Process command through command registry
     try:
         # Run async command processing in a compatible way
@@ -328,6 +332,8 @@ def get_command_help_text() -> str:
     Returns:
         str: Formatted help text
     """
+    from command_registry import CommandType, get_command_registry
+
     registry = get_command_registry()
 
     # Get commands by category
@@ -368,5 +374,15 @@ def get_command_help_text() -> str:
     return "\n".join(help_lines)
 
 
-# Initialize commands when module is imported
-load_all_commands()
+# Lazy-load commands to avoid import-time side effects during testing
+_commands_loaded = False
+
+
+def ensure_commands_loaded():
+    global _commands_loaded
+    if _commands_loaded:
+        return
+    try:
+        load_all_commands()
+    finally:
+        _commands_loaded = True

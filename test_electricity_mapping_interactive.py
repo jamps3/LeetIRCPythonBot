@@ -8,6 +8,8 @@ import os
 import sys
 from datetime import datetime, timedelta
 
+from services.electricity_service import ElectricityService
+
 # Load environment variables from .env file
 try:
     from dotenv import load_dotenv
@@ -23,10 +25,6 @@ except ImportError:
                     # Remove quotes from value if present
                     value = value.strip("\"'")
                     os.environ[key.strip()] = value
-
-# Add the services directory to path to import directly
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "services"))
-from electricity_service import ElectricityService
 
 
 def test_electricity_mapping():

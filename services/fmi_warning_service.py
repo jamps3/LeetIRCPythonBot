@@ -152,8 +152,8 @@ class FMIWarningService:
             seen_hashes = set(list(seen_hashes)[-50:])
             self._save_seen_hashes(seen_hashes)
 
-            # Keep only the last 5 warnings for duplicate checking
-            seen_data = seen_data[-5:]
+            # Keep only the last 10 warnings for duplicate checking
+            seen_data = seen_data[-10:]
             self._save_seen_data(seen_data)
 
             return messages
@@ -307,8 +307,12 @@ class FMIWarningService:
         self, title: str, lower_title: str, lower_summary: str
     ) -> str:
         """Apply warning type symbols to title."""
-        if "tuulivaroitus" in lower_title or "tuulivaroitus" in lower_summary:
-            title = title.replace("tuulivaroitus", "🌪️")
+        if "sadevaroitus" in lower_title or "sadevaroitus" in lower_summary:
+            title = title.replace("sadevaroitus", "🌧️ ")
+        elif "raju ukonilma" in lower_title or "raju ukonilma" in lower_summary:
+            title = title.replace("raju ukonilma", "🌩️ ")
+        elif "tuulivaroitus" in lower_title or "tuulivaroitus" in lower_summary:
+            title = title.replace("tuulivaroitus", "🌪️ ")
         elif (
             "maastopalovaroitus" in lower_title or "maastopalovaroitus" in lower_summary
         ):

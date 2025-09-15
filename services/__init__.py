@@ -26,12 +26,37 @@ except ImportError:
     create_otiedote_service = None
     _HAS_OTIEDOTE_SERVICE = False
 
+# Eagerly import commonly referenced submodules so patch targets like
+# 'services.solarwind_service.requests.get' resolve even if the submodule
+# hasn't been explicitly imported yet in a given test.
+try:
+    from . import solarwind_service as solarwind_service
+except Exception:
+    pass
+try:
+    from . import ipfs_service as ipfs_service
+except Exception:
+    pass
+try:
+    from . import electricity_service as electricity_service
+except Exception:
+    pass
+try:
+    from . import eurojackpot_service as eurojackpot_service
+except Exception:
+    pass
+
 # Build __all__ based on what's available
 __all__ = [
     "WeatherService",
     "create_weather_service",
     "CryptoService",
     "create_crypto_service",
+    # Expose submodules so tests can refer through the package
+    "solarwind_service",
+    "ipfs_service",
+    "electricity_service",
+    "eurojackpot_service",
 ]
 
 if _HAS_FMI_SERVICE:
