@@ -561,7 +561,7 @@ class BotManager:
                 "bot_name": self.bot_name,
             }
 
-            # Process leet winners summary lines (ensimmäinen/viimeinen/multileet)
+            # Process leet winners summary lines (first/last/multileet)
             try:
                 self._process_leet_winner_summary(text, sender)
             except Exception as e:
@@ -1434,8 +1434,8 @@ class BotManager:
         """Parser for leet winners summary lines.
 
         Updates leet_winners.json counts for categories:
-        - "ensimmäinen" (first)
-        - "viimeinen" (last)
+        - "first" (first)
+        - "last" (last)
         - "multileet" (closest to 13:37)
 
         Only accepts messages from authorized nicks (Beici, Beibi, Beiki)
@@ -1495,8 +1495,8 @@ class BotManager:
             else:
                 winners[name] = {category: 1}
 
-        bump(first, "ensimmäinen")
-        bump(last, "viimeinen")
+        bump(first, "first")
+        bump(last, "last")
         bump(multileet, "multileet")
 
         self._save_leet_winners(winners)

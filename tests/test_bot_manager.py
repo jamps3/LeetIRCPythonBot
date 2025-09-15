@@ -410,18 +410,18 @@ def test_process_leet_winner_summary(monkeypatch, manager):
     text = "Ensimmäinen leettaaja oli Alice kello 13.37.00,218154740 (”leet”), viimeinen oli Bob kello 13.37.56,267236192 (”leet”). Lähimpänä multileettiä oli Carol kello 13.37.13,242345678 (”leet”)."
     sender = "Beici"
     manager._process_leet_winner_summary(text, sender)
-    assert saved.get("Alice", {}).get("ensimmäinen") == 1
-    assert saved.get("Bob", {}).get("viimeinen") == 1
+    assert saved.get("Alice", {}).get("first") == 1
+    assert saved.get("Bob", {}).get("last") == 1
     assert saved.get("Carol", {}).get("multileet") == 1
     sender = "Beiki"
     manager._process_leet_winner_summary(text, sender)
-    assert saved.get("Alice", {}).get("ensimmäinen") == 2
-    assert saved.get("Bob", {}).get("viimeinen") == 2
+    assert saved.get("Alice", {}).get("first") == 2
+    assert saved.get("Bob", {}).get("last") == 2
     assert saved.get("Carol", {}).get("multileet") == 2
     sender = "Beibi"
     manager._process_leet_winner_summary(text, sender)
-    assert saved.get("Alice", {}).get("ensimmäinen") == 3
-    assert saved.get("Bob", {}).get("viimeinen") == 3
+    assert saved.get("Alice", {}).get("first") == 3
+    assert saved.get("Bob", {}).get("last") == 3
     assert saved.get("Carol", {}).get("multileet") == 3
 
 

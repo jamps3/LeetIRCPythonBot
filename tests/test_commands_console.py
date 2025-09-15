@@ -881,8 +881,8 @@ def test_leetwinners_command_empty_and_with_data():
 
     # With data
     winners = {
-        "Alice": {"ensimmäinen": 3, "multileet": 1},
-        "Bob": {"ensimmäinen": 2, "viimeinen": 4},
+        "Alice": {"first": 3, "multileet": 1},
+        "Bob": {"first": 2, "viimeinen": 4},
     }
     bot_functions["load_leet_winners"] = lambda: winners
     responses.clear()

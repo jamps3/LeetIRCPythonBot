@@ -10,9 +10,9 @@ import sys
 
 # Test data from your examples
 test_messages = [
-    'ke@vko36_13:38:00 -Beici:#Joensuu- Ensimmäinen leettaaja oli jamps kello 13.37.00,218154740 ("jee!"), viimeinen oli saavi kello 13.37.56,267236192 ("Entä siiderii?"). Lähimpänä multileettiä oli jamps kello 13.37.13,269664703 ("leet").',
-    'ke@vko36_13:38:00 -Beibi:#Joensuu- Ensimmäinen leettaaja oli jamps kello 13.37.00,212268597 ("jee!"), viimeinen oli jamps kello 13.37.59,839985573 ("kyl, hiano päivä leetata"). Lähimpänä multileettiä oli jamps kello 13.37.13,263745320 ("leet").',
-    'ke@vko36_13:38:00 -Beiki:#Joensuu- Ensimmäinen leettaaja oli jamps kello 13.37.00,218614708 ("jee!"), viimeinen oli saavi kello 13.37.56,423323747 ("Entä siiderii?"). Lähimpänä multileettiä oli jamps kello 13.37.13,278570137 ("leet").',
+    'Beici!~vekotin@heiki.1337.cx NOTICE #joensuu :Ensimmäinen leettaaja oli Ekaleet kello 13.37.00,218154740 ("leet"), viimeinen oli Vikaleet kello 13.37.56,267236192 ("leet"). Lähimpänä multileettiä oli Multileet kello 13.37.13,269664703 ("leet").',
+    'Beibi!~vekotin@heiki.1337.cx NOTICE #joensuu :Ensimmäinen leettaaja oli  kello 13.37.00,212268597 ("leet"), viimeinen oli Vikaleet kello 13.37.59,839985573 ("leet"). Lähimpänä multileettiä oli Multileet kello 13.37.13,263745320 ("leet").',
+    'Beiki!~vekotin@heiki.1337.cx NOTICE #joensuu :Ensimmäinen leettaaja oli jamps kello 13.37.00,218614708 ("leet"), viimeinen oli Vikaleet kello 13.37.56,423323747 ("leet"). Lähimpänä multileettiä oli Multileet kello 13.37.13,278570137 ("leet").',
 ]
 
 
@@ -61,8 +61,8 @@ def process_leet_winner_summary(text: str):
         else:
             winners[name] = {category: 1}
 
-    bump(first, "ensimmäinen")
-    bump(last, "viimeinen")
+    bump(first, "first")
+    bump(last, "last")
     bump(multileet, "multileet")
 
     print(f"📊 Updated winners: {winners}")

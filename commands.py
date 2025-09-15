@@ -351,7 +351,7 @@ def url_command(context: CommandContext, bot_functions):
     examples=["!leetwinners"],
 )
 def leetwinners_command(context: CommandContext, bot_functions):
-    """Show top-3 leet winners by category (ensimmäinen, multileet, viimeinen)."""
+    """Show top-3 leet winners by category (first, last, multileet)."""
     load_leet_winners = bot_functions.get("load_leet_winners")
     if not load_leet_winners:
         return "Leet winners service not available"
