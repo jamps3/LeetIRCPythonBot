@@ -1443,6 +1443,7 @@ class BotManager:
 
         This keeps !leetwinners in sync with external announcer messages.
         """
+        self.logger.debug(f"Processing leet winner summary: {text} from {sender}")
         import re
         from datetime import datetime
 

@@ -459,6 +459,18 @@ class Server:
                     self.logger.error(f"Error in message callback: {e}")
             return
 
+        # Process NOTICE
+        notice_match = re.search(r":(\S+)!(\S+) NOTICE (\S+) :(.+)", message)
+        if notice_match:
+            sender, hostmask, target, text = notice_match.groups()
+            # Call all registered notice callbacks
+            for callback in self.callbacks["notice"]:
+                try:
+                    callback(self, sender, target, text)
+                except Exception as e:
+                    self.logger.error(f"Error in notice callback: {e}")
+            return
+
         # Process JOIN
         join_match = re.search(r":(\S+)!(\S+) JOIN (\S+)", message)
         if join_match:
