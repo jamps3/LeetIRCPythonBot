@@ -309,6 +309,8 @@ class FMIWarningService:
         """Apply warning type symbols to title."""
         if "sadevaroitus" in lower_title or "sadevaroitus" in lower_summary:
             title = title.replace("sadevaroitus", "🌧️ ")
+        elif "raju ukonilma" in lower_title or "raju ukonilma" in lower_summary:
+            title = title.replace("raju ukonilma", "🌩️ ")
         elif "tuulivaroitus" in lower_title or "tuulivaroitus" in lower_summary:
             title = title.replace("tuulivaroitus", "🌪️ ")
         elif (
