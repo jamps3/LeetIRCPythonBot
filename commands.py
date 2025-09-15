@@ -1030,6 +1030,13 @@ def command_eurojackpot(context, bot_functions):
                 res = service.get_streaks()
                 return res.get("message", "📊 Virhe putkitilastoissa")
 
+        if args[0] in ["scrape"]:
+            from services.eurojackpot_service import get_eurojackpot_service
+
+            service = get_eurojackpot_service()
+            res = service.scrape_all_draws()
+            return res.get("message", "Eurojackpot: Virhe haussa")
+
         if args[0] == "help":
             return (
                 "Usage: !eurojackpot [next|tulokset|last|date <date>|freq [--extended] [--limit N]|"

@@ -480,26 +480,31 @@ class EurojackpotService:
         If no draw found for that date, find the next draw from that date onwards.
 
         Args:
-            date_str: Date string in format DD.MM.YY
+            date_str: Date string in format DD.MM.YY after scrape parameter
 
         Returns:
             Dict with draw results for the specified date or next available draw
         """
         try:
+            # Parse and validate date - support multiple formats
+            query_date = None
+            date_formats = ["%d.%m.%y", "%d.%m.%Y", "%Y-%m-%d"]
+
+            for fmt in date_formats:
+                try:
+                    query_date = datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
+                    break
+                except ValueError:
+                    continue
+
+            if not query_date:
+                return {
+                    "success": False,
+                    "message": "Eurojackpot: Virheellinen päivämäärä. Käytä muotoa PP.KK.VV, PP.KK.VVVV tai VVVV-KK-PP.",
+                }
+
             if not self.api_key:
-                # No API key - parse date and check database first
-                query_date = None
-                date_formats = ["%d.%m.%y", "%d.%m.%Y", "%Y-%m-%d"]
-
-                for fmt in date_formats:
-                    try:
-                        query_date = datetime.strptime(date_str, fmt).strftime(
-                            "%Y-%m-%d"
-                        )
-                        break
-                    except ValueError:
-                        continue
-
+                # No API key - check database first
                 if query_date:
                     db_draw = self._get_draw_by_date_from_database(query_date)
                     if db_draw:
@@ -539,23 +544,6 @@ class EurojackpotService:
                         "success": False,
                         "message": f"Eurojackpot: Ei API-avainta eikä tallennettua dataa päivämäärälle {date_str}.",
                     }
-
-            # Parse and validate date - support multiple formats
-            query_date = None
-            date_formats = ["%d.%m.%y", "%d.%m.%Y", "%Y-%m-%d"]
-
-            for fmt in date_formats:
-                try:
-                    query_date = datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
-                    break
-                except ValueError:
-                    continue
-
-            if not query_date:
-                return {
-                    "success": False,
-                    "message": "Eurojackpot: Virheellinen päivämäärä. Käytä muotoa PP.KK.VV, PP.KK.VVVV tai VVVV-KK-PP.",
-                }
 
             # Get draw results for specific date
             params = {
@@ -1183,7 +1171,7 @@ class EurojackpotService:
             )
 
             # Calculate date range to scrape (only missing dates)
-            # Eurojackpot draws are on Fridays, so we generate all Friday dates and check which are missing
+            # Eurojackpot draws are on Tuesdays and Fridays, so we generate all such dates and check which are missing
             from datetime import date, timedelta
 
             # Start from the first Eurojackpot draw (March 23, 2012)
