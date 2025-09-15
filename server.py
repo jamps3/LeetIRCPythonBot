@@ -63,6 +63,7 @@ class Server:
         self.encoding = os.getenv("IRC_ENCODING", "utf-8")
         self.callbacks = {
             "message": [],  # Callbacks for PRIVMSG
+            "notice": [],  # Callbacks for NOTICE
             "join": [],  # Callbacks for user join events
             "part": [],  # Callbacks for user part events
             "quit": [],  # Callbacks for user quit events
@@ -141,7 +142,7 @@ class Server:
         Register a callback function for a specific event type.
 
         Args:
-            event_type (str): The type of event to register for (message, join, part, quit)
+            event_type (str): The type of event to register for (message, notice, join, part, quit)
             callback (Callable): The callback function to register
         """
         if event_type in self.callbacks:

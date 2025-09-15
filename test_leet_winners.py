@@ -11,8 +11,8 @@ import sys
 # Test data from your examples
 test_messages = [
     'Beici!~vekotin@heiki.1337.cx NOTICE #joensuu :Ensimmäinen leettaaja oli Ekaleet kello 13.37.00,218154740 ("leet"), viimeinen oli Vikaleet kello 13.37.56,267236192 ("leet"). Lähimpänä multileettiä oli Multileet kello 13.37.13,269664703 ("leet").',
-    'Beibi!~vekotin@heiki.1337.cx NOTICE #joensuu :Ensimmäinen leettaaja oli  kello 13.37.00,212268597 ("leet"), viimeinen oli Vikaleet kello 13.37.59,839985573 ("leet"). Lähimpänä multileettiä oli Multileet kello 13.37.13,263745320 ("leet").',
-    'Beiki!~vekotin@heiki.1337.cx NOTICE #joensuu :Ensimmäinen leettaaja oli jamps kello 13.37.00,218614708 ("leet"), viimeinen oli Vikaleet kello 13.37.56,423323747 ("leet"). Lähimpänä multileettiä oli Multileet kello 13.37.13,278570137 ("leet").',
+    'Beibi!~vekotin@heiki.1337.cx NOTICE #joensuu :Ensimmäinen leettaaja oli Ekaleet kello 13.37.00,212268597 ("leet"), viimeinen oli Vikaleet kello 13.37.59,839985573 ("leet"). Lähimpänä multileettiä oli Multileet kello 13.37.13,263745320 ("leet").',
+    'Beiki!~vekotin@heiki.1337.cx NOTICE #joensuu :Ensimmäinen leettaaja oli Ekaleet kello 13.37.00,218614708 ("leet"), viimeinen oli Vikaleet kello 13.37.56,423323747 ("leet"). Lähimpänä multileettiä oli Multileet kello 13.37.13,278570137 ("leet").',
 ]
 
 
