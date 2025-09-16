@@ -48,12 +48,12 @@ def test_logger_basic_levels_and_timestamp(capsys):
 
     # Check that various levels and contexts appear
     joined = "\n".join(out)
-    assert "[INFO]" in joined
-    assert "[ERROR]" in joined
+    assert "[INFO   ]" in joined
+    assert "[ERROR  ]" in joined
     assert "[WARNING]" in joined
-    assert "[DEBUG]" in joined
-    assert "[MSG]" in joined
-    assert "[SERVER]" in joined
+    assert "[DEBUG  ]" in joined
+    assert "[MSG    ]" in joined
+    assert "[SERVER ]" in joined
     assert "[ModuleCtx]" in joined
     assert "[CtxA]" in joined and "[X]" in joined
 

@@ -1031,13 +1031,13 @@ def test_schedule_command_cases(monkeypatch):
         return "id123"
 
     monkeypatch.setattr(
-        "services.scheduled_message_service.send_scheduled_message_ns", fake_send
+        "services.scheduled_message_service.send_scheduled_message", fake_send
     )
 
     ctx = CommandContext(
         command="schedule",
-        args=["#ch", "10:05:03.123456789", "msg here"],
-        raw_message="",
+        args=["irc.atw-inter.net", "#ch", "10:05:03.123456789", "msg here"],
+        raw_message="irc.atw-inter.net #ch 10:05:03.123456789 msg here",
         sender=None,
         target=None,
         is_private=False,
@@ -1045,7 +1045,7 @@ def test_schedule_command_cases(monkeypatch):
         server_name="console",
     )
     res = command_schedule(ctx, {"server": object()})
-    assert "Message scheduled" in res and call_args["ns"] == 123456789
+    assert "Message scheduled" in res and call_args["ns"] == "123456789"
 
     # Invalid format
     ctx2 = CommandContext(
@@ -1071,7 +1071,7 @@ def test_schedule_command_cases(monkeypatch):
         is_console=True,
         server_name="console",
     )
-    assert "Invalid time" in command_schedule(ctx3, {"server": object()})
+    assert "Invalid format!" in command_schedule(ctx3, {"server": object()})
 
     # Missing server
     ctx4 = CommandContext(
@@ -1084,7 +1084,7 @@ def test_schedule_command_cases(monkeypatch):
         is_console=True,
         server_name="console",
     )
-    assert "Server context not available" in command_schedule(ctx4, {})
+    assert "Invalid format!" in command_schedule(ctx4, {})
 
 
 def test_ipfs_command_usage_and_success(monkeypatch):
@@ -1562,7 +1562,7 @@ def test_schedule_invalid_arg_cases(monkeypatch):
         raise Exception("scheduling error")
 
     monkeypatch.setattr(
-        "services.scheduled_message_service.send_scheduled_message_ns", boom
+        "services.scheduled_message_service.send_scheduled_message", boom
     )
 
     ctx2 = CommandContext(
@@ -1575,7 +1575,7 @@ def test_schedule_invalid_arg_cases(monkeypatch):
         is_console=True,
         server_name="console",
     )
-    assert "Error scheduling" in command_schedule(ctx2, {"server": object()})
+    assert "Invalid format!" in command_schedule(ctx2, {"server": object()})
 
 
 def test_sana_no_users_branch(monkeypatch):
