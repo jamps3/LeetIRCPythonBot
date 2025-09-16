@@ -1,6 +1,6 @@
-# WARP.md
+# AGENTS.md
 
-This file provides guidance to WARP (warp.dev) when working with code in this repository.
+This file provides guidance to WARP (warp.dev) and other agents when working with code in this repository.
 
 Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, and a modern command system)
 
@@ -43,10 +43,10 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
   - With coverage (if pytest-cov installed): python -m pytest tests -v --cov=.
 
 - Linting & formatting:
-  - Black (format): black .
   - Isort (imports): isort --profile black .
+  - Black (format): black .
   - Flake8 (lint): flake8 . --max-line-length=127 --extend-ignore=E203,E501,F401,F841,E402
-  - Pre-commit setup (runs Black + isort before commit):
+  - Pre-commit setup (runs isort + Black before commit):
     - pip install pre-commit
     - pre-commit install
     - Optional: pre-commit install --hook-type pre-push
@@ -61,8 +61,8 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
   - $env:PYTHONPATH = (Get-Location)
   - python -m pytest -v --tb=short
   - Lint (check-only):
-    - black --check --diff .
     - isort --check-only --diff .
+    - black --check --diff .
     - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
     - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --extend-ignore=E203,E501,F401,F841,E402 --statistics
   - Security (optional, mirrors CI uploads but local files only):
@@ -79,8 +79,8 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
 - Bot orchestration (bot_manager.BotManager):
   - Reads environment-driven server configs via get_server_configs()
   - Constructs Server instances (server.Server) for each configured server
-  - Registers callbacks for: message, join, part, quit
-  - Starts background monitors (if available): FMI warnings, Otiedote press releases
+  - Registers callbacks for: message, notice, join, part, quit
+  - Starts background monitors (if available): FMI warnings, Otiedote releases
   - Manages services (conditional on available keys/deps):
     - WeatherService (WEATHER_API_KEY)
     - Electricity service (ELECTRICITY_API_KEY)
@@ -103,6 +103,8 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
     2) Word tracking (drink/general), Tamagotchi response if enabled
     3) YouTube URL detection: auto-fetch basic video info via youtube_service
     4) Command handling via command_loader / command_registry
+  - IRC notice callback (_handle_notice):
+    1) Leetwinners detection, updates leet_winners.json
   - command_loader:
     - enhanced_process_irc_message/enhanced_process_console_command bridge messages/inputs to the command registry
     - load_all_commands() imports command modules (e.g., commands_admin, commands_basic, commands_extended) which self-register with the registry
@@ -116,13 +118,19 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
   - USE_NOTICES toggle controls whether replies are NOTICE or PRIVMSG
 
 - Services (services/*):
-  - weather_service.py: fetches weather data, formats messages
-  - electricity_service.py: spot price lookups, stats, daily summaries, message formatting
-  - gpt_service.py: OpenAI-backed chat with history persistence and limits
-  - youtube_service.py: ID extraction, metadata fetch, concise message formatting
   - crypto_service.py: price fetch + friendly formatting (CoinGecko)
-  - fmi_warning_service.py, otiedote_service.py: background monitors invoking BotManager callbacks
+  - digitraffic_service.py: Departing and arriving trains
+  - electricity_service.py: Spot price lookups, stats, daily summaries, message formatting
+  - eurojackpot_service.py: Eurojackpot draws, numbers and statistics
+  - fmi_warning_service.py, FMI Warnings, background monitor invoking BotManager callbacks
+  - gpt_service.py: OpenAI-backed chat with history persistence and limits
   - ipfs_service.py: admin-gated IPFS helper commands
+  - otiedote_service.py: Otiedote releases (Onnettomuustiedotteet), background monitor invoking BotManager callbacks
+  - scheduled_message_service.py: Scheduled messages
+  - solarwind_service.py: Solarwind status
+  - weather_forecast_service.py: Weather forecast
+  - weather_service.py: Fetches weather data, formats messages
+  - youtube_service.py: YouTube ID extraction, metadata fetch, concise message formatting
 
 - URL title fetching:
   - BotManager._fetch_title: requests + BeautifulSoup; skips blacklisted domains/extensions (env-configurable) and YouTube (handled by YouTube service)
@@ -134,22 +142,23 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
 
 3) Focus files when modifying behavior
 
-- Adding/modifying commands: command modules (e.g., commands_admin.py) + command_registry.py
+- Adding/modifying commands: command modules (command_loader.py, commands_admin.py, command_registry.py, commands.py)
 - Message handling behavior: bot_manager.BotManager._handle_message and subsequent helpers
 - Services: services/<service>_service.py and the corresponding wiring in BotManager.__init__
 - Server/IRC protocol details: server.py, irc_client.py, irc_processor.py
 - Word tracking/persistence: word_tracking/
-- Configuration shape: config.py and .env.sample
+- Configuration shape: config.py and .env.sample, .env when running
 
 4) Testing guidance specific to this repo
 
-- Pytest is the standard. Many tests are being/may be migrated to pure pytest (see tests/MIGRATION_PROGRESS.md for context).
+- Pytest is the standard. All tests are migrated to pure pytest (see tests/!TEST_SUMMARY.md for context).
 - Some tests intentionally skip external integrations; CI installs only minimal deps and relies on mocks/importorskip where needed.
-- To run only migrated tests locally (faster, fewer optional deps):
-  - python -m pytest tests/test_*_new.py -v
+- To run tests locally (faster, fewer optional deps):
+  - python -m pytest tests/test_*.py -v
 - Typical selective runs while iterating on a command or service:
-  - python -m pytest tests/test_admin_commands_new.py -k password -v
-  - python -m pytest tests/test_crypto_service*.py -v
+  - Admin commands: python -m pytest tests/test_commands_admin.py -k password -v
+  - Crypto service: python -m pytest tests/test_service_crypto*.py -v
+  - Flood protection: python -m pytest tests/test_server_flood_protection.py -v
 
 5) Notes and conventions
 
@@ -162,45 +171,27 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
 Appendix: quick references
 
 - Activate venv (pwsh): .\\venv\\Scripts\\Activate.ps1
-- Deactivate venv: deactivate
 - Format + lint all: isort --profile black .; black .; flake8 . --max-line-length=127 --extend-ignore=E203,E501,F401,F841,E402
 - Run a single test node: python -m pytest path\\to\\test_file.py::test_case -v
 
-
-Recent updates and gotchas (Aug 2025)
+Recent updates and gotchas (September 2025)
 
 - Command help (!help)
   - In IRC, help lists only IRC_ONLY commands and is sent privately to the caller (NOTICE to nick), not to the channel
   - The help command itself is excluded from listings
   - Ordering: regular commands A–Z, then Tamagotchi commands (tamagotchi, feed, pet) A–Z, then admin commands A–Z with footer
   - Duplicates were eliminated by deduping across scopes
-  - Tests: python -m pytest tests/test_irc_help.py -v
 
 - IRC message sending
-  - Multi-line command responses are split into separate notices, and long lines are chunked to <= 400 bytes to avoid truncation
-
-- Commands context fix
-  - Weather (!s) and Electricity (!sahko/!sähkö) now pass the IRC connection and channel properly so replies go to the correct place
-  - Tests: python -m pytest tests/test_irc_basic_commands.py -v
+  - Multi-line command responses are split into separate notices/messages, and long lines are chunked to <= 400 bytes to avoid truncation
 
 - Rate limiter stabilization
   - server.Server: token bucket refill skips sub-100ms intervals to avoid micro-increments and flakiness
-  - Related tests (server flood protection) are green
+  - Related tests (test_server_flood_protection.py) are green
 
 - Otiedote shutdown noise reduction
   - Selenium Chrome is started with keep_alive=False (where supported)
   - urllib3.connectionpool warnings are temporarily silenced during driver shutdown to avoid retry spam
 
-- Solar wind
-  - tests/test_solarwind_command.py passing; Windows console may require PYTHONIOENCODING=utf-8 to render emojis in manual runs
-
 - Git hygiene
   - Commit early and often (project rule). Prefer small commits with clear messages
-
-How to run only the updated/related tests
-
-- Help (IRC): python -m pytest tests/test_irc_help.py -v
-- Basic IRC commands (!s, !sahko): python -m pytest tests/test_irc_basic_commands.py -v
-- Flood protection: python -m pytest tests/test_server_flood_protection.py -v
-- Solar wind: python -m pytest tests/test_solarwind_command.py -v
-

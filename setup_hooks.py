@@ -32,7 +32,7 @@ def create_pre_commit_hook():
 
 set -euo pipefail
 
-echo "Running pre-commit: isort, black, flake8, and quick tests..."
+echo "Running pre-commit: isort, black, flake8..."
 
 # Ensure we run in repo root
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -200,7 +200,7 @@ def setup_git_config():
 #   fix(irc): resolve connection timeout issue
 #   test(crypto): add comprehensive price formatting tests
 #
-# Remember: Tests run automatically before commit AND push!
+# Remember: Tests run automatically before push!
 """
 
         template_path = Path(".gitmessage")
@@ -260,14 +260,12 @@ def main():
         print("All development tools are ready!")
         print()
         print("Next steps:")
-        print("   - Run 'python -m pytest' to test everything")
+        print("   - Run '.\test or python -m pytest' to test everything")
         print("   - Run 'python -m pytest -q' for fast tests")
         print(
             "   - To run tests on commit, set PRECOMMIT_RUN_TESTS=1 in your environment"
         )
-        print(
-            "   - Tests now run automatically before every push (cancels if they fail)"
-        )
+        print("   - Tests run automatically before every push (cancels if they fail)")
         print("   - Use 'git commit --no-verify' to bypass pre-commit hooks")
         print(
             "   - Use 'git push --no-verify' to bypass pre-push hooks (not recommended)"

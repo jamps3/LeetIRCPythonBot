@@ -2,19 +2,18 @@
 """
 Scheduled Message Service for LeetIRCPythonBot
 
-This service handles the scheduling and execution of messages at specific times
-with microsecond precision.
+This service handles the scheduling and execution of messages at specific times.
 """
 
 import logging
 import threading
 import time
-from datetime import datetime, timedelta
-from typing import Callable, Dict, Optional
+from datetime import datetime
+from typing import Dict, Optional
 
 
 class ScheduledMessageService:
-    """Service for scheduling messages to be sent at specific times."""
+    """Service for scheduling messages to be sent at specific times at nanosecond precision."""
 
     def __init__(self):
         self.scheduled_messages: Dict[str, dict] = {}
@@ -29,40 +28,24 @@ class ScheduledMessageService:
         target_hour: int,
         target_minute: int,
         target_second: int,
-        target_microsecond: int = 0,
-        message_id: Optional[str] = None,
-    ) -> str:
-        """
-        Backward-compatible wrapper: accepts microseconds, schedules using nanoseconds.
-        """
-        # Convert microseconds to nanoseconds
-        us = max(0, min(999_999, int(target_microsecond)))
-        ns = us * 1_000
-        return self.schedule_message_ns(
-            irc_client,
-            channel,
-            message,
-            target_hour,
-            target_minute,
-            target_second,
-            ns,
-            message_id,
-        )
-
-    def schedule_message_ns(
-        self,
-        irc_client,
-        channel: str,
-        message: str,
-        target_hour: int,
-        target_minute: int,
-        target_second: int,
         target_nanosecond: int = 0,
         message_id: Optional[str] = None,
     ) -> str:
         """
-        Schedule a message using nanosecond-resolution targeting (no datetime).
+        Accepts milliseconds, microseconds and nanoseconds, schedules using nanoseconds.
         """
+        # Convert any provided subsecond value to nanoseconds without losing precision
+        ns = int(target_nanosecond)
+        if 0 < ns < 1_000_000_000:
+            # Already nanoseconds, use as is
+            pass
+        elif 1_000_000 <= ns < 1_000_000_000_000:
+            # Looks like microseconds, convert to nanoseconds
+            ns = ns * 1_000
+        elif 1_000 <= ns < 1_000_000:
+            # Looks like milliseconds, convert to nanoseconds
+            ns = ns * 1_000_000
+        # else: assume already nanoseconds or zero
         # Clamp inputs
         hour = max(0, min(23, int(target_hour)))
         minute = max(0, min(59, int(target_minute)))
@@ -289,32 +272,12 @@ def send_scheduled_message(
     hour: int,
     minute: int,
     second: int,
-    microsecond: int = 0,
-) -> str:
-    """
-    Convenience wrapper: microseconds input; schedules using nanoseconds.
-    """
-    # Convert microseconds to nanoseconds
-    us = max(0, min(999_999, int(microsecond)))
-    ns = us * 1_000
-    return send_scheduled_message_ns(
-        irc_client, channel, message, hour, minute, second, ns
-    )
-
-
-def send_scheduled_message_ns(
-    irc_client,
-    channel: str,
-    message: str,
-    hour: int,
-    minute: int,
-    second: int,
     nanosecond: int = 0,
 ) -> str:
     """
     Convenience function to schedule a message with nanosecond resolution.
     """
     service = get_scheduled_message_service()
-    return service.schedule_message_ns(
+    return service.schedule_message(
         irc_client, channel, message, hour, minute, second, nanosecond
     )

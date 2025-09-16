@@ -16,10 +16,7 @@ from unittest.mock import Mock, patch
 
 import requests
 
-from services.electricity_service import (
-    ElectricityService,
-    create_electricity_service,
-)
+from services.electricity_service import ElectricityService, create_electricity_service
 
 # Add the services directory to the path to avoid import dependency issues
 # sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "services"))

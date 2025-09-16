@@ -12,10 +12,7 @@ from unittest.mock import Mock, mock_open, patch
 
 import pytest
 
-from services.fmi_warning_service import (
-    FMIWarningService,
-    create_fmi_warning_service,
-)
+from services.fmi_warning_service import FMIWarningService, create_fmi_warning_service
 
 
 class TestFMIWarningService(unittest.TestCase):

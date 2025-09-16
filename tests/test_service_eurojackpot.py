@@ -256,7 +256,7 @@ def test_get_next_draw_info_no_api_key(service, monkeypatch):
 
     result = service.get_next_draw_info()
     assert result["success"] is True
-    assert "demo-data" in result["message"]
+    assert "(API ei saatavilla)" in result["message"]
     assert result.get("is_demo", False) is True
 
 
@@ -657,7 +657,7 @@ def test_get_combined_info(service):
     service.api_key = None
     result = service.get_combined_info()
     assert "Seuraava Eurojackpot-arvonta" in result
-    assert "demo-data" in result
+    assert "(API ei saatavilla)" in result
 
 
 def test_eurojackpot_command_no_arg(monkeypatch):
@@ -1204,7 +1204,7 @@ def test_demo_data_without_api_key_basic(monkeypatch):
     s = EurojackpotService()
     result = s.get_next_draw_info()
     assert result["success"] is True
-    assert "demo-data" in result["message"]
+    assert "(API ei saatavilla)" in result["message"]
     assert result.get("is_demo", False) is True
 
 

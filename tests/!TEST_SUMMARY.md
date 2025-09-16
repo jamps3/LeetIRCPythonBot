@@ -42,37 +42,37 @@
 
 | Name                                      | Stmts | Miss | Cover |
 |-------------------------------------------|-------|------|-------|
-| bot_manager.py                            | 1075  | 212  | 80%   |
+| bot_manager.py                            | 1075  | 224  | 79%   |
 | command_loader.py                         | 183   | 90   | 51%   |
 | command_registry.py                       | 242   | 58   | 76%   |
-| commands.py                               | 525   | 43   | 93%   |
-| commands_admin.py                         | 130   | 3    | 98%   |
+| commands.py                               | 525   | 56   | 91%   |
+| commands_admin.py                         | 130   | 18   | 90%   |
 | config.py                                 | 153   | 0    | 100%  |
 | irc_client.py                             | 383   | 6    | 98%   |
 | leet_detector.py                          | 104   | 0    | 100%  |
-| lemmatizer.py                             | 102   | 66   | 35%   |
+| lemmatizer.py                             | 102   | 75   | 26%   |
 | logger.py                                 | 58    | 0    | 100%  |
 | main.py                                   | 100   | 0    | 100%  |
-| server.py                                 | 343   | 0    | 100%  |
+| server.py                                 | 343   | 16   | 96%   |
 | services/crypto_service.py                | 117   | 20   | 83%   |
 | services/digitraffic_service.py           | 300   | 2    | 99%   |
-| services/electricity_service.py           | 221   | 32   | 86%   |
-| services/eurojackpot_service.py           | 532   | 153  | 78%   |
-| services/fmi_warning_service.py           | 169   | 2    | 99%   |
-| services/gpt_service.py                   | 96    | 61   | 31%   |
+| services/electricity_service.py           | 221   | 31   | 86%   |
+| services/eurojackpot_service.py           | 532   | 151  | 78%   |
+| services/fmi_warning_service.py           | 169   | 4    | 98%   |
+| services/gpt_service.py                   | 96    | 0    | 100%  |
 | services/ipfs_service.py                  | 134   | 88   | 34%   |
 | services/otiedote_service.py              | 177   | 134  | 24%   |
 | services/scheduled_message_service.py     | 143   | 60   | 58%   |
-| services/solarwind_service.py             | 79    | 42   | 47%   |
+| services/solarwind_service.py             | 79    | 17   | 78%   |
 | services/weather_forecast_service.py      | 100   | 0    | 100%  |
 | services/weather_service.py               | 105   | 0    | 100%  |
-| services/youtube_service.py               | 142   | 2    | 99%   |
+| services/youtube_service.py               | 142   | 0    | 100%  |
 | subscriptions.py                          | 165   | 22   | 87%   |
-| word_tracking/data_manager.py             | 174   | 16   | 89%   |
+| word_tracking/data_manager.py             | 174   | 21   | 86%   |
 | word_tracking/drink_tracker.py            | 162   | 25   | 85%   |
 | word_tracking/general_words.py            | 103   | 37   | 64%   |
 | word_tracking/tamagotchi_bot.py           | 150   | 57   | 62%   |
-| **TOTAL**                                 | 6656  | 1231 | 82%   |
+| **TOTAL**                                 | 6656  | 1212 | 82%   |
 
 ## Total tests coverage: **82%**
 

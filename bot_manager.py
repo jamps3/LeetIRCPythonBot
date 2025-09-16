@@ -395,7 +395,9 @@ class BotManager:
 
         # TEMPORARILY DISABLE CONSOLE PROTECTION TO PREVENT HANGING ISSUES
         # This feature can cause hanging on some systems due to terminal manipulation
-        print("DEBUG: Console output protection disabled (prevents hanging issues)")
+        get_logger(
+            "DEBUG: Console output protection disabled (prevents hanging issues)"
+        )
         return
 
         # Only set up protected output if readline is available and we're not on Windows
@@ -414,53 +416,50 @@ class BotManager:
 
     def _setup_protected_output(self):
         """Replace print and stdout/stderr with readline-aware versions."""
+        import builtins
+        import sys
+
         try:
-            # Store reference to original functions
-            import builtins
+            # Store originals for later restoration
+            self._original_print = builtins.print
+            self._original_stdout_write = sys.stdout.write
+            self._original_stderr_write = sys.stderr.write
 
             builtins.print = self._protected_print
             sys.stdout.write = self._protected_stdout_write
             sys.stderr.write = self._protected_stderr_write
+
         except Exception as e:
-            self.logger.warning(f"Could not set up console output protection: {e}")
+            # Use original print to avoid recursion if logger depends on patched output
+            try:
+                self._original_print(f"Could not set up console output protection: {e}")
+            except Exception:
+                pass
+
+    def _should_preserve_line(self, text=None):
+        if not (self._input_active and getattr(self, "_history_file", None)):
+            return False
+        return bool(text.strip()) if text is not None else True
 
     def _protected_print(self, *args, **kwargs):
         """Print function that preserves readline input line."""
         with self._print_lock:
-            if (
-                self._input_active
-                and hasattr(self, "_history_file")
-                and self._history_file
-            ):
-                # Clear the current line and move cursor to beginning
+            if self._should_preserve_line():
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
 
-            # Use original print
             self._original_print(*args, **kwargs)
 
-            if (
-                self._input_active
-                and hasattr(self, "_history_file")
-                and self._history_file
-            ):
-                # Redisplay the input line
+            if self._should_preserve_line():
                 try:
                     readline.redisplay()
                 except (AttributeError, OSError):
-                    # Fallback if redisplay is not available
                     pass
 
     def _protected_stdout_write(self, text):
         """Protected stdout.write that preserves input line."""
         with self._print_lock:
-            if (
-                self._input_active
-                and hasattr(self, "_history_file")
-                and self._history_file
-                and text.strip()
-            ):
-                # Clear current line
+            if self._should_preserve_line(text):
                 self._original_stdout_write("\r\033[K")
                 self._original_stdout_write(text)
                 try:
@@ -473,13 +472,7 @@ class BotManager:
     def _protected_stderr_write(self, text):
         """Protected stderr.write that preserves input line."""
         with self._print_lock:
-            if (
-                self._input_active
-                and hasattr(self, "_history_file")
-                and self._history_file
-                and text.strip()
-            ):
-                # Clear current line
+            if self._should_preserve_line(text):
                 self._original_stderr_write("\r\033[K")
                 self._original_stderr_write(text)
                 try:

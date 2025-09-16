@@ -274,7 +274,7 @@ class EurojackpotService:
                 draw_date = next_draw.strftime("%d.%m.%Y")
                 week_number = next_draw.isocalendar()[1]
 
-                success_message = f"Seuraava Eurojackpot-arvonta: {draw_date} (viikko {week_number}) | Päävoitto: 15000000 EUR (demo-data)"
+                success_message = f"Seuraava Eurojackpot-arvonta: {draw_date} (viikko {week_number}) | (API ei saatavilla)"
 
                 return {
                     "success": True,
@@ -322,7 +322,7 @@ class EurojackpotService:
                 draw_date = next_draw.strftime("%d.%m.%Y")
                 week_number = next_draw.isocalendar()[1]
 
-                success_message = f"Seuraava Eurojackpot-arvonta: {draw_date} (viikko {week_number}) | Päävoitto: 15000000 EUR (demo-data - API ei saatavilla)"
+                success_message = f"Seuraava Eurojackpot-arvonta: {draw_date} (viikko {week_number}) | (API ei saatavilla)"
 
                 return {
                     "success": True,

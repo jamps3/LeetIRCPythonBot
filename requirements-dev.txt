@@ -1,0 +1,12 @@
+# Development dependencies - updated 16.9.2025
+# Run `pip install -r requirements-dev.txt` to install the dependencies
+black>=25.1.0
+isort>=5.11.2
+flake8>=7.3.0
+coverage>=7.10.6
+pytest-cov>=7.0.0
+pytest>=8.4.2
+pytest-xdist>=3.8.0
+anyio>=4.10.0
+# bandit>=1.7.0
+# safety>=2.0.0

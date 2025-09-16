@@ -8,6 +8,7 @@ import re
 import time
 from datetime import datetime
 
+import bot_manager
 from command_registry import (
     CommandContext,
     CommandResponse,
@@ -846,33 +847,46 @@ def command_schedule(context, bot_functions):
     # Use parsed args from context (as provided by the command registry)
     args = context.args
     if not args:
-        return "Usage: !schedule #channel HH:MM:SS<.microsecs> message"
+        return "Usage: !schedule #channel HH:MM:SS<.ns> message"
 
     # Parse the command format: !schedule #channel HH:MM:SS message
     # or !schedule #channel HH:MM:SS.<1..9 digits> message
     text = " ".join(args)
-    match = re.match(
-        r"(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)", text
-    )
+    if context.is_console:
+        # In console, the first parameter is the server name
+        match = re.match(
+            r"(\S+)\s+(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)",
+            text,
+        )
+    else:
+        match = re.match(
+            r"(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)", text
+        )
 
     if not match:
         return "Invalid format! Use: !schedule #channel HH:MM:SS<.microsecs> message"
 
-    channel = match.group(1)
-    hour = int(match.group(2))
-    minute = int(match.group(3))
-    second = int(match.group(4))
-    frac_str = match.group(5)  # up to 9 digits (nanoseconds resolution in input)
-    message = match.group(6)
+    if context.is_console:
+        server_name = match.group(1)
+        channel = match.group(2)
+        hour = int(match.group(3))
+        minute = int(match.group(4))
+        second = int(match.group(5))
+        frac_str = match.group(6)  # up to 9 digits (nanoseconds resolution in input)
+        message = match.group(7)
+    else:
+        channel = match.group(1)
+        hour = int(match.group(2))
+        minute = int(match.group(3))
+        second = int(match.group(4))
+        frac_str = match.group(5)  # up to 9 digits (nanoseconds resolution in input)
+        message = match.group(6)
 
-    # Convert fractional seconds (up to 9 digits) to microseconds for scheduling
+    # Convert fractional seconds (up to 9 digits) for scheduling
     if frac_str:
         ns_str = frac_str.ljust(9, "0")[:9]  # normalize to exactly 9 digits for display
-        # Convert nanoseconds to microseconds (floor) for datetime compatibility
-        microsecond = min(999999, int(ns_str[:6]))
     else:
         ns_str = "000000000"
-        microsecond = 0
 
     # Validate time values
     if not (0 <= hour <= 23 and 0 <= minute <= 59 and 0 <= second <= 59):
@@ -880,22 +894,33 @@ def command_schedule(context, bot_functions):
 
     try:
         # Get the scheduled message service
-        from services.scheduled_message_service import send_scheduled_message_ns
+        from services.scheduled_message_service import send_scheduled_message
 
         # Retrieve the IRC/server object from bot_functions
         server = bot_functions.get("server")
 
+        # If called from console, use the first parameter or if omitted get the first server
+        if not server:
+            server = server_name or (
+                bot_manager.servers[0] if bot_manager.servers else None
+            )
+
         if not server:
             return "❌ Server context not available for scheduling"
 
-        # Convert 9-digit fraction to nanoseconds and schedule
-        nanosecond = int(ns_str)
-        message_id = send_scheduled_message_ns(
-            server, channel, message, hour, minute, second, nanosecond
+        # Schedule
+        message_id = send_scheduled_message(
+            server, channel, message, hour, minute, second, ns_str
         )
 
         # Show the requested time with 9-digit fractional part (as in logs)
-        return f"✅ Message scheduled with ID: {message_id} for {hour:02d}:{minute:02d}:{second:02d}.{ns_str}"
+        # Try to get server name from server object if possible
+        server_name_str = (
+            getattr(server, "name", None)
+            or getattr(server, "server_name", None)
+            or str(server)
+        )
+        return f"✅ Message scheduled with ID: {message_id} for {hour:02d}:{minute:02d}:{second:02d}.{ns_str} in {server_name_str} {channel}"
 
     except Exception as e:
         return f"❌ Error scheduling message: {str(e)}"
