@@ -2,15 +2,14 @@
 """
 Scheduled Message Service for LeetIRCPythonBot
 
-This service handles the scheduling and execution of messages at specific times
-with microsecond precision.
+This service handles the scheduling and execution of messages at specific times.
 """
 
 import logging
 import threading
 import time
-from datetime import datetime, timedelta
-from typing import Callable, Dict, Optional
+from datetime import datetime
+from typing import Dict, Optional
 
 
 class ScheduledMessageService:
@@ -61,7 +60,7 @@ class ScheduledMessageService:
         message_id: Optional[str] = None,
     ) -> str:
         """
-        Schedule a message using nanosecond-resolution targeting (no datetime).
+        Schedule a message using nanosecond-resolution targeting.
         """
         # Clamp inputs
         hour = max(0, min(23, int(target_hour)))

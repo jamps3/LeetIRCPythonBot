@@ -58,7 +58,7 @@ class PrecisionLogger:
         # Build context string
         context_parts = []
         if level:
-            context_parts.append(f"[{level.upper()}]")
+            context_parts.append(f"[{level.upper():<7}]")
         if self.context:
             context_parts.append(f"[{self.context}]")
         if extra_context:
