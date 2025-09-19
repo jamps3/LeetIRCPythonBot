@@ -384,7 +384,16 @@ def leetwinners_command(context: CommandContext, bot_functions):
             formatted = ", ".join(f"{w} [{c}]" for w, c in top)
             lines.append(f"{cat}: {formatted}")
 
-    winners_text = "; ".join(lines)
+    _cat_map = {"first": "𝓮𝓴𝓪", "last": "𝓿𝓲𝓴𝓪", "multileet": "𝓶𝓾𝓵𝓽𝓲𝓵𝓮𝓮𝓽"}
+    transformed = []
+    for ln in lines:
+        if ":" in ln:
+            cat, rest = ln.split(":", 1)
+            mapped = _cat_map.get(cat.strip().lower(), cat.strip())
+            transformed.append(f"{mapped}: {rest.strip()}")
+        else:
+            transformed.append(ln)
+    winners_text = "; ".join(transformed)
 
     # Build response with optional start date
     if winners_text:
