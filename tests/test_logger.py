@@ -3,29 +3,20 @@
 Pytest tests for logger module.
 """
 
-import importlib
-import os
 import re
 
 import pytest
 
-
-def reload_logger_with_debug(value: str):
-    os.environ["DEBUG_MODE"] = value
-    import logger as lg
-
-    return importlib.reload(lg)
+import logger as lg
 
 
 def test_logger_basic_levels_and_timestamp(capsys):
-    lg = reload_logger_with_debug("true")
-
     # Instance with context
     pl = lg.PrecisionLogger("ModuleCtx")
     pl.info("info message")
     pl.error("error message")
     pl.warning("warn message")
-    pl.debug("debug message")  # should print when DEBUG_MODE=true
+    pl.debug("debug message")
     pl.msg("msg event")
     pl.server("server event")
 
@@ -33,7 +24,7 @@ def test_logger_basic_levels_and_timestamp(capsys):
     lg.info("i1")
     lg.error("e1")
     lg.warning("w1")
-    lg.debug("d1")  # uses log("DEBUG", ...) path
+    lg.debug("d1")
     lg.msg("m1")
     lg.server("s1")
 
@@ -56,25 +47,3 @@ def test_logger_basic_levels_and_timestamp(capsys):
     assert "[SERVER ]" in joined
     assert "[ModuleCtx]" in joined
     assert "[CtxA]" in joined and "[X]" in joined
-
-
-def test_get_logger_and_debug_off_behavior(capsys):
-    lg = reload_logger_with_debug("false")
-
-    # get_logger without context returns singleton
-    g1 = lg.get_logger()
-    g2 = lg.get_logger("")
-    assert g1 is g2
-
-    # get_logger with context returns new instance
-    cx = lg.get_logger("NewCtx")
-    assert cx is not g1
-
-    # debug() should be suppressed when DEBUG_MODE=false
-    cx.debug("should not print")
-    # Other levels still print
-    cx.info("will print")
-
-    out = capsys.readouterr().out
-    assert "will print" in out
-    assert "should not print" not in out

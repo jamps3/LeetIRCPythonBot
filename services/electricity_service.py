@@ -1,7 +1,8 @@
 """
-Electricity Service Module
+Electricity Service Module 2.0
 
 Provides Finnish electricity price information using ENTSO-E API.
+Supports caching, fetching prices for specific hours(average), 15-minute intervals and statistics.
 """
 
 import xml.etree.ElementTree as ElementTree
@@ -9,140 +10,177 @@ from datetime import datetime, timedelta
 from io import StringIO
 from typing import Any, Dict, List, Optional
 
+import pytz
 import requests
+
+from logger import log
 
 
 class ElectricityService:
     """Service for fetching Finnish electricity price information."""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, cache_ttl_hours: int = 3):
         """
         Initialize electricity service.
 
         Args:
             api_key: ENTSO-E API key
+            cache_ttl_hours: How long to cache daily price results (in hours)
         """
         self.api_key = api_key
         self.base_url = "https://web-api.tp.entsoe.eu/api"
         self.finland_domain = "10YFI-1--------U"
         self.vat_rate = 1.255  # Finnish VAT 25.5%
+        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._cache_ttl = timedelta(hours=cache_ttl_hours)
+        self.sahko_url = "https://liukuri.fi"
+        self.timezone = pytz.timezone("Europe/Helsinki")
+
+    # ---------- Public API ----------
 
     def get_electricity_price(
         self,
         hour: Optional[int] = None,
+        quarter: Optional[int] = None,
         date: Optional[datetime] = None,
-        include_tomorrow: bool = True,
     ) -> Dict[str, Any]:
         """
-        Get electricity price information for specific hour and date.
+        Get electricity price information for a given hour or 15-minute interval and date.
+        If quarter is given (1-4), return that 15-min interval and the hourly average.
+        If only hour is given, return the hourly average computed from quarter intervals.
 
         Args:
-            hour: Hour to get price for (0-23). If None, uses current hour
-            date: Date to get price for. If None, uses current date
-            include_tomorrow: Whether to include tomorrow's price if available
+            hour: int (optional) Hour to get price for (0-23). If None, uses current hour
+            quarter: int (optional) 15-min interval (1-4) within the hour. If None, returns hourly average
+            date: (optional) Date to get price for. If None, uses current date
 
-        Returns:
-            Dictionary containing price information or error details
+        Returns a dict with:
+            - date: YYYY-MM-DD
+            - hour: int
+            - quarter: int (optional)
+            - today_price: dict with quarter_prices & hourly avg
+            - tomorrow_price: same structure for tomorrow if available
+            - include_tomorrow: bool
+            - tomorrow_available: bool
         """
         try:
             # Set defaults
             if date is None:
-                date = datetime.now()
+                date = datetime.now(self.timezone).date()
             if hour is None:
                 hour = date.hour
+            else:  # Validate hour
+                if not (0 <= hour <= 23):
+                    return {
+                        "error": True,
+                        "message": f"Invalid hour: {hour}. Must be between 0-23.",
+                    }
 
-            # Validate hour
-            if not (0 <= hour <= 23):
-                return {
-                    "error": True,
-                    "message": f"Invalid hour: {hour}. Must be between 0-23.",
-                }
+            log("[DEBUG] Fetching...")  # <-- debug here
 
-            # Get prices for today - API is one day ahead, so fetch from yesterday
-            yesterday_api_date = date - timedelta(days=1)
-            today_prices = self._fetch_daily_prices(yesterday_api_date)
+            data = self._fetch_daily_prices(date)
+            if data.get("error"):
+                return data
+
+            # API data may contain 15-min intervals, e.g., "00:00", "00:15", ...
+            prices = data["prices"]
+            log(f"[DEBUG] Fetched daily prices for {date}: {prices}")  # <-- debug here
+            hourly_prices = {}
+
+            # Group 15-minute prices into hourly averages
+            for h in range(24):
+                quarter_prices = {}
+                for q in range(4):
+                    key = f"{h:02d}:{q*15:02d}"
+                    if key in prices:
+                        quarter_prices[q + 1] = prices[key]  # 1-4
+                if quarter_prices:
+                    hourly_prices[h] = {
+                        "avg_hour_price": sum(quarter_prices.values())
+                        / len(quarter_prices),
+                        "quarter_prices": quarter_prices,
+                    }
+                else:
+                    hourly_prices[h] = {
+                        "avg_hour_price": None,
+                        "quarter_prices": {},
+                    }
+
+            # Prepare today's price
+            today_price = hourly_prices.get(hour)
+            if not today_price or today_price["avg_hour_price"] is None:
+                return {"error": True, "message": f"No price data for hour {hour}."}
+
             result = {
-                "error": False,
                 "date": date.strftime("%Y-%m-%d"),
                 "hour": hour,
-                "today_price": None,
-                "tomorrow_price": None,
-                "today_available": not today_prices.get("error", True),
-                "tomorrow_available": False,
-                "include_tomorrow": include_tomorrow,
+                "quarter": quarter,
+                "today_price": today_price,
+                "include_tomorrow": True,
             }
 
-            # Add today's price if available
-            # ENTSO-E API position mapping:
-            # Hour 1-23 maps directly to position 1-23 from same day
-            # Hour 0 (midnight) maps to position 24 from PREVIOUS day
-            if hour == 0:
-                # For today's hour 0, we need position 24 from day before yesterday (due to API offset)
-                day_before_yesterday = date - timedelta(days=2)
-                day_before_yesterday_prices = self._fetch_daily_prices(
-                    day_before_yesterday
+            # Include specific quarter price if requested
+            if quarter is not None:
+                if quarter < 1 or quarter > 4:
+                    return {"error": True, "message": "Quarter must be 1-4."}
+                if quarter not in today_price["quarter_prices"]:
+                    return {
+                        "error": True,
+                        "message": f"No data for {hour:02d}:{(quarter-1)*15:02d}.",
+                    }
+
+            # Fetch tomorrow's data if available
+            tomorrow_date = date + timedelta(days=1)
+            tomorrow_data = self._fetch_daily_prices(tomorrow_date)
+            if not tomorrow_data.get("error"):
+                tomorrow_prices = tomorrow_data["prices"]
+                hourly_prices_tomorrow = {}
+                for h in range(24):
+                    quarter_prices = {}
+                    for q in range(4):
+                        key = f"{h:02d}:{q*15:02d}"
+                        if key in tomorrow_prices:
+                            quarter_prices[q + 1] = tomorrow_prices[key]
+                    if quarter_prices:
+                        hourly_prices_tomorrow[h] = {
+                            "avg_hour_price": sum(quarter_prices.values())
+                            / len(quarter_prices),
+                            "quarter_prices": quarter_prices,
+                        }
+                    else:
+                        hourly_prices_tomorrow[h] = {
+                            "avg_hour_price": None,
+                            "quarter_prices": {},
+                        }
+                result["tomorrow_price"] = hourly_prices_tomorrow.get(hour)
+                result["tomorrow_available"] = (
+                    result["tomorrow_price"] is not None
+                    and result["tomorrow_price"]["avg_hour_price"] is not None
                 )
-                if (
-                    not day_before_yesterday_prices.get("error")
-                    and 24 in day_before_yesterday_prices["prices"]
-                ):
-                    price_eur_mwh = day_before_yesterday_prices["prices"][24]
-                    price_snt_kwh = self._convert_price(price_eur_mwh)
-                    result["today_price"] = {
-                        "eur_per_mwh": price_eur_mwh,
-                        "snt_per_kwh_with_vat": price_snt_kwh,
-                        "snt_per_kwh_no_vat": price_eur_mwh / 10,
-                    }
             else:
-                # For hours 1-23, use the same day's data
-                position = hour
-                if not today_prices.get("error") and position in today_prices["prices"]:
-                    price_eur_mwh = today_prices["prices"][position]
-                    price_snt_kwh = self._convert_price(price_eur_mwh)
-                    result["today_price"] = {
-                        "eur_per_mwh": price_eur_mwh,
-                        "snt_per_kwh_with_vat": price_snt_kwh,
-                        "snt_per_kwh_no_vat": price_eur_mwh / 10,
-                    }
+                result["tomorrow_price"] = None
+                result["tomorrow_available"] = False
 
-            # Get tomorrow's price if requested
-            if include_tomorrow:
-                # For tomorrow, use today's API data since API is one day ahead
-                tomorrow_prices = self._fetch_daily_prices(date)
+            # Convert prices to snt/kWh for today and tomorrow
+            def convert_prices(p):
+                if not p:
+                    return None
+                return {
+                    "avg_hour_price": p["avg_hour_price"],
+                    "hour_avg_snt_kwh": (
+                        self._convert_price(p["avg_hour_price"])
+                        if p["avg_hour_price"]
+                        else None
+                    ),
+                    "quarter_prices": {
+                        q: self._convert_price(v)
+                        for q, v in p["quarter_prices"].items()
+                    },
+                }
 
-                if hour == 0:
-                    # For tomorrow's hour 0, we need position 24 from YESTERDAY's data (same as today's hours 1-23)
-                    yesterday_date = date - timedelta(days=1)
-                    yesterday_prices_for_tomorrow = self._fetch_daily_prices(
-                        yesterday_date
-                    )
-                    if (
-                        not yesterday_prices_for_tomorrow.get("error")
-                        and 24 in yesterday_prices_for_tomorrow["prices"]
-                    ):
-                        price_eur_mwh = yesterday_prices_for_tomorrow["prices"][24]
-                        price_snt_kwh = self._convert_price(price_eur_mwh)
-                        result["tomorrow_price"] = {
-                            "eur_per_mwh": price_eur_mwh,
-                            "snt_per_kwh_with_vat": price_snt_kwh,
-                            "snt_per_kwh_no_vat": price_eur_mwh / 10,
-                        }
-                        result["tomorrow_available"] = True
-                else:
-                    # For tomorrow's hours 1-23, use tomorrow's data
-                    tomorrow_position = hour
-                    if (
-                        not tomorrow_prices.get("error")
-                        and tomorrow_position in tomorrow_prices["prices"]
-                    ):
-                        price_eur_mwh = tomorrow_prices["prices"][tomorrow_position]
-                        price_snt_kwh = self._convert_price(price_eur_mwh)
-                        result["tomorrow_price"] = {
-                            "eur_per_mwh": price_eur_mwh,
-                            "snt_per_kwh_with_vat": price_snt_kwh,
-                            "snt_per_kwh_no_vat": price_eur_mwh / 10,
-                        }
-                        result["tomorrow_available"] = True
+            result["today_price"] = convert_prices(result["today_price"])
+            if result.get("tomorrow_price"):
+                result["tomorrow_price"] = convert_prices(result["tomorrow_price"])
 
             return result
 
@@ -153,24 +191,38 @@ class ElectricityService:
                 "exception": str(e),
             }
 
-    def get_daily_prices(self, date: Optional[datetime] = None) -> Dict[str, Any]:
+    def _parse_hour_quarter(self, hour_arg: str) -> tuple[int, int]:
         """
-        Get all electricity prices for a specific date.
+        Parse an hour or 15-min interval argument.
 
-        Args:
-            date: Date to get prices for. If None, uses current date
+        Examples:
+            "13"   -> (13, 0)
+            "13.2" -> (13, 2)
 
         Returns:
-            Dictionary containing daily prices or error details
+            Tuple of (hour, quarter)
         """
-        if date is None:
-            date = datetime.now()
-
-        return self._fetch_daily_prices(date)
+        try:
+            if "." in hour_arg:
+                hour_str, quarter_str = hour_arg.split(".")
+                hour = int(hour_str)
+                quarter = int(quarter_str)
+                if not (0 <= hour <= 23 and 1 <= quarter <= 4):
+                    raise ValueError
+                return hour, quarter
+            else:
+                hour = int(hour_arg)
+                if not (0 <= hour <= 23):
+                    raise ValueError
+                return hour, 0
+        except Exception:
+            raise ValueError(
+                "Virheellinen tunti- tai neljännestuntiargumentti. Käytä 0-23 tai 0-23.1-4."
+            )
 
     def get_price_statistics(self, date: Optional[datetime] = None) -> Dict[str, Any]:
         """
-        Get price statistics for a specific date.
+        Get price statistics for a specific date (min, max, average).
 
         Args:
             date: Date to get statistics for. If None, uses current date
@@ -179,7 +231,7 @@ class ElectricityService:
             Dictionary containing price statistics or error details
         """
         try:
-            daily_prices = self.get_daily_prices(date)
+            daily_prices = self._fetch_daily_prices(date)
 
             if daily_prices.get("error"):
                 return daily_prices
@@ -197,17 +249,9 @@ class ElectricityService:
 
             return {
                 "error": False,
-                "date": date.strftime("%Y-%m-%d") if date else None,
-                "min_price": {
-                    "hour": prices.index(min(prices)),
-                    "eur_per_mwh": min(prices),
-                    "snt_per_kwh_with_vat": min(prices_snt),
-                },
-                "max_price": {
-                    "hour": prices.index(max(prices)),
-                    "eur_per_mwh": max(prices),
-                    "snt_per_kwh_with_vat": max(prices_snt),
-                },
+                "date": daily_prices["date"],
+                "min_price": self._stat_entry(prices, prices_snt, min),
+                "max_price": self._stat_entry(prices, prices_snt, max),
                 "avg_price": {
                     "eur_per_mwh": sum(prices) / len(prices),
                     "snt_per_kwh_with_vat": sum(prices_snt) / len(prices_snt),
@@ -222,9 +266,12 @@ class ElectricityService:
                 "exception": str(e),
             }
 
+    # ---------- Internal helpers ----------
+
     def _fetch_daily_prices(self, date: datetime) -> Dict[str, Any]:
         """
-        Fetch electricity prices for a specific date.
+        Fetch daily electricity prices for a specific date.
+        Supports caching and namespace auto-detection.
 
         The ENTSO-E API returns data in periods that align with local time zones.
         For Finnish electricity prices:
@@ -242,84 +289,88 @@ class ElectricityService:
         Returns:
             Dictionary containing daily prices or error details
         """
-        try:
-            # Request the same day for most hours, but we'll need special handling for hour 0
-            date_str = date.strftime("%Y%m%d")
+        date_key = date.strftime("%Y-%m-%d")
+        now = datetime.now()
 
-            url = f"{self.base_url}"
+        log(f"[DEBUG] Fetching daily prices for {date_key}...")  # <-- debug here
+
+        # Cache lookup
+        cached = self._cache.get(date_key)
+        if cached and now - cached["timestamp"] < self._cache_ttl:
+            return cached["data"]
+
+        log("[DEBUG] Not using cache...")  # <-- debug here
+
+        # Fetch from API
+        try:
+            period_start = date.strftime("%Y%m%d") + "0000"
+            period_end = (date + timedelta(days=1)).strftime(
+                "%Y%m%d"
+            ) + "0000"  # FIXED: include next midnight
             params = {
                 "securityToken": self.api_key,
-                "documentType": "A44",  # Price document
+                "documentType": "A44",
                 "in_Domain": self.finland_domain,
                 "out_Domain": self.finland_domain,
-                "periodStart": f"{date_str}0000",
-                "periodEnd": f"{date_str}2300",
+                "periodStart": period_start,
+                "periodEnd": period_end,
             }
 
-            response = requests.get(url, params=params, timeout=10)
-
+            response = requests.get(self.base_url, params=params, timeout=30)
             if response.status_code == 401:
+                return {"error": True, "message": "Invalid API key", "status": 401}
+            if response.status_code != 200:
                 return {
                     "error": True,
-                    "message": "Invalid ENTSO-E API key",
-                    "status_code": 401,
-                }
-            elif response.status_code != 200:
-                return {
-                    "error": True,
-                    "message": f"ENTSO-E API returned status code {response.status_code}",
-                    "status_code": response.status_code,
+                    "message": f"HTTP {response.status_code}",
+                    "status": response.status_code,
                 }
 
-            # Parse XML response
-            try:
-                xml_data = ElementTree.parse(StringIO(response.text))
-                ns = {"ns": "urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3"}
+            # Parse XML safely
+            tree = ElementTree.parse(StringIO(response.text))
+            root = tree.getroot()
+            ns = {"ns": root.tag.split("}")[0].strip("{")}  # Auto namespace
 
-                prices = {}
-                for point in xml_data.findall(".//ns:Point", ns):
-                    position = int(point.find("ns:position", ns).text)
-                    price = float(point.find("ns:price.amount", ns).text)
-                    prices[position] = price
+            prices = {}
+            for p in tree.findall(".//ns:Point", ns):
+                pos = int(p.find("ns:position", ns).text)
+                price = float(p.find("ns:price.amount", ns).text)
+                prices[pos] = price
 
-                return {
-                    "error": False,
-                    "date": date.strftime("%Y-%m-%d"),
-                    "prices": prices,
-                    "total_hours": len(prices),
-                }
+            result = {
+                "error": False,
+                "date": date_key,
+                "prices": prices,
+                "total_hours": len(prices),
+            }
 
-            except ElementTree.ParseError as e:
-                return {
-                    "error": True,
-                    "message": f"Failed to parse XML response: {str(e)}",
-                    "exception": str(e),
-                }
+            # Detect if data is 15-minute intervals (96 points)
+            interval_prices = {}
+            if len(prices) > 24:
+                for pos, price in prices.items():
+                    hour = (pos - 1) // 4
+                    quarter = ((pos - 1) % 4) + 1
+                    interval_prices[(hour, quarter)] = price
 
+            result["interval_prices"] = interval_prices if interval_prices else None
+
+            # Cache it
+            self._cache[date_key] = {"timestamp": now, "data": result}
+            log(f"[DEBUG] Fetched daily prices for {date}: {result}")  # <-- debug here
+            return result
+
+        except ElementTree.ParseError:
+            return {"error": True, "message": "Invalid XML response"}
+        except requests.Timeout:
+            return {"error": True, "message": "Request timed out"}
+        except requests.RequestException as e:
+            return {"error": True, "message": f"Request failed: {e}"}
         except Exception as e:
-            name = getattr(e, "__class__", type(e)).__name__
-            if name == "Timeout":
-                return {
-                    "error": True,
-                    "message": "ENTSO-E API request timed out",
-                    "exception": "timeout",
-                }
-            elif name in ("RequestException", "HTTPError", "ConnectionError"):
-                return {
-                    "error": True,
-                    "message": f"ENTSO-E API request failed: {str(e)}",
-                    "exception": str(e),
-                }
-            else:
-                return {
-                    "error": True,
-                    "message": f"Unexpected error fetching prices: {str(e)}",
-                    "exception": str(e),
-                }
+            return {"error": True, "message": f"Unexpected: {e}"}
 
     def _convert_price(self, eur_per_mwh: float) -> float:
         """
-        Convert EUR/MWh to snt/kWh with VAT.
+        Convert EUR/MWh to snt/kWh (VAT included).
 
         Args:
             eur_per_mwh: Price in EUR/MWh
@@ -328,6 +379,26 @@ class ElectricityService:
             Price in snt/kWh including VAT
         """
         return (eur_per_mwh / 10) * self.vat_rate
+
+    def _price_dict(self, eur_per_mwh: float) -> Dict[str, float]:
+        """Create a standard price dict."""
+        return {
+            "eur_per_mwh": eur_per_mwh,
+            "snt_per_kwh_with_vat": self._convert_price(eur_per_mwh),
+            "snt_per_kwh_no_vat": eur_per_mwh / 10,
+        }
+
+    def _stat_entry(
+        self, prices: List[float], snt_prices: List[float], func
+    ) -> Dict[str, float]:
+        """Helper for statistics."""
+        val = func(prices)
+        idx = prices.index(val)
+        return {
+            "hour": idx,
+            "eur_per_mwh": val,
+            "snt_per_kwh_with_vat": snt_prices[idx],
+        }
 
     def _create_price_bar_graph(
         self, prices: Dict[int, float], avg_price_snt: float
@@ -398,7 +469,7 @@ class ElectricityService:
 
     def format_price_message(self, price_data: Dict[str, Any]) -> str:
         """
-        Format price data into a readable message.
+        Format price data into a readable message with 15-minute support.
 
         Args:
             price_data: Price data dictionary
@@ -411,80 +482,94 @@ class ElectricityService:
 
         date_str = price_data["date"]
         hour = price_data["hour"]
+        quarter = price_data.get("quarter", 0)
         today_price = price_data.get("today_price")
         tomorrow_price = price_data.get("tomorrow_price")
         tomorrow_available = price_data.get("tomorrow_available", False)
 
+        def format_single(price_entry):
+            """Format either full-hour or specific 15-minute interval."""
+            avg_hour = price_entry.get("avg_hour_price", price_entry["eur_per_mwh"])
+            quarter_prices = price_entry.get("quarter_prices", {})
+            if quarter in (1, 2, 3, 4) and quarter_prices.get(quarter) is not None:
+                q_price = quarter_prices[quarter]
+                return f"{hour:02d}.{quarter}: {self._convert_price(q_price):.2f} snt/kWh (tunnin keskiarvo {self._convert_price(avg_hour):.2f})"
+            # fallback: full-hour
+            return f"{hour:02d}:00 - {self._convert_price(avg_hour):.2f} snt/kWh"
+
         message_parts = []
 
         if today_price:
-            price_snt = today_price["snt_per_kwh_with_vat"]
-            message_parts.append(
-                f"⚡ Tänään {date_str} klo {hour:02d}: {price_snt:.2f} snt/kWh (ALV 25,5%)"
-            )
+            message_parts.append(f"⚡ Tänään {date_str} {format_single(today_price)}")
 
-        # Only show tomorrow's price if it's explicitly available
-        # This prevents showing today's price as tomorrow's price when tomorrow is unavailable
         if tomorrow_price and tomorrow_available:
             tomorrow_date = (
                 datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=1)
             ).strftime("%Y-%m-%d")
-            price_snt = tomorrow_price["snt_per_kwh_with_vat"]
             message_parts.append(
-                f"⚡ Huomenna {tomorrow_date} klo {hour:02d}: {price_snt:.2f} snt/kWh (ALV 25,5%)"
+                f"⚡ Huomenna {tomorrow_date} {format_single(tomorrow_price)}"
             )
         elif price_data.get("include_tomorrow", True) and not tomorrow_available:
-            # If tomorrow was requested but not available, show appropriate message
             message_parts.append("⚡ Huomisen hintaa ei vielä saatavilla")
 
         if not message_parts:
-            return f"⚡ Sähkön hintatietoja ei saatavilla tunnille {hour:02d}. https://sahko.tk"
+            return f"⚡ Sähkön hintatietoja ei saatavilla tunnille {hour:02d}. {self.sahko_url}"
 
         return " | ".join(message_parts)
 
     def format_daily_prices_message(
-        self, price_data: Dict[str, Any], is_tomorrow: bool = False
+        self, price_list: list, is_tomorrow: bool = False
     ) -> str:
         """
-        Format daily price data into a readable message showing all hours.
+        Format daily price data into a readable message showing all hours or 15-minute intervals.
 
         Args:
-            price_data: Daily price data dictionary
+            price_list: List of hourly/quarter price dictionaries from get_electricity_price
             is_tomorrow: Whether the prices are for tomorrow
 
         Returns:
             Formatted daily prices message string
         """
-        if price_data.get("error"):
-            return f"⚡ Sähkön hintatietojen haku epäonnistui: {price_data.get('message', 'Tuntematon virhe')}"
+        day_text = "huomenna" if is_tomorrow else "tänään"
+        if not price_list:
+            return f"⚡ Sähkön hintatietoja ei saatavilla {day_text}, {self.sahko_url}"
 
-        date_str = price_data["date"]
-        prices = price_data.get("prices", {})
+        # Get date from first item or fallback
+        first_date = price_list[0].get("date")
+        if not first_date:
+            from datetime import datetime, timedelta
 
-        if not prices:
-            day_text = "huomenna" if is_tomorrow else "tänään"
-            return f"⚡ Sähkön hintatietoja ei saatavilla {day_text}. https://sahko.tk"
+            dt = datetime.now()
+            if is_tomorrow:
+                dt += timedelta(days=1)
+            first_date = dt.strftime("%Y-%m-%d")
 
-        # Sort hours and format prices
-        hour_prices = []
-        for position in range(1, 25):  # Positions 1-24 (hours 1-23 and 0)
-            if position in prices:
-                # Convert position to hour (position 24 = hour 0)
-                hour = position if position != 24 else 0
-                price_eur_mwh = prices[position]
-                price_snt_kwh = self._convert_price(price_eur_mwh)
-                hour_prices.append((hour, price_snt_kwh))
-
-        # Sort by hour
-        hour_prices.sort(key=lambda x: x[0])
-
-        # Format message
         day_text = "Huomenna" if is_tomorrow else "Tänään"
-        prices_text = ", ".join(
-            f"{hour:02d}: {price:.2f}" for hour, price in hour_prices
-        )
+        messages = []
 
-        return f"⚡ {day_text} {date_str}: {prices_text} snt/kWh (ALV 25,5%)"
+        for price_data in price_list:
+            # Handle errors for individual hours
+            if price_data.get("error"):
+                hour = price_data.get("hour", "?")
+                messages.append(
+                    f"{hour:02d}: ⚠ {price_data.get('message', 'Ei tietoja')}"
+                )
+                continue
+
+            hour = price_data["hour"]
+            quarter = price_data.get("quarter")
+            price_snt = price_data.get("price_snt_kwh")
+            hour_avg = price_data.get("hour_avg_snt_kwh")
+
+            if quarter in (1, 2, 3, 4):
+                messages.append(
+                    f"{hour:02d}.{quarter}: {price_snt:.2f} snt/kWh (ALV 25,5%)"
+                    f"(tunnin keskiarvo {hour_avg:.2f})"
+                )
+            else:
+                messages.append(f"{hour:02d}:00 - {price_snt:.2f} snt/kWh")
+
+        return f"⚡ {day_text} {first_date}: " + " | ".join(messages)
 
     def format_statistics_message(self, stats_data: Dict[str, Any]) -> str:
         """
@@ -505,7 +590,7 @@ class ElectricityService:
         avg_price = stats_data["avg_price"]
 
         # Get daily prices to create bar graph
-        daily_prices = self.get_daily_prices(
+        daily_prices = self._fetch_daily_prices(
             datetime.strptime(date_str, "%Y-%m-%d") if date_str else None
         )
 
@@ -527,17 +612,19 @@ class ElectricityService:
 
     def parse_command_args(self, args: List[str]) -> Dict[str, Any]:
         """
-        Parse command arguments for electricity price queries.
+        Parse command arguments for electricity price queries, including 15-minute intervals.
 
         Args:
             args: List of command arguments
 
         Returns:
-            Dictionary containing parsed arguments
+            Dictionary containing parsed arguments, including optional 'quarter'
         """
+        now = datetime.now()
         result = {
-            "hour": datetime.now().hour,
-            "date": datetime.now(),
+            "hour": now.hour,
+            "quarter": 0,  # 0 means full hour; 1-4 are 15-min intervals
+            "date": now,
             "is_tomorrow": False,
             "show_stats": False,
             "show_all_hours": False,
@@ -548,50 +635,124 @@ class ElectricityService:
             return result
 
         try:
-            # Check for special keywords
-            if len(args) >= 1:
-                if args[0].lower() in ["tilastot", "stats"]:
-                    result["show_stats"] = True
-                    return result
-                elif args[0].lower() in ["tänään", "tanaan", "today"]:
-                    # Show all hours for today (accept multiple variations)
+            first_arg = args[0].lower()
+
+            # ----- Special keywords -----
+            if first_arg in ["tilastot", "stats"]:
+                result["show_stats"] = True
+                return result
+            elif first_arg in ["tänään", "tanaan", "today"]:
+                # Show all hours for today
+                result["show_all_hours"] = True
+                result["is_tomorrow"] = False
+                # Check if hour or hour.quarter is specified next
+                if len(args) >= 2:
+                    hour, quarter = self._parse_hour_quarter(args[1])
+                    result["hour"] = hour
+                    result["quarter"] = quarter
+                    result["show_all_hours"] = False
+                return result
+            elif first_arg in ["huomenna", "tomorrow"]:
+                result["is_tomorrow"] = True
+                result["date"] += timedelta(days=1)
+                # Check if hour or hour.quarter is specified next
+                if len(args) >= 2:
+                    hour, quarter = self._parse_hour_quarter(args[1])
+                    result["hour"] = hour
+                    result["quarter"] = quarter
+                    result["show_all_hours"] = False
+                else:
+                    # Show all hours for tomorrow
                     result["show_all_hours"] = True
-                    result["is_tomorrow"] = False
-                    return result
-                elif args[0].lower() in ["huomenna", "tomorrow"]:
-                    result["is_tomorrow"] = True
-                    result["date"] += timedelta(days=1)
+                return result
 
-                    # Check if hour is specified after "huomenna"
-                    if len(args) >= 2 and args[1].isdigit():
-                        hour = int(args[1])
-                        if 0 <= hour <= 23:
-                            result["hour"] = hour
-                        else:
-                            result["error"] = f"Virheellinen tunti: {hour}. Käytä 0-23."
-                    else:
-                        # Show all hours for tomorrow
-                        result["show_all_hours"] = True
-                    return result
-                elif args[0].isdigit():
-                    # Just hour specified
-                    hour = int(args[0])
-                    if 0 <= hour <= 23:
-                        result["hour"] = hour
-                    else:
-                        result["error"] = f"Virheellinen tunti: {hour}. Käytä 0-23."
-                    return result
+            # ----- Hour or hour.quarter directly -----
+            hour, quarter = self._parse_hour_quarter(args[0])
+            result["hour"] = hour
+            result["quarter"] = quarter
+            return result
 
+        except ValueError as e:
             result["error"] = (
-                "Virheellinen komento! Käytä: !sahko [tänään|huomenna] [tunti] tai !sahko tilastot/stats"
-            )
-
-        except ValueError:
-            result["error"] = (
-                "Virheellinen komento! Käytä: !sahko [tänään|huomenna] [tunti] tai !sahko tilastot/stats"
+                f"Virheellinen komento: {e}. Käytä: !sahko [tänään|huomenna] [tunti] tai !sahko tilastot/stats"
             )
 
         return result
+
+
+def format_price_report(
+    service: ElectricityService, date: Optional[datetime] = None
+) -> str:
+    """Generate a formatted daily price report with 15-minute interval support."""
+    data = service._fetch_daily_prices(date)
+    if data.get("error"):
+        return f"Error: {data['message']}"
+
+    stats = service.get_price_statistics(date)
+    report_lines = [f"Sähkön hinnat {data['date']}:"]
+
+    # Handle 15-minute intervals if available
+    interval_prices = data.get("interval_prices")
+    if interval_prices:
+        report_lines.append("(15 minuutin keskihinnat)")
+        for hour in range(24):
+            hour_prices = [
+                interval_prices.get((hour, q))
+                for q in range(1, 5)
+                if interval_prices.get((hour, q)) is not None
+            ]
+            if not hour_prices:
+                continue
+            avg_hour_price = sum(hour_prices) / len(hour_prices)
+            formatted_intervals = ", ".join(
+                f"{hour:02d}.{q}: {service._convert_price(interval_prices[(hour, q)]):.2f} snt/kWh"
+                for q in range(1, 5)
+                if (hour, q) in interval_prices
+            )
+            report_lines.append(
+                f"{hour:02d}:00 ({service._convert_price(avg_hour_price):.2f} snt/kWh avg) - {formatted_intervals}"
+            )
+    else:
+        # Fallback to hourly prices only
+        for hour, price in sorted(data["prices"].items()):
+            report_lines.append(
+                f"{hour:02d}:00 - {service._convert_price(price):.2f} snt/kWh ({price:.2f} €/MWh)"
+            )
+
+    if not stats.get("error"):
+        report_lines.append("")
+        report_lines.append(
+            f"Minimi: {stats['min_price']['snt_per_kwh_with_vat']:.2f} snt/kWh klo {stats['min_price']['hour']:02d}:00"
+        )
+        report_lines.append(
+            f"Maksimi: {stats['max_price']['snt_per_kwh_with_vat']:.2f} snt/kWh klo {stats['max_price']['hour']:02d}:00"
+        )
+        report_lines.append(
+            f"Keskihinta: {stats['avg_price']['snt_per_kwh_with_vat']:.2f} snt/kWh"
+        )
+
+    return "\n".join(report_lines)
+
+
+def parse_15min_command(hour_arg: str) -> tuple[int, int]:
+    """Parse hour or 15-min interval syntax (e.g. 13 or 13.2)."""
+    try:
+        if "." in hour_arg:
+            hour_str, quarter_str = hour_arg.split(".")
+            hour = int(hour_str)
+            quarter = int(quarter_str)
+            if not (0 <= hour <= 23 and 1 <= quarter <= 4):
+                raise ValueError
+            return hour, quarter
+        else:
+            hour = int(hour_arg)
+            if not (0 <= hour <= 23):
+                raise ValueError
+            return hour, 0
+    except ValueError:
+        raise ValueError(
+            "Virheellinen tunti- tai neljännestuntiargumentti. Käytä 0-23 tai 0-23.1-4."
+        )
 
 
 def create_electricity_service(api_key: str) -> ElectricityService:

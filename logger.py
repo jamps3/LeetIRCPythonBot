@@ -1,7 +1,8 @@
 """
-High-precision logging utility for the IRC bot.
+Precision logging utility for the IRC bot.
 
-Provides consistent, accurate timestamps across all bot components.
+Provides high-precision timestamps with nanosecond accuracy and
+supports multiple log levels and context-aware messages.
 """
 
 import os
@@ -9,8 +10,9 @@ import time
 from datetime import datetime
 from typing import Optional
 
-# Load debug mode setting
-_debug_mode = os.getenv("DEBUG_MODE", "true").lower() in ("true", "1", "yes", "on")
+# Default log level
+_LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+_LEVEL_ORDER = ["DEBUG", "INFO", "WARNING", "ERROR", "MSG", "SERVER"]
 
 
 class PrecisionLogger:
@@ -30,6 +32,22 @@ class PrecisionLogger:
             context: Optional context string (e.g., server name, module name)
         """
         self.context = context
+
+    def _should_log(self, level: str) -> bool:
+        """
+        Determine if a message at the given level should be logged
+        based on the current log level setting.
+        Undetermined levels default to DEBUG.
+
+        Args:
+            level: Log level of the message
+        Returns:
+            True if the message should be logged (message level >= global LOG_LEVEL from .env), False otherwise
+        """
+        level = level.upper()
+        if level not in _LEVEL_ORDER:
+            level = "DEBUG"  # fallback to default
+        return _LEVEL_ORDER.index(level) >= _LEVEL_ORDER.index(_LOG_LEVEL)
 
     def _get_timestamp(self) -> str:
         """
@@ -53,6 +71,8 @@ class PrecisionLogger:
             level: Log level (INFO, ERROR, WARNING, DEBUG, MSG, SERVER, etc.)
             extra_context: Additional context information
         """
+        if not self._should_log(level):
+            return  # skip lower-level messages
         timestamp = self._get_timestamp()
 
         # Build context string
@@ -80,9 +100,8 @@ class PrecisionLogger:
         self.log(message, "WARNING", extra_context)
 
     def debug(self, message: str, extra_context: str = ""):
-        """Log a debug message (only if DEBUG_MODE is enabled)."""
-        if _debug_mode:
-            self.log(message, "DEBUG", extra_context)
+        """Log a debug message."""
+        self.log(message, "DEBUG", extra_context)
 
     def msg(self, message: str, extra_context: str = ""):
         """Log a message event."""

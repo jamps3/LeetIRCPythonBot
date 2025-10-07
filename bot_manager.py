@@ -1216,7 +1216,7 @@ class BotManager:
             self.logger.info(f"Console: {message}")
 
     def _send_electricity_price(self, irc, channel, text_or_parts):
-        """Send electricity price information."""
+        """Handle the !sähkö command for hourly or 15-minute prices."""
         if not self.electricity_service:
             response = "⚡ Electricity price service not available. Please configure ELECTRICITY_API_KEY."
             self._send_response(irc, channel, response)
@@ -1227,17 +1227,13 @@ class BotManager:
             if isinstance(text_or_parts, list):
                 # Called from IRC command with parts list
                 args = text_or_parts[1:] if len(text_or_parts) > 1 else []
-                if len(text_or_parts) > 1:
-                    # Join back to string for further parsing
-                    text = " ".join(text_or_parts[1:])
-                else:
-                    text = ""
+                text = " ".join(args)
             else:
                 # Called with string (e.g., from tests or console)
                 text = text_or_parts or ""
                 args = text.split() if text else []
 
-            # Parse command arguments
+            # Parse command arguments (extended for 15-minute support)
             parsed_args = self.electricity_service.parse_command_args(args)
 
             if parsed_args.get("error"):
@@ -1254,18 +1250,24 @@ class BotManager:
                 )
             elif parsed_args.get("show_all_hours"):
                 # Show all hours for the day
-                daily_prices = self.electricity_service.get_daily_prices(
-                    parsed_args["date"]
-                )
+                all_prices = []
+                for h in range(24):
+                    price_data = self.electricity_service.get_electricity_price(
+                        hour=h, date=parsed_args["date"]
+                    )
+                    if price_data.get("error"):
+                        all_prices.append({"hour": h, "error": price_data["message"]})
+                    else:
+                        all_prices.append(price_data)
                 response = self.electricity_service.format_daily_prices_message(
-                    daily_prices, is_tomorrow=parsed_args["is_tomorrow"]
+                    all_prices, is_tomorrow=parsed_args["is_tomorrow"]
                 )
             else:
-                # Show specific hour price
+                # Handle specific hour or 15-minute interval
                 price_data = self.electricity_service.get_electricity_price(
-                    hour=parsed_args["hour"],
+                    hour=parsed_args.get("hour"),
+                    quarter=parsed_args.get("quarter"),
                     date=parsed_args["date"],
-                    include_tomorrow=not parsed_args["is_tomorrow"],
                 )
                 response = self.electricity_service.format_price_message(price_data)
 

@@ -517,7 +517,7 @@ def test_send_crypto_price_and_electricity(monkeypatch, manager):
         def format_statistics_message(self, data):
             return "stats-ok"
 
-        def get_daily_prices(self, date):
+        def fetch_daily_prices(self, date):
             return [1, 2, 3]
 
         def format_daily_prices_message(self, daily, is_tomorrow=False):

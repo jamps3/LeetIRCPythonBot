@@ -69,7 +69,7 @@ def find_price_target():
         )
 
         try:
-            daily_prices = service.get_daily_prices(check_date)
+            daily_prices = service._fetch_daily_prices(check_date)
 
             if daily_prices.get("error"):
                 print(f"   ❌ Error: {daily_prices.get('message')}")
