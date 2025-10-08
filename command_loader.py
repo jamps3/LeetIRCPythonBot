@@ -6,7 +6,9 @@ the command registry system and the bot infrastructure.
 """
 
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Any, Dict
+
+import logger
 
 # Defer local imports to function bodies to avoid import-time side effects during
 # the full test run, where some tests monkeypatch modules in ways that can break
@@ -25,10 +27,10 @@ def load_all_commands():
 
         registry = get_command_registry()
         command_count = len(registry._commands)
-        print(f"Loaded {command_count} commands from command modules")
+        logger.info(f"Loaded {command_count} commands from command modules")
 
     except Exception as e:
-        print(f"Warning: Could not load all command modules: {e}")
+        logger.warning(f"Warning: Could not load all command modules: {e}")
 
 
 async def process_irc_command(
@@ -121,11 +123,11 @@ async def process_irc_command(
     return False  # No command was processed
 
 
-async def process_console_command_new(
+async def process_console_command_async(
     command_text: str, bot_functions: Dict[str, Any]
 ) -> bool:
     """
-    Process a console command through the command registry system.
+    Process a console command through the command registry system asynchronously.
 
     Args:
         command_text: The command text from console
@@ -170,20 +172,21 @@ async def process_console_command_new(
 
     except Exception as e:
         # Log error but don't crash
-        log_func = bot_functions.get("log")
-        if log_func:
-            log_func(f"Error processing console command '{command_text}': {e}", "ERROR")
-        else:
-            print(f"Error processing console command '{command_text}': {e}")
-
+        logger.error(f"Error processing console command '{command_text}': {e}")
         return True  # Still consider it processed
-
     return False  # No command was processed
 
 
-def enhanced_process_console_command(command_text: str, bot_functions: Dict[str, Any]):
+def process_console_command(command_text: str, bot_functions: Dict[str, Any]):
     """
-    Process console commands using the command registry system.
+    Process a console command through the command registry system. Uses process_console_command_async.
+
+    Args:
+        command_text: The command text from console
+        bot_functions: Dictionary of bot functions and data
+
+    Returns:
+        bool: True if a command was processed, False otherwise
     """
     log_func = bot_functions.get("log")
 
@@ -207,7 +210,7 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
             # No event loop running, safe to use asyncio.run
             try:
                 processed = asyncio.run(
-                    process_console_command_new(command_text, bot_functions)
+                    process_console_command_async(command_text, bot_functions)
                 )
             except Exception as e:
                 if log_func:
@@ -216,7 +219,6 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
         else:
             # Event loop is already running, use thread pool to avoid conflicts
             import concurrent.futures
-            import threading
 
             # Create a new thread with its own event loop
             def run_in_new_loop():
@@ -225,7 +227,7 @@ def enhanced_process_console_command(command_text: str, bot_functions: Dict[str,
                     asyncio.set_event_loop(new_loop)
                     try:
                         return new_loop.run_until_complete(
-                            process_console_command_new(command_text, bot_functions)
+                            process_console_command_async(command_text, bot_functions)
                         )
                     finally:
                         new_loop.close()

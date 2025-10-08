@@ -4,6 +4,8 @@ import re
 import sys
 from collections import defaultdict
 
+import logger
+
 # Try to import Voikko with proper error handling
 try:
     import libvoikko
@@ -11,7 +13,6 @@ try:
     VOIKKO_AVAILABLE = True
 except ImportError:
     VOIKKO_AVAILABLE = False
-    print("Warning: libvoikko not available. Using simple word normalization.")
 
 
 class Lemmatizer:
@@ -35,14 +36,15 @@ class Lemmatizer:
                 # Try to initialize Voikko
                 self.v = libvoikko.Voikko("fi")
                 self.voikko_enabled = True
-                print("✅ Voikko lemmatizer initialized successfully")
+                logger.info("Voikko lemmatizer initialized successfully")
 
             except Exception as e:
-                print(f"⚠️  Voikko initialization failed: {e}")
-                print("📝 Using simple word normalization instead")
+                logger.error(
+                    f"Voikko initialization failed: {e}, using simple word normalization"
+                )
                 self.voikko_enabled = False
         else:
-            print("📝 Voikko not available - using simple word normalization")
+            logger.warning("Voikko not available - using simple word normalization")
 
     def _get_baseform(self, word):
         """Get base form of a word using Voikko or simple normalization."""

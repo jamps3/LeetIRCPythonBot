@@ -1,36 +1,40 @@
 # LeetIRCPythonBot
 
 ## Description
+
 Advanced IRC Bot made with Python. Extended API use and highly customizable.
 
 ## Features
-| Feature | Commands/Info |
-|----------------|-----------------|
-| - 🚀 OpenAI - Responds using GPT-5-mini (or others)        |<automatic> from messages starting with bot name or private messages|
-| - 🔥 Weather                                               |!s, !sää|
-| - 🔥 Weather Forecast                                      |!se, !sel|
-| - ✅ URL Titles                                            |<automatic> from http(s) links, !url|
-| - ⚡ Electricity prices in Finland for today/tomorrow      |!sahko|
-| - ✅ Scheduled messages                                    |!schedule, !scheduled|
-| - 🔥 Statistics for words and special (drinking) words     |<automatic> from channel messages, !sana, !leaderboard, !topwords, !kraks, !drink, !drinkword|
-| - ✅ Multiple servers and channels support                 |Configured in .env file|
-| - 📺 Youtube search with text and ID                       |<automatic> from Youtube links, !youtube <searchwords>/<ID>|
-| - 🔥 Keeping track of channel notifications                |!leets, !leetwinners|
-| - ⚠️ Accident reports monitoring                           |!tilaa onnettomuustiedotteet|
-| - ⚠️ FMI warnings monitoring                               |!tilaa varoitukset|
-| - 🚉 Arriving and departing trains information             |!junat, !junat saapuvat|
-| - 🌌 Solar wind status                                     |!solarwind|
-| - ✅ Tamagotchi-like pet functionality                     |!tamagotchi, !feed, !pet|
-| - ✅ Current time, echo message, ping, about, version      |!aika, !kaiku, !ping, !about, !version|
-| - ✅ Eurojackpot statistics and draws                      |!eurojackpot|
-| - ✅ IPFS file upload                                      |!ipfs add <url>|
-| - ✅ Cryptocurrency price information                      |!crypto|
-| - ✅ Euribor interest rate from yesterday                  |!euribor|
-| - ✅ Basic IRC commands: join, nick, part, quit, raw       |!join, !nick, !part, !quit, !raw|
+
+| Feature                                                | Commands/Info                                                                                 |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| - 🚀 OpenAI - Responds using GPT-5-mini (or others)    | <automatic> from messages starting with bot name or private messages                          |
+| - 🔥 Weather                                           | !s, !sää                                                                                      |
+| - 🔥 Weather Forecast                                  | !se, !sel                                                                                     |
+| - ✅ URL Titles                                        | <automatic> from http(s) links, !url                                                          |
+| - ⚡ Electricity prices in Finland for today/tomorrow  | !sahko                                                                                        |
+| - ✅ Scheduled messages                                | !schedule, !scheduled                                                                         |
+| - 🔥 Statistics for words and special (drinking) words | <automatic> from channel messages, !sana, !leaderboard, !topwords, !kraks, !drink, !drinkword |
+| - ✅ Multiple servers and channels support             | Configured in .env file                                                                       |
+| - 📺 Youtube search with text and ID                   | <automatic> from Youtube links, !youtube <searchwords>/<ID>                                   |
+| - 🔥 Keeping track of channel notifications            | !leets, !leetwinners                                                                          |
+| - ⚠️ Accident reports monitoring                       | !tilaa onnettomuustiedotteet                                                                  |
+| - ⚠️ FMI warnings monitoring                           | !tilaa varoitukset                                                                            |
+| - 🚉 Arriving and departing trains information         | !junat, !junat saapuvat                                                                       |
+| - 🌌 Solar wind status                                 | !solarwind                                                                                    |
+| - ✅ Tamagotchi-like pet functionality                 | !tamagotchi, !feed, !pet                                                                      |
+| - ✅ Current time, echo message, ping, about, version  | !aika, !kaiku, !ping, !about, !version                                                        |
+| - ✅ Eurojackpot statistics and draws                  | !eurojackpot                                                                                  |
+| - ✅ IPFS file upload                                  | !ipfs add <url>                                                                               |
+| - ✅ Cryptocurrency price information                  | !crypto                                                                                       |
+| - ✅ Euribor interest rate from yesterday              | !euribor                                                                                      |
+| - ✅ Basic IRC commands: join, nick, part, quit, raw   | !join, !nick, !part, !quit, !raw                                                              |
 
 ## Installation
+
 Not needed!
 Run file has all this included:
+
 ```bash
 python3 -m venv venv
 source venv/bin/activate
@@ -38,6 +42,7 @@ pip install -r requirements.txt
 ```
 
 ### For development: enable pre-commit hooks (format before commit)
+
 ```bash
 pip install pre-commit
 pre-commit install
@@ -48,43 +53,56 @@ pre-commit run -a
 ```
 
 ### Or use the built-in setup script (includes test-before-push protection):
+
 ```bash
 python setup_hooks.py
 ```
+
 This sets up:
+
 - **Pre-commit hook**: Code formatting (black, isort, flake8)
 - **Pre-push hook**: Runs `.	est -q` automatically before every push
 - **Git commit template**: Helpful commit message format
 
 ⚠️ **Important**: All tests must pass before pushing! If tests fail, the push is automatically canceled.
 If you want to use Voikko -features you need to install these packages with apt:
+
 ```bash
 sudo apt install -y libvoikko1 voikko-fi python3-libvoikko
 ```
+
 ## .env file for configuration:
+
 You need this for all the APIs to work and for the server and channel information:
 Copy .env.sample to .env and make relevant changes like bot name, servers, channels and API-keys.
 
 ### Add admin password to your `.env` file:
+
 ```env
 ADMIN_PASSWORD=your_secure_password_here
 ```
 
 # Running
+
 ## Simple
+
 Options to run in: Screen, Tmux or plain Python. I prefer Tmux.
+
 ```bash
 screen python3 main.py
 tmux new-session -d -s bot
 python3 main.py
 ```
+
 ## Using run/start file to start the bot
+
 ```bash
 ./run
 
 After shutting down the bot, we can reuse the activated venv, tmux and skip installing requirements.txt and just use ./start:
 ./start
 ```
+
 What does the ./run script do?
 
 ✅Creates or activates virtual environment
@@ -93,6 +111,7 @@ What does the ./run script do?
 ✅Starts the bot with python3 main.py
 
 ## .\run Script:
+
 ```bash
 #!/bin/bash
 
@@ -186,6 +205,7 @@ Developer Tools & Scripts /
 ```
 
 #### 📁 File Links (Core)
+
 - **Entry Point**: [`main.py`](main.py) - Bot startup, signal handling, BotManager initialization
 - **Bot Orchestration**: [`bot_manager.py`](bot_manager.py) - Multi-server management, service coordination, console interface
 - **Server Management**: [`server.py`](server.py) - IRC server wrapper, connection handling, callbacks
@@ -203,6 +223,7 @@ Developer Tools & Scripts /
 - **Development**: [`setup_hooks.py`](setup_hooks.py) - Pre-commit hooks and code formatting
 
 #### 🌐 Service Links
+
 - **Crypto**: [`services/crypto_service.py`](services/crypto_service.py) - CoinGecko API, price fetching
 - **Trains**: [`services/digitraffic_service.py`](services/digitraffic_service.py) - Finnish train schedules, station search
 - **Electricity**: [`services/electricity_service.py`](services/electricity_service.py) - Nord Pool spot prices, hourly data
@@ -218,12 +239,14 @@ Developer Tools & Scripts /
 - **YouTube**: [`services/youtube_service.py`](services/youtube_service.py) - Video search, URL metadata
 
 #### 📊 Word Tracking Links
+
 - **Data Storage**: [`word_tracking/data_manager.py`](word_tracking/data_manager.py) - Persistent data management
 - **Drink Tracking**: [`word_tracking/drink_tracker.py`](word_tracking/drink_tracker.py) - Drinking word monitoring
 - **Word Stats**: [`word_tracking/general_words.py`](word_tracking/general_words.py) - Message analysis, leaderboards
 - **Virtual Pet**: [`word_tracking/tamagotchi_bot.py`](word_tracking/tamagotchi_bot.py) - Interactive tamagotchi features
 
 #### 🔧 Configuration & Tools Links
+
 - **Environment**: [`.env.sample`](.env.sample) - Configuration template with all options
 - **Testing**: [`pytest.ini`](pytest.ini) - Test runner configuration
 - **Documentation**: [`README.md`](README.md) - This comprehensive guide
@@ -234,13 +257,15 @@ Developer Tools & Scripts /
 - **Test Config**: [`conftest.py`](conftest.py) - Pytest fixtures and shared test setup
 
 Data flow overview:
-- IRC messages -> BotManager._handle_message -> command_loader.enhanced_process_irc_message -> command_registry -> commands/commands_admin -> Services
-- Console input -> command_loader.enhanced_process_console_command -> command_registry -> commands/commands_admin -> Services
+
+- IRC messages -> BotManager.\_handle_message -> command_loader.enhanced_process_irc_message -> command_registry -> commands/commands_admin -> Services
+- Console input -> command_loader.process_console_command -> command_registry -> commands/commands_admin -> Services
 - Background monitors (FMI/Otiedote) -> Subscriptions -> BotManager -> Servers/IRC
 
 ## Usage Examples
 
 ### Setting up IPFS (Optional)
+
 ```bash
 # Install IPFS (if you want IPFS functionality)
 # Download from: https://ipfs.io/docs/install/
@@ -254,7 +279,7 @@ ipfs daemon
 # Schedule a message for later today
 !schedule #general 20:00:00 Evening announcement!
 
-# Schedule with ultimate precision  
+# Schedule with ultimate precision
 !schedule #dev 09:30:15.123456789 Daily standup reminder
 
 # Add a small file to IPFS
@@ -278,12 +303,15 @@ ipfs daemon
 All features have been thoroughly tested.
 
 ### Automatic Testing
+
 With the pre-push hook enabled, all tests run automatically before every `git push`:
+
 ```bash
 git push  # Runs tests first, cancels if any fail
 ```
 
 ### Manual Testing
+
 ```bash
 .\test         # Run all tests (full output)
 .\test -q      # Run all tests (quiet mode)
@@ -291,6 +319,7 @@ python -m pytest tests/specific_test.py  # Run specific test
 ```
 
 ### Bypass Git Hooks (Emergency Use Only)
+
 ```bash
 git commit --no-verify   # Skip pre-commit formatting
 git push --no-verify     # Skip pre-push tests (NOT RECOMMENDED)
@@ -299,15 +328,18 @@ git push --no-verify     # Skip pre-push tests (NOT RECOMMENDED)
 ## Next Steps (Optional Enhancements/TODO)
 
 1. **Scheduled Messages**:
+
    - Persistent storage for messages across restarts
    - Recurring/cron-style scheduling
    - Message templates and variables
 
 2. **IPFS Integration**:
+
    - Progress bars for large uploads
    - IPFS pinning management
 
 3. **Eurojackpot**:
+
    - Historical data collection
    - Multiple lottery support
 
@@ -319,16 +351,19 @@ git push --no-verify     # Skip pre-push tests (NOT RECOMMENDED)
 LeetIRCPythonBot is a comprehensive IRC bot with 50+ features across multiple categories:
 
 ### 🤖 **AI & Chat Features**
+
 - **GPT Integration**: Responds to mentions and private messages using OpenAI GPT-5-mini
 - **Smart Conversations**: Context-aware responses with conversation history
 - **Multi-language Support**: Finnish and English responses
 
 ### ⏰ **Scheduling & Automation**
+
 - **Scheduled Messages**: Microsecond-precision timing with admin controls (!schedule, !scheduled)
 - **Automatic Monitoring**: FMI weather warnings, accident reports (Otiedote)
 - **Background Services**: Multi-threaded execution with daemon cleanup
 
 ### 🌐 **Web & API Integration**
+
 - **Weather Services**: Current conditions (!s, !sää) and forecasts (!se, !sel)
 - **Electricity Prices**: Finnish spot prices with hourly/daily data (!sahko)
 - **YouTube Integration**: Auto-detection of URLs and search functionality (!youtube)
@@ -338,26 +373,31 @@ LeetIRCPythonBot is a comprehensive IRC bot with 50+ features across multiple ca
 - **URL Title Fetching**: Automatic webpage title extraction with blacklisting
 
 ### 📊 **Statistics & Tracking**
+
 - **Word Statistics**: Track and analyze channel conversations (!sana, !topwords, !leaderboard)
 - **Drink Tracking**: Monitor drinking-related words with privacy controls (!kraks, !drink, !antikrak)
 - **Leet Detection**: Nanosecond-precision 1337 timestamp detection with achievements
 - **User Analytics**: Server-wide and per-user statistics
 
 ### 🐾 **Interactive Features**
+
 - **Tamagotchi Bot**: Virtual pet with feeding, care, and status (!tamagotchi, !feed, !pet)
 - **Subscription System**: User-configurable notifications (!tilaa, !lopeta)
 - **Echo & Utility**: Time display, ping/pong, version info (!aika, !ping, !version)
 
 ### 🚉 **Transportation**
+
 - **Train Information**: Real-time arrivals/departures from Finnish stations (!junat)
 - **Station Search**: Find stations and their live schedules
 
 ### 📁 **File & Storage**
+
 - **IPFS Integration**: Decentralized file storage with size limits (!ipfs)
 - **Stream Processing**: Large file handling without memory issues
 - **Admin Override**: Unlimited uploads with password authentication
 
 ### 🔧 **Administration**
+
 - **IRC Control**: Channel join/part, nickname changes (!join, !part, !nick)
 - **Server Management**: Multi-server support with independent configurations
 - **Raw Commands**: Direct IRC protocol access for advanced control (!raw)
@@ -365,12 +405,14 @@ LeetIRCPythonBot is a comprehensive IRC bot with 50+ features across multiple ca
 - **Model Management**: Runtime OpenAI model switching (!openai)
 
 ### 🔒 **Security & Privacy**
+
 - **Password Authentication**: Secure admin command access
 - **Opt-out Controls**: User privacy for tracking features
 - **Rate Limiting**: API abuse prevention with cooldowns
 - **Input Validation**: Comprehensive security checks
 
 ### 🏗️ **Technical Features**
+
 - **Command Registry**: Modular command system with metadata
 - **Multi-threading**: Concurrent service execution
 - **Error Handling**: Comprehensive exception management
@@ -382,6 +424,7 @@ LeetIRCPythonBot is a comprehensive IRC bot with 50+ features across multiple ca
 - **Git Hooks**: Automatic test execution before push (cancels failed pushes)
 
 ### 📈 **Analytics & Monitoring**
+
 - **Service Health**: Automatic API availability checking
 - **Performance Metrics**: Response time and accuracy tracking
 - **Data Persistence**: JSON-based storage with automatic backups

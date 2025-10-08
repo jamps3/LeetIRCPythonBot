@@ -683,10 +683,10 @@ def test_legacy_quit_commands_use_set_quit_message():
     }
 
     # Test console quit command
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     with patch("commands_admin.verify_admin_password", return_value=True):
-        enhanced_process_console_command(
+        process_console_command(
             "!quit testpass123 Goodbye from console!", bot_functions
         )
 

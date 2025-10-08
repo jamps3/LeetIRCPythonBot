@@ -318,10 +318,10 @@ class Server:
         ):
             if key:
                 self.send_raw(f"JOIN {channel} {key}")
-                self.logger.info(f"Joined channel {channel} with key")
+                self.logger.info(f"Joining channel {channel} with key...")
             else:
                 self.send_raw(f"JOIN {channel}")
-                self.logger.info(f"Joined channel {channel} (no key)")
+                self.logger.info(f"Joining channel {channel} (no key)...")
 
     def send_raw(self, message: str, bypass_rate_limit: bool = False):
         """

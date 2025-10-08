@@ -35,14 +35,14 @@ def _check_and_repair_command_loader() -> None:
         mod = _sys.modules.get("command_loader")
 
         def _has_required(m) -> bool:
-            return hasattr(m, "enhanced_process_console_command") and hasattr(
+            return hasattr(m, "process_console_command") and hasattr(
                 m, "enhanced_process_irc_message"
             )
 
         if mod is not None and not _has_required(mod):
             _log(
                 "command_loader present but missing required attributes; "
-                f"has_console={hasattr(mod, 'enhanced_process_console_command')} "
+                f"has_console={hasattr(mod, 'process_console_command')} "
                 f"has_irc={hasattr(mod, 'enhanced_process_irc_message')} "
                 f"type={type(mod)} repr={repr(mod)[:120]}"
             )
@@ -52,7 +52,7 @@ def _check_and_repair_command_loader() -> None:
                 mod = _importlib.import_module("command_loader")
                 _log(
                     "command_loader repaired via re-import; has_console="
-                    + str(hasattr(mod, "enhanced_process_console_command"))
+                    + str(hasattr(mod, "process_console_command"))
                     + " has_irc="
                     + str(hasattr(mod, "enhanced_process_irc_message"))
                 )
@@ -66,7 +66,7 @@ def _check_and_repair_command_loader() -> None:
                 mod = _importlib.import_module("command_loader")
                 _log(
                     "command_loader imported; has_console="
-                    + str(hasattr(mod, "enhanced_process_console_command"))
+                    + str(hasattr(mod, "process_console_command"))
                     + " has_irc="
                     + str(hasattr(mod, "enhanced_process_irc_message"))
                 )
@@ -78,7 +78,7 @@ def _check_and_repair_command_loader() -> None:
         if not _has_required(mod):
             _log(
                 "command_loader still missing required attributes after repair: "
-                f"has_console={hasattr(mod, 'enhanced_process_console_command')} "
+                f"has_console={hasattr(mod, 'process_console_command')} "
                 f"has_irc={hasattr(mod, 'enhanced_process_irc_message')}"
             )
     except Exception:

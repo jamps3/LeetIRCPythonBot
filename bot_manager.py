@@ -6,7 +6,6 @@ connections and integrates all bot functionality across servers.
 """
 
 import os
-import sys
 import threading
 import time
 from typing import Any, Dict, List, Optional
@@ -14,37 +13,9 @@ from typing import Any, Dict, List, Optional
 from config import get_api_key, get_server_configs, load_env_file
 from leet_detector import create_nanoleet_detector
 from lemmatizer import Lemmatizer
-from logger import get_logger
+from logger import get_logger, safe_print
 from server import Server
 from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
-
-
-# Safe print function that handles Unicode gracefully
-def safe_print(text, fallback_text=None):
-    """Print text with Unicode fallback for Windows console compatibility."""
-    try:
-        print(text)
-    except UnicodeEncodeError:
-        # Fall back to ASCII-safe version
-        if fallback_text:
-            print(fallback_text)
-        else:
-            # Replace common Unicode characters with ASCII equivalents
-            safe_text = (
-                text.replace("🤖", "[BOT]")
-                .replace("🚀", "[START]")
-                .replace("🛑", "[STOP]")
-                .replace("✅", "[OK]")
-                .replace("❌", "[ERROR]")
-                .replace("💥", "[ERROR]")
-            )
-            safe_text = (
-                safe_text.replace("💬", "[CHAT]")
-                .replace("🔧", "[CONFIG]")
-                .replace("🗣️", "[TALK]")
-            )
-            print(safe_text)
-
 
 # Try to import readline, but handle gracefully if not available (Windows)
 try:
@@ -73,49 +44,6 @@ except ImportError:
 
     readline = DummyReadline()
 
-# Optional service imports - handle gracefully if dependencies are missing
-try:
-    from services.crypto_service import create_crypto_service
-except ImportError as e:
-    print(f"Warning: Crypto service not available: {e}")
-    create_crypto_service = None
-
-try:
-    from services.electricity_service import create_electricity_service
-except ImportError as e:
-    print(f"Warning: Electricity service not available: {e}")
-    create_electricity_service = None
-
-try:
-    from services.fmi_warning_service import create_fmi_warning_service
-except ImportError as e:
-    print(f"Warning: FMI warning service not available: {e}")
-    create_fmi_warning_service = None
-
-try:
-    from services.gpt_service import GPTService
-except ImportError as e:
-    print(f"Warning: GPT service not available: {e}")
-    GPTService = None
-
-try:
-    from services.otiedote_service import create_otiedote_service
-except ImportError as e:
-    print(f"Warning: Otiedote service not available: {e}")
-    create_otiedote_service = None
-
-try:
-    from services.weather_service import WeatherService
-except ImportError as e:
-    print(f"Warning: Weather service not available: {e}")
-    WeatherService = None
-
-try:
-    from services.youtube_service import create_youtube_service
-except ImportError as e:
-    print(f"Warning: YouTube service not available: {e}")
-    create_youtube_service = None
-
 
 class BotManager:
     """
@@ -136,7 +64,7 @@ class BotManager:
         Args:
             bot_name: The nickname for the bot across all servers
         """
-        print("DEBUG: Starting BotManager initialization...")
+        print("Starting BotManager initialization...")
         self.bot_name = bot_name
         self.servers: Dict[str, Server] = {}
         self.server_threads: Dict[str, threading.Thread] = {}
@@ -145,26 +73,69 @@ class BotManager:
         self.quit_message = os.getenv("QUIT_MESSAGE", "Disconnecting")
 
         # Initialize high-precision logger first
-        print("DEBUG: Initializing logger...")
+        print("Initializing logger...")
         self.logger = get_logger("BotManager")
-        print("DEBUG: Logger initialized.")
+        self.logger.debug("Logger initialized.")
 
         # Configure readline for command history and console output protection
-        print("DEBUG: Setting up readline history...")
+        self.logger.debug("Setting up readline history...")
         try:
             self._setup_readline_history()
-            print("DEBUG: Readline history setup complete.")
+            self.logger.debug("Readline history setup complete.")
         except Exception as e:
-            print(f"DEBUG: Readline history setup failed: {e}")
+            self.logger.debug(f"Readline history setup failed: {e}")
 
-        print("DEBUG: Setting up console output protection...")
+        self.logger.debug("Setting up console output protection...")
         try:
             self._setup_console_output_protection()
-            print("DEBUG: Console output protection setup complete.")
+            self.logger.debug("Console output protection setup complete.")
         except Exception as e:
-            print(f"DEBUG: Console output protection setup failed: {e}")
+            self.logger.debug(f"Console output protection setup failed: {e}")
 
-        print("DEBUG: Readline and console setup complete.")
+        self.logger.debug("Readline and console setup complete.")
+
+        # Optional service imports - handle gracefully if dependencies are missing
+        try:
+            from services.crypto_service import create_crypto_service
+        except ImportError as e:
+            self.logger.warning(f"Warning: Crypto service not available: {e}")
+            create_crypto_service = None
+
+        try:
+            from services.electricity_service import create_electricity_service
+        except ImportError as e:
+            self.logger.warning(f"Electricity service not available: {e}")
+            create_electricity_service = None
+
+        try:
+            from services.fmi_warning_service import create_fmi_warning_service
+        except ImportError as e:
+            self.logger.warning(f"FMI warning service not available: {e}")
+            create_fmi_warning_service = None
+
+        try:
+            from services.gpt_service import GPTService
+        except ImportError as e:
+            self.logger.warning(f"GPT service not available: {e}")
+            GPTService = None
+
+        try:
+            from services.otiedote_service import create_otiedote_service
+        except ImportError as e:
+            self.logger.warning(f"Otiedote service not available: {e}")
+            create_otiedote_service = None
+
+        try:
+            from services.weather_service import WeatherService
+        except ImportError as e:
+            self.logger.warning(f"Weather service not available: {e}")
+            WeatherService = None
+
+        try:
+            from services.youtube_service import create_youtube_service
+        except ImportError as e:
+            self.logger.warning(f"YouTube service not available: {e}")
+            create_youtube_service = None
 
         # Load USE_NOTICES setting
         use_notices_setting = os.getenv("USE_NOTICES", "false").lower()
@@ -183,15 +154,15 @@ class BotManager:
             self.logger.info("🐣 Tamagotchi responses disabled")
 
         # Initialize bot components
-        print("DEBUG: Initializing data manager...")
+        self.logger.debug("Initializing data manager...")
         self.data_manager = DataManager()
-        print("DEBUG: Initializing drink tracker...")
+        self.logger.debug("Initializing drink tracker...")
         self.drink_tracker = DrinkTracker(self.data_manager)
-        print("DEBUG: Initializing general words...")
+        self.logger.debug("Initializing general words...")
         self.general_words = GeneralWords(self.data_manager)
-        print("DEBUG: Initializing tamagotchi...")
+        self.logger.debug("Initializing tamagotchi...")
         self.tamagotchi = TamagotchiBot(self.data_manager)
-        print("DEBUG: Bot components initialized.")
+        self.logger.debug("Bot components initialized.")
 
         # Initialize weather service
         if WeatherService is not None:
@@ -292,18 +263,16 @@ class BotManager:
             self.otiedote_service = None
 
         # Initialize lemmatizer with graceful fallback
-        print("DEBUG: Initializing lemmatizer...")
+        self.logger.debug("Initializing lemmatizer...")
         try:
             self.lemmatizer = Lemmatizer()
             self.logger.info("🔤 Lemmatizer component initialized")
-            print("DEBUG: Lemmatizer initialized successfully.")
         except Exception as e:
-            self.logger.warning(f"⚠️  Could not initialize lemmatizer: {e}")
+            self.logger.warning(f"Could not initialize lemmatizer: {e}")
             self.lemmatizer = None
-            print(f"DEBUG: Lemmatizer failed to initialize: {e}")
 
         # Note: Signal handling is done in main.py
-        print("DEBUG: BotManager initialization complete!")
+        self.logger.debug("BotManager initialization complete!")
 
     def _is_interactive_terminal(self):
         """Check if we're running in an interactive terminal."""
@@ -381,106 +350,6 @@ class BotManager:
                 self.logger.debug(f"Saved command history to {self._history_file}")
             except Exception as e:
                 self.logger.warning(f"Could not save command history: {e}")
-
-    def _setup_console_output_protection(self):
-        """Set up console output protection to prevent log messages from overwriting input line."""
-        self._input_active = False
-        self._print_lock = threading.Lock()
-        self._original_print = print
-        self._original_stdout_write = sys.stdout.write
-        self._original_stderr_write = sys.stderr.write
-
-        # Add protection against recursive calls
-        self._protection_active = False
-
-        # TEMPORARILY DISABLE CONSOLE PROTECTION TO PREVENT HANGING ISSUES
-        # This feature can cause hanging on some systems due to terminal manipulation
-        get_logger(
-            "DEBUG: Console output protection disabled (prevents hanging issues)"
-        )
-        return
-
-        # Only set up protected output if readline is available and we're not on Windows
-        # Also check if we're in an interactive terminal to avoid issues with non-interactive environments
-        if READLINE_AVAILABLE and os.name != "nt" and self._is_interactive_terminal():
-            try:
-                self._setup_protected_output()
-                print("DEBUG: Console protection enabled successfully")
-            except Exception as e:
-                print(f"DEBUG: Could not set up console output protection: {e}")
-                # Don't log this error as it could cause recursion
-        else:
-            print(
-                "DEBUG: Skipping console output protection (Windows, no readline, or non-interactive)"
-            )
-
-    def _setup_protected_output(self):
-        """Replace print and stdout/stderr with readline-aware versions."""
-        import builtins
-        import sys
-
-        try:
-            # Store originals for later restoration
-            self._original_print = builtins.print
-            self._original_stdout_write = sys.stdout.write
-            self._original_stderr_write = sys.stderr.write
-
-            builtins.print = self._protected_print
-            sys.stdout.write = self._protected_stdout_write
-            sys.stderr.write = self._protected_stderr_write
-
-        except Exception as e:
-            # Use original print to avoid recursion if logger depends on patched output
-            try:
-                self._original_print(f"Could not set up console output protection: {e}")
-            except Exception:
-                pass
-
-    def _should_preserve_line(self, text=None):
-        if not (self._input_active and getattr(self, "_history_file", None)):
-            return False
-        return bool(text.strip()) if text is not None else True
-
-    def _protected_print(self, *args, **kwargs):
-        """Print function that preserves readline input line."""
-        with self._print_lock:
-            if self._should_preserve_line():
-                sys.stdout.write("\r\033[K")
-                sys.stdout.flush()
-
-            self._original_print(*args, **kwargs)
-
-            if self._should_preserve_line():
-                try:
-                    readline.redisplay()
-                except (AttributeError, OSError):
-                    pass
-
-    def _protected_stdout_write(self, text):
-        """Protected stdout.write that preserves input line."""
-        with self._print_lock:
-            if self._should_preserve_line(text):
-                self._original_stdout_write("\r\033[K")
-                self._original_stdout_write(text)
-                try:
-                    readline.redisplay()
-                except (AttributeError, OSError):
-                    pass
-            else:
-                self._original_stdout_write(text)
-
-    def _protected_stderr_write(self, text):
-        """Protected stderr.write that preserves input line."""
-        with self._print_lock:
-            if self._should_preserve_line(text):
-                self._original_stderr_write("\r\033[K")
-                self._original_stderr_write(text)
-                try:
-                    readline.redisplay()
-                except (AttributeError, OSError):
-                    pass
-            else:
-                self._original_stderr_write(text)
 
     def load_configurations(self) -> bool:
         """
@@ -802,8 +671,8 @@ class BotManager:
 
         self.logger.info(f"Bot manager started with {len(self.servers)} servers")
         safe_print(
-            "\n💬 Console is ready! Type commands (!help) or chat messages.",
-            "\n[CHAT] Console is ready! Type commands (!help) or chat messages.",
+            "💬 Console is ready! Type commands (!help) or chat messages.",
+            "[CHAT] Console is ready! Type commands (!help) or chat messages.",
         )
         safe_print(
             "🔧 Commands: !help, !version, !s <location>, !ping, etc.",
@@ -1016,15 +885,7 @@ class BotManager:
                 try:
                     # Mark that input is active for output protection
                     self._input_active = True
-
-                    # Use readline for input with history and editing support
-                    if hasattr(self, "_history_file") and self._history_file:
-                        # Readline is available, use it for better input experience
-                        user_input = input("💬 > ")
-                    else:
-                        # Fallback to simple input if readline is not available
-                        user_input = input("💬 > ")
-
+                    user_input = input("💬 > ")
                     # Mark that input is no longer active
                     self._input_active = False
 
@@ -1044,36 +905,33 @@ class BotManager:
                     if user_input.startswith("!"):
                         # Process console commands
                         try:
-                            from command_loader import enhanced_process_console_command
+                            from command_loader import process_console_command
 
                             # Create bot functions for console use
                             bot_functions = self._create_console_bot_functions()
-                            enhanced_process_console_command(user_input, bot_functions)
+                            process_console_command(user_input, bot_functions)
                         except Exception as e:
                             self.logger.error(f"Console command error: {e}")
-                            print(f"❌ Command error: {e}")
                     else:
                         # Send to AI chat
                         try:
                             if self.gpt_service:
                                 response = self.gpt_service.chat(user_input, "Console")
                                 if response:
-                                    print(f"🤖 AI: {response}")
+                                    self.logger.info(f"🤖 AI: {response}")
                             else:
-                                print(
+                                self.logger.error(
                                     "🤖 AI service not available (no OpenAI API key configured)"
                                 )
                         except Exception as e:
                             self.logger.error(f"AI chat error: {e}")
-                            print(f"❌ AI chat error: {e}")
 
                 except (EOFError, KeyboardInterrupt):
-                    print("\n🛑 Console input interrupted")
+                    self.logger.error("\n🛑 Console input interrupted")
                     self.stop_event.set()
                     break
         except Exception as e:
             self.logger.error(f"Console listener error: {e}")
-            print(f"❌ Console listener error: {e}")
         finally:
             # Save command history on exit
             self._save_command_history()
@@ -1082,7 +940,9 @@ class BotManager:
         """Create bot functions dictionary for console commands."""
         return {
             # Core functions
-            "notice_message": lambda msg, irc=None, target=None: print(f"✅ {msg}"),
+            "notice_message": lambda msg, irc=None, target=None: self.logger.info(
+                f"✅ {msg}"
+            ),
             "log": self.logger.info,
             "send_weather": self._console_weather,
             "send_electricity_price": self._console_electricity,
@@ -1097,7 +957,7 @@ class BotManager:
                 if self.gpt_service
                 else "AI not available"
             ),
-            "BOT_VERSION": "2.0.0",
+            "BOT_VERSION": "2.1.0",
             "server_name": "console",
             "stop_event": self.stop_event,  # Allow console commands to trigger shutdown
             "set_quit_message": self.set_quit_message,  # Allow setting custom quit message
@@ -1137,14 +997,7 @@ class BotManager:
             # Persist to environment and .env file
             os.environ["OPENAI_MODEL"] = model
             persisted = self._update_env_file("OPENAI_MODEL", model)
-
             self.logger.info(f"🧠 OpenAI model changed from {old} to {model}")
-            # Inform on console too for visibility
-            try:
-                print(f"🧠 OpenAI model set to: {model}")
-            except Exception:
-                pass
-
             if persisted:
                 return f"✅ OpenAI model set to '{model}' (persisted)"
             else:
@@ -1156,20 +1009,22 @@ class BotManager:
     def _console_weather(self, irc, channel, location):
         """Console weather command."""
         if not self.weather_service:
-            print("☁️ Weather service not available (no WEATHER_API_KEY)")
+            self.logger.error("☁️ Weather service not available (no WEATHER_API_KEY)")
             return
 
         try:
             weather_data = self.weather_service.get_weather(location)
             response = self.weather_service.format_weather_message(weather_data)
-            print(f"🌤️ {response}")
+            self.logger.info(f"🌤️ {response}")
         except Exception as e:
-            print(f"❌ Weather error: {e}")
+            self.logger.info(f"❌ Weather error: {e}")
 
     def _console_electricity(self, irc, channel, args):
         """Console electricity price command."""
         if not self.electricity_service:
-            print("⚡ Electricity service not available (no ELECTRICITY_API_KEY)")
+            self.logger.error(
+                "⚡ Electricity service not available (no ELECTRICITY_API_KEY)"
+            )
             return
 
         try:
@@ -1180,9 +1035,9 @@ class BotManager:
                 hour=current_hour
             )
             response = self.electricity_service.format_price_message(price_data)
-            print(f"⚡ {response}")
+            self.logger.info(f"⚡ {response}")
         except Exception as e:
-            print(f"❌ Electricity error: {e}")
+            self.logger.info(f"❌ Electricity error: {e}")
 
     def get_server_by_name(self, name: str) -> Optional[Server]:
         """Get a server instance by name."""
@@ -1319,8 +1174,8 @@ class BotManager:
 
     def _send_response(self, server, target: str, message: str):
         """Send a response using NOTICE or PRIVMSG based on USE_NOTICES setting."""
-        if not server:
-            print(message)
+        if not server:  # Console output
+            self.logger.msg(message, "MSG")
             return
 
         if self.use_notices:
@@ -1373,7 +1228,7 @@ class BotManager:
         if irc and hasattr(irc, "send_message") and channel:
             self._send_response(irc, channel, response)
         else:
-            print(response)
+            self.logger.info(response)
 
     def _send_scheduled_message(
         self, irc_client, channel, message, hour, minute, second, microsecond=0
@@ -1438,7 +1293,6 @@ class BotManager:
 
         This keeps !leetwinners in sync with external announcer messages.
         """
-        self.logger.debug(f"Processing leet winner summary: {text} from {sender}")
         import re
         from datetime import datetime
 
@@ -1461,10 +1315,9 @@ class BotManager:
 
         # Check sender authorization (case-insensitive)
         if not admin_override and (not sender or sender.lower() not in ALLOWED_NICKS):
-            self.logger.debug(
-                f"Ignoring leet winner message from unauthorized sender: {sender}"
-            )
             return
+
+        self.logger.debug(f"Processing leet winner summary: {text} from {sender}")
 
         # Regex pattern for detection
         pattern = r"Ensimmäinen leettaaja oli (\S+) .*?, viimeinen oli (\S+) .*?Lähimpänä multileettiä oli (\S+)"

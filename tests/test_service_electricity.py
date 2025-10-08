@@ -157,7 +157,7 @@ class TestElectricityService(unittest.TestCase):
         self.assertIn("Virheellinen komento", result["error"])
 
     @patch("requests.get")
-    def test_fetch_daily_prices_success(self, mock_get):
+    def test_get_daily_prices_success(self, mock_get):
         """Test successful API response parsing."""
         # Mock successful API response with XML data
         xml_response = """<?xml version="1.0" encoding="UTF-8"?>
@@ -186,7 +186,7 @@ class TestElectricityService(unittest.TestCase):
         mock_get.return_value = mock_response
 
         test_date = datetime(2023, 1, 1)
-        result = self.service._fetch_daily_prices(test_date)
+        result = self.service.get_daily_prices(test_date)
 
         self.assertFalse(result["error"])
         self.assertEqual(result["date"], "2023-01-01")
@@ -196,27 +196,27 @@ class TestElectricityService(unittest.TestCase):
         self.assertEqual(result["total_hours"], 3)
 
     @patch("requests.get")
-    def test_fetch_daily_prices_api_error(self, mock_get):
+    def test_get_daily_prices_api_error(self, mock_get):
         """Test API error handling."""
         mock_response = Mock()
         mock_response.status_code = 401
         mock_get.return_value = mock_response
 
         test_date = datetime(2023, 1, 1)
-        result = self.service._fetch_daily_prices(test_date)
+        result = self.service.get_daily_prices(test_date)
 
         self.assertTrue(result["error"])
         self.assertEqual(result["status_code"], 401)
         self.assertIn("Invalid ENTSO-E API key", result["message"])
 
     @patch("requests.get")
-    def test_fetch_daily_prices_timeout(self, mock_get):
+    def test_get_daily_prices_timeout(self, mock_get):
         """Test timeout handling."""
         # Mock a timeout exception
         mock_get.side_effect = requests.exceptions.Timeout("Request timed out")
 
         test_date = datetime(2023, 1, 1)
-        result = self.service._fetch_daily_prices(test_date)
+        result = self.service.get_daily_prices(test_date)
 
         self.assertTrue(result["error"])
         self.assertIn("ENTSO-E API request timed out", result["message"])
@@ -294,7 +294,7 @@ class TestElectricityService(unittest.TestCase):
         self.assertIn("Max: 10.04 snt/kWh (klo 18)", result)
         self.assertIn("Keskiarvo: 6.28 snt/kWh", result)
 
-    @patch.object(ElectricityService, "_fetch_daily_prices")
+    @patch.object(ElectricityService, "get_daily_prices")
     def test_get_electricity_price_success(self, mock_fetch):
         """Test getting electricity price successfully."""
         # Mock the daily prices response
@@ -318,7 +318,7 @@ class TestElectricityService(unittest.TestCase):
             result["today_price"]["snt_per_kwh_with_vat"], 6.275, places=2
         )
 
-    @patch.object(ElectricityService, "_fetch_daily_prices")
+    @patch.object(ElectricityService, "get_daily_prices")
     def test_get_electricity_price_hour_0_success(self, mock_fetch):
         """Test getting electricity price for hour 0 (midnight)."""
         # Mock the calls for handling midnight price correctly
@@ -346,7 +346,7 @@ class TestElectricityService(unittest.TestCase):
         self.assertAlmostEqual(
             result["today_price"]["snt_per_kwh_with_vat"], 3.765, places=2
         )
-        # Should call _fetch_daily_prices twice: yesterday (API offset) and day before yesterday (hour 0)
+        # Should call get_daily_prices twice: yesterday (API offset) and day before yesterday (hour 0)
         self.assertEqual(mock_fetch.call_count, 2)
 
     def test_get_electricity_price_invalid_hour(self):
@@ -370,7 +370,7 @@ class TestElectricityMapping(unittest.TestCase):
         self.api_key = "test_mapping_key"
         self.service = ElectricityService(self.api_key)
 
-    @patch.object(ElectricityService, "_fetch_daily_prices")
+    @patch.object(ElectricityService, "get_daily_prices")
     def test_hour_0_mapping_today(self, mock_fetch):
         """Test that today's hour 0 correctly maps to position 24 from day before yesterday."""
         # Mock the call sequence for hour 0: first yesterday (API offset), then day before yesterday (hour 0)
@@ -392,10 +392,10 @@ class TestElectricityMapping(unittest.TestCase):
         self.assertIsNotNone(result["today_price"])
         self.assertEqual(result["today_price"]["eur_per_mwh"], 30.0)
 
-        # Should call _fetch_daily_prices twice: yesterday (API offset) and day before yesterday (hour 0)
+        # Should call get_daily_prices twice: yesterday (API offset) and day before yesterday (hour 0)
         self.assertEqual(mock_fetch.call_count, 2)
 
-    @patch.object(ElectricityService, "_fetch_daily_prices")
+    @patch.object(ElectricityService, "get_daily_prices")
     def test_hour_0_mapping_tomorrow(self, mock_fetch):
         """Test that tomorrow's hour 0 correctly uses previous day's position 24."""
         # Simulate the complete call sequence for getting hour 0 with tomorrow prices
@@ -429,7 +429,7 @@ class TestElectricityMapping(unittest.TestCase):
         self.assertEqual(result["tomorrow_price"]["eur_per_mwh"], 32.0)
         self.assertTrue(result["tomorrow_available"])
 
-    @patch.object(ElectricityService, "_fetch_daily_prices")
+    @patch.object(ElectricityService, "get_daily_prices")
     def test_regular_hours_mapping(self, mock_fetch):
         """Test that regular hours (1-23) map directly to their positions."""
         mock_fetch.return_value = {
@@ -464,7 +464,7 @@ class TestElectricityMapping(unittest.TestCase):
         self.assertFalse(result["error"])
         self.assertEqual(result["today_price"]["eur_per_mwh"], 35.0)
 
-    @patch.object(ElectricityService, "_fetch_daily_prices")
+    @patch.object(ElectricityService, "get_daily_prices")
     def test_api_offset_handling(self, mock_fetch):
         """Test that the API one-day offset is handled correctly."""
         # The service should fetch from yesterday for today's prices (except hour 0)
@@ -478,7 +478,7 @@ class TestElectricityMapping(unittest.TestCase):
             hour=15, date=test_date, include_tomorrow=False
         )
 
-        # Should call _fetch_daily_prices with yesterday's date
+        # Should call get_daily_prices with yesterday's date
         expected_api_date = test_date - timedelta(days=1)  # Jan 1
         mock_fetch.assert_called_with(expected_api_date)
 
@@ -733,7 +733,7 @@ class TestElectricityServiceIntegration(unittest.TestCase):
 
     def test_get_electricity_price_includes_tomorrow_flag(self):
         """Test that get_electricity_price includes the include_tomorrow flag in result."""
-        with patch.object(self.service, "_fetch_daily_prices") as mock_fetch:
+        with patch.object(self.service, "get_daily_prices") as mock_fetch:
             # Mock successful today fetch, failed tomorrow fetch
             mock_fetch.side_effect = [
                 {  # Today's prices

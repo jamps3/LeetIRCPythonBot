@@ -61,7 +61,7 @@ def ensure_command_registry():
 
 def test_console_command_processing():
     """Test basic console command processing."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     # Create minimal bot_functions for testing
     responses = []
@@ -92,7 +92,7 @@ def test_console_command_processing():
 
     # Test version command
     responses.clear()
-    enhanced_process_console_command("!version", bot_functions)
+    process_console_command("!version", bot_functions)
 
     # Should have gotten a version response
     assert any(
@@ -102,7 +102,7 @@ def test_console_command_processing():
 
 def test_console_weather_command():
     """Test console weather command processing."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     responses = []
 
@@ -120,7 +120,7 @@ def test_console_weather_command():
 
     # Test weather command
     responses.clear()
-    enhanced_process_console_command("!s Helsinki", bot_functions)
+    process_console_command("!s Helsinki", bot_functions)
 
     # Should have gotten weather response
     assert any(
@@ -130,7 +130,7 @@ def test_console_weather_command():
 
 def test_console_help_command():
     """Test console help command."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     responses = []
 
@@ -145,7 +145,7 @@ def test_console_help_command():
 
     # Test help command
     responses.clear()
-    enhanced_process_console_command("!help", bot_functions)
+    process_console_command("!help", bot_functions)
 
     # Should have gotten help response
     assert any(
@@ -228,7 +228,7 @@ def test_console_command_with_services():
         "BOT_VERSION": "2.0.0",
     }
 
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     # Test multiple commands
     test_commands = [
@@ -242,7 +242,7 @@ def test_console_command_with_services():
 
     for cmd in test_commands:
         responses.clear()
-        enhanced_process_console_command(cmd, bot_functions)
+        process_console_command(cmd, bot_functions)
 
         # Each command should generate at least one response
         assert responses, f"No response for command: {cmd}"
@@ -288,9 +288,9 @@ def test_compatibility_console_commands():
 
     for cmd in test_commands:
         responses.clear()
-        from command_loader import enhanced_process_console_command
+        from command_loader import process_console_command
 
-        enhanced_process_console_command(cmd, bot_functions)
+        process_console_command(cmd, bot_functions)
 
         # Each command should generate responses
         assert responses, f"No response for compatibility command: {cmd}"
@@ -333,9 +333,9 @@ def test_console_tilaa_command():
 
         # Test !tilaa list command
         responses.clear()
-        from command_loader import enhanced_process_console_command
+        from command_loader import process_console_command
 
-        enhanced_process_console_command("!tilaa list", bot_functions)
+        process_console_command("!tilaa list", bot_functions)
 
         # Should get subscription list response
         assert any(
@@ -345,9 +345,9 @@ def test_console_tilaa_command():
 
         # Test !tilaa varoitukset command
         responses.clear()
-        from command_loader import enhanced_process_console_command
+        from command_loader import process_console_command
 
-        enhanced_process_console_command("!tilaa varoitukset", bot_functions)
+        process_console_command("!tilaa varoitukset", bot_functions)
 
         # Should get subscription toggle response
         assert any(
@@ -387,9 +387,9 @@ def test_console_tilaa_missing_service():
 
     # Test !tilaa list command without service
     responses.clear()
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
-    enhanced_process_console_command("!tilaa list", bot_functions)
+    process_console_command("!tilaa list", bot_functions)
 
     # Should get error response about missing service
     assert any(
@@ -399,7 +399,7 @@ def test_console_tilaa_missing_service():
 
 def test_console_error_handling():
     """Test console command error handling."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     errors_logged = []
 
@@ -426,7 +426,7 @@ def test_console_error_handling():
     # Test command that should fail gracefully
     responses.clear()
     errors_logged.clear()
-    enhanced_process_console_command("!s Helsinki", bot_functions)
+    process_console_command("!s Helsinki", bot_functions)
 
     # Should have handled the error gracefully
     # Either by logging error or providing error response
@@ -472,9 +472,9 @@ def mock_bot_functions():
 @pytest.fixture
 def enhanced_command_processor():
     """Import the enhanced command processor."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
-    return enhanced_process_console_command
+    return process_console_command
 
 
 @pytest.mark.parametrize(
@@ -530,7 +530,7 @@ def test_parametrized_console_commands(command, enhanced_command_processor):
 )
 def test_parametrized_compatibility_console_commands(compatibility_command):
     """Test compatibility commands using the new registry-based processor."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     responses = []
 
@@ -567,7 +567,7 @@ def test_parametrized_compatibility_console_commands(compatibility_command):
 
     # Test command
     responses.clear()
-    enhanced_process_console_command(compatibility_command, bot_functions)
+    process_console_command(compatibility_command, bot_functions)
 
     # Each command should generate responses
     assert (
@@ -577,7 +577,7 @@ def test_parametrized_compatibility_console_commands(compatibility_command):
 
 def test_console_command_argument_parsing():
     """Test console command argument parsing."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     responses = []
 
@@ -596,7 +596,7 @@ def test_console_command_argument_parsing():
 
     # Test command with arguments
     responses.clear()
-    enhanced_process_console_command("!s New York", bot_functions)
+    process_console_command("!s New York", bot_functions)
 
     # Should have parsed arguments correctly
     assert any(
@@ -606,7 +606,7 @@ def test_console_command_argument_parsing():
 
 def test_console_command_case_insensitive():
     """Test console commands are case insensitive."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     responses = []
 
@@ -624,7 +624,7 @@ def test_console_command_case_insensitive():
 
     for cmd in test_cases:
         responses.clear()
-        enhanced_process_console_command(cmd, bot_functions)
+        process_console_command(cmd, bot_functions)
 
         # All should work (if case insensitive) or at least handle gracefully
         # We expect at least some response or error handling
@@ -633,7 +633,7 @@ def test_console_command_case_insensitive():
 
 def test_console_command_empty_input():
     """Test handling of empty console command input."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     responses = []
 
@@ -648,7 +648,7 @@ def test_console_command_empty_input():
 
     # Test empty command
     responses.clear()
-    enhanced_process_console_command("", bot_functions)
+    process_console_command("", bot_functions)
 
     # Should handle gracefully (no crash)
     # Response behavior may vary but should not crash
@@ -657,7 +657,7 @@ def test_console_command_empty_input():
 
 def test_console_command_unknown_command():
     """Test handling of unknown console commands."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     responses = []
 
@@ -672,7 +672,7 @@ def test_console_command_unknown_command():
 
     # Test unknown command
     responses.clear()
-    enhanced_process_console_command("!unknowncommand", bot_functions)
+    process_console_command("!unknowncommand", bot_functions)
 
     # Should handle gracefully, possibly with unknown command message
     # or silently ignore - either is acceptable
@@ -681,7 +681,7 @@ def test_console_command_unknown_command():
 
 def test_console_command_unicode_handling():
     """Test console command handling with unicode characters."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     responses = []
 
@@ -700,7 +700,7 @@ def test_console_command_unicode_handling():
 
     # Test command with unicode location
     responses.clear()
-    enhanced_process_console_command("!s Jyväskylä", bot_functions)
+    process_console_command("!s Jyväskylä", bot_functions)
 
     # Should handle unicode gracefully
     assert any(
@@ -710,7 +710,7 @@ def test_console_command_unicode_handling():
 
 def test_help_specific_command_console():
     """!help <cmd> should return specific command help in console."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     responses = []
 
@@ -724,7 +724,7 @@ def test_help_specific_command_console():
     }
 
     responses.clear()
-    enhanced_process_console_command("!help ping", bot_functions)
+    process_console_command("!help ping", bot_functions)
     assert any("ping" in str(r).lower() for r in responses)
 
 
@@ -841,7 +841,7 @@ def test_trains_command_variants_and_error(monkeypatch):
 
 def test_url_command_calls_fetch_title_and_missing_service():
     """Test url command with and without fetch_title service."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     called = {"url": None}
 
@@ -854,7 +854,7 @@ def test_url_command_calls_fetch_title_and_missing_service():
         "log": lambda *a, **k: None,
     }
 
-    enhanced_process_console_command("!url https://example.com", bot_functions)
+    process_console_command("!url https://example.com", bot_functions)
     assert called["url"] == "https://example.com"
 
     # Missing service path
@@ -862,11 +862,11 @@ def test_url_command_calls_fetch_title_and_missing_service():
         "notice_message": lambda *a, **k: None,
         "log": lambda *a, **k: None,
     }
-    enhanced_process_console_command("!url https://example.com", bot_functions2)
+    process_console_command("!url https://example.com", bot_functions2)
 
 
 def test_leetwinners_command_empty_and_with_data():
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     # Empty
     responses = []
@@ -876,7 +876,7 @@ def test_leetwinners_command_empty_and_with_data():
         "load_leet_winners": lambda: {},
     }
     responses.clear()
-    enhanced_process_console_command("!leetwinners", bot_functions)
+    process_console_command("!leetwinners", bot_functions)
     assert any("Leet" in str(r) or "𝓛𝓮𝓮𝓽" in str(r) for r in responses)
 
     # With data
@@ -886,14 +886,14 @@ def test_leetwinners_command_empty_and_with_data():
     }
     bot_functions["load_leet_winners"] = lambda: winners
     responses.clear()
-    enhanced_process_console_command("!leetwinners", bot_functions)
+    process_console_command("!leetwinners", bot_functions)
     assert responses
 
 
 def test_exit_command_console_and_irc():
     from command_loader import (
-        enhanced_process_console_command,
         enhanced_process_irc_message,
+        process_console_command,
     )
 
     # Console with stop_event
@@ -903,13 +903,13 @@ def test_exit_command_console_and_irc():
         "notice_message": lambda m, *a, **k: responses.append(m),
         "stop_event": stop_event,
     }
-    enhanced_process_console_command("!exit", bot_functions)
+    process_console_command("!exit", bot_functions)
     stop_event.set.assert_called_once()
     assert any("Shutting down" in str(r) for r in responses)
 
     # Console without stop_event
     responses.clear()
-    enhanced_process_console_command(
+    process_console_command(
         "!exit", {"notice_message": lambda m, *a, **k: responses.append(m)}
     )
     assert any("Exit command" in str(r) for r in responses)
@@ -934,7 +934,7 @@ def test_exit_command_console_and_irc():
 
 
 def test_crypto_command_variants():
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     responses = []
 
@@ -947,18 +947,18 @@ def test_crypto_command_variants():
         "get_crypto_price": lambda coin, currency="eur": "123",
     }
     responses.clear()
-    enhanced_process_console_command("!crypto btc usd", botf)
+    process_console_command("!crypto btc usd", botf)
     assert any("123 USD" in r or "Btc" in r for r in responses)
 
     # Default list
     responses.clear()
-    enhanced_process_console_command("!crypto", botf)
+    process_console_command("!crypto", botf)
     assert responses
 
 
 def test_drink_commands_full_cycle(tmp_path):
     """Cover drinkword, drink, and kraks commands using injected drink_tracker."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
     from word_tracking import DataManager, DrinkTracker
 
     dm = DataManager(str(tmp_path))
@@ -977,32 +977,32 @@ def test_drink_commands_full_cycle(tmp_path):
 
     # drinkword usage
     responses.clear()
-    enhanced_process_console_command("!drinkword", botf)
+    process_console_command("!drinkword", botf)
     assert responses and any("Käyttö" in r for r in responses)
 
     # drinkword success
     responses.clear()
-    enhanced_process_console_command("!drinkword krak", botf)
+    process_console_command("!drinkword krak", botf)
     assert responses and any("krak" in r for r in responses)
 
     # drink usage
     responses.clear()
-    enhanced_process_console_command("!drink", botf)
+    process_console_command("!drink", botf)
     assert responses and any("Käyttö" in r for r in responses)
 
     # drink success
     responses.clear()
-    enhanced_process_console_command("!drink krak", botf)
+    process_console_command("!drink krak", botf)
     assert responses and any("krak" in r for r in responses)
 
     # kraks summary
     responses.clear()
-    enhanced_process_console_command("!kraks", botf)
+    process_console_command("!kraks", botf)
     assert responses and any("Krakit" in r for r in responses)
 
 
 def test_tamagotchi_commands_basic():
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     responses = []
 
@@ -1011,9 +1011,9 @@ def test_tamagotchi_commands_basic():
 
     botf = {"notice_message": n}
 
-    enhanced_process_console_command("!tamagotchi", botf)
-    enhanced_process_console_command("!feed pizza", botf)
-    enhanced_process_console_command("!pet", botf)
+    process_console_command("!tamagotchi", botf)
+    process_console_command("!feed pizza", botf)
+    process_console_command("!pet", botf)
     assert len(responses) >= 3
 
 
@@ -1127,7 +1127,7 @@ def test_ipfs_command_usage_and_success(monkeypatch):
 
 
 def test_eurojackpot_command_branches(monkeypatch):
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     responses = []
 
@@ -1141,7 +1141,7 @@ def test_eurojackpot_command_branches(monkeypatch):
         "services.eurojackpot_service.get_eurojackpot_results", lambda: "results"
     )
     responses.clear()
-    enhanced_process_console_command("!eurojackpot tulokset", botf)
+    process_console_command("!eurojackpot tulokset", botf)
     assert responses and "results" in responses[0]
 
     # numbers path
@@ -1149,14 +1149,14 @@ def test_eurojackpot_command_branches(monkeypatch):
         "services.eurojackpot_service.get_eurojackpot_numbers", lambda: "numbers"
     )
     responses.clear()
-    enhanced_process_console_command("!eurojackpot", botf)
+    process_console_command("!eurojackpot", botf)
     assert responses and "numbers" in responses[0]
 
 
 def test_short_forecast_commands_console_and_irc(monkeypatch):
     from command_loader import (
-        enhanced_process_console_command,
         enhanced_process_irc_message,
+        process_console_command,
     )
 
     # Console short forecast
@@ -1171,7 +1171,7 @@ def test_short_forecast_commands_console_and_irc(monkeypatch):
 
     botf = {"notice_message": n}
 
-    enhanced_process_console_command("!se Joensuu 6", botf)
+    process_console_command("!se Joensuu 6", botf)
     assert resps and any("Joensuu" in r for r in resps)
 
     # IRC short forecast list with notices
@@ -1198,7 +1198,7 @@ def test_short_forecast_commands_console_and_irc(monkeypatch):
 def test_sana_topwords_leaderboard_commands(monkeypatch):
     """Cover sana, topwords and leaderboard command branches."""
     import commands as _cmd
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     # Patch search_word to return results with users
     def fake_search(word):
@@ -1213,7 +1213,7 @@ def test_sana_topwords_leaderboard_commands(monkeypatch):
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
 
     responses.clear()
-    enhanced_process_console_command("!sana testisana", botf)
+    process_console_command("!sana testisana", botf)
     assert any("Sana" in r for r in responses)
 
     # Patch data_manager and general_words for topwords
@@ -1228,7 +1228,7 @@ def test_sana_topwords_leaderboard_commands(monkeypatch):
     )
 
     responses.clear()
-    enhanced_process_console_command("!topwords Alice", botf)
+    process_console_command("!topwords Alice", botf)
     assert any("Alice@srv1" in r for r in responses)
 
     # Global leaderboard
@@ -1238,14 +1238,14 @@ def test_sana_topwords_leaderboard_commands(monkeypatch):
     monkeypatch.setattr(_cmd.general_words, "get_leaderboard", fake_leaderboard)
 
     responses.clear()
-    enhanced_process_console_command("!leaderboard", botf)
+    process_console_command("!leaderboard", botf)
     assert any("Aktiivisimmat" in r for r in responses)
 
 
 def test_kraks_no_breakdown(monkeypatch, tmp_path):
     """Cover kraks else-branch when no breakdown but top users exist."""
     import commands as _cmd
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
     from word_tracking import DataManager, DrinkTracker
 
     dm = DataManager(str(tmp_path))
@@ -1265,13 +1265,13 @@ def test_kraks_no_breakdown(monkeypatch, tmp_path):
         "drink_tracker": dt,
         "server_name": "console",
     }
-    enhanced_process_console_command("!kraks", botf)
+    process_console_command("!kraks", botf)
     assert any("Top 5" in r or "Top" in r for r in responses)
 
 
 def test_schedule_management_list_and_cancel(monkeypatch):
     """Test !scheduled list and cancel flows (require admin password)."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     class FakeService:
         def __init__(self):
@@ -1301,17 +1301,17 @@ def test_schedule_management_list_and_cancel(monkeypatch):
 
     # List
     responses.clear()
-    enhanced_process_console_command("!scheduled adm list", botf)
+    process_console_command("!scheduled adm list", botf)
     assert any("Scheduled messages" in r or "📅" in r for r in responses)
 
     # Cancel
     responses.clear()
-    enhanced_process_console_command("!scheduled adm cancel id1", botf)
+    process_console_command("!scheduled adm cancel id1", botf)
     assert any("Cancelled" in r or "✅" in r for r in responses)
 
 
 def test_ipfs_and_eurojackpot_error_paths(monkeypatch):
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     # IPFS error path
     monkeypatch.setattr(
@@ -1321,7 +1321,7 @@ def test_ipfs_and_eurojackpot_error_paths(monkeypatch):
     resps = []
     botf = {"notice_message": lambda m, *a, **k: resps.append(m)}
     resps.clear()
-    enhanced_process_console_command("!ipfs add http://x", botf)
+    process_console_command("!ipfs add http://x", botf)
     assert any("IPFS error" in r for r in resps)
 
     # Eurojackpot error path
@@ -1330,12 +1330,12 @@ def test_ipfs_and_eurojackpot_error_paths(monkeypatch):
         lambda: (_ for _ in ()).throw(Exception("down")),
     )
     resps.clear()
-    enhanced_process_console_command("!eurojackpot", botf)
+    process_console_command("!eurojackpot", botf)
     assert any("Eurojackpot error" in r for r in resps)
 
 
 def test_eurojackpot_freq_stats_hot(monkeypatch):
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     # Fake service with selected methods
     class FakeService:
@@ -1358,28 +1358,28 @@ def test_eurojackpot_freq_stats_hot(monkeypatch):
 
     # freq with flags
     responses.clear()
-    enhanced_process_console_command("!eurojackpot freq --extended --limit 7", botf)
+    process_console_command("!eurojackpot freq --extended --limit 7", botf)
     assert any("FREQ ext=True limit=7" in r for r in responses)
 
     # stats
     responses.clear()
-    enhanced_process_console_command("!eurojackpot stats", botf)
+    process_console_command("!eurojackpot stats", botf)
     assert any("DB STATS" in r for r in responses)
 
     # hot analytics
     responses.clear()
-    enhanced_process_console_command("!eurojackpot hot", botf)
+    process_console_command("!eurojackpot hot", botf)
     assert any("HOTCOLD hot" in r for r in responses)
 
 
 def test_services_missing_branches():
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     # Crypto service missing
     resps = []
     botf = {"notice_message": lambda m, *a, **k: resps.append(m)}
     resps.clear()
-    enhanced_process_console_command("!crypto", botf)
+    process_console_command("!crypto", botf)
     assert any("not available" in r for r in resps)
 
 
@@ -1466,7 +1466,7 @@ def test_weather_branch_import_logging(monkeypatch):
 
 def test_tilaa_special_cases(monkeypatch):
     """Test tilaa command edge cases."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     # Mock subscriptions service
     class FakeSubService:
@@ -1486,12 +1486,12 @@ def test_tilaa_special_cases(monkeypatch):
 
     # Test with explicit channel arg
     responses.clear()
-    enhanced_process_console_command("!tilaa varoitukset #testchannel", botf)
+    process_console_command("!tilaa varoitukset #testchannel", botf)
     assert responses
 
     # Test bad topic
     responses.clear()
-    enhanced_process_console_command("!tilaa badtopic", botf)
+    process_console_command("!tilaa badtopic", botf)
     assert any("Tuntematon" in r for r in responses)
 
 
@@ -1581,7 +1581,7 @@ def test_schedule_invalid_arg_cases(monkeypatch):
 def test_sana_no_users_branch(monkeypatch):
     """Cover sana command branch when total_occurrences>0 but no users."""
     import commands as _cmd
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     # Mock search to return total>0 but empty users
     def fake_search_no_users(word):
@@ -1591,14 +1591,14 @@ def test_sana_no_users_branch(monkeypatch):
 
     responses = []
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
-    enhanced_process_console_command("!sana xyz", botf)
+    process_console_command("!sana xyz", botf)
     assert any("Kukaan ei ole sanonut" in r for r in responses)
 
 
 def test_topwords_found_user_early_return(monkeypatch):
     """Cover topwords command early return when user found."""
     import commands as _cmd
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     monkeypatch.setattr(_cmd.data_manager, "get_all_servers", lambda: ["srv1", "srv2"])
 
@@ -1617,7 +1617,7 @@ def test_topwords_found_user_early_return(monkeypatch):
 
     responses = []
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
-    enhanced_process_console_command("!topwords Alice", botf)
+    process_console_command("!topwords Alice", botf)
     # Should find on srv1 and return early, never checking srv2
     assert any("Alice@srv1" in r and "test: 5" in r for r in responses)
 
@@ -1660,24 +1660,24 @@ def test_help_command_direct_fallbacks():
 def test_topwords_and_leaderboard_no_data(monkeypatch):
     """Cover no-data branches in topwords and leaderboard."""
     import commands as _cmd
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     # topwords no data path
     monkeypatch.setattr(_cmd.data_manager, "get_all_servers", lambda: [])
     responses = []
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
-    enhanced_process_console_command("!topwords", botf)
+    process_console_command("!topwords", botf)
     assert any("Ei vielä tarpeeksi dataa" in r for r in responses)
     # leaderboard no data path
     responses.clear()
-    enhanced_process_console_command("!leaderboard", botf)
+    process_console_command("!leaderboard", botf)
     assert any("Ei vielä tarpeeksi dataa" in r for r in responses)
 
 
 def test_drink_tracker_missing_paths(monkeypatch):
     """Force drink commands to report missing tracker by nulling globals."""
     import commands as _cmd
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     # Temporarily null trackers
     orig_dt = _cmd._drink_tracker
@@ -1685,17 +1685,17 @@ def test_drink_tracker_missing_paths(monkeypatch):
         _cmd._drink_tracker = None
         responses = []
         botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
-        enhanced_process_console_command("!drinkword krak", botf)
+        process_console_command("!drinkword krak", botf)
         assert any("ei ole käytettävissä" in r.lower() for r in responses)
         responses.clear()
-        enhanced_process_console_command("!drink krak", botf)
+        process_console_command("!drink krak", botf)
         assert any("ei ole käytettävissä" in r.lower() for r in responses)
     finally:
         _cmd._drink_tracker = orig_dt
 
 
 def test_scheduled_empty_and_not_found_and_usage(monkeypatch):
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     class EmptyService:
         def list_scheduled_messages(self):
@@ -1712,15 +1712,15 @@ def test_scheduled_empty_and_not_found_and_usage(monkeypatch):
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
     # Empty list
     responses.clear()
-    enhanced_process_console_command("!scheduled list", botf)
+    process_console_command("!scheduled list", botf)
     assert any("No messages" in r for r in responses)
     # Not found cancel
     responses.clear()
-    enhanced_process_console_command("!scheduled cancel unknown", botf)
+    process_console_command("!scheduled cancel unknown", botf)
     assert any("not found" in r.lower() for r in responses)
     # Usage
     responses.clear()
-    enhanced_process_console_command("!scheduled bogus", botf)
+    process_console_command("!scheduled bogus", botf)
     assert any("Usage" in r for r in responses)
 
 
@@ -1842,7 +1842,7 @@ def test_euribor_non_windows_and_missing_cases(monkeypatch):
 
 def test_electricity_command_with_args_split():
     """Ensure !sahko with args splits and passes parts to service."""
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     parts_captured = {}
 
@@ -1850,7 +1850,7 @@ def test_electricity_command_with_args_split():
         parts_captured["parts"] = parts
 
     botf = {"notice_message": lambda *a, **k: None, "send_electricity_price": mock_send}
-    enhanced_process_console_command("!sahko huomenna 7", botf)
+    process_console_command("!sahko huomenna 7", botf)
     assert parts_captured.get("parts") == ["sahko", "huomenna", "7"]
 
 
@@ -1936,7 +1936,7 @@ def test_tilaa_subscriber_selection_branches():
 
 def test_topwords_not_found_and_global_aggregate(monkeypatch):
     import commands as _cmd
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     # Not found branch
     monkeypatch.setattr(_cmd.data_manager, "get_all_servers", lambda: ["srv1"])
@@ -1946,7 +1946,7 @@ def test_topwords_not_found_and_global_aggregate(monkeypatch):
     responses = []
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
     responses.clear()
-    enhanced_process_console_command("!topwords Unknown", botf)
+    process_console_command("!topwords Unknown", botf)
     assert any("ei löydy" in r.lower() for r in responses)
 
     # Global aggregate
@@ -1956,12 +1956,12 @@ def test_topwords_not_found_and_global_aggregate(monkeypatch):
     monkeypatch.setattr(_cmd.general_words, "get_server_stats", server_stats)
     monkeypatch.setattr(_cmd.data_manager, "get_all_servers", lambda: ["srv1", "srv2"])
     responses.clear()
-    enhanced_process_console_command("!topwords", botf)
+    process_console_command("!topwords", botf)
     assert any("Käytetyimmät sanat" in r for r in responses)
 
 
 def test_drinkword_and_drink_no_hits(tmp_path, monkeypatch):
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
     from word_tracking import DataManager, DrinkTracker
 
     dm = DataManager(str(tmp_path))
@@ -1984,16 +1984,16 @@ def test_drinkword_and_drink_no_hits(tmp_path, monkeypatch):
         "server_name": "console",
     }
     responses.clear()
-    enhanced_process_console_command("!drinkword unknown", botf)
+    process_console_command("!drinkword unknown", botf)
     assert any("Ei osumia sanalle" in r for r in responses)
     responses.clear()
-    enhanced_process_console_command("!drink unknown", botf)
+    process_console_command("!drink unknown", botf)
     assert any("Ei osumia juomalle" in r for r in responses)
 
 
 def test_kraks_missing_tracker_and_empty(monkeypatch, tmp_path):
     import commands as _cmd
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
     from word_tracking import DataManager, DrinkTracker
 
     # Missing tracker
@@ -2002,7 +2002,7 @@ def test_kraks_missing_tracker_and_empty(monkeypatch, tmp_path):
         _cmd._drink_tracker = None
         responses = []
         botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
-        enhanced_process_console_command("!kraks", botf)
+        process_console_command("!kraks", botf)
         assert any("ei ole käytettävissä" in r.lower() for r in responses)
     finally:
         _cmd._drink_tracker = orig_dt
@@ -2015,7 +2015,7 @@ def test_kraks_missing_tracker_and_empty(monkeypatch, tmp_path):
         "drink_tracker": dt,
         "server_name": "console",
     }
-    enhanced_process_console_command("!kraks", botf2)
+    process_console_command("!kraks", botf2)
     assert any("Ei vielä krakkauksia" in r for r in responses)
 
 
@@ -2053,7 +2053,7 @@ def test_leets_invalid_datetime(monkeypatch):
 
 
 def test_scheduled_exception(monkeypatch):
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
 
     monkeypatch.setattr(
         "services.scheduled_message_service.get_scheduled_message_service",
@@ -2061,7 +2061,7 @@ def test_scheduled_exception(monkeypatch):
     )
     responses = []
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
-    enhanced_process_console_command("!scheduled list", botf)
+    process_console_command("!scheduled list", botf)
     assert any("Scheduled messages error" in r for r in responses)
 
 
@@ -2171,7 +2171,7 @@ def test_sana_usage_no_args():
 
 
 def test_drink_details_branch(monkeypatch, tmp_path):
-    from command_loader import enhanced_process_console_command
+    from command_loader import process_console_command
     from word_tracking import DataManager, DrinkTracker
 
     dm = DataManager(str(tmp_path))
@@ -2193,7 +2193,7 @@ def test_drink_details_branch(monkeypatch, tmp_path):
         "server_name": "console",
     }
     responses.clear()
-    enhanced_process_console_command("!drink some", botf)
+    process_console_command("!drink some", botf)
     assert any("top:" in r for r in responses)
 
 

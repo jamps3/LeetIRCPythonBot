@@ -6,6 +6,9 @@ supports multiple log levels and context-aware messages.
 """
 
 import os
+import readline
+import sys
+import threading
 import time
 from datetime import datetime
 from typing import Optional
@@ -38,6 +41,7 @@ class PrecisionLogger:
         Determine if a message at the given level should be logged
         based on the current log level setting.
         Undetermined levels default to DEBUG.
+        SERVER level is logged only if LOG_LEVEL is set to DEBUG or SERVER.
 
         Args:
             level: Log level of the message
@@ -47,6 +51,10 @@ class PrecisionLogger:
         level = level.upper()
         if level not in _LEVEL_ORDER:
             level = "DEBUG"  # fallback to default
+
+        # Only allow SERVER logs if LOG_LEVEL is DEBUG or SERVER
+        if level == "SERVER" and _LOG_LEVEL not in ["DEBUG", "SERVER"]:
+            return False
         return _LEVEL_ORDER.index(level) >= _LEVEL_ORDER.index(_LOG_LEVEL)
 
     def _get_timestamp(self) -> str:
@@ -68,7 +76,13 @@ class PrecisionLogger:
 
         Args:
             message: The message to log
-            level: Log level (INFO, ERROR, WARNING, DEBUG, MSG, SERVER, etc.)
+            level: Log level. Supported levels include:
+            - DEBUG   : Diagnostic messages for developers.
+            - SERVER  : Server-level events (only shown if LOG_LEVEL is DEBUG or SERVER).
+            - INFO    : General informational messages.
+            - WARNING : Non-critical issues that may require attention.
+            - ERROR   : Serious issues that may impact functionality.
+            - MSG     : Chat or message-related events.
             extra_context: Additional context information
         """
         if not self._should_log(level):
@@ -98,6 +112,7 @@ class PrecisionLogger:
     def warning(self, message: str, extra_context: str = ""):
         """Log a warning message."""
         self.log(message, "WARNING", extra_context)
+        # Symbols can be used: ⚠
 
     def debug(self, message: str, extra_context: str = ""):
         """Log a debug message."""
@@ -147,6 +162,140 @@ def log(message: str, level: str = "INFO", context: str = "", extra_context: str
         logger = _global_logger
 
     logger.log(message, level, extra_context)
+
+
+# Safe print function that handles Unicode gracefully
+def safe_print(text, fallback_text=None):
+    """Print text with Unicode fallback for Windows console compatibility."""
+    try:
+        log(text)
+    except UnicodeEncodeError:
+        # Fall back to ASCII-safe version
+        if fallback_text:
+            log(fallback_text)
+            log(
+                "Note: Original text contained Unicode characters and was replaced.",
+                level="DEBUG",
+            )
+        else:
+            # Replace common Unicode characters with ASCII equivalents
+            safe_text = (
+                text.replace("🤖", "[BOT]")
+                .replace("🚀", "[START]")
+                .replace("🛑", "[STOP]")
+                .replace("✅", "[OK]")
+                .replace("❌", "[ERROR]")
+                .replace("💥", "[ERROR]")
+                .replace("💬", "[CHAT]")
+                .replace("🔧", "[CONFIG]")
+                .replace("🗣️", "[TALK]")
+            )
+            log(safe_text)
+
+
+def _setup_console_output_protection(self):
+    """Set up console output protection to prevent log messages from overwriting input line."""
+    self._input_active = False
+    self._print_lock = threading.Lock()
+    self._original_print = print
+    self._original_stdout_write = sys.stdout.write
+    self._original_stderr_write = sys.stderr.write
+
+    # Add protection against recursive calls
+    self._protection_active = False
+
+    # TEMPORARILY DISABLE CONSOLE PROTECTION TO PREVENT HANGING ISSUES
+    # This feature can cause hanging on some systems due to terminal manipulation
+    self.logger.debug("Console output protection disabled (prevents hanging issues)")
+    self.logger.debug("To re-enable, modify _setup_console_output_protection()")
+    return
+
+    # Only set up protected output if readline is available and we're not on Windows
+    # Also check if we're in an interactive terminal to avoid issues with non-interactive environments
+    # if READLINE_AVAILABLE and os.name != "nt" and self._is_interactive_terminal():
+    #    try:
+    #        self._setup_protected_output()
+    #        self.logger.debug("Console protection enabled successfully")
+    #    except Exception as e:
+    #        self.logger.debug(f"Could not set up console output protection: {e}")
+    #        # Don't log this error as it could cause recursion
+    # else:
+    #    self.logger.debug(
+    #        "Skipping console output protection (Windows, no readline, or non-interactive)"
+    #    )
+
+
+def _setup_protected_output(self):
+    """Replace print and stdout/stderr with readline-aware versions."""
+    import builtins
+    import sys
+
+    try:
+        # Store originals for later restoration
+        self._original_print = builtins.print
+        self._original_stdout_write = sys.stdout.write
+        self._original_stderr_write = sys.stderr.write
+
+        builtins.print = self._protected_print
+        sys.stdout.write = self._protected_stdout_write
+        sys.stderr.write = self._protected_stderr_write
+
+    except Exception as e:
+        # Use original print to avoid recursion if logger depends on patched output
+        try:
+            self._original_print(f"Could not set up console output protection: {e}")
+        except Exception:
+            pass
+
+
+def _should_preserve_line(self, text=None):
+    if not (self._input_active and getattr(self, "_history_file", None)):
+        return False
+    return bool(text.strip()) if text is not None else True
+
+
+def _protected_print(self, *args, **kwargs):
+    """Print function that preserves readline input line."""
+    with self._print_lock:
+        if self._should_preserve_line():
+            sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
+
+        self._original_print(*args, **kwargs)
+
+        if self._should_preserve_line():
+            try:
+                readline.redisplay()
+            except (AttributeError, OSError):
+                pass
+
+
+def _protected_stdout_write(self, text):
+    """Protected stdout.write that preserves input line."""
+    with self._print_lock:
+        if self._should_preserve_line(text):
+            self._original_stdout_write("\r\033[K")
+            self._original_stdout_write(text)
+            try:
+                readline.redisplay()
+            except (AttributeError, OSError):
+                pass
+        else:
+            self._original_stdout_write(text)
+
+
+def _protected_stderr_write(self, text):
+    """Protected stderr.write that preserves input line."""
+    with self._print_lock:
+        if self._should_preserve_line(text):
+            self._original_stderr_write("\r\033[K")
+            self._original_stderr_write(text)
+            try:
+                readline.redisplay()
+            except (AttributeError, OSError):
+                pass
+        else:
+            self._original_stderr_write(text)
 
 
 # Convenience functions for different log levels

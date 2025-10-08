@@ -37,6 +37,7 @@ from datetime import datetime
 # Import multi-server architecture
 from bot_manager import BotManager
 from config import load_env_file
+from logger import safe_print
 
 # Import existing components that are still needed
 # from dotenv import load_dotenv
@@ -48,7 +49,6 @@ def setup_console_encoding():
     try:
         # Try to set UTF-8 encoding for stdout/stderr
         if sys.platform.startswith("win"):
-            import codecs
             import io
 
             # Force UTF-8 encoding with error handling
@@ -61,28 +61,6 @@ def setup_console_encoding():
     except Exception as e:
         # If setting encoding fails, we'll handle Unicode characters safely below
         pass
-
-
-# Safe print function that handles Unicode gracefully
-def safe_print(text, fallback_text=None):
-    """Print text with Unicode fallback for Windows console compatibility."""
-    try:
-        print(text)
-    except UnicodeEncodeError:
-        # Fall back to ASCII-safe version
-        if fallback_text:
-            print(fallback_text)
-        else:
-            # Replace common Unicode characters with ASCII equivalents
-            safe_text = (
-                text.replace("🤖", "[BOT]")
-                .replace("🚀", "[START]")
-                .replace("🛑", "[STOP]")
-                .replace("✅", "[OK]")
-                .replace("❌", "[ERROR]")
-                .replace("💥", "[ERROR]")
-            )
-            print(safe_text)
 
 
 def setup_environment():
@@ -182,8 +160,9 @@ Configuration:
 
 def main():
     """Main entry point for the multi-server IRC bot."""
-    # Setup console encoding for Unicode support
-    setup_console_encoding()
+    print("DEBUG: Entered main()")
+    # Setup console encoding for Unicode support - broken
+    # setup_console_encoding()
 
     print("=" * 60)
     safe_print(

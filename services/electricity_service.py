@@ -76,35 +76,56 @@ class ElectricityService:
                         "message": f"Invalid hour: {hour}. Must be between 0-23.",
                     }
 
-            log("[DEBUG] Fetching...")  # <-- debug here
+            log("Fetching electricity prices...", "DEBUG")
 
-            data = self._fetch_daily_prices(date)
+            data = self.get_daily_prices(date)
             if data.get("error"):
                 return data
 
             # API data may contain 15-min intervals, e.g., "00:00", "00:15", ...
             prices = data["prices"]
-            log(f"[DEBUG] Fetched daily prices for {date}: {prices}")  # <-- debug here
+            log(f"Fetched electricity prices for {date}: {prices}", "DEBUG")
             hourly_prices = {}
 
             # Group 15-minute prices into hourly averages
-            for h in range(24):
-                quarter_prices = {}
-                for q in range(4):
-                    key = f"{h:02d}:{q*15:02d}"
-                    if key in prices:
-                        quarter_prices[q + 1] = prices[key]  # 1-4
-                if quarter_prices:
-                    hourly_prices[h] = {
-                        "avg_hour_price": sum(quarter_prices.values())
-                        / len(quarter_prices),
-                        "quarter_prices": quarter_prices,
-                    }
-                else:
-                    hourly_prices[h] = {
-                        "avg_hour_price": None,
-                        "quarter_prices": {},
-                    }
+            hourly_prices = {}
+
+            if all(isinstance(k, int) for k in prices.keys()):
+                # Handle numeric keys (1–96)
+                for pos, value in prices.items():
+                    hour = (pos - 1) // 4
+                    quarter = ((pos - 1) % 4) + 1
+                    hourly_prices.setdefault(
+                        hour, {"quarter_prices": {}, "avg_hour_price": 0}
+                    )
+                    hourly_prices[hour]["quarter_prices"][quarter] = value
+
+                # Compute hourly averages
+                for hour, data in hourly_prices.items():
+                    q_prices = list(data["quarter_prices"].values())
+                    hourly_prices[hour]["avg_hour_price"] = sum(q_prices) / len(
+                        q_prices
+                    )
+
+            else:
+                # Handle string keys (HH:MM)
+                for h in range(24):
+                    quarter_prices = {}
+                    for q in range(4):
+                        key = f"{h:02d}:{q*15:02d}"
+                        if key in prices:
+                            quarter_prices[q + 1] = prices[key]  # 1-4
+                    if quarter_prices:
+                        hourly_prices[h] = {
+                            "avg_hour_price": sum(quarter_prices.values())
+                            / len(quarter_prices),
+                            "quarter_prices": quarter_prices,
+                        }
+                    else:
+                        hourly_prices[h] = {
+                            "avg_hour_price": None,
+                            "quarter_prices": {},
+                        }
 
             # Prepare today's price
             today_price = hourly_prices.get(hour)
@@ -131,7 +152,7 @@ class ElectricityService:
 
             # Fetch tomorrow's data if available
             tomorrow_date = date + timedelta(days=1)
-            tomorrow_data = self._fetch_daily_prices(tomorrow_date)
+            tomorrow_data = self.get_daily_prices(tomorrow_date)
             if not tomorrow_data.get("error"):
                 tomorrow_prices = tomorrow_data["prices"]
                 hourly_prices_tomorrow = {}
@@ -191,35 +212,6 @@ class ElectricityService:
                 "exception": str(e),
             }
 
-    def _parse_hour_quarter(self, hour_arg: str) -> tuple[int, int]:
-        """
-        Parse an hour or 15-min interval argument.
-
-        Examples:
-            "13"   -> (13, 0)
-            "13.2" -> (13, 2)
-
-        Returns:
-            Tuple of (hour, quarter)
-        """
-        try:
-            if "." in hour_arg:
-                hour_str, quarter_str = hour_arg.split(".")
-                hour = int(hour_str)
-                quarter = int(quarter_str)
-                if not (0 <= hour <= 23 and 1 <= quarter <= 4):
-                    raise ValueError
-                return hour, quarter
-            else:
-                hour = int(hour_arg)
-                if not (0 <= hour <= 23):
-                    raise ValueError
-                return hour, 0
-        except Exception:
-            raise ValueError(
-                "Virheellinen tunti- tai neljännestuntiargumentti. Käytä 0-23 tai 0-23.1-4."
-            )
-
     def get_price_statistics(self, date: Optional[datetime] = None) -> Dict[str, Any]:
         """
         Get price statistics for a specific date (min, max, average).
@@ -231,7 +223,7 @@ class ElectricityService:
             Dictionary containing price statistics or error details
         """
         try:
-            daily_prices = self._fetch_daily_prices(date)
+            daily_prices = self.get_daily_prices(date)
 
             if daily_prices.get("error"):
                 return daily_prices
@@ -266,9 +258,7 @@ class ElectricityService:
                 "exception": str(e),
             }
 
-    # ---------- Internal helpers ----------
-
-    def _fetch_daily_prices(self, date: datetime) -> Dict[str, Any]:
+    def get_daily_prices(self, date: datetime) -> Dict[str, Any]:
         """
         Fetch daily electricity prices for a specific date.
         Supports caching and namespace auto-detection.
@@ -292,14 +282,14 @@ class ElectricityService:
         date_key = date.strftime("%Y-%m-%d")
         now = datetime.now()
 
-        log(f"[DEBUG] Fetching daily prices for {date_key}...")  # <-- debug here
+        log(f"Fetching daily prices for {date_key}...", "DEBUG")
 
         # Cache lookup
         cached = self._cache.get(date_key)
         if cached and now - cached["timestamp"] < self._cache_ttl:
             return cached["data"]
 
-        log("[DEBUG] Not using cache...")  # <-- debug here
+        log("Not using cache...", "DEBUG")
 
         # Fetch from API
         try:
@@ -356,7 +346,7 @@ class ElectricityService:
 
             # Cache it
             self._cache[date_key] = {"timestamp": now, "data": result}
-            log(f"[DEBUG] Fetched daily prices for {date}: {result}")  # <-- debug here
+            log(f"Fetched daily prices for {date}: {result}", "DEBUG")
             return result
 
         except ElementTree.ParseError:
@@ -367,6 +357,37 @@ class ElectricityService:
             return {"error": True, "message": f"Request failed: {e}"}
         except Exception as e:
             return {"error": True, "message": f"Unexpected: {e}"}
+
+    # ---------- Internal helpers ----------
+
+    def _parse_hour_quarter(self, hour_arg: str) -> tuple[int, int]:
+        """
+        Parse an hour or 15-min interval argument.
+
+        Examples:
+            "13"   -> (13, 0)
+            "13.2" -> (13, 2)
+
+        Returns:
+            Tuple of (hour, quarter)
+        """
+        try:
+            if "." in hour_arg:
+                hour_str, quarter_str = hour_arg.split(".")
+                hour = int(hour_str)
+                quarter = int(quarter_str)
+                if not (0 <= hour <= 23 and 1 <= quarter <= 4):
+                    raise ValueError
+                return hour, quarter
+            else:
+                hour = int(hour_arg)
+                if not (0 <= hour <= 23):
+                    raise ValueError
+                return hour, 0
+        except Exception:
+            raise ValueError(
+                "Virheellinen tunti- tai neljännestuntiargumentti. Käytä 0-23 tai 0-23.1-4."
+            )
 
     def _convert_price(self, eur_per_mwh: float) -> float:
         """
@@ -590,7 +611,7 @@ class ElectricityService:
         avg_price = stats_data["avg_price"]
 
         # Get daily prices to create bar graph
-        daily_prices = self._fetch_daily_prices(
+        daily_prices = self.get_daily_prices(
             datetime.strptime(date_str, "%Y-%m-%d") if date_str else None
         )
 
@@ -684,7 +705,7 @@ def format_price_report(
     service: ElectricityService, date: Optional[datetime] = None
 ) -> str:
     """Generate a formatted daily price report with 15-minute interval support."""
-    data = service._fetch_daily_prices(date)
+    data = service.get_daily_prices(date)
     if data.get("error"):
         return f"Error: {data['message']}"
 

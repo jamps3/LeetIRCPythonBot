@@ -128,14 +128,14 @@ def test_electricity_mapping():
     try:
         # Get yesterday's data
         yesterday = current_date - timedelta(days=1)
-        yesterday_data = service._fetch_daily_prices(yesterday)
+        yesterday_data = service.get_daily_prices(yesterday)
 
         # Get today's data
-        today_data = service._fetch_daily_prices(current_date)
+        today_data = service.get_daily_prices(current_date)
 
         # Get tomorrow's data
         tomorrow = current_date + timedelta(days=1)
-        tomorrow_data = service._fetch_daily_prices(tomorrow)
+        tomorrow_data = service.get_daily_prices(tomorrow)
 
         print("\n📊 Raw data analysis:")
         print(f"Yesterday ({yesterday.strftime('%Y-%m-%d')}):")

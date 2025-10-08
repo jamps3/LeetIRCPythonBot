@@ -517,7 +517,7 @@ def test_send_crypto_price_and_electricity(monkeypatch, manager):
         def format_statistics_message(self, data):
             return "stats-ok"
 
-        def fetch_daily_prices(self, date):
+        def get_daily_prices(self, date):
             return [1, 2, 3]
 
         def format_daily_prices_message(self, daily, is_tomorrow=False):
@@ -1093,7 +1093,7 @@ def test_console_listener_commands_and_chat(monkeypatch, manager):
     import types
 
     _sys.modules["command_loader"] = types.SimpleNamespace(
-        enhanced_process_console_command=lambda *a, **k: (_ for _ in ()).throw(
+        process_console_command=lambda *a, **k: (_ for _ in ()).throw(
             RuntimeError("boom")
         )
     )
