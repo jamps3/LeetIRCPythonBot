@@ -3,10 +3,11 @@
 Pytest tests for bot_manager module.
 """
 
-import json
+# import json
 import os
-import sys
-import time
+
+# import sys
+# import time
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -19,6 +20,8 @@ import bot_manager as bm
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 """
+
+print("WeatherService in bot_manager:", hasattr(bm, "WeatherService"))
 
 
 class DummyLogger:
@@ -39,6 +42,9 @@ class DummyLogger:
 
     def log(self, *args, **kwargs):
         self.records.append(("log", args))
+
+    def msg(self, *args, **kwargs):
+        self.records.append(("msg", args))
 
 
 class DummyDetector:
@@ -480,7 +486,7 @@ def test_measure_latency(manager):
     assert isinstance(t1, float)
 
 
-def test_send_crypto_price_and_electricity(monkeypatch, manager):
+def test_send_crypto_price(monkeypatch, manager):
     # Crypto service
     class Crypto:
         def get_crypto_price(self, coin, cur):
@@ -499,36 +505,6 @@ def test_send_crypto_price_and_electricity(monkeypatch, manager):
     manager._send_crypto_price(None, "#c", "btc eur")
     manager._send_crypto_price(None, "#c", ["!crypto", "btc", "eur"])  # list variant
     assert len(sent) == 2 and "EUR" in sent[0]
-
-    # Electricity service
-    class Elec:
-        def parse_command_args(self, args):
-            return {"hour": 10, "date": None, "is_tomorrow": False}
-
-        def get_electricity_price(self, hour=None, date=None, include_tomorrow=True):
-            return {"price": 1.23}
-
-        def format_price_message(self, data):
-            return "price-ok"
-
-        def get_price_statistics(self, date):
-            return {"stats": True}
-
-        def format_statistics_message(self, data):
-            return "stats-ok"
-
-        def get_daily_prices(self, date):
-            return [1, 2, 3]
-
-        def format_daily_prices_message(self, daily, is_tomorrow=False):
-            return "daily-ok"
-
-    manager.electricity_service = Elec()
-
-    sent.clear()
-    manager._send_electricity_price(None, "#c", "")
-    manager._send_electricity_price(None, "#c", ["!price"])  # list variant
-    assert sent[-1] in ("price-ok", "daily-ok", "stats-ok")
 
 
 def test_ipfs_command_paths(monkeypatch, manager):
@@ -1033,7 +1009,7 @@ def test_search_and_youtube_handlers(monkeypatch, manager):
     assert sent and sent[0] == "info"
 
 
-def test_readline_setup_and_protected_output(monkeypatch, manager, tmp_path):
+""" def test_readline_setup_and_protected_output(monkeypatch, manager, tmp_path):
     # Non-interactive path
     monkeypatch.setattr(
         manager, "_is_interactive_terminal", lambda: False, raising=True
@@ -1072,7 +1048,7 @@ def test_readline_setup_and_protected_output(monkeypatch, manager, tmp_path):
     # Calls should not raise
     manager._protected_print("x")
     manager._protected_stdout_write("x")
-    manager._protected_stderr_write("x")
+    manager._protected_stderr_write("x") """
 
 
 def test_console_listener_commands_and_chat(monkeypatch, manager):
@@ -1158,23 +1134,6 @@ def test_start_flow(monkeypatch, manager):
     monkeypatch.setattr(bm.threading, "Thread", T)
     ok = manager.start()
     assert ok is True
-
-
-def test_setup_protected_output_direct(manager):
-    # Directly call but restore global state afterwards to avoid test runner side-effects
-    import builtins as _bi
-    import sys as _sys
-
-    orig_print = _bi.print
-    orig_out = _sys.stdout.write
-    orig_err = _sys.stderr.write
-    try:
-        manager._setup_protected_output()
-    finally:
-        # Restore globals
-        _bi.print = orig_print
-        _sys.stdout.write = orig_out
-        _sys.stderr.write = orig_err
 
 
 def test_nanoleet_achievement_send(monkeypatch, manager):

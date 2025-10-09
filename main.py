@@ -160,7 +160,6 @@ Configuration:
 
 def main():
     """Main entry point for the multi-server IRC bot."""
-    print("DEBUG: Entered main()")
     # Setup console encoding for Unicode support - broken
     # setup_console_encoding()
 

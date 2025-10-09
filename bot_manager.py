@@ -17,7 +17,7 @@ from logger import get_logger, safe_print
 from server import Server
 from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
 
-# Try to import readline, but handle gracefully if not available (Windows)
+# Try to import readline, but handle gracefully if not available
 try:
     import readline
 
@@ -43,6 +43,50 @@ except ImportError:
             pass
 
     readline = DummyReadline()
+
+# Optional service imports - handle gracefully if dependencies are missing
+logger = get_logger("BotManager-Imports")
+try:
+    from services.crypto_service import create_crypto_service
+except ImportError as e:
+    logger.warning(f"Warning: Crypto service not available: {e}")
+    create_crypto_service = None
+
+try:
+    from services.electricity_service import create_electricity_service
+except ImportError as e:
+    logger.warning(f"Electricity service not available: {e}")
+    create_electricity_service = None
+
+try:
+    from services.fmi_warning_service import create_fmi_warning_service
+except ImportError as e:
+    logger.warning(f"FMI warning service not available: {e}")
+    create_fmi_warning_service = None
+
+try:
+    from services.gpt_service import GPTService
+except ImportError as e:
+    logger.warning(f"GPT service not available: {e}")
+    GPTService = None
+
+try:
+    from services.otiedote_service import create_otiedote_service
+except ImportError as e:
+    logger.warning(f"Otiedote service not available: {e}")
+    create_otiedote_service = None
+
+try:
+    from services.weather_service import WeatherService
+except ImportError as e:
+    print(f"Warning: Weather service not available: {e}")
+    WeatherService = None
+
+try:
+    from services.youtube_service import create_youtube_service
+except ImportError as e:
+    logger.warning(f"YouTube service not available: {e}")
+    create_youtube_service = None
 
 
 class BotManager:
@@ -77,65 +121,25 @@ class BotManager:
         self.logger = get_logger("BotManager")
         self.logger.debug("Logger initialized.")
 
-        # Configure readline for command history and console output protection
-        self.logger.debug("Setting up readline history...")
-        try:
-            self._setup_readline_history()
-            self.logger.debug("Readline history setup complete.")
-        except Exception as e:
-            self.logger.debug(f"Readline history setup failed: {e}")
+        if READLINE_AVAILABLE:
+            self.logger.debug("Readline module is available.")
 
-        self.logger.debug("Setting up console output protection...")
-        try:
-            self._setup_console_output_protection()
-            self.logger.debug("Console output protection setup complete.")
-        except Exception as e:
-            self.logger.debug(f"Console output protection setup failed: {e}")
+            # Configure readline for command history and console output protection
+            self.logger.debug("Setting up readline history...")
+            try:
+                self._setup_readline_history()
+                self.logger.debug("Readline history setup complete.")
+            except Exception as e:
+                self.logger.debug(f"Readline history setup failed: {e}")
+
+            self.logger.debug("Setting up console output protection...")
+            try:
+                self._setup_console_output_protection()
+                self.logger.debug("Console output protection setup complete.")
+            except Exception as e:
+                self.logger.debug(f"Console output protection setup failed: {e}")
 
         self.logger.debug("Readline and console setup complete.")
-
-        # Optional service imports - handle gracefully if dependencies are missing
-        try:
-            from services.crypto_service import create_crypto_service
-        except ImportError as e:
-            self.logger.warning(f"Warning: Crypto service not available: {e}")
-            create_crypto_service = None
-
-        try:
-            from services.electricity_service import create_electricity_service
-        except ImportError as e:
-            self.logger.warning(f"Electricity service not available: {e}")
-            create_electricity_service = None
-
-        try:
-            from services.fmi_warning_service import create_fmi_warning_service
-        except ImportError as e:
-            self.logger.warning(f"FMI warning service not available: {e}")
-            create_fmi_warning_service = None
-
-        try:
-            from services.gpt_service import GPTService
-        except ImportError as e:
-            self.logger.warning(f"GPT service not available: {e}")
-            GPTService = None
-
-        try:
-            from services.otiedote_service import create_otiedote_service
-        except ImportError as e:
-            self.logger.warning(f"Otiedote service not available: {e}")
-            create_otiedote_service = None
-
-        try:
-            from services.weather_service import WeatherService
-        except ImportError as e:
-            self.logger.warning(f"Weather service not available: {e}")
-            WeatherService = None
-
-        try:
-            from services.youtube_service import create_youtube_service
-        except ImportError as e:
-            self.logger.warning(f"YouTube service not available: {e}")
-            create_youtube_service = None
 
         # Load USE_NOTICES setting
         use_notices_setting = os.getenv("USE_NOTICES", "false").lower()
