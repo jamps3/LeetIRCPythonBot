@@ -200,7 +200,7 @@ def setup_git_config():
 #   fix(irc): resolve connection timeout issue
 #   test(crypto): add comprehensive price formatting tests
 #
-# Remember: Tests run automatically before push!
+# Remember: isort, black and flake8 are run automatically before commit and tests run automatically push!
 """
 
         template_path = Path(".gitmessage")
@@ -260,7 +260,7 @@ def main():
         print("All development tools are ready!")
         print()
         print("Next steps:")
-        print("   - Run '.\test or python -m pytest' to test everything")
+        print("   - Run '.\\test or python -m pytest' to test everything")
         print("   - Run 'python -m pytest -q' for fast tests")
         print(
             "   - To run tests on commit, set PRECOMMIT_RUN_TESTS=1 in your environment"
