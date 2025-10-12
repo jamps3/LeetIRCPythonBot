@@ -103,7 +103,7 @@ class FMIWarningService:
                 if new_warnings:
                     self.callback(new_warnings)
             except Exception as e:
-                log(f"Error checking FMI warnings: {e}", level="error")
+                log.error(f"Error checking FMI warnings: {e}")
 
             # Sleep in smaller chunks to respond faster to shutdown requests
             remaining_sleep = self.check_interval

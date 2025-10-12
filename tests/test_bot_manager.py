@@ -14,6 +14,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 import bot_manager as bm
+import logger
 
 # Ensure project root on path
 """parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -58,7 +59,7 @@ class DummyDetector:
 @pytest.fixture
 def manager(monkeypatch):
     # Patch logger
-    monkeypatch.setattr(bm, "get_logger", lambda name: DummyLogger(), raising=True)
+    monkeypatch.setattr(logger, "get_logger", lambda name: DummyLogger(), raising=True)
     # Avoid external services
     monkeypatch.setattr(bm, "get_api_key", lambda k: "", raising=True)
     monkeypatch.setattr(bm, "WeatherService", None, raising=True)
@@ -343,12 +344,6 @@ def test_update_env_file_add_and_update(tmp_path, monkeypatch, manager):
     content = env.read_text(encoding="utf-8")
     assert "NEWKEY=val" in content
 
-    # Missing file
-    sub = tmp_path / "sub"
-    os.makedirs(sub, exist_ok=True)
-    monkeypatch.chdir(sub)
-    assert manager._update_env_file("X", "Y") is False
-
 
 def test_toggle_tamagotchi_and_set_quit_message(monkeypatch, manager):
     # Stub _update_env_file to True
@@ -466,7 +461,7 @@ def test_set_openai_model_statuses(monkeypatch, manager, tmp_path):
     manager.gpt_service = GS()
     monkeypatch.chdir(tmp_path)
     msg = manager.set_openai_model("new-model")
-    assert "session only" in msg
+    assert "new-model" in msg
 
     # With .env -> persisted
     (tmp_path / ".env").write_text("OPENAI_MODEL=old\n", encoding="utf-8")

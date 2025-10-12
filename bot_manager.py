@@ -118,24 +118,25 @@ class BotManager:
         self.stop_event = threading.Event()
         # Read default quit message from environment or use fallback
         self.quit_message = os.getenv("QUIT_MESSAGE", "Disconnecting")
+        self.logger = logger.get_logger("BotManager")
 
         if READLINE_AVAILABLE:
-            self.logger.debug("Readline module is available.")
+            logger.debug("Readline module is available.")
 
             # Configure readline for command history and console output protection
-            self.logger.debug("Setting up readline history...")
+            logger.debug("Setting up readline history...")
             try:
                 self._setup_readline_history()
-                self.logger.debug("Readline history setup complete.")
+                logger.debug("Readline history setup complete.")
             except Exception as e:
-                self.logger.debug(f"Readline history setup failed: {e}")
+                logger.debug(f"Readline history setup failed: {e}")
 
-            self.logger.debug("Setting up console output protection...")
+            logger.debug("Setting up console output protection...")
             try:
                 self._setup_console_output_protection()
-                self.logger.debug("Console output protection setup complete.")
+                logger.debug("Console output protection setup complete.")
             except Exception as e:
-                self.logger.debug(f"Console output protection setup failed: {e}")
+                logger.debug(f"Console output protection setup failed: {e}")
 
         logger.debug("Readline and console setup complete.")
 

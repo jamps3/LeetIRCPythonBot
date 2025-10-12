@@ -27,7 +27,7 @@ def test_logger_basic_levels_and_timestamp(capsys):
     lg.msg("m1")
     lg.server("s1")
 
-    lg.log("with extra", level="INFO", context="CtxA", extra_context="X")
+    lg.log("with extra", level="INFO", context="CtxA")
     lg.log("no ctx", level="WARNING")
 
     out = capsys.readouterr().out.strip().splitlines()

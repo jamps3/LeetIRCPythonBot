@@ -12,8 +12,7 @@ import socket  # For TLS support
 import ssl  # For TLS support
 import threading
 import time
-from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Callable
 
 from config import ServerConfig
 from logger import get_logger
@@ -77,7 +76,7 @@ class Server:
         self._rate_limit_last_refill = time.time()
         self._rate_limit_lock = threading.Lock()
 
-        self.logger = get_logger(self.config.name)
+        self.log = get_logger(self.config.name)
 
     def _refill_rate_limit_tokens(self):
         """Refill rate limiting tokens based on time elapsed.
@@ -147,9 +146,9 @@ class Server:
         """
         if event_type in self.callbacks:
             self.callbacks[event_type].append(callback)
-            self.logger.debug(f"Registered callback for {event_type} events")
+            self.log.debug(f"Registered callback for {event_type} events")
         else:
-            self.logger.warning(f"Unknown event type: {event_type}")
+            self.log.warning(f"Unknown event type: {event_type}")
 
     def connect_and_run(self):
         """
@@ -169,7 +168,7 @@ class Server:
             raw_socket.settimeout(60)
 
             if self.config.tls:
-                self.logger.info(
+                self.log.info(
                     f"Connecting to {self.config.host}:{self.config.port} with TLS=True"
                 )
 
@@ -179,7 +178,7 @@ class Server:
                     if self.config.allow_insecure_tls:
                         context.check_hostname = False
                         context.verify_mode = ssl.CERT_NONE
-                        self.logger.warning(
+                        self.log.warning(
                             "Using unverified SSL context — insecure but allows expired/broken certs"
                         )
                     else:
@@ -198,14 +197,14 @@ class Server:
                             else self.config.host
                         ),
                     )
-                    self.logger.info("Wrapped socket with TLS")
+                    self.log.info("Wrapped socket with TLS")
 
                 except Exception as e:
-                    self.logger.error(f"Failed to create SSL context: {e}")
+                    self.log.error(f"Failed to create SSL context: {e}")
                     return False
 
             else:
-                self.logger.info(
+                self.log.info(
                     f"Connecting to {self.config.host}:{self.config.port} with TLS=False"
                 )
                 self.socket = raw_socket
@@ -216,27 +215,27 @@ class Server:
             if isinstance(self.socket, ssl.SSLSocket):
                 cert = self.socket.getpeercert()
                 tls_version = self.socket.version()
-                self.logger.info(f"TLS handshake successful — using {tls_version}")
+                self.log.info(f"TLS handshake successful — using {tls_version}")
                 if cert:
                     subject = dict(x[0] for x in cert.get("subject", []))
                     cn = subject.get("commonName", "(unknown)")
-                    self.logger.info(f"TLS certificate CN: {cn}")
+                    self.log.info(f"TLS certificate CN: {cn}")
             else:
-                self.logger.warning("Connected without TLS!")
+                self.log.warning("Connected without TLS!")
 
             self.connected = True
             return True
 
         except ssl.SSLCertVerificationError as e:
-            self.logger.error(f"TLS certificate verification failed: {e}")
+            self.log.error(f"TLS certificate verification failed: {e}")
         except ssl.SSLError as e:
-            self.logger.error(
+            self.log.error(
                 f"SSL error during connect: {e}. Are you sure the server supports TLS? Is the PORT correct?"
             )
         except (socket.error, ConnectionError) as e:
-            self.logger.error(f"Failed to connect: {e}")
+            self.log.error(f"Failed to connect: {e}")
         except Exception as e:
-            self.logger.error(f"Unexpected error during connect: {e}")
+            self.log.error(f"Unexpected error during connect: {e}")
 
         self.connected = False
         return False
@@ -270,11 +269,11 @@ class Server:
 
                     for line in response.split("\r\n"):
                         if line:
-                            self.logger.server(line)
+                            self.log.server(line)
 
                         # If server says "Please wait while we process your connection", don't disconnect yet
                         if " 020 " in line:
-                            self.logger.debug(
+                            self.log.debug(
                                 "Server is still processing connection, continuing to wait..."
                             )
                             last_response_time = time.time()
@@ -282,7 +281,7 @@ class Server:
 
                         # If welcome (001) or MOTD completion (376/422) received, join channels
                         if " 001 " in line or " 376 " in line or " 422 " in line:
-                            self.logger.info("Login successful, joining channels...")
+                            self.log.info("Login successful, joining channels...")
                             self.join_channels()
                             return True
 
@@ -302,12 +301,12 @@ class Server:
             BrokenPipeError,
             socket.timeout,
         ) as e:
-            self.logger.error(f"Login failed: {e}")
+            self.log.error(f"Login failed: {e}")
             self.connected = False
             return False
 
         except Exception as e:
-            self.logger.error(f"Unexpected error during login: {e}")
+            self.log.error(f"Unexpected error during login: {e}")
             self.connected = False
             return False
 
@@ -318,10 +317,10 @@ class Server:
         ):
             if key:
                 self.send_raw(f"JOIN {channel} {key}")
-                self.logger.info(f"Joining channel {channel} with key...")
+                self.log.info(f"Joining channel {channel} with key...")
             else:
                 self.send_raw(f"JOIN {channel}")
-                self.logger.info(f"Joining channel {channel} (no key)...")
+                self.log.info(f"Joining channel {channel} (no key)...")
 
     def send_raw(self, message: str, bypass_rate_limit: bool = False):
         """
@@ -332,7 +331,7 @@ class Server:
             bypass_rate_limit (bool): If True, bypass rate limiting (for critical messages like PONG)
         """
         if not self.connected or not self.socket:
-            self.logger.warning("Cannot send message: not connected")
+            self.log.warning("Cannot send message: not connected")
             return
 
         # Apply rate limiting unless bypassed
@@ -344,7 +343,7 @@ class Server:
             if not is_critical:
                 # Wait for rate limit, but don't wait forever
                 if not self._wait_for_rate_limit(timeout=5.0):
-                    self.logger.warning(
+                    self.log.warning(
                         f"Rate limit exceeded, dropping message: {message[:50]}..."
                     )
                     return
@@ -353,9 +352,9 @@ class Server:
             self.socket.sendall(
                 f"{message}\r\n".encode(self.encoding, errors="replace")
             )
-            # self.logger.debug(f"SENT: {message}")
+            # self.log.debug(f"SENT: {message}")
         except (socket.error, BrokenPipeError) as e:
-            self.logger.error(f"Error sending message: {e}")
+            self.log.error(f"Error sending message: {e}")
             self.connected = False
 
     def send_message(self, target: str, message: str):
@@ -392,7 +391,7 @@ class Server:
                     self.send_raw("PING :keepalive")
                     self.last_ping = time.time()
                 except Exception as e:
-                    self.logger.error(f"Error sending keepalive ping: {e}")
+                    self.log.error(f"Error sending keepalive ping: {e}")
                     self.connected = False
                     break
 
@@ -407,19 +406,19 @@ class Server:
                 response = self.socket.recv(4096).decode(self.encoding, errors="ignore")
                 if not response:
                     if not self.stop_event.is_set():
-                        self.logger.warning("Connection closed by server")
+                        self.log.warning("Connection closed by server")
                         self.connected = False
                     break
 
                 for line in response.strip().split("\r\n"):
-                    self.logger.server(line.strip())
+                    self.log.server(line.strip())
 
                     # Handle PING
                     if line.startswith("PING"):
                         self.last_ping = time.time()
                         ping_value = line.split(":", 1)[1].strip()
                         self.send_raw(f"PONG :{ping_value}")
-                        self.logger.debug(f"Sent PONG response to {ping_value}")
+                        self.log.debug(f"Sent PONG response to {ping_value}")
 
                     # Process the message
                     self._process_message(line)
@@ -430,12 +429,12 @@ class Server:
 
             except (socket.error, ConnectionResetError) as e:
                 if not self.stop_event.is_set():
-                    self.logger.error(f"Connection error: {e}")
+                    self.log.error(f"Connection error: {e}")
                     self.connected = False
                 break
 
             except Exception as e:
-                self.logger.error(f"Unexpected error reading messages: {e}")
+                self.log.error(f"Unexpected error reading messages: {e}")
                 if not self.stop_event.is_set():
                     self.connected = False
                 break
@@ -456,7 +455,7 @@ class Server:
                 try:
                     callback(self, sender, target, text)
                 except Exception as e:
-                    self.logger.error(f"Error in message callback: {e}")
+                    self.log.error(f"Error in message callback: {e}")
             return
 
         # Process NOTICE
@@ -468,7 +467,7 @@ class Server:
                 try:
                     callback(self, sender, target, text)
                 except Exception as e:
-                    self.logger.error(f"Error in notice callback: {e}")
+                    self.log.error(f"Error in notice callback: {e}")
             return
 
         # Process JOIN
@@ -479,7 +478,7 @@ class Server:
                 try:
                     callback(self, sender, channel)
                 except Exception as e:
-                    self.logger.error(f"Error in join callback: {e}")
+                    self.log.error(f"Error in join callback: {e}")
             return
 
         # Process PART
@@ -490,7 +489,7 @@ class Server:
                 try:
                     callback(self, sender, channel)
                 except Exception as e:
-                    self.logger.error(f"Error in part callback: {e}")
+                    self.log.error(f"Error in part callback: {e}")
             return
 
         # Process QUIT
@@ -501,7 +500,7 @@ class Server:
                 try:
                     callback(self, sender)
                 except Exception as e:
-                    self.logger.error(f"Error in quit callback: {e}")
+                    self.log.error(f"Error in quit callback: {e}")
             return
 
     def _process_notice(self, message: str):
@@ -520,7 +519,7 @@ class Server:
                 try:
                     callback(self, sender, target, text)
                 except Exception as e:
-                    self.logger.error(f"Error in message callback: {e}")
+                    self.log.error(f"Error in message callback: {e}")
             return
 
     def start(self):
@@ -539,13 +538,13 @@ class Server:
         while not self.stop_event.is_set():
             # Check stop event before attempting connection
             if self.stop_event.is_set():
-                self.logger.info("Stop event set, exiting connection loop")
+                self.log.info("Stop event set, exiting connection loop")
                 break
 
             if self.connect() and self.login():
                 # Check stop event after successful connection
                 if self.stop_event.is_set():
-                    self.logger.info("Stop event set after connection, disconnecting")
+                    self.log.info("Stop event set after connection, disconnecting")
                     self.quit(self.quit_message)
                     break
 
@@ -575,28 +574,26 @@ class Server:
 
                 # If we're still connected but stop event is set, send QUIT
                 if self.connected and self.stop_event.is_set():
-                    self.logger.info("Stop event set, sending QUIT")
+                    self.log.info("Stop event set, sending QUIT")
                     self.quit(self.quit_message)
 
                 retry_delay = 5  # Reset retry delay
             else:
                 # Connection or login failed
                 if self.stop_event.is_set():
-                    self.logger.info(
-                        "Stop event set during connection failure, exiting"
-                    )
+                    self.log.info("Stop event set during connection failure, exiting")
                     break
 
             # Final check before considering reconnection
             if self.stop_event.is_set():
-                self.logger.info("Stop event set, not reconnecting")
+                self.log.info("Stop event set, not reconnecting")
                 break
 
             # Only attempt reconnection if stop event is not set
-            self.logger.info(f"Reconnecting in {retry_delay} seconds...")
+            self.log.info(f"Reconnecting in {retry_delay} seconds...")
             for i in range(retry_delay):
                 if self.stop_event.is_set():
-                    self.logger.info(
+                    self.log.info(
                         f"Stop event set during reconnect wait (after {i}s), exiting"
                     )
                     break
@@ -609,7 +606,7 @@ class Server:
             # Increase retry delay with a cap
             retry_delay = min(retry_delay * 2, max_retry_delay)
 
-        self.logger.info("Server start() method exiting")
+        self.log.info("Server start() method exiting")
 
     def quit(self, message: str = "Disconnecting"):
         """
@@ -628,12 +625,12 @@ class Server:
                 self._close_socket()
 
             except Exception as e:
-                self.logger.warning(f"Error during quit: {e}")
+                self.log.warning(f"Error during quit: {e}")
                 # Still try to close socket even if QUIT failed
                 self._close_socket()
 
             self.connected = False
-            self.logger.info("Disconnected from server")
+            self.log.info("Disconnected from server")
 
     def _close_socket(self):
         """Safely close the socket connection."""
@@ -643,15 +640,15 @@ class Server:
                 self.socket.shutdown(socket.SHUT_RDWR)
             except (OSError, socket.error) as e:
                 # Shutdown can fail if socket is already closed or not connected
-                self.logger.debug(f"Socket shutdown failed (expected): {e}")
+                self.log.debug(f"Socket shutdown failed (expected): {e}")
 
             try:
                 # Close the socket
                 self.socket.close()
-                self.logger.debug("Socket closed successfully")
+                self.log.debug("Socket closed successfully")
             except (OSError, socket.error) as e:
                 # Close can fail if socket is already closed
-                self.logger.debug(f"Socket close failed (expected): {e}")
+                self.log.debug(f"Socket close failed (expected): {e}")
             finally:
                 # Always clear the socket reference
                 self.socket = None
@@ -670,7 +667,7 @@ class Server:
 
         if self.connected:
             try:
-                self.logger.info(
+                self.log.info(
                     f"Stopping server connection with message: {self.quit_message}..."
                 )
 
@@ -682,7 +679,7 @@ class Server:
 
                     time.sleep(0.5)
                 except Exception as e:
-                    self.logger.warning(f"Error sending QUIT message: {e}")
+                    self.log.warning(f"Error sending QUIT message: {e}")
 
                 # Use the safe socket closing method
                 self._close_socket()
@@ -690,17 +687,17 @@ class Server:
                 # Wait for threads to finish with short timeout
                 timeout_per_thread = 1.0  # Much shorter timeout
                 for thread in self.threads:
-                    self.logger.debug(f"Waiting for thread {thread.name} to finish...")
+                    self.log.debug(f"Waiting for thread {thread.name} to finish...")
                     thread.join(timeout=timeout_per_thread)
                     if thread.is_alive():
-                        self.logger.debug(
+                        self.log.debug(
                             f"Thread {thread.name} did not finish within {timeout_per_thread}s timeout"
                         )
 
             except Exception as e:
-                self.logger.error(f"Error during server shutdown: {e}")
+                self.log.error(f"Error during server shutdown: {e}")
             finally:
                 self.connected = False
                 self.socket = None
                 self.threads = []
-                self.logger.info("Server resources cleaned up")
+                self.log.info("Server resources cleaned up")

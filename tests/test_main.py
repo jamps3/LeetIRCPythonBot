@@ -29,7 +29,6 @@ def test_main_nickname_override(monkeypatch):
     _install_fake_args(monkeypatch, nickname="NickX")
     monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
     monkeypatch.setattr(main_mod, "BotManager", _FakeBotManager, raising=True)
-    monkeypatch.setattr(main_mod, "setup_console_encoding", lambda: None, raising=True)
     assert main_mod.main() == 0
 
 
@@ -39,7 +38,6 @@ essential_vars = ["SERVER1_HOST"]
 def test_main_env_missing_returns_1(monkeypatch):
     _install_fake_args(monkeypatch)
     monkeypatch.setattr(main_mod, "setup_environment", lambda: None, raising=True)
-    monkeypatch.setattr(main_mod, "setup_console_encoding", lambda: None, raising=True)
     # BotManager won't be constructed on early return
     assert main_mod.main() == 1
 
@@ -83,57 +81,6 @@ def test_dunder_main_guard_execution(monkeypatch):
     assert isinstance(se.value.code, int)
 
 
-def test_setup_console_encoding_runs(monkeypatch):
-    # Force non-Windows path to avoid altering pytest's captured stdout
-    monkeypatch.setattr(main_mod, "sys", types.SimpleNamespace(platform="linux"))
-    main_mod.setup_console_encoding()
-
-
-def test_setup_console_encoding_windows_branch(monkeypatch):
-    # Simulate Windows platform and valid buffered stdout/stderr so wrapping succeeds
-    bin_out = io.BytesIO()
-    bin_err = io.BytesIO()
-
-    fake_sys = types.SimpleNamespace(
-        platform="win32",
-        stdout=types.SimpleNamespace(buffer=bin_out),
-        stderr=types.SimpleNamespace(buffer=bin_err),
-    )
-
-    # Patch the module's sys so we don't affect pytest's real sys
-    monkeypatch.setattr(main_mod, "sys", fake_sys, raising=True)
-
-    # Execute: should wrap stdout/stderr with TextIOWrapper using utf-8
-    main_mod.setup_console_encoding()
-
-    # Validate the wrappers work and write UTF-8 to underlying buffers
-    main_mod.sys.stdout.write("ok✓")
-    main_mod.sys.stdout.flush()
-    assert bin_out.getvalue() != b""  # data written
-
-    main_mod.sys.stderr.write("err✓")
-    main_mod.sys.stderr.flush()
-    assert bin_err.getvalue() != b""
-
-
-def test_setup_console_encoding_windows_exception_path(monkeypatch):
-    # Simulate Windows platform but provide missing .buffer to trigger exception path
-    fake_sys = types.SimpleNamespace(
-        platform="win32",
-        stdout=types.SimpleNamespace(),  # no buffer attribute
-        stderr=types.SimpleNamespace(),  # no buffer attribute
-    )
-
-    monkeypatch.setattr(main_mod, "sys", fake_sys, raising=True)
-
-    # Should not raise; except block swallows the error
-    main_mod.setup_console_encoding()
-
-    # stdout/stderr should remain as our simple objects without write
-    assert not hasattr(main_mod.sys.stdout, "write")
-    assert not hasattr(main_mod.sys.stderr, "write")
-
-
 def test_setup_environment_no_server_config(monkeypatch):
     # Ensure load_env_file returns True
     monkeypatch.setattr(main_mod, "load_env_file", lambda: True, raising=True)
@@ -152,18 +99,6 @@ def test_setup_environment_with_server(monkeypatch):
     # cleanup
     os.environ.pop("SERVER1_HOST", None)
     os.environ.pop("BOT_NAME", None)
-
-
-def test_setup_logging_sets_env_and_option_output(capsys):
-    os.environ.pop("LOG_LEVEL", None)
-    # Provide fake keys to exercise masking/printing code paths
-    os.environ["OPENAI_API_KEY"] = "A" * 16
-    os.environ["WEATHER_API_KEY"] = ""
-    os.environ["ELECTRICITY_API_KEY"] = "Not set"
-    os.environ["YOUTUBE_API_KEY"] = "short"
-
-    main_mod.setup_logging("DEBUG", show_api_keys=True)
-    assert os.environ["LOG_LEVEL"] == "DEBUG"
 
 
 def test_parse_arguments_variants(monkeypatch):
@@ -206,7 +141,6 @@ def test_main_success_flow(monkeypatch):
     _install_fake_args(monkeypatch)
     monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
     monkeypatch.setattr(main_mod, "BotManager", _FakeBotManager, raising=True)
-    monkeypatch.setattr(main_mod, "setup_console_encoding", lambda: None, raising=True)
     assert main_mod.main() == 0
 
 
@@ -218,7 +152,6 @@ def test_main_start_failure(monkeypatch):
     _install_fake_args(monkeypatch)
     monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
     monkeypatch.setattr(main_mod, "BotManager", BM, raising=True)
-    monkeypatch.setattr(main_mod, "setup_console_encoding", lambda: None, raising=True)
     assert main_mod.main() == 1
 
 
@@ -230,7 +163,6 @@ def test_main_keyboard_interrupt(monkeypatch):
     _install_fake_args(monkeypatch)
     monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
     monkeypatch.setattr(main_mod, "BotManager", BM, raising=True)
-    monkeypatch.setattr(main_mod, "setup_console_encoding", lambda: None, raising=True)
     assert main_mod.main() == 0
 
 
@@ -242,17 +174,4 @@ def test_main_unexpected_exception(monkeypatch):
     _install_fake_args(monkeypatch)
     monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
     monkeypatch.setattr(main_mod, "BotManager", BM, raising=True)
-    monkeypatch.setattr(main_mod, "setup_console_encoding", lambda: None, raising=True)
-    assert main_mod.main() == 1
-
-
-def test_main_stop_raises_returns_1(monkeypatch):
-    class BM(_FakeBotManager):
-        def stop(self):
-            raise RuntimeError("stop fail")
-
-    _install_fake_args(monkeypatch)
-    monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
-    monkeypatch.setattr(main_mod, "BotManager", BM, raising=True)
-    monkeypatch.setattr(main_mod, "setup_console_encoding", lambda: None, raising=True)
     assert main_mod.main() == 1

@@ -220,3 +220,7 @@ def msg(message: str, context: str = ""):
 def server(message: str, context: str = ""):
     """Log a server event."""
     PrecisionLogger().log(message, "SERVER", context)
+
+
+# Expose global logger:
+log = _global_logger.log
