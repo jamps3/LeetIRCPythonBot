@@ -36,14 +36,14 @@ def _check_and_repair_command_loader() -> None:
 
         def _has_required(m) -> bool:
             return hasattr(m, "process_console_command") and hasattr(
-                m, "enhanced_process_irc_message"
+                m, "process_irc_message"
             )
 
         if mod is not None and not _has_required(mod):
             _log(
                 "command_loader present but missing required attributes; "
                 f"has_console={hasattr(mod, 'process_console_command')} "
-                f"has_irc={hasattr(mod, 'enhanced_process_irc_message')} "
+                f"has_irc={hasattr(mod, 'process_irc_message')} "
                 f"type={type(mod)} repr={repr(mod)[:120]}"
             )
             try:
@@ -54,7 +54,7 @@ def _check_and_repair_command_loader() -> None:
                     "command_loader repaired via re-import; has_console="
                     + str(hasattr(mod, "process_console_command"))
                     + " has_irc="
-                    + str(hasattr(mod, "enhanced_process_irc_message"))
+                    + str(hasattr(mod, "process_irc_message"))
                 )
             except Exception:
                 _log("command_loader repair failed:\n" + _tb.format_exc())
@@ -68,7 +68,7 @@ def _check_and_repair_command_loader() -> None:
                     "command_loader imported; has_console="
                     + str(hasattr(mod, "process_console_command"))
                     + " has_irc="
-                    + str(hasattr(mod, "enhanced_process_irc_message"))
+                    + str(hasattr(mod, "process_irc_message"))
                 )
             except Exception:
                 _log("command_loader import failed:\n" + _tb.format_exc())
@@ -79,7 +79,7 @@ def _check_and_repair_command_loader() -> None:
             _log(
                 "command_loader still missing required attributes after repair: "
                 f"has_console={hasattr(mod, 'process_console_command')} "
-                f"has_irc={hasattr(mod, 'enhanced_process_irc_message')}"
+                f"has_irc={hasattr(mod, 'process_irc_message')}"
             )
     except Exception:
         _log("_check_and_repair_command_loader exception:\n" + _tb.format_exc())

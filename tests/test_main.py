@@ -134,26 +134,6 @@ def test_setup_console_encoding_windows_exception_path(monkeypatch):
     assert not hasattr(main_mod.sys.stderr, "write")
 
 
-def test_safe_print_fallback_and_sanitize(monkeypatch, capsys):
-    calls = {"n": 0}
-
-    def fake_print(text):
-        calls["n"] += 1
-        if calls["n"] == 1:
-            raise UnicodeEncodeError("utf-8", "x", 0, 1, "test")
-        # second call succeeds; capture via capsys
-        return None
-
-    import builtins
-
-    monkeypatch.setattr(builtins, "print", fake_print)
-    # With explicit fallback
-    main_mod.safe_print("🤖 hi", fallback_text="[BOT] hi")
-    # Without fallback (sanitizes)
-    calls["n"] = 0
-    main_mod.safe_print("🤖 hi")
-
-
 def test_setup_environment_no_server_config(monkeypatch):
     # Ensure load_env_file returns True
     monkeypatch.setattr(main_mod, "load_env_file", lambda: True, raising=True)

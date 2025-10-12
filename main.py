@@ -18,7 +18,7 @@ Usage:
     python main.py [options]
 
 Options:
-    -l, --loglevel LEVEL    Set logging level (ERROR, INFO, DEBUG)
+    -l, --loglevel LEVEL    Set logging level (ERROR, INFO, DEBUG), specified in .env (default: INFO)
     -nick, --nickname NAME  Set bot nickname
     -api                    Show API keys in logs (debugging)
 
@@ -34,85 +34,9 @@ import os
 import sys
 from datetime import datetime
 
-# Import multi-server architecture
+import logger
 from bot_manager import BotManager
 from config import load_env_file
-from logger import safe_print
-
-# Import existing components that are still needed
-# from dotenv import load_dotenv
-
-
-# Configure console encoding for Windows Unicode support
-def setup_console_encoding():
-    """Setup console encoding to handle Unicode characters on Windows."""
-    try:
-        # Try to set UTF-8 encoding for stdout/stderr
-        if sys.platform.startswith("win"):
-            import io
-
-            # Force UTF-8 encoding with error handling
-            sys.stdout = io.TextIOWrapper(
-                sys.stdout.buffer, encoding="utf-8", errors="replace"
-            )
-            sys.stderr = io.TextIOWrapper(
-                sys.stderr.buffer, encoding="utf-8", errors="replace"
-            )
-    except Exception as e:
-        # If setting encoding fails, we'll handle Unicode characters safely below
-        pass
-
-
-def setup_environment():
-    """Load environment variables and validate configuration."""
-    # Load .env file
-    if not load_env_file():
-        print("Warning: Could not load .env file. Using defaults where possible.")
-
-    # Validate essential configuration
-    bot_name = os.getenv("BOT_NAME", "LeetIRCBot")
-
-    # Check for at least one server configuration
-    has_server_config = any(
-        os.getenv(f"SERVER{i}_HOST")
-        for i in range(1, 10)  # Check SERVER1 through SERVER9
-    )
-
-    if not has_server_config:
-        print("ERROR: No server configurations found!")
-        print("Please configure at least one server in your .env file:")
-        print("  SERVER1_HOST=irc.example.com")
-        print("  SERVER1_PORT=6667")
-        print("  SERVER1_CHANNELS=#channel1,#channel2")
-        print("  SERVER1_KEYS=")
-        return None
-
-    return bot_name
-
-
-def setup_logging(log_level: str, show_api_keys: bool = False):
-    """Setup logging configuration."""
-    # Store log level in environment for other modules
-    os.environ["LOG_LEVEL"] = log_level
-
-    if show_api_keys:
-        print("=== API KEYS ===")
-        api_keys = [
-            "OPENAI_API_KEY",
-            "WEATHER_API_KEY",
-            "ELECTRICITY_API_KEY",
-            "YOUTUBE_API_KEY",
-        ]
-
-        for key in api_keys:
-            value = os.getenv(key, "Not set")
-            # Show first and last 5 characters for security
-            if value and value != "Not set" and len(value) > 10:
-                display_value = f"{value[:5]}...{value[-5:]}"
-            else:
-                display_value = value
-            print(f"  {key}: {display_value}")
-        print("================")
 
 
 def parse_arguments():
@@ -158,20 +82,71 @@ Configuration:
     return parser.parse_args()
 
 
+def setup_environment():
+    """Load environment variables and validate configuration."""
+    # Load .env file
+    if not load_env_file():
+        logger.warning(
+            "Warning: Could not load .env file. Using defaults where possible."
+        )
+
+    # Validate essential configuration
+    bot_name = os.getenv("BOT_NAME", "LeetIRCBot")
+
+    # Check for at least one server configuration
+    has_server_config = any(
+        os.getenv(f"SERVER{i}_HOST")
+        for i in range(1, 10)  # Check SERVER1 through SERVER9
+    )
+
+    if not has_server_config:
+        logger.error("ERROR: No server configurations found!")
+        logger.error("Please configure at least one server in your .env file:")
+        logger.error("  SERVER1_HOST=irc.example.com")
+        logger.error("  SERVER1_PORT=6667")
+        logger.error("  SERVER1_CHANNELS=#channel1,#channel2")
+        logger.error("  SERVER1_KEYS=")
+        return None
+
+    return bot_name
+
+
 def main():
     """Main entry point for the multi-server IRC bot."""
     # Setup console encoding for Unicode support - broken
     # setup_console_encoding()
 
-    print("=" * 60)
-    safe_print(
+    # Parse command line arguments
+    args = parse_arguments()
+
+    # Store log level in environment for other modules
+    if args:
+        os.environ["LOG_LEVEL"] = args.loglevel
+        if args.show_api_keys:
+            logger.info("=== API KEYS ===")
+            api_keys = [
+                "OPENAI_API_KEY",
+                "WEATHER_API_KEY",
+                "ELECTRICITY_API_KEY",
+                "YOUTUBE_API_KEY",
+            ]
+
+            for key in api_keys:
+                value = os.getenv(key, "Not set")
+                # Show first and last 5 characters for security
+                if value and value != "Not set" and len(value) > 10:
+                    display_value = f"{value[:5]}...{value[-5:]}"
+                else:
+                    display_value = value
+                logger.info(f"  {key}: {display_value}")
+            logger.info("=" * 60)
+
+    logger.info("=" * 60)
+    logger.log(
         "🤖 LeetIRC Python Bot - Multi-Server Edition",
         "[BOT] LeetIRC Python Bot - Multi-Server Edition",
     )
-    print("=" * 60)
-
-    # Parse command line arguments
-    args = parse_arguments()
+    logger.info("=" * 60)
 
     # Setup environment and get bot name
     bot_name = setup_environment()
@@ -181,15 +156,12 @@ def main():
     # Override bot name from command line if provided
     if args.nickname:
         bot_name = args.nickname
-        print(f"Using nickname from command line: {bot_name}")
+        logger.info(f"Using nickname from command line: {bot_name}")
 
-    # Setup logging
-    setup_logging(args.loglevel, args.show_api_keys)
-
-    print(f"Bot name: {bot_name}")
-    print(f"Log level: {args.loglevel}")
-    print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("-" * 60)
+    logger.info(f"Bot name: {bot_name}")
+    logger.info(f"Log level: {args.loglevel}")
+    logger.info(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info("-" * 60)
 
     # Create and start the bot manager
     bot_manager = BotManager(bot_name)
@@ -197,23 +169,23 @@ def main():
     try:
         # Start the bot
         if not bot_manager.start():
-            print("ERROR: Failed to start bot manager")
+            logger.error("ERROR: Failed to start bot manager")
             return 1
 
-        safe_print("🚀 Bot started successfully!", "[START] Bot started successfully!")
-        print("Press Ctrl+C to shutdown gracefully")
-        print("-" * 60)
+        logger.log("🚀 Bot started successfully!", "[START] Bot started successfully!")
+        logger.info("Press Ctrl+C to shutdown gracefully")
+        logger.info("-" * 60)
 
         # Wait for shutdown
         bot_manager.wait_for_shutdown()
 
     except KeyboardInterrupt:
-        print("\n" + "=" * 60)
-        safe_print("🛑 Shutdown signal received", "[STOP] Shutdown signal received")
-        print("=" * 60)
+        logger.info("\n" + "=" * 60)
+        logger.log("🛑 Shutdown signal received", "[STOP] Shutdown signal received")
+        logger.info("=" * 60)
 
     except Exception as e:
-        safe_print(f"\n💥 Unexpected error: {e}", f"\n[ERROR] Unexpected error: {e}")
+        logger.error(f"Unexpected error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -223,14 +195,13 @@ def main():
         # Ensure clean shutdown
         try:
             bot_manager.stop()
-            safe_print(
+            logger.log(
                 "✅ Bot shut down successfully", "[OK] Bot shut down successfully"
             )
         except Exception as e:
-            safe_print(
+            logger.log(
                 f"❌ Error during shutdown: {e}", f"[ERROR] Error during shutdown: {e}"
             )
-            return 1
 
     return 0
 

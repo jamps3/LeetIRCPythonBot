@@ -1,17 +1,18 @@
 """
 Data Manager for Word Tracking System
 
-Handles all data persistence using JSON format with proper error handling,
-backup functionality, and migration from old pickle format.
+Handles all data persistence using JSON format.
+Creates a backup file from the last file.
 """
 
 import json
 import os
-import pickle
 import shutil
 import socket
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+
+import logger
 
 
 class DataManager:
@@ -102,10 +103,10 @@ class DataManager:
             with open(file_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError) as e:
-            print(f"Error loading {file_path}: {e}")
+            logger.error(f"Error loading {file_path}: {e}")
             return {}
         except Exception as e:
-            print(f"Unexpected error loading {file_path}: {e}")
+            logger.error(f"Unexpected error loading {file_path}: {e}")
             return {}
 
     def save_json(self, file_path: str, data: Dict[str, Any], backup: bool = True):
@@ -147,7 +148,7 @@ class DataManager:
             temp_path = None  # consumed
 
         except Exception as e:
-            print(f"Error saving {file_path}: {e}")
+            logger.error(f"Error saving {file_path}: {e}")
             # Clean up temporary file if it exists
             try:
                 if temp_path and os.path.exists(temp_path):
@@ -232,7 +233,7 @@ class DataManager:
                         result[server].append(nick)
 
         except Exception as e:
-            print(f"Error parsing DRINK_TRACKING_OPT_OUT: {e}")
+            logger.error(f"Error parsing DRINK_TRACKING_OPT_OUT: {e}")
             return {}
 
         return result
@@ -268,7 +269,7 @@ class DataManager:
             os.environ["DRINK_TRACKING_OPT_OUT"] = env_value
             return True
         except Exception as e:
-            print(f"Error updating DRINK_TRACKING_OPT_OUT: {e}")
+            logger.error(f"Error updating DRINK_TRACKING_OPT_OUT: {e}")
             return False
 
     def is_user_opted_out(self, server: str, nick: str) -> bool:

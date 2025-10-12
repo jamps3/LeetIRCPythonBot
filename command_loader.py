@@ -269,7 +269,9 @@ def process_console_command(command_text: str, bot_functions: Dict[str, Any]):
         if log_func:
             log_func(f"Error processing console command '{command_text}': {e}", "ERROR")
         else:
-            print(f"ERROR: Console command processing failed for '{command_text}': {e}")
+            logger.error(
+                f"ERROR: Console command processing failed for '{command_text}': {e}"
+            )
 
         # Show error to user
         notice_message = bot_functions.get("notice_message")
@@ -277,7 +279,7 @@ def process_console_command(command_text: str, bot_functions: Dict[str, Any]):
             notice_message(f"Command error: {str(e)}")
 
 
-def enhanced_process_irc_message(irc, message, bot_functions):
+def process_irc_message(irc, message, bot_functions):
     """
     Process IRC messages and route commands to the command registry system.
 

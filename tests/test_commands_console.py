@@ -892,8 +892,8 @@ def test_leetwinners_command_empty_and_with_data():
 
 def test_exit_command_console_and_irc():
     from command_loader import (
-        enhanced_process_irc_message,
         process_console_command,
+        process_irc_message,
     )
 
     # Console with stop_event
@@ -927,7 +927,7 @@ def test_exit_command_console_and_irc():
             self.sent = []
 
     raw = ":nick!u@h PRIVMSG #c :!exit"
-    enhanced_process_irc_message(_DummyIrc(), raw, botf)
+    process_irc_message(_DummyIrc(), raw, botf)
     assert notices and any(
         ("only" in n.lower() and "console" in n.lower()) for n in notices
     )
@@ -1155,8 +1155,8 @@ def test_eurojackpot_command_branches(monkeypatch):
 
 def test_short_forecast_commands_console_and_irc(monkeypatch):
     from command_loader import (
-        enhanced_process_irc_message,
         process_console_command,
+        process_irc_message,
     )
 
     # Console short forecast
@@ -1191,7 +1191,7 @@ def test_short_forecast_commands_console_and_irc(monkeypatch):
             self.sent = []
 
     raw = ":nick!u@h PRIVMSG #chan :!sel TestCity 12"
-    enhanced_process_irc_message(_DummyIrc2(), raw, botfi)
+    process_irc_message(_DummyIrc2(), raw, botfi)
     assert notices and any("L1" in n[0] for n in notices)
 
 
@@ -1385,7 +1385,7 @@ def test_services_missing_branches():
 
 def test_help_irc_fallback_without_notice():
     """Test help command IRC branch when no notice_message available."""
-    from command_loader import enhanced_process_irc_message
+    from command_loader import process_irc_message
 
     class _DummyIrc3:
         def __init__(self):
@@ -1398,7 +1398,7 @@ def test_help_irc_fallback_without_notice():
     raw = ":nick!u@h PRIVMSG #c :!help"
     botf_no_irc = {"notice_message": lambda m, *a, **k: responses.append(m)}
     responses.clear()
-    enhanced_process_irc_message(_DummyIrc3(), raw, botf_no_irc)
+    process_irc_message(_DummyIrc3(), raw, botf_no_irc)
     # Should still add response in fallback
 
 

@@ -6,10 +6,11 @@ and responses to trigger words from tamagotchi.json.
 """
 
 import json
-import os
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Tuple
+
+import logger as log
 
 from .data_manager import DataManager
 
@@ -55,7 +56,7 @@ class TamagotchiBot:
             with open(self.config_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError) as e:
-            print(f"Error loading tamagotchi config: {e}")
+            log.error(f"Error loading tamagotchi config: {e}")
             return {
                 "ruoka": ["pizza", "leipä", "ateria"],
                 "rakkaus": ["rakkaus", "sydän", "ihana"],

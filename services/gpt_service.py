@@ -6,8 +6,6 @@ Provides AI chat functionality using OpenAI's GPT models with conversation histo
 
 import json
 import os
-import re
-from datetime import datetime
 from typing import Any, Dict, List
 
 from dotenv import load_dotenv
@@ -15,6 +13,8 @@ from openai import APIError as OpenAIAPIError
 from openai import AuthenticationError as OpenAIAuthenticationError
 from openai import OpenAI
 from openai import RateLimitError as OpenAIRateLimitError
+
+import logger
 
 # Load .env if available
 load_dotenv(override=True)
@@ -87,7 +87,7 @@ class GPTService:
                 ):
                     return history
             except Exception as e:
-                print(f"Error loading conversation history: {e}")
+                logger.error(f"Error loading conversation history: {e}")
         return self.default_history.copy()
 
     def _save_conversation_history(self):
@@ -102,7 +102,7 @@ class GPTService:
             with open(self.history_file, "w", encoding="utf-8") as f:
                 json.dump(self.conversation_history, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"Error saving conversation history: {e}")
+            logger.error(f"Error saving conversation history: {e}")
 
     def _build_transcript(self, latest_user: Dict[str, str]) -> str:
         parts: List[str] = []
@@ -147,10 +147,10 @@ class GPTService:
         except AuthenticationError:
             return "Authentication error with AI service."
         except APIError as e:
-            print(f"OpenAI API error: {e}")
+            logger.error(f"OpenAI API error: {e}")
             return f"Sorry, AI service error: {e}"
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            logger.error(f"Unexpected error: {e}")
             return f"Sorry, something went wrong: {e}"
 
     def reset_conversation(self) -> str:

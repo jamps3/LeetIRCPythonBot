@@ -25,5 +25,10 @@
         }
     },
     "plantuml.exportFormat": "svg",
-    "plantuml.exportOutDir": "."
+    "plantuml.exportOutDir": ".",
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }

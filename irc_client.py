@@ -12,8 +12,9 @@ import time
 import traceback
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional
 
+import logger
 from config import ServerConfig, get_config
 
 
@@ -164,7 +165,8 @@ class IRCClient:
 
     def _default_log(self, message: str, level: str = "INFO"):
         """Default logging implementation."""
-        print(f"[{level}] {message}")
+        # Main log output for irc_client.py
+        logger.log(message, level, context="IRC")
 
     def add_message_handler(
         self, message_type: IRCMessageType, handler: Callable[[IRCMessage], None]

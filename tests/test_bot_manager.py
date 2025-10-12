@@ -186,12 +186,6 @@ def test_bot_manager_initialization_with_services():
                                     ), f"Attribute {method} is not callable"
 
 
-def test_safe_print_no_error(capsys):
-    bm.safe_print("hello 🤖")
-    out = capsys.readouterr().out
-    assert "hello" in out
-
-
 def test_url_blacklist_functionality():
     """Test URL blacklisting for title fetching."""
     # Mock all dependencies
@@ -686,7 +680,7 @@ def test_handle_message_core_paths(monkeypatch, manager):
     monkeypatch.setattr(
         bm,
         "command_loader",
-        SimpleNamespace(enhanced_process_irc_message=lambda *a, **k: None),
+        SimpleNamespace(process_irc_message=lambda *a, **k: None),
         raising=False,
     )
 
@@ -1174,13 +1168,13 @@ def test_process_commands_paths(monkeypatch, manager):
     manager._process_commands(ctx)
     assert called["n"] == 1
 
-    # enhanced_process_irc_message gets called for normal text
+    # process_irc_message gets called for normal text
     import sys as _sys
     import types
 
     called2 = {"args": None}
     _sys.modules["command_loader"] = types.SimpleNamespace(
-        enhanced_process_irc_message=lambda *a, **k: called2.update({"args": a})
+        process_irc_message=lambda *a, **k: called2.update({"args": a})
     )
     ctx2 = {
         "server": server,

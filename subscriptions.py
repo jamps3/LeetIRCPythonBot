@@ -2,7 +2,9 @@ import json
 import os
 import shutil
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
+
+import logger
 
 SUBSCRIBERS_FILE = "subscriptions.json"
 
@@ -110,22 +112,22 @@ def load_subscriptions() -> Dict[str, Dict[str, List[str]]]:
         return cleaned_data
 
     except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON in {SUBSCRIBERS_FILE}: {e}")
+        logger.warning(f"Warning: Invalid JSON in {SUBSCRIBERS_FILE}: {e}")
         # Create backup of corrupted file
         backup_path = (
             f"{SUBSCRIBERS_FILE}.corrupted.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         )
         try:
             shutil.copy2(SUBSCRIBERS_FILE, backup_path)
-            print(f"Corrupted file backed up to {backup_path}")
+            logger.warning(f"Corrupted file backed up to {backup_path}")
         except Exception as backup_error:
-            print(f"Could not create backup: {backup_error}")
+            logger.error(f"Could not create backup: {backup_error}")
 
         # Return empty dict and let save_subscriptions recreate the file
         return {}
 
     except Exception as e:
-        print(f"Unexpected error loading {SUBSCRIBERS_FILE}: {e}")
+        logger.error(f"Unexpected error loading {SUBSCRIBERS_FILE}: {e}")
         return {}
 
 
@@ -141,7 +143,7 @@ def save_subscriptions(data: Dict[str, Dict[str, List[str]]]) -> bool:
             try:
                 shutil.copy2(SUBSCRIBERS_FILE, backup_path)
             except Exception as backup_error:
-                print(f"Warning: Could not create backup: {backup_error}")
+                logger.error(f"Error: Could not create backup: {backup_error}")
 
         # Write to temporary file first for atomic operation
         temp_file = f"{SUBSCRIBERS_FILE}.tmp"
@@ -153,7 +155,7 @@ def save_subscriptions(data: Dict[str, Dict[str, List[str]]]) -> bool:
         return True
 
     except Exception as e:
-        print(f"Error saving subscriptions: {e}")
+        logger.error(f"Error saving subscriptions: {e}")
         # Clean up temp file if it exists
         temp_file = f"{SUBSCRIBERS_FILE}.tmp"
         if os.path.exists(temp_file):

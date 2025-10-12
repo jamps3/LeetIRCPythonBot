@@ -258,7 +258,7 @@ Developer Tools & Scripts /
 
 Data flow overview:
 
-- IRC messages -> BotManager.\_handle_message -> command_loader.enhanced_process_irc_message -> command_registry -> commands/commands_admin -> Services
+- IRC messages -> BotManager.\_handle_message -> command_loader.process_irc_message -> command_registry -> commands/commands_admin -> Services
 - Console input -> command_loader.process_console_command -> command_registry -> commands/commands_admin -> Services
 - Background monitors (FMI/Otiedote) -> Subscriptions -> BotManager -> Servers/IRC
 

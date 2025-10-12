@@ -758,7 +758,7 @@ def test_irc_quit_command_integration():
     }
 
     # Test IRC quit command processing using command registry
-    from command_loader import enhanced_process_irc_message
+    from command_loader import process_irc_message
 
     # Create a mock IRC message for admin quit
     admin_quit_message = (
@@ -766,7 +766,7 @@ def test_irc_quit_command_integration():
     )
 
     with patch("commands_admin.verify_admin_password", return_value=True):
-        enhanced_process_irc_message(irc, admin_quit_message, bot_functions)
+        process_irc_message(irc, admin_quit_message, bot_functions)
 
     # Verify that set_quit_message was called
     assert (

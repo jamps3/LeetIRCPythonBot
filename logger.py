@@ -3,6 +3,20 @@ Precision logging utility for the IRC bot.
 
 Provides high-precision timestamps with nanosecond accuracy and
 supports multiple log levels and context-aware messages.
+
+Log Levels:
+    - DEBUG   : Diagnostic messages for developers, useful for troubleshooting and development.
+    - SERVER  : Server-level events, such as server status changes or protocol-level notifications.
+    - INFO    : General informational messages about normal operations.
+    - WARNING : Non-critical issues that may require attention or could potentially cause problems.
+    - ERROR   : Serious issues that may impact functionality or require immediate attention.
+    - MSG     : Chat or message-related events, such as user messages or bot responses.
+
+Features:
+    - Nanosecond-precision timestamps for accurate event tracking.
+    - Context-aware logging to distinguish between different bot components or servers.
+    - Unicode-safe output for compatibility across platforms.
+    - Convenient global logger and helper functions for quick logging.
 """
 
 import os
@@ -13,7 +27,14 @@ from datetime import datetime
 
 # Default log level
 _LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG").upper()
-_LEVEL_ORDER = ["DEBUG", "INFO", "WARNING", "ERROR", "MSG", "SERVER"]
+_LEVEL_ORDER = [
+    "DEBUG",
+    "SERVER",
+    "INFO",
+    "WARNING",
+    "ERROR",
+    "MSG",
+]
 
 
 class PrecisionLogger:
@@ -68,7 +89,13 @@ class PrecisionLogger:
         # Format: [2025-06-19 02:15:38.882221300]
         return f"[{now.strftime('%Y-%m-%d %H:%M:%S')}.{nanoseconds:09d}]"
 
-    def log(self, message: str, level: str = "INFO", extra_context: str = ""):
+    def log(
+        self,
+        message: str,
+        level: str = "INFO",
+        context: str = "",
+        fallback_text: str = "",
+    ):
         """
         Log a message with high-precision timestamp.
 
@@ -81,48 +108,68 @@ class PrecisionLogger:
             - WARNING : Non-critical issues that may require attention.
             - ERROR   : Serious issues that may impact functionality.
             - MSG     : Chat or message-related events.
-            extra_context: Additional context information
+            context: Additional context information
+            fallback_text: ASCII-safe fallback text if Unicode fails
         """
-        if not self._should_log(level):
-            return  # skip lower-level messages
-        timestamp = self._get_timestamp()
+        try:
+            if not self._should_log(level):  # Check log level
+                return  # skip lower-level messages
+            timestamp = self._get_timestamp()
 
-        # Build context string
-        context_parts = []
-        if level:
-            context_parts.append(f"[{level.upper():<7}]")
-        if self.context:
-            context_parts.append(f"[{self.context}]")
-        if extra_context:
-            context_parts.append(f"[{extra_context}]")
+            # Build message
+            message = []
+            if level:
+                message.append(f"[{level.upper():<7}]")
+            if context:
+                message.append(f"[{context}]")
 
-        context_str = " ".join(context_parts)
-        print(f"{timestamp} {context_str} {message}")
+        except UnicodeEncodeError:
+            # Fall back to ASCII-safe version
+            if fallback_text:
+                print(f"{timestamp} {context} {fallback_text}")
+                debug(
+                    "Note: Original text contained Unicode characters and was replaced.",
+                )
+            else:
+                # Replace common Unicode characters with ASCII equivalents
+                safe_text = (
+                    message.replace("🤖", "[BOT]")
+                    .replace("🚀", "[START]")
+                    .replace("🛑", "[STOP]")
+                    .replace("✅", "[OK]")
+                    .replace("❌", "[ERROR]")
+                    .replace("💥", "[ERROR]")
+                    .replace("💬", "[CHAT]")
+                    .replace("🔧", "[CONFIG]")
+                    .replace("🗣️", "[TALK]")
+                )
 
-    def info(self, message: str, extra_context: str = ""):
+        print(f"{timestamp} {context} {message}")  # Main log output
+
+    def info(self, message: str, context: str = ""):
         """Log an info message."""
-        self.log(message, "INFO", extra_context)
+        self.log(message, "INFO", context)
 
-    def error(self, message: str, extra_context: str = ""):
+    def error(self, message: str, context: str = ""):
         """Log an error message."""
-        self.log(message, "ERROR", extra_context)
+        self.log(message, "ERROR", context)
 
-    def warning(self, message: str, extra_context: str = ""):
+    def warning(self, message: str, context: str = ""):
         """Log a warning message."""
-        self.log(message, "WARNING", extra_context)
+        self.log(message, "WARNING", context)
         # Symbols can be used: ⚠
 
-    def debug(self, message: str, extra_context: str = ""):
+    def debug(self, message: str, context: str = ""):
         """Log a debug message."""
-        self.log(message, "DEBUG", extra_context)
+        self.log(message, "DEBUG", context)
 
-    def msg(self, message: str, extra_context: str = ""):
+    def msg(self, message: str, context: str = ""):
         """Log a message event."""
-        self.log(message, "MSG", extra_context)
+        self.log(message, "MSG", context)
 
-    def server(self, message: str, extra_context: str = ""):
+    def server(self, message: str, context: str = ""):
         """Log a server event."""
-        self.log(message, "SERVER", extra_context)
+        self.log(message, "SERVER", context)
 
 
 # Global logger instance for general use
@@ -144,79 +191,32 @@ def get_logger(context: str = "") -> PrecisionLogger:
     return _global_logger
 
 
-def log(message: str, level: str = "INFO", context: str = "", extra_context: str = ""):
-    """
-    Convenience function for quick logging.
-
-    Args:
-        message: The message to log
-        level: Log level
-        context: Primary context (e.g., server name)
-        extra_context: Additional context
-    """
-    if context:
-        logger = PrecisionLogger(context)
-    else:
-        logger = _global_logger
-
-    logger.log(message, level, extra_context)
-
-
-# Safe print function that handles Unicode gracefully
-def safe_print(text, fallback_text=None):
-    """Print text with Unicode fallback for Windows console compatibility."""
-    try:
-        log(text)
-    except UnicodeEncodeError:
-        # Fall back to ASCII-safe version
-        if fallback_text:
-            log(fallback_text)
-            log(
-                "Note: Original text contained Unicode characters and was replaced.",
-                level="DEBUG",
-            )
-        else:
-            # Replace common Unicode characters with ASCII equivalents
-            safe_text = (
-                text.replace("🤖", "[BOT]")
-                .replace("🚀", "[START]")
-                .replace("🛑", "[STOP]")
-                .replace("✅", "[OK]")
-                .replace("❌", "[ERROR]")
-                .replace("💥", "[ERROR]")
-                .replace("💬", "[CHAT]")
-                .replace("🔧", "[CONFIG]")
-                .replace("🗣️", "[TALK]")
-            )
-            log(safe_text)
-
-
 # Convenience functions for different log levels
 def info(message: str, context: str = ""):
     """Log an info message."""
-    log(message, "INFO", context)
+    PrecisionLogger().log(message, "INFO", context)
 
 
 def error(message: str, context: str = ""):
     """Log an error message."""
-    log(message, "ERROR", context)
+    PrecisionLogger().log(message, "ERROR", context)
 
 
 def warning(message: str, context: str = ""):
     """Log a warning message."""
-    log(message, "WARNING", context)
+    PrecisionLogger().log(message, "WARNING", context)
 
 
 def debug(message: str, context: str = ""):
     """Log a debug message."""
-    log(message, "DEBUG", context)
+    PrecisionLogger().log(message, "DEBUG", context)
 
 
 def msg(message: str, context: str = ""):
     """Log a message event."""
-    log(message, "MSG", context)
+    PrecisionLogger().log(message, "MSG", context)
 
 
 def server(message: str, context: str = ""):
     """Log a server event."""
-    log(message, "SERVER", context)
+    PrecisionLogger().log(message, "SERVER", context)

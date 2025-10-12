@@ -839,7 +839,7 @@ class TestTilaaChannelFix(unittest.TestCase):
         def mock_log(msg, level="INFO"):
             pass
 
-        # Minimal bot_functions needed for enhanced_process_irc_message
+        # Minimal bot_functions needed for process_irc_message
         bot_functions = {
             "notice_message": mock_notice,
             "log": mock_log,
@@ -868,9 +868,9 @@ class TestTilaaChannelFix(unittest.TestCase):
         }
 
         test_message = ":jamps!user@host.com PRIVMSG #joensuu :!tilaa varoitukset"
-        from command_loader import enhanced_process_irc_message
+        from command_loader import process_irc_message
 
-        enhanced_process_irc_message(self.mock_irc, test_message, bot_functions)
+        process_irc_message(self.mock_irc, test_message, bot_functions)
 
         self.assertTrue(responses, "Should have gotten a response")
         response = responses[0]
@@ -927,9 +927,9 @@ class TestTilaaChannelFix(unittest.TestCase):
         }
 
         test_message = ":jamps3!user@host.com PRIVMSG testbot :!tilaa varoitukset"
-        from command_loader import enhanced_process_irc_message
+        from command_loader import process_irc_message
 
-        enhanced_process_irc_message(self.mock_irc, test_message, bot_functions)
+        process_irc_message(self.mock_irc, test_message, bot_functions)
 
         self.assertTrue(responses, "Should have gotten a response")
         response = responses[0]
@@ -987,9 +987,9 @@ class TestTilaaChannelFix(unittest.TestCase):
         test_message = (
             ":jamps3!user@host.com PRIVMSG #joensuu :!tilaa varoitukset #other-channel"
         )
-        from command_loader import enhanced_process_irc_message
+        from command_loader import process_irc_message
 
-        enhanced_process_irc_message(self.mock_irc, test_message, bot_functions)
+        process_irc_message(self.mock_irc, test_message, bot_functions)
 
         self.assertTrue(responses, "Should have gotten a response")
         response = responses[0]
@@ -1054,9 +1054,9 @@ class TestTilaaChannelFix(unittest.TestCase):
         }
 
         # Add a subscription first
-        from command_loader import enhanced_process_irc_message
+        from command_loader import process_irc_message
 
-        enhanced_process_irc_message(
+        process_irc_message(
             self.mock_irc,
             ":jamps3!user@host.com PRIVMSG #testchannel :!tilaa varoitukset",
             bot_functions,
@@ -1064,7 +1064,7 @@ class TestTilaaChannelFix(unittest.TestCase):
 
         responses.clear()
         # Now list
-        enhanced_process_irc_message(
+        process_irc_message(
             self.mock_irc,
             ":jamps3!user@host.com PRIVMSG #testchannel :!tilaa list",
             bot_functions,

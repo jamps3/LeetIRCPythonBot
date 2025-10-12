@@ -3,9 +3,11 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
+
+import logger
 
 
 @dataclass
@@ -407,7 +409,9 @@ def get_server_configs() -> List[ServerConfig]:
 
     # If no server configs were found, create a default one
     if not server_configs:
-        print("Warning: No server configurations found in .env file. Using defaults.")
+        logger.warning(
+            "Warning: No server configurations found in .env file. Using defaults."
+        )
         server_configs.append(
             ServerConfig(
                 host="irc.libera.chat",

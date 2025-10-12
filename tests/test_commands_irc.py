@@ -45,15 +45,15 @@ class DummyIrc:
         self.sent.append(("NOTICE", target, msg))
 
 
-def _run_irc(enhanced_process_irc_message, raw_text, bot_functions):
+def _run_irc(process_irc_message, raw_text, bot_functions):
     mock_irc = DummyIrc()
-    enhanced_process_irc_message(mock_irc, raw_text, bot_functions)
+    process_irc_message(mock_irc, raw_text, bot_functions)
     return mock_irc
 
 
 def test_irc_weather_command_passes_irc_context():
     """!s should call send_weather with the IRC connection and channel target."""
-    from command_loader import enhanced_process_irc_message
+    from command_loader import process_irc_message
 
     calls = SimpleNamespace(args=None)
 
@@ -75,7 +75,7 @@ def test_irc_weather_command_passes_irc_context():
     # Simulate IRC channel command: :nick!u@h PRIVMSG #chan :!s Joensuu
     raw_text = ":tester!user@host PRIVMSG #test :!s Joensuu"
 
-    mock_irc = _run_irc(enhanced_process_irc_message, raw_text, bot_functions)
+    mock_irc = _run_irc(process_irc_message, raw_text, bot_functions)
 
     # Ensure our mock was called and IRC context was provided
     assert calls.args is not None, "send_weather was not called"
@@ -87,7 +87,7 @@ def test_irc_weather_command_passes_irc_context():
 
 def test_irc_electricity_command_passes_irc_context():
     """!sahko should call send_electricity_price with the IRC connection and channel."""
-    from command_loader import enhanced_process_irc_message
+    from command_loader import process_irc_message
 
     calls = SimpleNamespace(args=None)
 
@@ -108,7 +108,7 @@ def test_irc_electricity_command_passes_irc_context():
     # Simulate IRC channel command: :nick!u@h PRIVMSG #chan :!sahko
     raw_text = ":tester!user@host PRIVMSG #test :!sahko"
 
-    mock_irc = _run_irc(enhanced_process_irc_message, raw_text, bot_functions)
+    mock_irc = _run_irc(process_irc_message, raw_text, bot_functions)
 
     assert calls.args is not None, "send_electricity_price was not called"
     irc_arg, target_arg, parts_arg = calls.args
@@ -400,7 +400,7 @@ def test_kraks_command_all_drink_word_patterns(drink_tracker):
 
 
 def test_help_specific_irc_sends_lines_to_nick():
-    from command_loader import enhanced_process_irc_message
+    from command_loader import process_irc_message
 
     notices = []
 
@@ -409,7 +409,7 @@ def test_help_specific_irc_sends_lines_to_nick():
 
     botf = {"notice_message": mock_notice}
     raw = ":tester!user@host PRIVMSG #test :!help ping"
-    _run_help(enhanced_process_irc_message, raw, botf)
+    _run_help(process_irc_message, raw, botf)
 
     assert notices and all(t == "tester" for t, _ in notices)
     assert any("ping" in m.lower() for _, m in notices)
@@ -665,14 +665,14 @@ class TestSolarWindCommand:
 # =========================
 
 
-def _run_help(enhanced_process_irc_message, raw_text, bot_functions):
+def _run_help(process_irc_message, raw_text, bot_functions):
     irc = DummyIrc()
-    enhanced_process_irc_message(irc, raw_text, bot_functions)
+    process_irc_message(irc, raw_text, bot_functions)
     return irc
 
 
 def test_help_sends_private_to_nick_and_has_no_duplicates():
-    from command_loader import enhanced_process_irc_message
+    from command_loader import process_irc_message
 
     notices = []
 
@@ -689,7 +689,7 @@ def test_help_sends_private_to_nick_and_has_no_duplicates():
     # :nick!user@host PRIVMSG #chan :!help
     raw = ":tester!user@host PRIVMSG #test :!help"
 
-    irc = _run_help(enhanced_process_irc_message, raw, bot_functions)
+    irc = _run_help(process_irc_message, raw, bot_functions)
 
     # Ensure we sent something
     assert notices, "!help should produce NOTICE lines"

@@ -3,9 +3,8 @@
 Pytest tests for logger module.
 """
 
+import builtins
 import re
-
-import pytest
 
 import logger as lg
 
@@ -47,3 +46,27 @@ def test_logger_basic_levels_and_timestamp(capsys):
     assert "[SERVER ]" in joined
     assert "[ModuleCtx]" in joined
     assert "[CtxA]" in joined and "[X]" in joined
+
+
+def test_safe_print_fallback_and_sanitize(monkeypatch, capsys):
+    calls = {"n": 0}
+
+    def fake_print(text):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise UnicodeEncodeError("utf-8", "x", 0, 1, "test")
+        # second call succeeds; capture via capsys
+        return None
+
+    monkeypatch.setattr(builtins, "print", fake_print)
+    # With explicit fallback
+    lg.log("🤖 hi", fallback_text="[BOT] hi")
+    out = capsys.readouterr().out
+    assert "[BOT] hi" in out
+
+    # Without fallback (sanitizes)
+    calls["n"] = 0
+    lg.log("🤖 hi")
+    out2 = capsys.readouterr().out
+    # Should print a sanitized version (no emoji)
+    assert "hi" in out2

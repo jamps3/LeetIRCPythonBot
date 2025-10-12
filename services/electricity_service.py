@@ -1,12 +1,11 @@
 """
 Electricity Service Module 2.1
-
 Provides Finnish electricity price information using ENTSO-E API.
 Supports caching, fetching prices for specific hours, 15-minute intervals, and statistics.
 """
 
 import xml.etree.ElementTree as ElementTree
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from io import StringIO
 from typing import Any, Dict, List, Optional
@@ -29,7 +28,6 @@ class ElectricityService:
         self._cache_ttl = timedelta(hours=cache_ttl_hours)
         self.sahko_url = "https://liukuri.fi"
         self.timezone = pytz.timezone("Europe/Helsinki")
-        self.api_timezone = pytz.timezone("Europe/Brussels")  # ENTSO-E uses CET
 
     # ---------- Public API ----------
 
@@ -79,7 +77,8 @@ class ElectricityService:
             # Compute hourly averages
             for h, data in hourly_prices.items():
                 q_prices = list(data["quarter_prices"].values())
-                data["avg_hour_eur_mwh"] = sum(q_prices) / len(q_prices)
+                if q_prices:
+                    data["avg_hour_eur_mwh"] = sum(q_prices) / len(q_prices)
 
             # Check if requested hour exists
             if hour not in hourly_prices:
@@ -120,7 +119,8 @@ class ElectricityService:
                     hourly_prices_tomorrow[h]["quarter_prices"][q] = price
                 for h, data in hourly_prices_tomorrow.items():
                     q_prices = list(data["quarter_prices"].values())
-                    data["avg_hour_eur_mwh"] = sum(q_prices) / len(q_prices)
+                    if q_prices:
+                        data["avg_hour_eur_mwh"] = sum(q_prices) / len(q_prices)
                 if hour in hourly_prices_tomorrow:
                     tomorrow_price = hourly_prices_tomorrow[hour]
                     result["tomorrow_price"] = {
@@ -158,8 +158,14 @@ class ElectricityService:
         #    return cached["data"]
 
         try:
-            period_start = date.strftime("%Y%m%d") + "0000"
-            period_end = (date + timedelta(days=1)).strftime("%Y%m%d") + "0000"
+            local_start = self.timezone.localize(datetime.combine(date, time(0, 0)))
+            utc_start = local_start.astimezone(pytz.utc)
+            period_start = utc_start.strftime("%Y%m%d%H%M")
+
+            local_end = local_start + timedelta(days=1)
+            utc_end = local_end.astimezone(pytz.utc)
+            period_end = utc_end.strftime("%Y%m%d%H%M")
+
             params = {
                 "securityToken": self.api_key,
                 "documentType": "A44",
@@ -175,33 +181,53 @@ class ElectricityService:
             tree = ElementTree.parse(StringIO(response.text))
             ns = {"ns": tree.getroot().tag.split("}")[0].strip("{")}
 
-            prices: Dict[int, float] = {}
-            for p in tree.findall(".//ns:Point", ns):
-                pos = int(p.find("ns:position", ns).text)
-                price = float(p.find("ns:price.amount", ns).text)
-                prices[pos] = price
-
-            # Map positions to 15-min intervals in EEST (adjust for CET to EEST): (hour, quarter)
             interval_prices: Dict[tuple[int, int], float] = {}
-            for pos, price in prices.items():
-                # ENTSO-E positions are in CET; adjust to EEST (UTC+3 in October 2025)
-                cet_time = datetime.strptime(f"{date_key} 00:00", "%Y-%m-%d %H:%M")
-                cet_time = self.api_timezone.localize(cet_time)  # CET time
-                eest_time = cet_time.astimezone(self.timezone)  # Convert to EEST
-                minutes_offset = (pos - 1) * 15  # Each position is 15 minutes
-                eest_time = eest_time + timedelta(minutes=minutes_offset)
-                hour = eest_time.hour
-                quarter = ((pos - 1) % 4) + 1
-                interval_prices[(hour, quarter)] = price
+
+            timeseries = tree.findall(".//ns:TimeSeries", ns)
+            for ts in timeseries:
+                period = ts.find("ns:Period", ns)
+                if period is None:
+                    continue
+                ti = period.find("ns:timeInterval", ns)
+                start_str = ti.find("ns:start", ns).text
+                res = period.find("ns:resolution", ns).text
+
+                if res == "PT15M":
+                    res_min = 15
+                elif res == "PT60M":
+                    res_min = 60
+                else:
+                    continue  # Unsupported
+
+                start_time = datetime.strptime(start_str, "%Y-%m-%dT%H:%MZ").replace(
+                    tzinfo=pytz.utc
+                )
+
+                for point in period.findall("ns:Point", ns):
+                    pos = int(point.find("ns:position", ns).text)
+                    price = float(point.find("ns:price.amount", ns).text)
+                    minutes_offset = (pos - 1) * res_min
+                    interval_utc = start_time + timedelta(minutes=minutes_offset)
+                    interval_local = interval_utc.astimezone(self.timezone)
+                    hour = interval_local.hour
+                    minute = interval_local.minute
+                    quarter = (minute // 15) + 1
+                    interval_prices[(hour, quarter)] = price
+
+            # If resolution is 60M, duplicate price for all quarters in the hour
+            if res == "PT60M":
+                for (h, q), price in list(interval_prices.items()):
+                    if q == 1:  # Only set for quarter 1 in hourly
+                        for extra_q in [2, 3, 4]:
+                            interval_prices[(h, extra_q)] = price
 
             # Debug print all interval_prices
-            for (h, q), price in interval_prices.items():
-                print(f"Interval: hour={h}, quarter={q}, price={price}")
+            # for (h, q), price in interval_prices.items():
+            #     log(f"Interval: hour={h}, quarter={q}, price={price}")
 
             result = {
                 "error": False,
                 "date": date_key,
-                "prices": prices,
                 "interval_prices": interval_prices,
             }
 
@@ -258,7 +284,7 @@ class ElectricityService:
         Safely handles missing quarter data.
         """
         if price_data.get("error"):
-            return f"⚡ Sähkön hintatietojen haku epäonnistui: {price_data.get('message', 'Tuntematon virhe')}"
+            return f" Sähkön hintatietojen haku epäonnistui: {price_data.get('message', 'Tuntematon virhe')}"
 
         date_str = price_data["date"]
         hour = price_data["hour"]
@@ -287,7 +313,7 @@ class ElectricityService:
         # Today's price
         if today_price:
             message_parts.append(
-                f"⚡ Tänään {date_str} {format_single(today_price, hour, quarter)}"
+                f" Tänään {date_str} {format_single(today_price, hour, quarter)}"
             )
 
         # Tomorrow's price
@@ -296,19 +322,17 @@ class ElectricityService:
                 datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=1)
             ).strftime("%Y-%m-%d")
             message_parts.append(
-                f"⚡ Huomenna {tomorrow_date} {format_single(tomorrow_price, hour, quarter)}"
+                f" Huomenna {tomorrow_date} {format_single(tomorrow_price, hour, quarter)}"
             )
         elif price_data.get("include_tomorrow", True) and not tomorrow_available:
-            message_parts.append("⚡ Huomisen hintaa ei vielä saatavilla")
+            message_parts.append(" Huomisen hintaa ei vielä saatavilla")
 
         if not message_parts:
-            return f"⚡ Sähkön hintatietoja ei saatavilla tunnille {hour:02d}. Lisätietoja: {self.sahko_url}"
+            return f" Sähkön hintatietoja ei saatavilla tunnille {hour:02d}. Lisätietoja: {self.sahko_url}"
 
         return " | ".join(message_parts)
 
 
 # ---------- Factory function ----------
-
-
 def create_electricity_service(api_key: str) -> ElectricityService:
     return ElectricityService(api_key)
