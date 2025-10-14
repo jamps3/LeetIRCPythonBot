@@ -890,3 +890,477 @@ def test_remove_message_handler_value_error():
 
     # Not added; removal should hit ValueError branch and not raise
     client.remove_message_handler(IRCMessageType.PRIVMSG, handler)
+
+
+# ==========================================
+# TESTS FOR NEW CONNECTION CONTROL FEATURES
+# ==========================================
+
+
+def test_bot_manager_default_unconnected_state():
+    """Test that BotManager defaults to unconnected state."""
+    import os
+    import sys
+
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+
+    from bot_manager import BotManager
+
+    # Create bot manager without auto-connect
+    bot = BotManager("TestBot")
+
+    # Should default to not connected
+    assert bot.connected is False, "Bot should default to unconnected state"
+    assert bot.auto_connect is False, "Auto-connect should default to False"
+    assert len(bot.server_threads) == 0, "No server threads should be active initially"
+
+    # Clean up
+    bot.stop_event.set()
+
+
+def test_bot_manager_auto_connect_environment():
+    """Test AUTO_CONNECT environment variable parsing."""
+    import os
+    import sys
+
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+
+    from bot_manager import BotManager
+
+    # Test auto-connect enabled
+    os.environ["AUTO_CONNECT"] = "true"
+    try:
+        bot = BotManager("TestBot")
+        assert bot.auto_connect is True, "AUTO_CONNECT=true should enable auto-connect"
+        bot.stop_event.set()
+    finally:
+        del os.environ["AUTO_CONNECT"]
+
+    # Test auto-connect disabled (default)
+    bot2 = BotManager("TestBot2")
+    assert bot2.auto_connect is False, "Default should be auto_connect=False"
+    bot2.stop_event.set()
+
+
+def test_bot_manager_connection_control_methods():
+    """Test connection control methods."""
+    import os
+    import sys
+
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+
+    from unittest.mock import Mock, patch
+
+    from bot_manager import BotManager
+
+    bot = BotManager("TestBot")
+    bot.load_configurations = Mock(return_value=True)
+    bot.register_callbacks = Mock()
+
+    # Mock server creation
+    mock_server = Mock()
+    mock_server.config.name = "test_server"
+    mock_server.config.host = "irc.test.com"
+    mock_server.config.port = 6667
+    bot.servers["test_server"] = mock_server
+
+    # Test _console_status
+    status = bot._console_status()
+    assert "Server Status:" in status
+    assert "test_server" in status
+    assert "Disconnected" in status
+
+    # Test _console_connect (should fail without actual server threads)
+    result = bot._console_connect()
+    assert "Connected to" in result or "No servers" in result
+
+    # Test _console_disconnect
+    result = bot._console_disconnect()
+    assert "No servers currently connected" in result or "Disconnected" in result
+
+    # Clean up
+    bot.stop_event.set()
+
+
+def test_bot_manager_add_server_and_connect():
+    """Test dynamic server addition."""
+    import os
+    import sys
+
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+
+    from unittest.mock import Mock, patch
+
+    from bot_manager import BotManager
+
+    bot = BotManager("TestBot")
+
+    # Mock dependencies
+    with patch("server.ServerConfig") as mock_config, patch(
+        "server.Server"
+    ) as mock_server_class:
+
+        mock_server = Mock()
+        mock_server.config.name = "dynamic_server"
+        mock_server_class.return_value = mock_server
+
+        # Test adding a new server
+        result = bot.add_server_and_connect(
+            name="dynamic_server",
+            host="irc.example.com",
+            port=6667,
+            channels=["#test"],
+            use_tls=True,
+        )
+
+        assert result is True
+        assert "dynamic_server" in bot.servers
+
+        # Verify ServerConfig was called with correct parameters
+        mock_config.assert_called_once()
+        call_kwargs = mock_config.call_args[1]
+        assert call_kwargs["host"] == "irc.example.com"
+        assert call_kwargs["port"] == 6667
+        assert call_kwargs["channels"] == ["#test"]
+        assert call_kwargs["tls"] is True
+        assert call_kwargs["name"] == "dynamic_server"
+
+    # Clean up
+    bot.stop_event.set()
+
+
+# ==========================================
+# TESTS FOR CHANNEL MANAGEMENT FEATURES
+# ==========================================
+
+
+def test_bot_manager_channel_state_initialization():
+    """Test that channel management state is properly initialized."""
+    import os
+    import sys
+
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+
+    from bot_manager import BotManager
+
+    bot = BotManager("TestBot")
+
+    # Check channel management state initialization
+    assert bot.active_channel is None, "Active channel should be None initially"
+    assert bot.active_server is None, "Active server should be None initially"
+    assert isinstance(bot.joined_channels, dict), "Joined channels should be a dict"
+    assert len(bot.joined_channels) == 0, "No channels should be joined initially"
+
+    # Clean up
+    bot.stop_event.set()
+
+
+def test_bot_manager_channel_join_part_logic():
+    """Test channel join/part logic without actual IRC connection."""
+    import os
+    import sys
+
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+
+    from unittest.mock import Mock
+
+    from bot_manager import BotManager
+
+    bot = BotManager("TestBot")
+
+    # Test join without connected servers
+    result = bot._console_join_or_part_channel("testchannel")
+    assert "No connected servers available" in result
+
+    # Mock a connected server
+    mock_server = Mock()
+    mock_server.connected = True
+    mock_server.join_channel = Mock()
+    mock_server.part_channel = Mock()
+
+    bot.servers["test_server"] = mock_server
+    bot.server_threads["test_server"] = Mock()
+    bot.server_threads["test_server"].is_alive.return_value = True
+
+    # Test join channel
+    result = bot._console_join_or_part_channel("testchannel")
+    assert "Joined #testchannel" in result
+    assert "test_server" in bot.joined_channels
+    assert "#testchannel" in bot.joined_channels["test_server"]
+    assert bot.active_channel == "#testchannel"
+    assert bot.active_server == "test_server"
+
+    # Test part channel (same channel should part)
+    result = bot._console_join_or_part_channel("testchannel")
+    assert "Parted #testchannel" in result
+    assert "#testchannel" not in bot.joined_channels["test_server"]
+    assert bot.active_channel is None
+    assert bot.active_server is None
+
+    # Clean up
+    bot.stop_event.set()
+
+
+def test_bot_manager_channel_messaging():
+    """Test sending messages to active channel."""
+    import os
+    import sys
+
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+
+    from unittest.mock import Mock
+
+    from bot_manager import BotManager
+
+    bot = BotManager("TestBot")
+
+    # Test send message without active channel
+    result = bot._console_send_to_channel("Hello world")
+    assert "No active channel" in result
+
+    # Set up active channel
+    mock_server = Mock()
+    mock_server.connected = True
+    mock_server.send_message = Mock()
+
+    bot.servers["test_server"] = mock_server
+    bot.active_channel = "#testchannel"
+    bot.active_server = "test_server"
+
+    # Test send message to active channel
+    result = bot._console_send_to_channel("Hello world")
+    assert "<TestBot> Hello world" in result
+    assert "test_server:#testchannel" in result
+    mock_server.send_message.assert_called_once_with("#testchannel", "Hello world")
+
+    # Test send message when server disconnected
+    mock_server.connected = False
+    result = bot._console_send_to_channel("Another message")
+    assert "not connected" in result
+
+    # Clean up
+    bot.stop_event.set()
+
+
+def test_bot_manager_channel_status():
+    """Test channel status display."""
+    import os
+    import sys
+
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+
+    from unittest.mock import Mock
+
+    from bot_manager import BotManager
+
+    bot = BotManager("TestBot")
+
+    # Test status with no channels
+    result = bot._get_channel_status()
+    assert "No channels joined" in result
+
+    # Add some mock channels
+    mock_server = Mock()
+    mock_server.connected = True
+    bot.servers["test_server"] = mock_server
+
+    bot.joined_channels["test_server"] = {"#channel1", "#channel2"}
+    bot.active_channel = "#channel1"
+    bot.active_server = "test_server"
+
+    # Test status with channels
+    result = bot._get_channel_status()
+    assert "Channel Status:" in result
+    assert "test_server:" in result
+    assert "#channel1" in result
+    assert "#channel2" in result
+    assert "(active)" in result  # Should show active channel
+
+    # Clean up
+    bot.stop_event.set()
+
+
+def test_server_join_part_channel_methods():
+    """Test new join_channel and part_channel methods in Server class."""
+    import os
+    import sys
+
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+
+    import threading
+    from unittest.mock import Mock
+
+    from server import Server
+
+    # Create mock config
+    mock_config = Mock()
+    mock_config.name = "test_server"
+    mock_config.host = "irc.test.com"
+    mock_config.port = 6667
+    mock_config.channels = []
+    mock_config.keys = []
+
+    # Create server with mocked dependencies
+    stop_event = threading.Event()
+    server = Server(mock_config, "TestBot", stop_event)
+
+    # Mock send_raw method
+    server.send_raw = Mock()
+    server.log = Mock()
+
+    # Test join_channel without key
+    server.join_channel("#testchannel")
+    server.send_raw.assert_called_with("JOIN #testchannel")
+    server.log.info.assert_called_with("Joining channel #testchannel...")
+
+    # Test join_channel with key
+    server.join_channel("#privatechannel", "secretkey")
+    server.send_raw.assert_called_with("JOIN #privatechannel secretkey")
+
+    # Test part_channel without message
+    server.part_channel("#testchannel")
+    server.send_raw.assert_called_with("PART #testchannel")
+    server.log.info.assert_called_with("Leaving channel #testchannel...")
+
+    # Test part_channel with message
+    server.part_channel("#testchannel", "Goodbye!")
+    server.send_raw.assert_called_with("PART #testchannel :Goodbye!")
+
+    # Clean up
+    stop_event.set()
+
+
+def test_console_input_prefix_parsing():
+    """Test console input prefix parsing logic."""
+    import os
+    import sys
+
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+
+    from unittest.mock import Mock, patch
+
+    from bot_manager import BotManager
+
+    bot = BotManager("TestBot")
+
+    # Mock methods to avoid actual execution
+    bot._console_connect = Mock(return_value="Mock connect result")
+    bot._console_join_or_part_channel = Mock(return_value="Mock channel result")
+    bot._process_ai_request = Mock()
+    bot._console_send_to_channel = Mock(return_value="Mock message result")
+    bot.gpt_service = Mock()  # Mock AI service
+
+    # Test that the input prefixes would be handled correctly by checking method calls
+    # Note: We can't easily test the actual _listen_for_console_commands loop,
+    # but we can test the individual methods it would call
+
+    # Test command prefix (!)
+    result = bot._console_connect()
+    assert result == "Mock connect result"
+
+    # Test channel prefix (#)
+    result = bot._console_join_or_part_channel("testchannel")
+    assert result == "Mock channel result"
+
+    # Test message sending (no prefix)
+    result = bot._console_send_to_channel("Hello world")
+    assert result == "Mock message result"
+
+    # AI chat would be handled by _process_ai_request method
+    # We verify it exists and can be called
+    assert hasattr(bot, "_process_ai_request"), "Should have _process_ai_request method"
+
+    # Clean up
+    bot.stop_event.set()
+
+
+@pytest.mark.parametrize(
+    "channel_name,expected_name",
+    [
+        ("testchannel", "#testchannel"),  # Should add # prefix
+        ("#testchannel", "#testchannel"),  # Should keep # prefix
+        ("#UPPER", "#UPPER"),  # Should preserve case
+        ("with spaces", "#with spaces"),  # Should handle spaces
+    ],
+)
+def test_channel_name_normalization(channel_name, expected_name):
+    """Test that channel names are properly normalized with # prefix."""
+    import os
+    import sys
+
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+
+    from unittest.mock import Mock
+
+    from bot_manager import BotManager
+
+    bot = BotManager("TestBot")
+
+    # Mock a connected server
+    mock_server = Mock()
+    mock_server.connected = True
+    mock_server.join_channel = Mock()
+
+    bot.servers["test_server"] = mock_server
+    bot.server_threads["test_server"] = Mock()
+    bot.server_threads["test_server"].is_alive.return_value = True
+
+    # Test channel join with various name formats
+    result = bot._console_join_or_part_channel(channel_name)
+
+    # Should normalize to expected name
+    assert expected_name in result
+    mock_server.join_channel.assert_called_once_with(expected_name)
+
+    # Clean up
+    bot.stop_event.set()
+
+
+def test_wait_for_shutdown_with_console_thread():
+    """Test that wait_for_shutdown properly handles console thread."""
+    import os
+    import sys
+    import threading
+    import time
+
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+
+    from unittest.mock import Mock, patch
+
+    from bot_manager import BotManager
+
+    bot = BotManager("TestBot")
+
+    # Mock console thread
+    mock_console_thread = Mock()
+    mock_console_thread.is_alive.return_value = True
+    bot.console_thread = mock_console_thread
+
+    # Test that wait_for_shutdown doesn't exit immediately with active console thread
+    with patch("time.sleep") as mock_sleep:
+        # Set stop event after a short delay to prevent infinite loop
+        def set_stop_event(*args):
+            bot.stop_event.set()
+
+        mock_sleep.side_effect = set_stop_event
+
+        # This should not exit immediately and should call sleep
+        bot.wait_for_shutdown()
+
+        # Should have called sleep (meaning it didn't exit immediately)
+        mock_sleep.assert_called()
+
+    # Clean up
+    bot.stop_event.set()

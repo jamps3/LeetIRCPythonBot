@@ -123,6 +123,10 @@ class BotManager:
             "on",
         )
         self.connected = False
+        # Channel management
+        self.active_channel = None  # Currently active channel for messaging
+        self.active_server = None  # Server for the active channel
+        self.joined_channels = {}  # Dict of server_name -> set of joined channels
         # Read default quit message from environment or use fallback
         self.quit_message = os.getenv("QUIT_MESSAGE", "Disconnecting")
         self.logger = logger.get_logger("BotManager")
@@ -742,13 +746,18 @@ class BotManager:
             fallback_text="[CHAT] Console is ready! Type commands (!help) or chat messages.",
         )
         self.logger.log(
-            "🔧 Commands: !help, !version, !s <location>, !ping, !connect, !disconnect, !status, etc.",
-            fallback_text="[CONFIG] Commands: !help, !version, !s <location>, !ping, !connect, !disconnect, !status, etc.",
+            "🔧 Commands: !help, !version, !s <location>, !ping, !connect, !disconnect, !status, !channels, etc.",
+            fallback_text="[CONFIG] Commands: !help, !version, !s <location>, !ping, !connect, !disconnect, !status, !channels, etc.",
         )
         self.logger.log(
-            "🗣️  Chat: Type any message (without !) to chat with AI",
+            "💬 Channels: #channel to join/part, send messages directly to active channel",
             "INFO",
-            fallback_text="[TALK] Chat: Type any message (without !) to chat with AI",
+            fallback_text="[CHANNEL] Channels: #channel to join/part, send messages directly to active channel",
+        )
+        self.logger.log(
+            "🤖 AI Chat: -message to chat with AI",
+            "INFO",
+            fallback_text="[AI] AI Chat: -message to chat with AI",
         )
         self.logger.log(
             "🛑 Exit: Type 'quit' or 'exit' or press Ctrl+C",
@@ -1124,6 +1133,9 @@ class BotManager:
                             elif command == "status":
                                 result = self._console_status(*args)
                                 self.logger.info(result)
+                            elif command == "channels":
+                                result = self._get_channel_status()
+                                self.logger.info(result)
                             else:
                                 # Process other console commands via command_loader
                                 from command_loader import process_console_command
@@ -1132,24 +1144,49 @@ class BotManager:
                                 process_console_command(user_input, bot_functions)
                         except Exception as e:
                             self.logger.error(f"Console command error: {e}")
-                    else:
-                        # Send to AI chat asynchronously to prevent blocking input
-                        if self.gpt_service:
-                            self.logger.log(
-                                "🤖 AI: Processing...",
-                                "MSG",
-                                fallback_text="AI: Processing...",
-                            )
-                            ai_thread = threading.Thread(
-                                target=self._process_ai_request,
-                                args=(user_input, "Console"),
-                                daemon=True,
-                            )
-                            ai_thread.start()
+                    elif user_input.startswith("#"):
+                        # Channel join/part command
+                        try:
+                            channel_name = user_input[1:].strip()
+                            if channel_name:
+                                result = self._console_join_or_part_channel(
+                                    channel_name
+                                )
+                                self.logger.info(result)
+                            else:
+                                result = self._get_channel_status()
+                                self.logger.info(result)
+                        except Exception as e:
+                            self.logger.error(f"Channel command error: {e}")
+                    elif user_input.startswith("-"):
+                        # AI chat command - send asynchronously to prevent blocking input
+                        ai_message = user_input[1:].strip()
+                        if ai_message:
+                            if self.gpt_service:
+                                self.logger.log(
+                                    "🤖 AI: Processing...",
+                                    "MSG",
+                                    fallback_text="AI: Processing...",
+                                )
+                                ai_thread = threading.Thread(
+                                    target=self._process_ai_request,
+                                    args=(ai_message, "Console"),
+                                    daemon=True,
+                                )
+                                ai_thread.start()
+                            else:
+                                self.logger.error(
+                                    "AI service not available (no OpenAI API key configured)"
+                                )
                         else:
-                            self.logger.error(
-                                "AI service not available (no OpenAI API key configured)"
-                            )
+                            self.logger.error("Empty AI message. Use: -<message>")
+                    else:
+                        # Send to active channel
+                        try:
+                            result = self._console_send_to_channel(user_input)
+                            self.logger.info(result)
+                        except Exception as e:
+                            self.logger.error(f"Channel message error: {e}")
 
                 except (EOFError, KeyboardInterrupt):
                     self.logger.error("Console input interrupted! Exiting...")
@@ -1244,6 +1281,115 @@ class BotManager:
 
         return "\n".join(status_lines)
 
+    def _console_join_or_part_channel(self, channel_name: str, server_name: str = None):
+        """Console command to join or part a channel.
+
+        Args:
+            channel_name: Channel name (with or without # prefix)
+            server_name: Optional server name. If None, uses first connected server.
+        """
+        # Ensure channel name has # prefix
+        if not channel_name.startswith("#"):
+            channel_name = f"#{channel_name}"
+
+        # Find target server
+        target_server = None
+        if server_name:
+            target_server = self.servers.get(server_name)
+            if not target_server:
+                return f"Server '{server_name}' not found"
+        else:
+            # Use first connected server
+            for name, server in self.servers.items():
+                if (
+                    name in self.server_threads
+                    and self.server_threads[name].is_alive()
+                    and server.connected
+                ):
+                    target_server = server
+                    server_name = name
+                    break
+
+        if not target_server:
+            return "No connected servers available. Use !connect first."
+
+        # Initialize joined channels for this server if needed
+        if server_name not in self.joined_channels:
+            self.joined_channels[server_name] = set()
+
+        # Check if already in channel
+        if channel_name in self.joined_channels[server_name]:
+            # Part the channel
+            try:
+                target_server.part_channel(channel_name)
+                self.joined_channels[server_name].discard(channel_name)
+
+                # If this was the active channel, clear it
+                if (
+                    self.active_channel == channel_name
+                    and self.active_server == server_name
+                ):
+                    self.active_channel = None
+                    self.active_server = None
+
+                return f"Parted {channel_name} on {server_name}"
+            except Exception as e:
+                return f"Error parting {channel_name}: {e}"
+        else:
+            # Join the channel
+            try:
+                target_server.join_channel(channel_name)
+                self.joined_channels[server_name].add(channel_name)
+
+                # Set as active channel
+                self.active_channel = channel_name
+                self.active_server = server_name
+
+                return f"Joined {channel_name} on {server_name} (now active)"
+            except Exception as e:
+                return f"Error joining {channel_name}: {e}"
+
+    def _console_send_to_channel(self, message: str):
+        """Send a message to the currently active channel.
+
+        Args:
+            message: Message to send
+        """
+        if not self.active_channel or not self.active_server:
+            return "No active channel. Use #channel to join and activate a channel."
+
+        server = self.servers.get(self.active_server)
+        if not server or not server.connected:
+            return f"Server {self.active_server} is not connected."
+
+        try:
+            server.send_message(self.active_channel, message)
+            return f"[{self.active_server}:{self.active_channel}] <{self.bot_name}> {message}"
+        except Exception as e:
+            return f"Error sending message: {e}"
+
+    def _get_channel_status(self):
+        """Get status of joined channels and active channel."""
+        if not self.joined_channels:
+            return "No channels joined."
+
+        status_lines = ["Channel Status:"]
+        for server_name, channels in self.joined_channels.items():
+            if channels:
+                server = self.servers.get(server_name)
+                server_status = "🟢" if server and server.connected else "🔴"
+                status_lines.append(f"  {server_status} {server_name}:")
+                for channel in sorted(channels):
+                    active_marker = (
+                        " (active)"
+                        if channel == self.active_channel
+                        and server_name == self.active_server
+                        else ""
+                    )
+                    status_lines.append(f"    {channel}{active_marker}")
+
+        return "\n".join(status_lines)
+
     def _create_console_bot_functions(self):
         """Create bot functions dictionary for console commands."""
         return {
@@ -1273,6 +1419,9 @@ class BotManager:
             "connect": self._console_connect,  # Connect to servers
             "disconnect": self._console_disconnect,  # Disconnect from servers
             "status": self._console_status,  # Show server status
+            "channels": self._get_channel_status,  # Show channel status
+            "join_channel": self._console_join_or_part_channel,  # Join/part channels
+            "send_to_channel": self._console_send_to_channel,  # Send messages to channels
         }
 
     def set_quit_message(self, message: str):

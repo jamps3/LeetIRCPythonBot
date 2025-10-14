@@ -322,6 +322,34 @@ class Server:
                 self.send_raw(f"JOIN {channel}")
                 self.log.info(f"Joining channel {channel} (no key)...")
 
+    def join_channel(self, channel: str, key: str = None):
+        """Join a specific channel.
+
+        Args:
+            channel (str): Channel name to join
+            key (str, optional): Channel key if required
+        """
+        if key:
+            self.send_raw(f"JOIN {channel} {key}")
+            self.log.info(f"Joining channel {channel} with key...")
+        else:
+            self.send_raw(f"JOIN {channel}")
+            self.log.info(f"Joining channel {channel}...")
+
+    def part_channel(self, channel: str, message: str = None):
+        """Leave a specific channel.
+
+        Args:
+            channel (str): Channel name to leave
+            message (str, optional): Part message
+        """
+        if message:
+            self.send_raw(f"PART {channel} :{message}")
+            self.log.info(f"Leaving channel {channel} with message: {message}")
+        else:
+            self.send_raw(f"PART {channel}")
+            self.log.info(f"Leaving channel {channel}...")
+
     def send_raw(self, message: str, bypass_rate_limit: bool = False):
         """
         Send a raw IRC message to the server with flood protection.
