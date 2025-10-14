@@ -131,27 +131,37 @@ class PrecisionLogger:
 
         except UnicodeEncodeError:
             # Fall back to ASCII-safe version
-            self.debug(
-                "ASCII-safe: Original text contained Unicode characters and was replaced.",
-            )
-            if fallback_text:
-                print(f"{timestamp} {context} {fallback_text}")
-            else:
-                # Replace common Unicode characters with ASCII equivalents
-                safe_text = (
-                    parts.replace("🤖", "[BOT]")
-                    .replace("🚀", "[START]")
-                    .replace("🛑", "[STOP]")
-                    .replace("✅", "[OK]")
-                    .replace("❌", "[ERROR]")
-                    .replace("💥", "[ERROR]")
-                    .replace("💬", "[CHAT]")
-                    .replace("🔧", "[CONFIG]")
-                    .replace("🗣️", "[TALK]")
-                )
+            try:
+                if fallback_text:
+                    # Use fallback text if provided
+                    fallback_output = f"{timestamp} [{level.upper():<7}]"
+                    if context:
+                        fallback_output += f" [{context}]"
+                    fallback_output += f" {fallback_text}"
+                    print(fallback_output)
+                else:
+                    # Replace common Unicode characters with ASCII equivalents
+                    safe_message = (
+                        message.replace("🤖", "[BOT]")
+                        .replace("🚀", "[START]")
+                        .replace("🛑", "[STOP]")
+                        .replace("✅", "[OK]")
+                        .replace("❌", "[ERROR]")
+                        .replace("💥", "[ERROR]")
+                        .replace("💬", "[CHAT]")
+                        .replace("🔧", "[CONFIG]")
+                        .replace("🗣️", "[TALK]")
+                    )
+                    safe_output = f"{timestamp} [{level.upper():<7}]"
+                    if context:
+                        safe_output += f" [{context}]"
+                    safe_output += f" {safe_message}"
+                    print(safe_output)
+            except Exception:
+                # Last resort: basic ASCII message
                 print(
-                    f"{timestamp} {context} {parts}"
-                )  # Common Unicodes replaced log output
+                    f"[LOGGER ERROR] Could not display Unicode message: {repr(message)}"
+                )
 
     def info(self, message: str, context: str = "", fallback_text: str = ""):
         self.log(message, "INFO", context, fallback_text)  # Log an info message

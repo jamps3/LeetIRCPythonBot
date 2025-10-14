@@ -729,12 +729,13 @@ def test_fetch_title_variants(monkeypatch, manager):
         headers = {"Content-Type": "application/json"}
         content = b"{}"
 
-    # Patch requests module used by function's local import via sys.modules
-    import sys as _sys
+    # Patch requests module that's already imported in bot_manager
     import types
 
-    dummy_requests = types.SimpleNamespace(get=lambda url, **k: Resp())
-    _sys.modules["requests"] = dummy_requests
+    original_requests = bm.requests
+
+    # Non-HTML content -> skip
+    bm.requests = types.SimpleNamespace(get=lambda url, **k: Resp())
     manager._fetch_title(
         SimpleNamespace(send_message=lambda t, m: None), "#c", "http://example.com"
     )
@@ -747,7 +748,8 @@ def test_fetch_title_variants(monkeypatch, manager):
         headers = {"Content-Type": "text/html"}
         content = html
 
-    _sys.modules["requests"] = types.SimpleNamespace(get=lambda url, **k: Resp2())
+    # Mock requests for HTML response
+    bm.requests = types.SimpleNamespace(get=lambda url, **k: Resp2())
     sent = []
     manager._send_response = lambda irc, tgt, msg: sent.append(msg)
     manager._fetch_title(
@@ -755,11 +757,11 @@ def test_fetch_title_variants(monkeypatch, manager):
     )
     assert any("My Page" in m for m in sent)
 
-    # Error during fetch
-    import sys as _sys
-    import types
+    # Restore original requests
+    bm.requests = original_requests
 
-    _sys.modules["requests"] = types.SimpleNamespace(
+    # Error during fetch
+    bm.requests = types.SimpleNamespace(
         get=lambda url, **k: (_ for _ in ()).throw(RuntimeError("e"))
     )
     manager._fetch_title(
@@ -1164,12 +1166,14 @@ def test_process_commands_paths(monkeypatch, manager):
     assert called["n"] == 1
 
     # process_irc_message gets called for normal text
-    import sys as _sys
-    import types
-
     called2 = {"args": None}
-    _sys.modules["command_loader"] = types.SimpleNamespace(
-        process_irc_message=lambda *a, **k: called2.update({"args": a})
+
+    def mock_process_irc_message(*a, **k):
+        called2.update({"args": a})
+
+    # Patch the already imported function
+    monkeypatch.setattr(
+        bm, "process_irc_message", mock_process_irc_message, raising=True
     )
     ctx2 = {
         "server": server,

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LeetIRC Python Bot - Multi-Server Edition
+Leet IRC Python Bot - Multi-Server Edition
 
 A modern IRC bot with support for multiple servers, comprehensive word tracking,
 AI integration, and extensive functionality.
@@ -37,6 +37,9 @@ from datetime import datetime
 import logger
 from bot_manager import BotManager
 from config import load_env_file
+
+# Create logger with MAIN context
+main_logger = logger.get_logger("MAIN")
 
 
 def parse_arguments():
@@ -86,9 +89,9 @@ def setup_environment():
     """Load environment variables and validate configuration."""
     # Load .env file
     if not load_env_file():
-        logger.warning(
+        main_logger.warning(
             "Warning: Could not load .env file. Using defaults where possible."
-        ), "MAIN"
+        )
 
     # Validate essential configuration
     bot_name = os.getenv("BOT_NAME", "LeetIRCBot")
@@ -100,12 +103,12 @@ def setup_environment():
     )
 
     if not has_server_config:
-        logger.error("ERROR: No server configurations found!"), "MAIN"
-        logger.error("Please configure at least one server in your .env file:"), "MAIN"
-        logger.error("  SERVER1_HOST=irc.example.com"), "MAIN"
-        logger.error("  SERVER1_PORT=6667"), "MAIN"
-        logger.error("  SERVER1_CHANNELS=#channel1,#channel2"), "MAIN"
-        logger.error("  SERVER1_KEYS="), "MAIN"
+        main_logger.error("ERROR: No server configurations found!")
+        main_logger.error("Please configure at least one server in your .env file:")
+        main_logger.error("  SERVER1_HOST=irc.example.com")
+        main_logger.error("  SERVER1_PORT=6667")
+        main_logger.error("  SERVER1_CHANNELS=#channel1,#channel2")
+        main_logger.error("  SERVER1_KEYS=")
         return None
 
     return bot_name
@@ -123,7 +126,7 @@ def main():
     if args:
         os.environ["LOG_LEVEL"] = args.loglevel
         if args.show_api_keys:
-            logger.log("=== API KEYS ==="), "INFO", "MAIN"
+            main_logger.log("=== API KEYS ===", "INFO")
             api_keys = [
                 "OPENAI_API_KEY",
                 "WEATHER_API_KEY",
@@ -138,16 +141,16 @@ def main():
                     display_value = f"{value[:5]}...{value[-5:]}"
                 else:
                     display_value = value
-                logger.log(f"  {key}: {display_value}"), "INFO", "MAIN"
-            logger.log("=" * 60), "INFO", "MAIN"
+                main_logger.log(f"  {key}: {display_value}", "INFO")
+            main_logger.log("=" * 60, "INFO")
 
-    logger.log("=" * 60), "INFO", "MAIN"
-    logger.log(
-        "🤖 LeetIRC Python Bot - Multi-Server Edition",
+    main_logger.log("=" * 60, "INFO")
+    main_logger.log(
+        "🤖 Leet IRC Python Bot - Multi-Server Edition",
         "INFO",
-        "MAIN" "[BOT] LeetIRC Python Bot - Multi-Server Edition",
+        fallback_text="[BOT] Leet IRC Python Bot - Multi-Server Edition",
     )
-    logger.log("=" * 60), "INFO", "MAIN"
+    main_logger.log("=" * 60, "INFO")
 
     # Setup environment and get bot name
     bot_name = setup_environment()
@@ -157,14 +160,14 @@ def main():
     # Override bot name from command line if provided
     if args.nickname:
         bot_name = args.nickname
-        logger.log(f"Using nickname from command line: {bot_name}"), "INFO", "MAIN"
+        main_logger.log(f"Using nickname from command line: {bot_name}", "INFO")
 
-    logger.log(f"Bot name: {bot_name}"), "INFO", "MAIN"
-    logger.log(f"Log level: {args.loglevel}"), "INFO", "MAIN"
-    logger.log(
-        f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    ), "INFO", "MAIN"
-    logger.log("-" * 60), "INFO", "MAIN"
+    main_logger.log(f"Bot name: {bot_name}", "INFO")
+    main_logger.log(f"Log level: {args.loglevel}", "INFO")
+    main_logger.log(
+        f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", "INFO"
+    )
+    main_logger.log("-" * 60, "INFO")
 
     # Create and start the bot manager
     bot_manager = BotManager(bot_name)
@@ -172,33 +175,31 @@ def main():
     try:
         # Start the bot
         if not bot_manager.start():
-            logger.error("ERROR: Failed to start bot manager")
+            main_logger.error("ERROR: Failed to start bot manager")
             return 1
 
-        logger.log(
+        main_logger.log(
             "🚀 Bot started successfully!",
             "INFO",
-            "MAIN",
-            "[START] Bot started successfully!",
+            fallback_text="[START] Bot started successfully!",
         )
-        logger.log("Press Ctrl+C to shutdown gracefully"), "INFO", "MAIN"
-        logger.log("-" * 60), "INFO", "MAIN"
+        main_logger.log("Press Ctrl+C to shutdown gracefully", "INFO")
+        main_logger.log("-" * 60, "INFO")
 
         # Wait for shutdown
         bot_manager.wait_for_shutdown()
 
     except KeyboardInterrupt:
-        logger.log("" + "=" * 60), "INFO", "MAIN"
-        logger.log(
+        main_logger.log("" + "=" * 60, "INFO")
+        main_logger.log(
             "🛑 Shutdown signal received",
             "INFO",
-            "MAIN",
-            "[STOP] Shutdown signal received",
+            fallback_text="[STOP] Shutdown signal received",
         )
-        logger.log("=" * 60), "INFO", "MAIN"
+        main_logger.log("=" * 60, "INFO")
 
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        main_logger.error(f"Unexpected error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -208,18 +209,16 @@ def main():
         # Ensure clean shutdown
         try:
             bot_manager.stop()
-            logger.log(
+            main_logger.log(
                 "✅ Bot shut down successfully",
                 "INFO",
-                "MAIN",
-                "[OK] Bot shut down successfully",
+                fallback_text="[OK] Bot shut down successfully",
             )
         except Exception as e:
-            logger.log(
+            main_logger.log(
                 f"❌ Error during shutdown: {e}",
                 "ERROR",
-                "MAIN",
-                f"[ERROR] Error during shutdown: {e}",
+                fallback_text=f"[ERROR] Error during shutdown: {e}",
             )
 
     return 0

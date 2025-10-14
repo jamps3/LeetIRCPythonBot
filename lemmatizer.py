@@ -44,7 +44,9 @@ class Lemmatizer:
                 )
                 self.voikko_enabled = False
         else:
-            logger.warning("Voikko not available - using simple word normalization")
+            logger.warning(
+                "Voikko not available - using simple word normalization", "Lemmatizer"
+            )
 
     def _get_baseform(self, word):
         """Get base form of a word using Voikko or simple normalization."""

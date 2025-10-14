@@ -567,7 +567,7 @@ def test_bot_manager_quit_message_attribute():
 
 def test_server_quit_message_functionality():
     """Test that Server class accepts quit_message parameter and uses it."""
-    with patch("server.get_logger", return_value=Mock()):
+    with patch("logger.get_logger", return_value=Mock()):
         from config import ServerConfig
         from server import Server
 

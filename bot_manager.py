@@ -682,7 +682,7 @@ class BotManager:
             ),
             "wrap_irc_message_utf8_bytes": self._wrap_irc_message_utf8_bytes,
             "send_message": lambda irc, target, msg: server.send_message(target, msg),
-            "log": self._log,
+            "log": self.logger,
             "fetch_title": self._fetch_title,
             "subscriptions": self._get_subscriptions_module(),
             "DRINK_WORDS": self._get_drink_words(),

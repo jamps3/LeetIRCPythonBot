@@ -80,7 +80,12 @@ class FMIWarningService:
         self.running = True
         self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.thread.start()
-        log("✅ FMI warning service started")
+        log(
+            "✅ FMI warning service started.",
+            level="INFO",
+            context="FMI_WS",
+            fallback_text="FMI warning service started.",
+        )
 
     def stop(self) -> None:
         """Stop monitoring FMI warnings."""
@@ -91,9 +96,15 @@ class FMIWarningService:
             if self.thread.is_alive():
                 log(
                     "FMI warning service thread did not stop cleanly within 30 second timeout",
-                    level="warning",
+                    level="WARNING",
+                    context="FMI_WS",
                 )
-        log("🛑 FMI warning service stopped")
+        log(
+            "🛑 FMI warning service stopped.",
+            level="INFO",
+            context="FMI_WS",
+            fallback_text="FMI warning service stopped.",
+        )
 
     def _monitor_loop(self) -> None:
         """Main monitoring loop running in background thread."""
@@ -103,7 +114,9 @@ class FMIWarningService:
                 if new_warnings:
                     self.callback(new_warnings)
             except Exception as e:
-                log.error(f"Error checking FMI warnings: {e}")
+                log(
+                    f"Error checking FMI warnings: {e}", level="ERROR", context="FMI_WS"
+                )
 
             # Sleep in smaller chunks to respond faster to shutdown requests
             remaining_sleep = self.check_interval
@@ -162,7 +175,7 @@ class FMIWarningService:
             return messages
 
         except Exception as e:
-            log(f"Error fetching FMI warnings: {e}", level="error")
+            log(f"Error fetching FMI warnings: {e}", level="ERROR", context="FMI_WS")
             return []
 
     def _get_entry_hash(self, entry: dict) -> str:
@@ -182,7 +195,11 @@ class FMIWarningService:
                 data = json.load(f)
                 return set(data.get("seen_hashes", []))
         except (json.JSONDecodeError, ValueError, IOError):
-            log("State file corrupted, resetting seen hashes", level="warning")
+            log(
+                "State file corrupted, resetting seen hashes",
+                level="WARNING",
+                context="FMI_WS",
+            )
             return set()
 
     def _save_seen_hashes(self, hashes: Set[str]) -> None:
@@ -203,7 +220,7 @@ class FMIWarningService:
             with open(self.state_file, "w", encoding="utf-8") as f:
                 json.dump(existing_data, f, ensure_ascii=False)
         except IOError as e:
-            log(f"Error saving seen hashes: {e}", level="error")
+            log(f"Error saving seen hashes: {e}", level="ERROR", context="FMI_WS")
 
     def _load_seen_data(self) -> List[dict]:
         """Load previously seen warning data for duplicate checking."""
@@ -215,7 +232,11 @@ class FMIWarningService:
                 data = json.load(f)
                 return data.get("seen_data", [])
         except (json.JSONDecodeError, ValueError, IOError):
-            log("State file corrupted, resetting seen data", level="warning")
+            log(
+                "State file corrupted, resetting seen data",
+                level="WARNING",
+                context="FMI_WS",
+            )
             return []
 
     def _save_seen_data(self, seen_data: List[dict]) -> None:
@@ -236,7 +257,7 @@ class FMIWarningService:
             with open(self.state_file, "w", encoding="utf-8") as f:
                 json.dump(existing_data, f, ensure_ascii=False)
         except IOError as e:
-            log(f"Error saving seen data: {e}", level="error")
+            log(f"Error saving seen data: {e}", level="ERROR", context="FMI_WS")
 
     def _is_duplicate_title(self, title: str, seen_data: List[dict]) -> bool:
         """Check if a title is a duplicate of recently seen warnings."""

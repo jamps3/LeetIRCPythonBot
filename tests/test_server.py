@@ -12,6 +12,7 @@ from unittest.mock import Mock
 
 import pytest
 
+import logger
 import server as server_mod
 from config import ServerConfig
 from server import Server
@@ -34,9 +35,7 @@ def server_config():
 def srv(monkeypatch, server_config):
     # Use a dummy logger for deterministic behavior
     dummy_logger = Mock()
-    monkeypatch.setattr(
-        server_mod, "get_logger", lambda name: dummy_logger, raising=True
-    )
+    monkeypatch.setattr("logger.get_logger", lambda name: dummy_logger, raising=True)
     stop = threading.Event()
     s = Server(server_config, "Bot", stop)
     return s
@@ -889,9 +888,7 @@ def test_stop_success_sleep_and_error_path(monkeypatch, srv):
         return None
 
     dummy_logger.info = boom
-    monkeypatch.setattr(
-        server_mod, "get_logger", lambda name: dummy_logger, raising=True
-    )
+    monkeypatch.setattr("logger.get_logger", lambda name: dummy_logger, raising=True)
     # Rebuild server to pick up new logger
     stop = threading.Event()
     srv2 = Server(srv.config, "Bot", stop)
