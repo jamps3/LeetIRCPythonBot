@@ -140,6 +140,116 @@ def generate_mock_xml_response(expected_prices: Dict[Tuple[int, int], float]) ->
     return xml_content
 
 
+def test_statistics_and_bar_graph_with_mocked_api():
+    """
+    Test statistics and bar graph functionality.
+    """
+    import unittest.mock as mock
+
+    try:
+        from services.electricity_service import ElectricityService
+    except ImportError:
+        print("Could not import ElectricityService")
+        return False
+
+    # Parse expected prices
+    expected_prices = parse_test_prices("debug_electricity_mapping_prices.txt")
+
+    print(f"\nParsed {len(expected_prices)} expected price points")
+
+    # Generate mock XML response
+    mock_xml = generate_mock_xml_response(expected_prices)
+
+    # Create service
+    service = ElectricityService("dummy_api_key")
+
+    # Test date
+    test_date = date(2025, 10, 14)
+
+    print(f"\nTesting statistics and bar graph functionality for {test_date}")
+    print("=" * 60)
+
+    # Mock the requests.get call
+    with mock.patch("services.electricity_service.requests.get") as mock_get:
+        # Setup mock response
+        mock_response = mock.Mock()
+        mock_response.text = mock_xml
+        mock_response.raise_for_status = mock.Mock()
+        mock_get.return_value = mock_response
+
+        try:
+            # Test statistics
+            print("Testing get_price_statistics()...")
+            stats = service.get_price_statistics(test_date)
+
+            if stats.get("error"):
+                print(f"  ❌ Statistics error: {stats.get('message')}")
+                return False
+
+            print(
+                f"  ✅ Min price: {stats['min_price']['snt_per_kwh_with_vat']:.2f} snt/kWh at hour {stats['min_price']['hour']:02d}"
+            )
+            print(
+                f"  ✅ Max price: {stats['max_price']['snt_per_kwh_with_vat']:.2f} snt/kWh at hour {stats['max_price']['hour']:02d}"
+            )
+            print(
+                f"  ✅ Avg price: {stats['avg_price']['snt_per_kwh_with_vat']:.2f} snt/kWh"
+            )
+
+            # Test formatted statistics message with bar graph
+            print("\nTesting format_statistics_message() with bar graph...")
+            formatted_stats = service.format_statistics_message(stats)
+
+            if "tilastojen haku epäonnistui" in formatted_stats:
+                print(f"  ❌ Statistics formatting error: {formatted_stats}")
+                return False
+
+            # Check if bar graph is included (should have pipe separator and colored bars)
+            if " | " in formatted_stats and "\x03" in formatted_stats:
+                print("  ✅ Statistics message with bar graph generated successfully")
+                print(f"  ✅ Length: {len(formatted_stats)} characters")
+                # Show a sample of the message (without IRC color codes for readability)
+                clean_msg = (
+                    formatted_stats.replace("\x033", "G")
+                    .replace("\x037", "Y")
+                    .replace("\x034", "R")
+                    .replace("\x03", "")
+                )
+                print(
+                    f"  Sample: {clean_msg[:100]}{'...' if len(clean_msg) > 100 else ''}"
+                )
+            else:
+                print("  ❌ Bar graph not found in statistics message")
+                print(f"  Message: {formatted_stats[:200]}")
+                return False
+
+            # Test command parsing for stats
+            print("\nTesting parse_command_args() for stats...")
+
+            # Test "stats" command
+            parsed_stats = service.parse_command_args(["stats"])
+            if not parsed_stats.get("show_stats"):
+                print("  ❌ Failed to parse 'stats' command")
+                return False
+            print("  ✅ 'stats' command parsed correctly")
+
+            # Test "tilastot" command
+            parsed_tilastot = service.parse_command_args(["tilastot"])
+            if not parsed_tilastot.get("show_stats"):
+                print("  ❌ Failed to parse 'tilastot' command")
+                return False
+            print("  ✅ 'tilastot' command parsed correctly")
+
+            return True
+
+        except Exception as e:
+            print(f"  ❌ Exception during statistics test: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return False
+
+
 def test_hourly_averages_with_mocked_api():
     """
     Test hourly averages calculated by the service against expected values.
@@ -566,6 +676,12 @@ if __name__ == "__main__":
     print("=" * 50)
     success3 = test_hourly_averages_with_mocked_api()
 
+    # Run the statistics and bar graph test
+    print("\n" + "=" * 50)
+    print("PHASE 5: Testing statistics and bar graph")
+    print("=" * 50)
+    success4 = test_statistics_and_bar_graph_with_mocked_api()
+
     print("\n" + "=" * 50)
     print("FINAL RESULTS")
     print("=" * 50)
@@ -590,7 +706,12 @@ if __name__ == "__main__":
     else:
         print("❌ Hourly averages test: FAILED")
 
-    if success_tz and success1 and success2 and success3:
+    if success4:
+        print("✅ Statistics and bar graph test: PASSED")
+    else:
+        print("❌ Statistics and bar graph test: FAILED")
+
+    if success_tz and success1 and success2 and success3 and success4:
         print("\n🎉 All tests passed!")
     else:
         print("\n❌ Some tests failed - service needs fixing")

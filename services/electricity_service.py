@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ElementTree
 from datetime import datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from io import StringIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import pytz
 import requests
@@ -298,38 +298,315 @@ class ElectricityService:
         return float(snt.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
     def parse_command_args(self, args: List[str]) -> Dict[str, Any]:
-        """Parse !sahko commands (tänään/huomenna/hour.quarter)."""
+        """Parse !sahko commands (tänään/huomenna/hour.quarter/stats)."""
         now = datetime.now(self.timezone)
         result = {
             "hour": now.hour,
             "quarter": (now.minute // 15) + 1,
             "date": now.date(),
+            "is_tomorrow": False,
+            "show_stats": False,
+            "show_all_hours": False,
+            "error": None,
         }  # Return date object
 
         if not args:
             return result
 
-        arg = args[0].lower()
-        if arg in ["tänään", "today"]:
-            result["date"] = now.date()
-            if len(args) > 1:
-                result["hour"], result["quarter"] = self._parse_hour_quarter(args[1])
-        elif arg in ["huomenna", "tomorrow"]:
-            result["date"] = (now + timedelta(days=1)).date()
-            if len(args) > 1:
-                result["hour"], result["quarter"] = self._parse_hour_quarter(args[1])
-        else:
-            result["hour"], result["quarter"] = self._parse_hour_quarter(arg)
+        try:
+            # Check for special keywords
+            if len(args) >= 1:
+                arg = args[0].lower()
+                if arg in ["tilastot", "stats"]:
+                    result["show_stats"] = True
+                    return result
+                elif arg in ["tänään", "tanaan", "today"]:
+                    # Show all hours for today (accept multiple variations)
+                    result["show_all_hours"] = True
+                    result["is_tomorrow"] = False
+                    return result
+                elif arg in ["huomenna", "tomorrow"]:
+                    result["is_tomorrow"] = True
+                    result["date"] = (now + timedelta(days=1)).date()
+
+                    # Check if hour is specified after "huomenna"
+                    if len(args) >= 2:
+                        try:
+                            result["hour"], result["quarter"] = (
+                                self._parse_hour_quarter(args[1])
+                            )
+                        except ValueError:
+                            result["error"] = (
+                                f"Virheellinen arvo: {args[1]}. Käytä muotoa HH tai HH.1–HH.4"
+                            )
+                    else:
+                        # Show all hours for tomorrow
+                        result["show_all_hours"] = True
+                    return result
+                elif arg.replace(".", "").replace("-", "").isdigit() or "." in arg:
+                    # Hour or hour.quarter specified
+                    try:
+                        result["hour"], result["quarter"] = self._parse_hour_quarter(
+                            arg
+                        )
+                    except ValueError:
+                        result["error"] = (
+                            f"Virheellinen arvo: {arg}. Käytä muotoa HH tai HH.1–HH.4"
+                        )
+                    return result
+                else:
+                    result["error"] = (
+                        "Virheellinen komento! Käytä: !sahko [tänään|huomenna] [tunti] tai !sahko tilastot/stats"
+                    )
+
+        except Exception as e:
+            result["error"] = (
+                "Virheellinen komento! Käytä: !sahko [tänään|huomenna] [tunti] tai !sahko tilastot/stats"
+            )
 
         return result
 
     def _parse_hour_quarter(self, arg: str) -> tuple[int, int]:
         """Parse '13' or '13.2' → hour, quarter."""
-        if "." in arg:
-            h, q = arg.split(".")
-            return int(h), int(q)
-        else:
-            return int(arg), 1
+        try:
+            if "." in arg:
+                h_str, q_str = arg.split(".")
+                h, q = int(h_str), int(q_str)
+                if not (0 <= h <= 23) or not (1 <= q <= 4):
+                    raise ValueError(
+                        f"Hour must be 0-23 and quarter must be 1-4, got {h}.{q}"
+                    )
+                return h, q
+            else:
+                h = int(arg)
+                if not (0 <= h <= 23):
+                    raise ValueError(f"Hour must be 0-23, got {h}")
+                return h, 1
+        except (ValueError, IndexError) as e:
+            if "invalid literal" in str(e):
+                raise ValueError(f"Invalid number format: {arg}")
+            else:
+                raise
+
+    def get_price_statistics(self, date: datetime) -> Dict[str, Any]:
+        """
+        Get price statistics for a specific date.
+
+        Args:
+            date: Date to get statistics for
+
+        Returns:
+            Dictionary containing price statistics or error details
+        """
+        try:
+            if isinstance(date, datetime):
+                date = date.date()
+
+            daily_prices = self.get_daily_prices(date)
+
+            if daily_prices.get("error"):
+                return daily_prices
+
+            interval_prices = daily_prices.get("interval_prices", {})
+            if not interval_prices:
+                return {
+                    "error": True,
+                    "message": "No price data available for statistics",
+                }
+
+            # Convert to snt/kWh with VAT for statistics
+            prices_snt = []
+            hour_prices = {}  # hour -> list of quarter prices
+
+            for (hour, quarter), eur_mwh in interval_prices.items():
+                price_snt = self._convert_price(eur_mwh)
+                prices_snt.append(price_snt)
+
+                if hour not in hour_prices:
+                    hour_prices[hour] = []
+                hour_prices[hour].append(price_snt)
+
+            # Calculate hourly averages for min/max hour determination
+            hourly_averages = {}
+            for hour, quarter_prices in hour_prices.items():
+                hourly_averages[hour] = sum(quarter_prices) / len(quarter_prices)
+
+            if not prices_snt:
+                return {
+                    "error": True,
+                    "message": "No price data available for statistics",
+                }
+
+            min_hour = min(hourly_averages.keys(), key=lambda h: hourly_averages[h])
+            max_hour = max(hourly_averages.keys(), key=lambda h: hourly_averages[h])
+
+            return {
+                "error": False,
+                "date": date.strftime("%Y-%m-%d"),
+                "min_price": {
+                    "hour": min_hour,
+                    "snt_per_kwh_with_vat": hourly_averages[min_hour],
+                },
+                "max_price": {
+                    "hour": max_hour,
+                    "snt_per_kwh_with_vat": hourly_averages[max_hour],
+                },
+                "avg_price": {
+                    "snt_per_kwh_with_vat": sum(prices_snt) / len(prices_snt),
+                },
+                "total_intervals": len(prices_snt),
+                "total_hours": len(hourly_averages),
+            }
+
+        except Exception as e:
+            return {
+                "error": True,
+                "message": f"Error calculating statistics: {str(e)}",
+            }
+
+    def _create_price_bar_graph(
+        self, interval_prices: Dict[Tuple[int, int], float], avg_price_snt: float
+    ) -> str:
+        """
+        Create a colorful bar graph showing 15-minute interval prices relative to average.
+
+        Args:
+            interval_prices: Dictionary of (hour, quarter) -> price in EUR/MWh
+            avg_price_snt: Average price in snt/kWh with VAT
+
+        Returns:
+            String representation of the bar graph
+        """
+        # Define bar symbols for different heights (low to high)
+        bar_symbols = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
+
+        # IRC color codes: 3=green, 7=orange/yellow, 4=red
+        green = "\x033"  # Below average (good price)
+        yellow = "\x037"  # At average
+        red = "\x034"  # Above average (expensive)
+        reset = "\x03"  # Reset color
+
+        # Convert prices to snt/kWh and create time-price pairs
+        time_prices = []
+        for hour in range(24):
+            for quarter in range(1, 5):
+                if (hour, quarter) in interval_prices:
+                    price_eur_mwh = interval_prices[(hour, quarter)]
+                    price_snt_kwh = self._convert_price(price_eur_mwh)
+                    time_prices.append((hour, quarter, price_snt_kwh))
+
+        if not time_prices:
+            return "No data"
+
+        # Find min/max for bar height scaling
+        all_prices = [price for _, _, price in time_prices]
+        min_price = min(all_prices)
+        max_price = max(all_prices)
+        price_range = max_price - min_price if max_price > min_price else 1
+
+        # Create bar graph - one bar per hour (showing hourly average)
+        hourly_bars = []
+        current_hour = -1
+        hour_prices = []
+
+        for hour, quarter, price in time_prices:
+            if hour != current_hour:
+                # Process previous hour if we have data
+                if current_hour >= 0 and hour_prices:
+                    avg_hour_price = sum(hour_prices) / len(hour_prices)
+
+                    # Calculate bar height (0-7 index into bar_symbols)
+                    if price_range > 0:
+                        height_ratio = (avg_hour_price - min_price) / price_range
+                        bar_height = min(7, int(height_ratio * 8))
+                    else:
+                        bar_height = 4  # Middle height if all prices are same
+
+                    # Choose color based on comparison to average
+                    if abs(avg_hour_price - avg_price_snt) < 0.01:  # Essentially equal
+                        color = yellow
+                    elif avg_hour_price < avg_price_snt:
+                        color = green  # Below average = good = green
+                    else:
+                        color = red  # Above average = expensive = red
+
+                    # Create colored bar
+                    bar = f"{color}{bar_symbols[bar_height]}{reset}"
+                    hourly_bars.append(bar)
+
+                # Start new hour
+                current_hour = hour
+                hour_prices = [price]
+            else:
+                hour_prices.append(price)
+
+        # Process the last hour
+        if hour_prices:
+            avg_hour_price = sum(hour_prices) / len(hour_prices)
+
+            if price_range > 0:
+                height_ratio = (avg_hour_price - min_price) / price_range
+                bar_height = min(7, int(height_ratio * 8))
+            else:
+                bar_height = 4
+
+            if abs(avg_hour_price - avg_price_snt) < 0.01:
+                color = yellow
+            elif avg_hour_price < avg_price_snt:
+                color = green
+            else:
+                color = red
+
+            bar = f"{color}{bar_symbols[bar_height]}{reset}"
+            hourly_bars.append(bar)
+
+        return "".join(hourly_bars)
+
+    def format_statistics_message(self, stats_data: Dict[str, Any]) -> str:
+        """
+        Format statistics data into a readable message with bar graph.
+
+        Args:
+            stats_data: Statistics data dictionary
+
+        Returns:
+            Formatted statistics message string with colorful bar graph
+        """
+        if stats_data.get("error"):
+            return f"📊 Sähkön tilastojen haku epäonnistui: {stats_data.get('message', 'Tuntematon virhe')}"
+
+        date_str = stats_data["date"]
+        min_price = stats_data["min_price"]
+        max_price = stats_data["max_price"]
+        avg_price = stats_data["avg_price"]
+
+        message = (
+            f"📊 Sähkön hintatilastot {date_str}: "
+            f"🔹 Min: {min_price['snt_per_kwh_with_vat']:.2f} snt/kWh (klo {min_price['hour']:02d}) "
+            f"🔸 Max: {max_price['snt_per_kwh_with_vat']:.2f} snt/kWh (klo {max_price['hour']:02d}) "
+            f"🔹 Keskiarvo: {avg_price['snt_per_kwh_with_vat']:.2f} snt/kWh"
+        )
+
+        # Add bar graph if daily prices available
+        try:
+            from datetime import datetime
+
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+            daily_prices = self.get_daily_prices(date_obj)
+
+            if not daily_prices.get("error") and daily_prices.get("interval_prices"):
+                bar_graph = self._create_price_bar_graph(
+                    daily_prices["interval_prices"], avg_price["snt_per_kwh_with_vat"]
+                )
+                message += f" | {bar_graph}"
+        except Exception as e:
+            log(
+                f"Error adding bar graph to stats: {e}",
+                level="WARNING",
+                context="ELECTRICITY",
+            )
+
+        return message
 
     def format_price_message(self, price_data: Dict[str, Any]) -> str:
         """
