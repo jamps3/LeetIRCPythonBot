@@ -152,10 +152,15 @@ class ElectricityService:
         date_key = date.strftime("%Y-%m-%d")
         now = datetime.now(self.timezone)  # Use timezone-aware timestamp
 
-        # Check cache - bypassed for debugging
-        # cached = self._cache.get(date_key)
-        # if cached and now - cached["timestamp"] < self._cache_ttl:
-        #    return cached["data"]
+        # Check cache
+        cached = self._cache.get(date_key)
+        if cached and now - cached["timestamp"] < self._cache_ttl:
+            log(
+                f"Using cached data for {date_key}",
+                level="DEBUG",
+                context="ELECTRICITY",
+            )
+            return cached["data"]
 
         try:
             local_start = self.timezone.localize(datetime.combine(date, time(0, 0)))
@@ -165,6 +170,12 @@ class ElectricityService:
             local_end = local_start + timedelta(days=1)
             utc_end = local_end.astimezone(pytz.utc)
             period_end = utc_end.strftime("%Y%m%d%H%M")
+
+            log(
+                f"Fetching electricity prices for {date_key}: {period_start} to {period_end} UTC",
+                level="INFO",
+                context="ELECTRICITY",
+            )
 
             params = {
                 "securityToken": self.api_key,
@@ -238,6 +249,48 @@ class ElectricityService:
             return {"error": True, "message": f"Failed to fetch daily prices: {str(e)}"}
 
     # ---------- Helpers ----------
+
+    def clear_cache(self) -> None:
+        """Clear the price cache."""
+        self._cache.clear()
+        log("Cleared electricity price cache", level="INFO", context="ELECTRICITY")
+
+    def get_cache_info(self) -> Dict[str, Any]:
+        """Get information about cached data."""
+        now = datetime.now(self.timezone)
+        cache_info = {}
+
+        for date_key, cached_data in self._cache.items():
+            age = now - cached_data["timestamp"]
+            cache_info[date_key] = {
+                "age_minutes": int(age.total_seconds() / 60),
+                "is_expired": age > self._cache_ttl,
+                "timestamp": cached_data["timestamp"].strftime("%Y-%m-%d %H:%M:%S"),
+            }
+
+        return cache_info
+
+    def diagnose_timezone_handling(self, date: datetime) -> Dict[str, Any]:
+        """Diagnostic function to debug timezone handling issues."""
+        if isinstance(date, datetime):
+            date = date.date()
+
+        # Helsinki timezone info
+        local_start = self.timezone.localize(datetime.combine(date, time(0, 0)))
+        utc_start = local_start.astimezone(pytz.utc)
+        local_end = local_start + timedelta(days=1)
+        utc_end = local_end.astimezone(pytz.utc)
+
+        return {
+            "requested_date": date.strftime("%Y-%m-%d"),
+            "helsinki_start": local_start.strftime("%Y-%m-%d %H:%M:%S %Z%z"),
+            "utc_start": utc_start.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "helsinki_end": local_end.strftime("%Y-%m-%d %H:%M:%S %Z%z"),
+            "utc_end": utc_end.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "api_period_start": utc_start.strftime("%Y%m%d%H%M"),
+            "api_period_end": utc_end.strftime("%Y%m%d%H%M"),
+            "timezone_offset": str(local_start.utcoffset()),
+        }
 
     def _convert_price(self, eur_per_mwh: float) -> float:
         eur = Decimal(str(eur_per_mwh))
