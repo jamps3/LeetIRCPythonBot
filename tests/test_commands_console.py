@@ -87,7 +87,7 @@ def test_console_command_processing():
         "chat_with_gpt": lambda msg: f"AI: {msg}",
         "wrap_irc_message_utf8_bytes": lambda msg, **kwargs: [msg],
         "get_crypto_price": lambda coin, currency="eur": "1000",
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
     }
 
     # Test version command
@@ -96,7 +96,7 @@ def test_console_command_processing():
 
     # Should have gotten a version response
     assert any(
-        "2.0.0" in str(response) for response in responses
+        "2.2.0" in str(response) for response in responses
     ), "Should get version response"
 
 
@@ -115,7 +115,7 @@ def test_console_weather_command():
         "send_weather": lambda irc, target, location: mock_notice(
             f"Weather for {location}: Sunny, 20°C"
         ),
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
     }
 
     # Test weather command
@@ -140,7 +140,7 @@ def test_console_help_command():
     bot_functions = {
         "notice_message": mock_notice,
         "log": lambda msg, level="INFO": None,
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
     }
 
     # Test help command
@@ -225,7 +225,7 @@ def test_console_command_with_services():
         "send_electricity_price": mock_send_electricity,
         "get_crypto_price": lambda coin, currency="eur": "50000",
         "load": lambda: {},
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
     }
 
     from command_loader import process_console_command
@@ -376,7 +376,7 @@ def test_console_tilaa_missing_service():
     bot_functions = {
         "notice_message": mock_notice,
         "log": mock_log,
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
         "send_electricity_price": lambda *args: None,
         "load_leet_winners": lambda: {},
         "send_weather": lambda *args: None,
@@ -420,7 +420,7 @@ def test_console_error_handling():
         "notice_message": mock_notice,
         "log": mock_log,
         "send_weather": broken_weather,
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
     }
 
     # Test command that should fail gracefully
@@ -461,7 +461,7 @@ def mock_bot_functions():
         "chat_with_gpt": lambda msg: f"AI: {msg}",
         "wrap_irc_message_utf8_bytes": lambda msg, **kwargs: [msg],
         "get_crypto_price": lambda coin, currency="eur": "1000",
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
     }
 
     # Attach responses list for test access
@@ -513,7 +513,7 @@ def test_parametrized_console_commands(command, enhanced_command_processor):
         "send_electricity_price": mock_send_electricity,
         "get_crypto_price": lambda coin, currency="eur": "50000",
         "load": lambda: {},
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
     }
 
     # Test command
@@ -591,7 +591,7 @@ def test_console_command_argument_parsing():
         "notice_message": mock_notice,
         "log": lambda msg, level="INFO": None,
         "send_weather": mock_send_weather_with_args,
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
     }
 
     # Test command with arguments
@@ -616,7 +616,7 @@ def test_console_command_case_insensitive():
     bot_functions = {
         "notice_message": mock_notice,
         "log": lambda msg, level="INFO": None,
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
     }
 
     # Test different case variations
@@ -643,7 +643,7 @@ def test_console_command_empty_input():
     bot_functions = {
         "notice_message": mock_notice,
         "log": lambda msg, level="INFO": None,
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
     }
 
     # Test empty command
@@ -667,7 +667,7 @@ def test_console_command_unknown_command():
     bot_functions = {
         "notice_message": mock_notice,
         "log": lambda msg, level="INFO": None,
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
     }
 
     # Test unknown command
@@ -695,7 +695,7 @@ def test_console_command_unicode_handling():
         "notice_message": mock_notice,
         "log": lambda msg, level="INFO": None,
         "send_weather": mock_send_weather_unicode,
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
     }
 
     # Test command with unicode location
@@ -720,7 +720,7 @@ def test_help_specific_command_console():
     bot_functions = {
         "notice_message": mock_notice,
         "log": lambda msg, level="INFO": None,
-        "BOT_VERSION": "2.0.0",
+        "BOT_VERSION": "2.2.0",
     }
 
     responses.clear()

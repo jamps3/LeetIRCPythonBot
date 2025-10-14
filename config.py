@@ -51,7 +51,7 @@ class BotConfig:
 
     # Bot identification
     name: str = "jl3b"
-    version: str = "2.0.0"
+    version: str = "2.2.0"
 
     # Logging
     log_level: str = "INFO"
@@ -141,7 +141,7 @@ class ConfigManager:
         config = BotConfig(
             # Bot identification
             name=os.getenv("BOT_NAME", "jl3b"),
-            version=os.getenv("BOT_VERSION", "2.0.0"),
+            version=os.getenv("BOT_VERSION", "2.2.0"),
             # Logging
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             # File paths

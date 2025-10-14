@@ -14,8 +14,8 @@ import threading
 import time
 from typing import Callable
 
+import logger
 from config import ServerConfig
-from logger import get_logger
 
 
 class Server:
@@ -76,7 +76,7 @@ class Server:
         self._rate_limit_last_refill = time.time()
         self._rate_limit_lock = threading.Lock()
 
-        self.log = get_logger(self.config.name)
+        self.log = logger.get_logger(self.config.name)
 
     def _refill_rate_limit_tokens(self):
         """Refill rate limiting tokens based on time elapsed.

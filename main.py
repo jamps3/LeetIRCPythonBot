@@ -42,7 +42,7 @@ from config import load_env_file
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="LeetIRC Python Bot - Multi-Server Edition",
+        description="Leet IRC Python Bot - Multi-Server Edition",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -60,7 +60,7 @@ Configuration:
     parser.add_argument(
         "-l",
         "--loglevel",
-        choices=["ERROR", "INFO", "DEBUG"],
+        choices=["ERROR", "INFO", "DEBUG"],  # TODO: Add all levels
         default="INFO",
         help="Set the logging level (default: INFO)",
     )
@@ -88,7 +88,7 @@ def setup_environment():
     if not load_env_file():
         logger.warning(
             "Warning: Could not load .env file. Using defaults where possible."
-        )
+        ), "MAIN"
 
     # Validate essential configuration
     bot_name = os.getenv("BOT_NAME", "LeetIRCBot")
@@ -100,12 +100,12 @@ def setup_environment():
     )
 
     if not has_server_config:
-        logger.error("ERROR: No server configurations found!")
-        logger.error("Please configure at least one server in your .env file:")
-        logger.error("  SERVER1_HOST=irc.example.com")
-        logger.error("  SERVER1_PORT=6667")
-        logger.error("  SERVER1_CHANNELS=#channel1,#channel2")
-        logger.error("  SERVER1_KEYS=")
+        logger.error("ERROR: No server configurations found!"), "MAIN"
+        logger.error("Please configure at least one server in your .env file:"), "MAIN"
+        logger.error("  SERVER1_HOST=irc.example.com"), "MAIN"
+        logger.error("  SERVER1_PORT=6667"), "MAIN"
+        logger.error("  SERVER1_CHANNELS=#channel1,#channel2"), "MAIN"
+        logger.error("  SERVER1_KEYS="), "MAIN"
         return None
 
     return bot_name
@@ -123,7 +123,7 @@ def main():
     if args:
         os.environ["LOG_LEVEL"] = args.loglevel
         if args.show_api_keys:
-            logger.info("=== API KEYS ===")
+            logger.log("=== API KEYS ==="), "INFO", "MAIN"
             api_keys = [
                 "OPENAI_API_KEY",
                 "WEATHER_API_KEY",
@@ -138,15 +138,16 @@ def main():
                     display_value = f"{value[:5]}...{value[-5:]}"
                 else:
                     display_value = value
-                logger.info(f"  {key}: {display_value}")
-            logger.info("=" * 60)
+                logger.log(f"  {key}: {display_value}"), "INFO", "MAIN"
+            logger.log("=" * 60), "INFO", "MAIN"
 
-    logger.info("=" * 60)
+    logger.log("=" * 60), "INFO", "MAIN"
     logger.log(
         "🤖 LeetIRC Python Bot - Multi-Server Edition",
-        "[BOT] LeetIRC Python Bot - Multi-Server Edition",
+        "INFO",
+        "MAIN" "[BOT] LeetIRC Python Bot - Multi-Server Edition",
     )
-    logger.info("=" * 60)
+    logger.log("=" * 60), "INFO", "MAIN"
 
     # Setup environment and get bot name
     bot_name = setup_environment()
@@ -156,12 +157,14 @@ def main():
     # Override bot name from command line if provided
     if args.nickname:
         bot_name = args.nickname
-        logger.info(f"Using nickname from command line: {bot_name}")
+        logger.log(f"Using nickname from command line: {bot_name}"), "INFO", "MAIN"
 
-    logger.info(f"Bot name: {bot_name}")
-    logger.info(f"Log level: {args.loglevel}")
-    logger.info(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info("-" * 60)
+    logger.log(f"Bot name: {bot_name}"), "INFO", "MAIN"
+    logger.log(f"Log level: {args.loglevel}"), "INFO", "MAIN"
+    logger.log(
+        f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    ), "INFO", "MAIN"
+    logger.log("-" * 60), "INFO", "MAIN"
 
     # Create and start the bot manager
     bot_manager = BotManager(bot_name)
@@ -172,17 +175,27 @@ def main():
             logger.error("ERROR: Failed to start bot manager")
             return 1
 
-        logger.log("🚀 Bot started successfully!", "[START] Bot started successfully!")
-        logger.info("Press Ctrl+C to shutdown gracefully")
-        logger.info("-" * 60)
+        logger.log(
+            "🚀 Bot started successfully!",
+            "INFO",
+            "MAIN",
+            "[START] Bot started successfully!",
+        )
+        logger.log("Press Ctrl+C to shutdown gracefully"), "INFO", "MAIN"
+        logger.log("-" * 60), "INFO", "MAIN"
 
         # Wait for shutdown
         bot_manager.wait_for_shutdown()
 
     except KeyboardInterrupt:
-        logger.info("\n" + "=" * 60)
-        logger.log("🛑 Shutdown signal received", "[STOP] Shutdown signal received")
-        logger.info("=" * 60)
+        logger.log("" + "=" * 60), "INFO", "MAIN"
+        logger.log(
+            "🛑 Shutdown signal received",
+            "INFO",
+            "MAIN",
+            "[STOP] Shutdown signal received",
+        )
+        logger.log("=" * 60), "INFO", "MAIN"
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
@@ -196,11 +209,17 @@ def main():
         try:
             bot_manager.stop()
             logger.log(
-                "✅ Bot shut down successfully", "[OK] Bot shut down successfully"
+                "✅ Bot shut down successfully",
+                "INFO",
+                "MAIN",
+                "[OK] Bot shut down successfully",
             )
         except Exception as e:
             logger.log(
-                f"❌ Error during shutdown: {e}", f"[ERROR] Error during shutdown: {e}"
+                f"❌ Error during shutdown: {e}",
+                "ERROR",
+                "MAIN",
+                f"[ERROR] Error during shutdown: {e}",
             )
 
     return 0
