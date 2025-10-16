@@ -662,6 +662,74 @@ class ElectricityService:
 
         return " | ".join(message_parts)
 
+    def format_daily_prices_message(
+        self, all_prices: List[Dict[str, Any]], is_tomorrow: bool = False
+    ) -> str:
+        """
+        Format a list of daily prices into a readable message.
+
+        Args:
+            all_prices: List of price data dictionaries for each hour
+            is_tomorrow: Whether this is for tomorrow's prices
+
+        Returns:
+            Formatted daily prices message
+        """
+        if not all_prices:
+            return "⚡ Ei hintatietoja saatavilla"
+
+        day_label = "Huomenna" if is_tomorrow else "Tänään"
+
+        # Get the date from the first successful price entry
+        date_str = None
+        for price_entry in all_prices:
+            if not price_entry.get("error") and price_entry.get("date"):
+                date_str = price_entry["date"]
+                break
+
+        if not date_str:
+            # Try to determine date from context
+            from datetime import datetime, timedelta
+
+            now = datetime.now(self.timezone)
+            if is_tomorrow:
+                date_obj = (now + timedelta(days=1)).date()
+            else:
+                date_obj = now.date()
+            date_str = date_obj.strftime("%Y-%m-%d")
+
+        message_parts = [f"⚡ {day_label} {date_str} sähkön hinnat:"]
+
+        # Format hours in groups of 6 for better readability
+        for group_start in range(0, 24, 6):
+            group_end = min(group_start + 6, 24)
+            hour_prices = []
+
+            for h in range(group_start, group_end):
+                if h < len(all_prices):
+                    price_entry = all_prices[h]
+                    if price_entry.get("error"):
+                        hour_prices.append(f"{h:02d}: N/A")
+                    else:
+                        today_price = price_entry.get("today_price") or price_entry.get(
+                            "tomorrow_price"
+                        )
+                        if today_price:
+                            avg_snt = today_price.get("hour_avg_snt_kwh", 0)
+                            hour_prices.append(f"{h:02d}: {avg_snt:.2f}")
+                        else:
+                            hour_prices.append(f"{h:02d}: N/A")
+                else:
+                    hour_prices.append(f"{h:02d}: N/A")
+
+            if hour_prices:
+                message_parts.append(" | ".join(hour_prices))
+
+        # Add unit information
+        message_parts.append("(snt/kWh sis. ALV)")
+
+        return " | ".join(message_parts)
+
 
 # ---------- Factory function ----------
 def create_electricity_service(api_key: str) -> ElectricityService:

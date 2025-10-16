@@ -197,7 +197,7 @@ class Server:
                             else self.config.host
                         ),
                     )
-                    self.log.info("Wrapped socket with TLS")
+                    self.log.info(f"Connecting to {self.config.host} with TLS..")
 
                 except Exception as e:
                     self.log.error(f"Failed to create SSL context: {e}")
@@ -634,7 +634,7 @@ class Server:
             # Increase retry delay with a cap
             retry_delay = min(retry_delay * 2, max_retry_delay)
 
-        self.log.info("Server start() method exiting")
+        self.log.debug("Server start() method exiting")
 
     def quit(self, message: str = "Disconnecting"):
         """

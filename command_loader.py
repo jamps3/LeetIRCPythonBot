@@ -378,6 +378,125 @@ def get_command_help_text() -> str:
     return "\n".join(help_lines)
 
 
+def process_user_input(user_input: str, bot_manager, source: str = "Console") -> bool:
+    """
+    Process user input from console or TUI with unified logic.
+
+    Args:
+        user_input: The input string to process
+        bot_manager: Reference to the bot manager instance
+        source: Source of the input ("Console" or "TUI")
+
+    Returns:
+        bool: True if should continue, False if should exit
+    """
+    import threading
+
+    if not user_input or not user_input.strip():
+        return True
+
+    user_input = user_input.strip()
+
+    # Handle quit/exit commands (non-bot commands)
+    if user_input.lower() in ("quit", "exit"):
+        logger.info(f"{source} quit command received")
+        logger.log(
+            "🛑 Shutting down bot...",
+            "INFO",
+            fallback_text="[STOP] Shutting down bot...",
+        )
+        bot_manager.stop_event.set()
+        return False
+
+    # Handle bot commands (including !exit, !quit, !connect, etc.)
+    if user_input.startswith("!"):
+        try:
+            # Special handling for exit commands - these need immediate processing
+            command_parts = user_input[1:].split()
+            command = command_parts[0].lower() if command_parts else ""
+
+            if command in ("exit", "quit"):
+                # Process exit commands synchronously for immediate effect
+                bot_functions = bot_manager._create_console_bot_functions()
+                process_console_command(user_input, bot_functions)
+                return False  # Signal to exit
+            else:  # Process all other commands asynchronously
+                bot_functions = bot_manager._create_console_bot_functions()
+
+                def process_command_async():
+                    try:
+                        process_console_command(user_input, bot_functions)
+                    except Exception as e:
+                        logger.error(f"{source} command processing error: {e}")
+
+                # Run command processing in background thread
+                command_thread = threading.Thread(
+                    target=process_command_async,
+                    daemon=True,
+                    name=f"Command-{user_input[:10]}",
+                )
+                command_thread.start()
+
+        except Exception as e:
+            logger.error(f"{source} command setup error: {e}")
+
+    # Handle channel join/part commands
+    elif user_input.startswith("#"):
+        try:
+            channel_name = user_input[1:].strip()
+            if channel_name:
+                result = bot_manager._console_join_or_part_channel(channel_name)
+                logger.info(result)
+            else:
+                result = bot_manager._get_channel_status()
+                logger.info(result)
+        except Exception as e:
+            logger.error(f"{source} channel command error: {e}")
+
+    # Handle AI chat commands
+    elif user_input.startswith("-"):
+        ai_message = user_input[1:].strip()
+        if ai_message:
+            if bot_manager.gpt_service:
+                logger.log(
+                    "🤖 AI: Processing...",
+                    "MSG",
+                    fallback_text="AI: Processing...",
+                )
+                ai_thread = threading.Thread(
+                    target=_process_ai_request,
+                    args=(bot_manager, ai_message, source),
+                    daemon=True,
+                )
+                ai_thread.start()
+            else:
+                logger.error("AI service not available (no OpenAI API key configured)")
+        else:
+            logger.error("Empty AI message. Use: -<message>")
+
+    # Handle regular channel messages
+    else:
+        try:
+            result = bot_manager._console_send_to_channel(user_input)
+            logger.info(result)
+        except Exception as e:
+            logger.error(f"{source} channel message error: {e}")
+
+    return True
+
+
+def _process_ai_request(bot_manager, user_input: str, sender: str):
+    """Process AI request in a separate thread to avoid blocking input."""
+    try:
+        response = bot_manager.gpt_service.chat(user_input, sender)
+        if response:
+            logger.log(f"🤖 AI: {response}", "MSG", fallback_text=f"AI: {response}")
+        else:
+            logger.log("🤖 AI: (no response)", "MSG", fallback_text="AI: (no response)")
+    except Exception as e:
+        logger.error(f"AI chat error: {e}")
+
+
 # Lazy-load commands to avoid import-time side effects during testing
 _commands_loaded = False
 

@@ -187,27 +187,154 @@ def ping_command(context: CommandContext, bot_functions):
 
 
 @command(
+    "connect",
+    description="Connect to IRC servers",
+    usage="!connect [server_name host [port] [channels] [tls]]",
+    examples=["!connect", "!connect myserver irc.example.com 6667 #general,#random"],
+)
+def connect_command(context: CommandContext, bot_functions):
+    """Connect to IRC servers."""
+    # Get bot manager from bot_functions
+    if not hasattr(bot_functions, "__self__") or not hasattr(
+        bot_functions["__self__"], "_console_connect"
+    ):
+        # Try to get bot manager reference
+        bot_manager = bot_functions.get("bot_manager")
+        if not bot_manager:
+            return "Bot manager not available"
+    else:
+        bot_manager = bot_functions["__self__"]
+
+    # Use the existing console connect logic
+    try:
+        result = bot_manager._console_connect(*context.args)
+        return result
+    except Exception as e:
+        return f"Connection error: {e}"
+
+
+@command(
+    "disconnect",
+    description="Disconnect from IRC servers",
+    usage="!disconnect [server_names...]",
+    examples=["!disconnect", "!disconnect server1 server2"],
+)
+def disconnect_command(context: CommandContext, bot_functions):
+    """Disconnect from IRC servers."""
+    # Get bot manager from bot_functions
+    bot_manager = bot_functions.get("bot_manager")
+    if not bot_manager:
+        return "Bot manager not available"
+
+    try:
+        result = bot_manager._console_disconnect(*context.args)
+        return result
+    except Exception as e:
+        return f"Disconnection error: {e}"
+
+
+@command(
+    "status",
+    description="Show server connection status",
+    usage="!status",
+    examples=["!status"],
+)
+def status_command(context: CommandContext, bot_functions):
+    """Show server connection status."""
+    # Get bot manager from bot_functions
+    bot_manager = bot_functions.get("bot_manager")
+    if not bot_manager:
+        return "Bot manager not available"
+
+    try:
+        result = bot_manager._console_status(*context.args)
+        return result
+    except Exception as e:
+        return f"Status error: {e}"
+
+
+@command(
+    "channels",
+    description="Show channel status and list",
+    usage="!channels",
+    examples=["!channels"],
+)
+def channels_command(context: CommandContext, bot_functions):
+    """Show channel status and list."""
+    # Get bot manager from bot_functions
+    bot_manager = bot_functions.get("bot_manager")
+    if not bot_manager:
+        return "Bot manager not available"
+
+    try:
+        result = bot_manager._get_channel_status()
+        return result
+    except Exception as e:
+        return f"Channels error: {e}"
+
+
+@command(
     "sahko",
     aliases=["sähkö"],
     description="Get electricity price information",
-    usage="!sahko [tänään|huomenna] [tunti]",
-    examples=["!sahko", "!sahko huomenna", "!sahko tänään 15"],
+    usage="!sahko [tänään|huomenna|tilastot|stats] [tunti]",
+    examples=[
+        "!sahko",
+        "!sahko huomenna",
+        "!sahko tänään 15",
+        "!sahko tilastot",
+        "!sahko stats",
+    ],
 )
 def electricity_command(context: CommandContext, bot_functions):
     """Get electricity price information."""
-    send_electricity_price = bot_functions.get("send_electricity_price")
-    if send_electricity_price:
-        # Reconstruct the command parts from context
-        command_parts = [context.command]
-        if context.args_text:
-            command_parts.extend(context.args_text.split())
+    # Get electricity service directly for better control in TUI mode
+    bot_manager = bot_functions.get("bot_manager")
+    if not bot_manager or not bot_manager.electricity_service:
+        return "Electricity price service not available. Please configure ELECTRICITY_API_KEY."
 
-        # Determine IRC/server context if available (for IRC responses)
-        irc_ctx = bot_functions.get("irc") if not context.is_console else None
-        send_electricity_price(irc_ctx, context.target, command_parts)
-        return CommandResponse.no_response()  # Service handles the output
-    else:
-        return "Electricity price service not available"
+    try:
+        # Parse arguments using the service
+        parsed_args = bot_manager.electricity_service.parse_command_args(context.args)
+
+        if parsed_args.get("error"):
+            return f"⚡ {parsed_args['error']}"
+
+        if parsed_args.get("show_stats"):
+            # Show daily statistics
+            stats_data = bot_manager.electricity_service.get_price_statistics(
+                parsed_args["date"]
+            )
+            response = bot_manager.electricity_service.format_statistics_message(
+                stats_data
+            )
+        elif parsed_args.get("show_all_hours"):
+            # Show all hours for the day
+            all_prices = []
+            for h in range(24):
+                price_data = bot_manager.electricity_service.get_electricity_price(
+                    hour=h, date=parsed_args["date"]
+                )
+                if price_data.get("error"):
+                    all_prices.append({"hour": h, "error": price_data["message"]})
+                else:
+                    all_prices.append(price_data)
+            response = bot_manager.electricity_service.format_daily_prices_message(
+                all_prices, is_tomorrow=parsed_args["is_tomorrow"]
+            )
+        else:
+            # Handle specific hour or 15-minute interval
+            price_data = bot_manager.electricity_service.get_electricity_price(
+                hour=parsed_args.get("hour"),
+                quarter=parsed_args.get("quarter"),
+                date=parsed_args["date"],
+            )
+            response = bot_manager.electricity_service.format_price_message(price_data)
+
+        return response
+
+    except Exception as e:
+        return f"⚡ Error getting electricity price: {str(e)}"
 
 
 @command(
@@ -420,24 +547,29 @@ def about_command(context: CommandContext, bot_functions):
 
 @command(
     "exit",
-    description="Exit the bot from console",
+    aliases=["quit"],
+    description="Shutdown the bot",
     usage="!exit",
-    examples=["!exit"],
-    scope=CommandScope.CONSOLE_ONLY,
+    examples=["!exit", "!quit"],
 )
 def exit_command(context: CommandContext, bot_functions):
-    """Exit the bot when used from console."""
-    if context.is_console:
-        # Try to get the stop event from bot functions and trigger it
-        stop_event = bot_functions.get("stop_event")
-        if stop_event:
-            stop_event.set()
-            return "🛑 Shutting down bot..."
-        else:
-            # Fallback - just return a quit message
-            return "🛑 Exit command received - bot shutting down"
+    """Shutdown the bot."""
+    # Try to get the stop event from bot functions and trigger it
+    stop_event = bot_functions.get("stop_event")
+    if stop_event:
+        import logger
+
+        logger.info(f"{context.server_name} !{context.command} command received")
+        logger.log(
+            "🛑 Shutting down bot...",
+            "INFO",
+            fallback_text="[STOP] Shutting down bot...",
+        )
+        stop_event.set()
+        return "🛑 Bot shutdown initiated..."
     else:
-        return "This command only works from console"
+        # Fallback - just return a quit message
+        return "🛑 Exit command received - bot shutting down"
 
 
 # ========================

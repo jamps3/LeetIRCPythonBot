@@ -74,7 +74,7 @@ except ImportError as e:
     GPTService = None
 
 try:
-    from services.otiedote_service import create_otiedote_service
+    from services.otiedote_playwright_service import create_otiedote_service
 except ImportError as e:
     logger.warning(f"Otiedote service not available: {e}")
     create_otiedote_service = None
@@ -104,14 +104,16 @@ class BotManager:
     5. Handles graceful shutdown
     """
 
-    def __init__(self, bot_name: str):
+    def __init__(self, bot_name: str, console_mode: bool = False):
         """
         Initialize the bot manager.
 
         Args:
             bot_name: The nickname for the bot across all servers
+            console_mode: Whether to use console mode (with readline) or TUI mode
         """
         self.bot_name = bot_name
+        self.console_mode = console_mode
         self.servers: Dict[str, Server] = {}
         self.server_threads: Dict[str, threading.Thread] = {}
         self.stop_event = threading.Event()
@@ -131,8 +133,9 @@ class BotManager:
         self.quit_message = os.getenv("QUIT_MESSAGE", "Disconnecting")
         self.logger = logger.get_logger("BotManager")
 
-        if READLINE_AVAILABLE:
-            self.logger.debug("Readline module is available.")
+        # Only set up readline and console features when in console mode
+        if self.console_mode and READLINE_AVAILABLE:
+            self.logger.debug("Console mode enabled - setting up readline...")
 
             # Configure readline for command history and console output protection
             self.logger.debug("Setting up readline history...")
@@ -149,7 +152,11 @@ class BotManager:
             except Exception as e:
                 self.logger.debug(f"Console output protection setup failed: {e}")
 
-        self.logger.debug("Readline and console setup complete.")
+            self.logger.debug("Readline and console setup complete.")
+        elif self.console_mode:
+            self.logger.debug("Console mode enabled but readline not available")
+        else:
+            self.logger.debug("TUI mode enabled - skipping readline setup")
 
         # Load USE_NOTICES setting
         use_notices_setting = os.getenv("USE_NOTICES", "false").lower()
@@ -412,8 +419,8 @@ class BotManager:
             self.logger.warning(f"Could not set up console output protection: {e}")
 
     def _save_command_history(self):
-        """Save command history to file."""
-        if hasattr(self, "_history_file") and self._history_file:
+        """Save command history to file (console mode only)."""
+        if self.console_mode and hasattr(self, "_history_file") and self._history_file:
             try:
                 readline.write_history_file(self._history_file)
                 self.logger.debug(f"Saved command history to {self._history_file}")
@@ -588,9 +595,27 @@ class BotManager:
 
     def _handle_join(self, server: Server, sender: str, channel: str):
         """Handle user join events."""
-        # Track user activity
         server_name = server.config.name
-        self.logger.server(f"{sender} joined {channel}", server_name)
+
+        # Track when the bot itself joins a channel
+        if sender.lower() == self.bot_name.lower():
+            # Initialize joined channels for this server if needed
+            if server_name not in self.joined_channels:
+                self.joined_channels[server_name] = set()
+
+            # Add channel to joined channels tracking
+            self.joined_channels[server_name].add(channel)
+
+            # Set as active channel if no active channel is set
+            if not self.active_channel or not self.active_server:
+                self.active_channel = channel
+                self.active_server = server_name
+                self.logger.info(f"Set active channel: {channel} on {server_name}")
+
+            self.logger.info(f"Bot joined {channel} on {server_name}")
+        else:
+            # Track other user activity
+            self.logger.server(f"{sender} joined {channel}", server_name)
 
     def _handle_part(self, server: Server, sender: str, channel: str):
         """Handle user part events."""
@@ -715,16 +740,31 @@ class BotManager:
         if self.fmi_warning_service is not None:
             self.fmi_warning_service.start()
         if self.otiedote_service is not None:
-            self.otiedote_service.start()
+            try:
+                import asyncio
 
-        # Start console listener thread
-        self.console_thread = threading.Thread(
-            target=self._listen_for_console_commands,
-            daemon=True,
-            name="Console-Listener",
-        )
-        self.console_thread.start()
-        self.logger.debug("Started console input listener")
+                # Try to run the coroutine properly
+                try:
+                    loop = asyncio.get_running_loop()
+                    # If we're in an event loop, schedule it as a task
+                    asyncio.create_task(self.otiedote_service.start())
+                except RuntimeError:
+                    # No running loop, create new one
+                    asyncio.run(self.otiedote_service.start())
+            except Exception as e:
+                self.logger.warning(f"Could not start Otiedote service: {e}")
+
+        # Start console listener thread only in console mode
+        if self.console_mode:
+            self.console_thread = threading.Thread(
+                target=self._listen_for_console_commands,
+                daemon=True,
+                name="Console-Listener",
+            )
+            self.console_thread.start()
+            self.logger.debug("Started console input listener")
+        else:
+            self.logger.debug("TUI mode - console input listener not started")
 
         # Only auto-connect if explicitly enabled
         if self.auto_connect:
@@ -740,31 +780,35 @@ class BotManager:
                 "🔌 Use !connect to connect to servers",
                 fallback_text="Use !connect to connect to servers",
             )
-        self.logger.log("-" * 60)
-        self.logger.log(
-            "💬 Console is ready! Type commands (!help) or chat messages.",
-            fallback_text="[CHAT] Console is ready! Type commands (!help) or chat messages.",
-        )
-        self.logger.log(
-            "🔧 Commands: !help, !version, !s <location>, !ping, !connect, !disconnect, !status, !channels, etc.",
-            fallback_text="[CONFIG] Commands: !help, !version, !s <location>, !ping, !connect, !disconnect, !status, !channels, etc.",
-        )
-        self.logger.log(
-            "💬 Channels: #channel to join/part, send messages directly to active channel",
-            "INFO",
-            fallback_text="[CHANNEL] Channels: #channel to join/part, send messages directly to active channel",
-        )
-        self.logger.log(
-            "🤖 AI Chat: -message to chat with AI",
-            "INFO",
-            fallback_text="[AI] AI Chat: -message to chat with AI",
-        )
-        self.logger.log(
-            "🛑 Exit: Type 'quit' or 'exit' or press Ctrl+C",
-            "INFO",
-            fallback_text="[STOP] Exit: Type 'quit' or 'exit' or press Ctrl+C",
-        )
-        self.logger.log("-" * 60)
+        # Show console-specific instructions only in console mode
+        if self.console_mode:
+            self.logger.log("-" * 60)
+            self.logger.log(
+                "💬 Console is ready! Type commands (!help) or chat messages.",
+                fallback_text="[CHAT] Console is ready! Type commands (!help) or chat messages.",
+            )
+            self.logger.log(
+                "🔧 Commands: !help, !version, !s <location>, !ping, !connect, !disconnect, !status, !channels, etc.",
+                fallback_text="[CONFIG] Commands: !help, !version, !s <location>, !ping, !connect, !disconnect, !status, !channels, etc.",
+            )
+            self.logger.log(
+                "💬 Channels: #channel to join/part, send messages directly to active channel",
+                "INFO",
+                fallback_text="[CHANNEL] Channels: #channel to join/part, send messages directly to active channel",
+            )
+            self.logger.log(
+                "🤖 AI Chat: -message to chat with AI",
+                "INFO",
+                fallback_text="[AI] AI Chat: -message to chat with AI",
+            )
+            self.logger.log(
+                "🛑 Exit: Type 'quit' or 'exit' or press Ctrl+C",
+                "INFO",
+                fallback_text="[STOP] Exit: Type 'quit' or 'exit' or press Ctrl+C",
+            )
+            self.logger.log("-" * 60)
+        else:
+            self.logger.log("Bot manager started in TUI mode")
         return True
 
     def connect_to_servers(self, server_names: List[str] = None):
@@ -1010,8 +1054,32 @@ class BotManager:
                 self.logger.info(
                     "Stopping Otiedote service (may take up to 10 seconds)..."
                 )
-                self.otiedote_service.stop()
-                time.sleep(10)  # Grace period for the monitor thread
+                try:
+                    import asyncio
+
+                    # Try to run the coroutine properly
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # If we're in an event loop, schedule it as a task
+                        asyncio.create_task(self.otiedote_service.stop())
+                        time.sleep(1)  # Brief wait for task to start
+                    except RuntimeError:
+                        # No running loop, create new one
+                        asyncio.run(self.otiedote_service.stop())
+                except Exception as async_e:
+                    self.logger.warning(
+                        f"Could not stop Otiedote service async: {async_e}"
+                    )
+                    # Fallback: try synchronous stop if available
+                    try:
+                        if hasattr(self.otiedote_service, "_stop_sync"):
+                            self.otiedote_service._stop_sync()
+                    except Exception as sync_e:
+                        self.logger.warning(
+                            f"Could not stop Otiedote service sync: {sync_e}"
+                        )
+
+                time.sleep(2)  # Reduced grace period
                 self.logger.info("Otiedote service stopped")
         except Exception as e:
             self.logger.error(f"Error stopping Otiedote service: {e}")
@@ -1422,6 +1490,7 @@ class BotManager:
             "channels": self._get_channel_status,  # Show channel status
             "join_channel": self._console_join_or_part_channel,  # Join/part channels
             "send_to_channel": self._console_send_to_channel,  # Send messages to channels
+            "bot_manager": self,  # Reference to the bot manager itself
         }
 
     def set_quit_message(self, message: str):
@@ -1541,9 +1610,9 @@ class BotManager:
         try:
             # Handle both string and list inputs for compatibility
             if isinstance(text_or_parts, list):
-                # Called from IRC command with parts list
-                args = text_or_parts[1:] if len(text_or_parts) > 1 else []
-                text = " ".join(args)
+                # Called from IRC command with parts list or new command system
+                args = text_or_parts
+                text = " ".join(args) if args else ""
             else:
                 # Called with string (e.g., from tests or console)
                 text = text_or_parts or ""
@@ -1641,6 +1710,19 @@ class BotManager:
         if not server:  # Console output
             self.logger.msg(message, "MSG")
             return
+
+        # Don't send or log messages if we're not connected to the server
+        if not server.connected:
+            return
+
+        # Don't send or log messages if target is a channel and we haven't joined it
+        if target.startswith("#"):
+            server_name = server.config.name
+            if (
+                server_name not in self.joined_channels
+                or target not in self.joined_channels[server_name]
+            ):
+                return
 
         if self.use_notices:
             server.send_notice(target, message)

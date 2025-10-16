@@ -10,42 +10,98 @@ from typing import Dict, List, Tuple
 import pytz
 
 
-def parse_test_prices(filename: str) -> Dict[Tuple[int, int], float]:
+def parse_test_date(filename: str) -> date:
     """
-    Parse debug_electricity_mapping_prices.txt file.
-    Format: HH:MM*price*¢ on each line after date
-    Returns dict mapping (hour, quarter) -> price_in_cents
+    Parse the FIRST date from the debug_electricity_mapping_prices.txt file.
+    Format: "October 16, 2025" on a date header line.
+    Returns: date object
     """
-    prices = {}
+    with open(filename, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            # Date header like: October 16, 2025
+            m = re.match(r"^[A-Za-z]+\s+\d{1,2},\s+\d{4}$", line)
+            if m:
+                try:
+                    date_obj = datetime.strptime(line, "%B %d, %Y").date()
+                    print(f"Parsed date from file: {date_obj}")
+                    return date_obj
+                except ValueError as e:
+                    print(f"Could not parse date from '{line}': {e}")
+                    break
+    # Fallback to today
+    return date.today()
+
+
+def parse_all_test_prices(
+    filename: str,
+) -> List[Tuple[date, Dict[Tuple[int, int], float]]]:
+    """
+    Parse ALL date sections and their prices from debug_electricity_mapping_prices.txt.
+    Returns a list of tuples: (date, {(hour, quarter): cents, ...})
+    """
+    results: List[Tuple[date, Dict[Tuple[int, int], float]]] = []
+    current_date: date | None = None
+    current_prices: Dict[Tuple[int, int], float] | None = None
 
     with open(filename, "r", encoding="utf-8") as f:
-        lines = f.readlines()
+        for raw in f:
+            line = raw.strip()
+            if not line:
+                continue
+            # Date header
+            if re.match(r"^[A-Za-z]+\s+\d{1,2},\s+\d{4}$", line):
+                # Flush previous block
+                if current_date and current_prices is not None:
+                    results.append((current_date, current_prices))
+                # Start new block
+                try:
+                    current_date = datetime.strptime(line, "%B %d, %Y").date()
+                    current_prices = {}
+                    print(f"Found date section: {current_date}")
+                except ValueError:
+                    current_date = None
+                    current_prices = None
+                continue
+            # Stop at hourly averages section
+            if line.startswith("Hourly averages:"):
+                # Flush current block and stop parsing further
+                if current_date and current_prices is not None:
+                    results.append((current_date, current_prices))
+                break
+            # Price line: allow optional space between time and value
+            m = re.match(r"^(\d{2}):(\d{2})\s*([0-9.-]+)¢$", line)
+            if m and current_prices is not None:
+                hour = int(m.group(1))
+                minute = int(m.group(2))
+                cents = float(m.group(3))
+                quarter = (minute // 15) + 1
+                current_prices[(hour, quarter)] = cents
+                # Do not spam too much; remove verbose per-line prints here
+                continue
+            # Otherwise ignore unknown lines
 
-    # Skip first two lines (date and empty line)
-    data_lines = lines[2:]
+    # Flush last block if not yet appended
+    if (
+        current_date
+        and current_prices is not None
+        and (not results or results[-1][0] != current_date)
+    ):
+        results.append((current_date, current_prices))
 
-    for line in data_lines:
-        line = line.strip()
-        if not line or line.startswith("Hourly averages:"):
-            break  # Stop when we reach hourly averages section
+    return results
 
-        # Parse format like "    00:0011.51¢"
-        # Extract time and price with regex
-        match = re.match(r"\s*(\d{2}):(\d{2})([0-9.]+)¢", line)
-        if match:
-            hour = int(match.group(1))
-            minute = int(match.group(2))
-            price_cents = float(match.group(3))
 
-            # Convert minute to quarter (0-14 -> Q1, 15-29 -> Q2, etc.)
-            quarter = (minute // 15) + 1
-
-            prices[(hour, quarter)] = price_cents
-            print(f"Parsed: {hour:02d}:{minute:02d} (Q{quarter}) -> {price_cents}¢")
-        else:
-            print(f"Could not parse line: {line}")
-
-    return prices
+def parse_test_prices(filename: str) -> Dict[Tuple[int, int], float]:
+    """
+    Backwards-compatible helper: return prices for the FIRST date block only.
+    """
+    all_blocks = parse_all_test_prices(filename)
+    if not all_blocks:
+        return {}
+    return all_blocks[0][1]
 
 
 def parse_test_hourly_averages(filename: str) -> Dict[int, float]:
@@ -88,15 +144,27 @@ def parse_test_hourly_averages(filename: str) -> Dict[int, float]:
     return hourly_averages
 
 
-def generate_mock_xml_response(expected_prices: Dict[Tuple[int, int], float]) -> str:
+def generate_mock_xml_response(
+    expected_prices: Dict[Tuple[int, int], float], test_date: date
+) -> str:
     """
     Generate a mock ENTSO-E XML response for testing.
     Convert expected prices (in cents) back to EUR/MWh for the XML.
     """
     vat_rate = 1.255
 
+    # Calculate UTC times for the XML (Helsinki is UTC+3 in October)
+    # For Helsinki date, UTC period starts at 21:00 previous day and ends at 21:00 on the date
+    utc_start = test_date - timedelta(days=1)
+    utc_end = test_date
+
+    start_str = f"{utc_start.strftime('%Y-%m-%d')}T21:00Z"
+    end_str = f"{utc_end.strftime('%Y-%m-%d')}T21:00Z"
+
+    print(f"Generating XML for UTC period: {start_str} to {end_str}")
+
     # XML header
-    xml_content = """<?xml version="1.0" encoding="UTF-8"?>
+    xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Publication_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:0">
     <mRID>test-market-doc</mRID>
     <revisionNumber>1</revisionNumber>
@@ -112,11 +180,10 @@ def generate_mock_xml_response(expected_prices: Dict[Tuple[int, int], float]) ->
         <curveType>A01</curveType>
         <Period>
             <timeInterval>
-                <start>2025-10-13T21:00Z</start>
-                <end>2025-10-14T21:00Z</end>
+                <start>{start_str}</start>
+                <end>{end_str}</end>
             </timeInterval>
-            <resolution>PT15M</resolution>
-"""
+            <resolution>PT15M</resolution>"""
 
     # Generate price points (96 15-minute intervals in a day)
     position = 1
@@ -157,14 +224,14 @@ def test_statistics_and_bar_graph_with_mocked_api():
 
     print(f"\nParsed {len(expected_prices)} expected price points")
 
+    # Parse test date from file
+    test_date = parse_test_date("debug_electricity_mapping_prices.txt")
+
     # Generate mock XML response
-    mock_xml = generate_mock_xml_response(expected_prices)
+    mock_xml = generate_mock_xml_response(expected_prices, test_date)
 
     # Create service
     service = ElectricityService("dummy_api_key")
-
-    # Test date
-    test_date = date(2025, 10, 14)
 
     print(f"\nTesting statistics and bar graph functionality for {test_date}")
     print("=" * 60)
@@ -183,17 +250,17 @@ def test_statistics_and_bar_graph_with_mocked_api():
             stats = service.get_price_statistics(test_date)
 
             if stats.get("error"):
-                print(f"  ❌ Statistics error: {stats.get('message')}")
+                print(f"  ERROR Statistics error: {stats.get('message')}")
                 return False
 
             print(
-                f"  ✅ Min price: {stats['min_price']['snt_per_kwh_with_vat']:.2f} snt/kWh at hour {stats['min_price']['hour']:02d}"
+                f"  OK Min price: {stats['min_price']['snt_per_kwh_with_vat']:.2f} snt/kWh at hour {stats['min_price']['hour']:02d}"
             )
             print(
-                f"  ✅ Max price: {stats['max_price']['snt_per_kwh_with_vat']:.2f} snt/kWh at hour {stats['max_price']['hour']:02d}"
+                f"  OK Max price: {stats['max_price']['snt_per_kwh_with_vat']:.2f} snt/kWh at hour {stats['max_price']['hour']:02d}"
             )
             print(
-                f"  ✅ Avg price: {stats['avg_price']['snt_per_kwh_with_vat']:.2f} snt/kWh"
+                f"  OK Avg price: {stats['avg_price']['snt_per_kwh_with_vat']:.2f} snt/kWh"
             )
 
             # Test formatted statistics message with bar graph
@@ -201,13 +268,13 @@ def test_statistics_and_bar_graph_with_mocked_api():
             formatted_stats = service.format_statistics_message(stats)
 
             if "tilastojen haku epäonnistui" in formatted_stats:
-                print(f"  ❌ Statistics formatting error: {formatted_stats}")
+                print(f"  ERROR Statistics formatting error: {formatted_stats}")
                 return False
 
             # Check if bar graph is included (should have pipe separator and colored bars)
             if " | " in formatted_stats and "\x03" in formatted_stats:
-                print("  ✅ Statistics message with bar graph generated successfully")
-                print(f"  ✅ Length: {len(formatted_stats)} characters")
+                print("  OK Statistics message with bar graph generated successfully")
+                print(f"  OK Length: {len(formatted_stats)} characters")
                 # Show a sample of the message (without IRC color codes for readability)
                 clean_msg = (
                     formatted_stats.replace("\x033", "G")
@@ -219,7 +286,7 @@ def test_statistics_and_bar_graph_with_mocked_api():
                     f"  Sample: {clean_msg[:100]}{'...' if len(clean_msg) > 100 else ''}"
                 )
             else:
-                print("  ❌ Bar graph not found in statistics message")
+                print("  ERROR Bar graph not found in statistics message")
                 print(f"  Message: {formatted_stats[:200]}")
                 return False
 
@@ -229,21 +296,21 @@ def test_statistics_and_bar_graph_with_mocked_api():
             # Test "stats" command
             parsed_stats = service.parse_command_args(["stats"])
             if not parsed_stats.get("show_stats"):
-                print("  ❌ Failed to parse 'stats' command")
+                print("  ERROR Failed to parse 'stats' command")
                 return False
-            print("  ✅ 'stats' command parsed correctly")
+            print("  OK 'stats' command parsed correctly")
 
             # Test "tilastot" command
             parsed_tilastot = service.parse_command_args(["tilastot"])
             if not parsed_tilastot.get("show_stats"):
-                print("  ❌ Failed to parse 'tilastot' command")
+                print("  ERROR Failed to parse 'tilastot' command")
                 return False
-            print("  ✅ 'tilastot' command parsed correctly")
+            print("  OK 'tilastot' command parsed correctly")
 
             return True
 
         except Exception as e:
-            print(f"  ❌ Exception during statistics test: {e}")
+            print(f"  ERROR Exception during statistics test: {e}")
             import traceback
 
             traceback.print_exc()
@@ -271,14 +338,14 @@ def test_hourly_averages_with_mocked_api():
     print(f"\nParsed {len(expected_prices)} expected price points")
     print(f"Parsed {len(expected_hourly_averages)} expected hourly averages")
 
+    # Parse test date from file
+    test_date = parse_test_date("debug_electricity_mapping_prices.txt")
+
     # Generate mock XML response
-    mock_xml = generate_mock_xml_response(expected_prices)
+    mock_xml = generate_mock_xml_response(expected_prices, test_date)
 
     # Create service
     service = ElectricityService("dummy_api_key")
-
-    # Test date
-    test_date = date(2025, 10, 14)
 
     print(f"\nTesting hourly averages with mocked API for {test_date}")
     print("=" * 60)
@@ -323,7 +390,7 @@ def test_hourly_averages_with_mocked_api():
                 )
 
                 if result.get("error"):
-                    print(f"  ❌ Service error: {result.get('message')}")
+                    print(f"  ERROR Service error: {result.get('message')}")
                     failures.append((hour, expected_avg, None))
                     continue
 
@@ -331,7 +398,7 @@ def test_hourly_averages_with_mocked_api():
                 service_hourly_avg = today_price.get("hour_avg_snt_kwh")
 
                 if service_hourly_avg is None:
-                    print("  ❌ No hourly average returned by service")
+                    print("  ERROR No hourly average returned by service")
                     failures.append((hour, expected_avg, None))
                     continue
 
@@ -340,10 +407,10 @@ def test_hourly_averages_with_mocked_api():
                 # Check if they match (within small tolerance)
                 if abs(service_hourly_avg - expected_avg) < 0.01:
                     successes.append(hour)
-                    print("  ✅ MATCH")
+                    print("  OK MATCH")
                 else:
                     failures.append((hour, expected_avg, service_hourly_avg))
-                    print("  ❌ MISMATCH")
+                    print("  ERROR MISMATCH")
 
                 # Also show individual quarter prices that make up the average
                 quarter_prices = today_price.get("quarter_prices_snt", {})
@@ -360,7 +427,7 @@ def test_hourly_averages_with_mocked_api():
                     )
 
             except Exception as e:
-                print(f"  ❌ Exception: {e}")
+                print(f"  ERROR Exception: {e}")
                 failures.append((hour, expected_avg, None))
 
             print()
@@ -380,7 +447,7 @@ def test_hourly_averages_with_mocked_api():
 
 def test_electricity_service_with_mocked_api():
     """
-    Test the electricity service with mocked API response.
+    Test the electricity service with mocked API response for all date blocks.
     """
     import unittest.mock as mock
 
@@ -390,102 +457,150 @@ def test_electricity_service_with_mocked_api():
         print("Could not import ElectricityService")
         return False
 
-    # Parse expected prices
-    expected_prices = parse_test_prices("debug_electricity_mapping_prices.txt")
-    print(f"\nParsed {len(expected_prices)} expected price points")
+    # Parse ALL dates and price blocks
+    blocks = parse_all_test_prices("debug_electricity_mapping_prices.txt")
+    print(f"\nParsed {len(blocks)} date sections with prices")
 
-    # Generate mock XML response
-    mock_xml = generate_mock_xml_response(expected_prices)
+    # Create a mapping of date -> prices for easy lookup
+    date_to_prices = {date_obj: prices for date_obj, prices in blocks}
 
     # Create service
     service = ElectricityService("dummy_api_key")
 
-    # Test date
-    test_date = date(2025, 10, 14)
+    overall_success = True
 
-    print(f"\nTesting electricity service with mocked API for {test_date}")
-    print("=" * 60)
+    for test_date, expected_prices in blocks:
+        print(f"\n--- Testing electricity service with mocked API for {test_date} ---")
+        print(f"Parsed {len(expected_prices)} expected price points")
 
-    # Mock the requests.get call
-    with mock.patch("services.electricity_service.requests.get") as mock_get:
-        # Setup mock response
-        mock_response = mock.Mock()
-        mock_response.text = mock_xml
-        mock_response.raise_for_status = mock.Mock()
-        mock_get.return_value = mock_response
+        print("=" * 60)
 
-        # Test specific times
-        test_times = [
-            (0, 1),  # 00:00
-            (0, 2),  # 00:15
-            (7, 2),  # 07:15 - peak morning
-            (12, 1),  # 12:00 - midday
-            (18, 4),  # 18:45 - evening peak
-            (19, 4),  # 19:45 - highest price
-            (23, 4),  # 23:45 - late evening
-        ]
+        # Create a dynamic mock that returns different XML based on requested date range
+        def mock_response_func(url, params=None, **kwargs):
+            if params and "periodStart" in params:
+                period_start = params["periodStart"]
+                # Extract date from periodStart (format: YYYYMMDDHHMM)
+                start_date_str = period_start[:8]  # YYYYMMDD
+                # Convert to date object for comparison
+                try:
+                    # The period start is for the UTC day, so we need to map it to Helsinki date
+                    # For Helsinki date X, UTC period is (X-1 day 21:00) to (X day 21:00)
+                    # So if periodStart is YYYYMMDD2100, that's requesting Helsinki date YYYYMMDD+1
+                    if period_start.endswith("2100"):
+                        utc_date = datetime.strptime(start_date_str, "%Y%m%d").date()
+                        helsinki_date = utc_date + timedelta(days=1)
+                    else:
+                        helsinki_date = datetime.strptime(
+                            start_date_str, "%Y%m%d"
+                        ).date()
 
-        failures = []
-        successes = []
+                    # Find matching price data
+                    if helsinki_date in date_to_prices:
+                        prices = date_to_prices[helsinki_date]
+                        xml_content = generate_mock_xml_response(prices, helsinki_date)
+                        print(
+                            f"    Mock API returning data for {helsinki_date} (period: {period_start})"
+                        )
+                    else:
+                        # Return empty/error response for unknown dates
+                        xml_content = '<?xml version="1.0" encoding="UTF-8"?><Publication_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:0"><mRID>no-data</mRID></Publication_MarketDocument>'
+                        print(
+                            f"    Mock API: No data for {helsinki_date} (period: {period_start})"
+                        )
 
-        for hour, quarter in test_times:
-            expected_cents = expected_prices.get((hour, quarter))
-            if expected_cents is None:
-                print(f"No expected price for {hour:02d}:{(quarter-1)*15:02d}")
-                continue
+                except ValueError:
+                    # Invalid date format, return empty response
+                    xml_content = '<?xml version="1.0" encoding="UTF-8"?><Publication_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:0"><mRID>invalid</mRID></Publication_MarketDocument>'
+            else:
+                # Default response
+                xml_content = generate_mock_xml_response(expected_prices, test_date)
 
-            print(f"Testing {hour:02d}:{(quarter-1)*15:02d} (Q{quarter})")
-            print(f"  Expected: {expected_cents}¢")
+            mock_response = mock.Mock()
+            mock_response.text = xml_content
+            mock_response.raise_for_status = mock.Mock()
+            return mock_response
 
-            # Get actual price from service
-            try:
-                result = service.get_electricity_price(
-                    hour=hour, quarter=quarter, date=test_date
-                )
+        # Mock the requests.get call with our dynamic function
+        with mock.patch(
+            "services.electricity_service.requests.get", side_effect=mock_response_func
+        ) as mock_get:
 
-                if result.get("error"):
-                    print(f"  ❌ Service error: {result.get('message')}")
-                    failures.append((hour, quarter, expected_cents, None))
+            # Test specific times
+            test_times = [
+                (0, 1),  # 00:00
+                (0, 2),  # 00:15
+                (7, 2),  # 07:15 - peak morning
+                (12, 1),  # 12:00 - midday
+                (18, 4),  # 18:45 - evening peak
+                (19, 4),  # 19:45 - highest price
+                (23, 4),  # 23:45 - late evening
+            ]
+
+            failures = []
+            successes = []
+
+            for hour, quarter in test_times:
+                expected_cents = expected_prices.get((hour, quarter))
+                if expected_cents is None:
+                    print(f"No expected price for {hour:02d}:{(quarter-1)*15:02d}")
                     continue
 
-                today_price = result.get("today_price", {})
-                quarter_prices_snt = today_price.get("quarter_prices_snt", {})
-                actual_cents = quarter_prices_snt.get(quarter)
+                print(f"Testing {hour:02d}:{(quarter-1)*15:02d} (Q{quarter})")
+                print(f"  Expected: {expected_cents}¢")
 
-                if actual_cents is None:
-                    print(f"  ❌ No price data for quarter {quarter}")
+                # Get actual price from service
+                try:
+                    result = service.get_electricity_price(
+                        hour=hour, quarter=quarter, date=test_date
+                    )
+
+                    if result.get("error"):
+                        print(f"  ERROR Service error: {result.get('message')}")
+                        failures.append((hour, quarter, expected_cents, None))
+                        continue
+
+                    today_price = result.get("today_price", {})
+                    quarter_prices_snt = today_price.get("quarter_prices_snt", {})
+                    actual_cents = quarter_prices_snt.get(quarter)
+
+                    if actual_cents is None:
+                        print(f"  ERROR No price data for quarter {quarter}")
+                        failures.append((hour, quarter, expected_cents, None))
+                        continue
+
+                    print(f"  Service returned: {actual_cents:.2f} snt/kWh")
+
+                    # Check if they match (within small tolerance)
+                    if abs(actual_cents - expected_cents) < 0.01:
+                        successes.append((hour, quarter))
+                        print("  OK MATCH")
+
+                    else:
+                        failures.append((hour, quarter, expected_cents, actual_cents))
+                        print("  ERROR MISMATCH")
+
+                except Exception as e:
+                    print(f"  ERROR Exception: {e}")
                     failures.append((hour, quarter, expected_cents, None))
-                    continue
 
-                print(f"  Service returned: {actual_cents:.2f} snt/kWh")
+                print()
 
-                # Check if they match (within small tolerance)
-                if abs(actual_cents - expected_cents) < 0.01:
-                    successes.append((hour, quarter))
-                    print("  ✅ MATCH")
-                else:
-                    failures.append((hour, quarter, expected_cents, actual_cents))
-                    print("  ❌ MISMATCH")
+            print("\nTest Summary:")
+            print(f"Successes: {len(successes)}")
+            print(f"Failures: {len(failures)}")
 
-            except Exception as e:
-                print(f"  ❌ Exception: {e}")
-                failures.append((hour, quarter, expected_cents, None))
+            if failures:
+                print("\nFailures:")
+                for hour, quarter, expected, actual in failures:
+                    actual_str = f"{actual:.2f}¢" if actual is not None else "None"
+                    print(
+                        f"  {hour:02d}:{(quarter-1)*15:02d}: expected {expected}¢, got {actual_str}"
+                    )
 
-            print()
+            section_success = len(failures) == 0
+            overall_success = overall_success and section_success
 
-        print("\nTest Summary:")
-        print(f"Successes: {len(successes)}")
-        print(f"Failures: {len(failures)}")
-
-        if failures:
-            print("\nFailures:")
-            for hour, quarter, expected, actual in failures:
-                actual_str = f"{actual:.2f}¢" if actual is not None else "None"
-                print(
-                    f"  {hour:02d}:{(quarter-1)*15:02d}: expected {expected}¢, got {actual_str}"
-                )
-
-        return len(failures) == 0
+    return overall_success
 
 
 def test_electricity_service_against_expected():
@@ -505,8 +620,8 @@ def test_electricity_service_against_expected():
     # Create service (we'll mock the API response later)
     service = ElectricityService("dummy_api_key")
 
-    # Test specific times against expected values
-    test_date = date(2025, 10, 14)
+    # Parse test date from file
+    test_date = parse_test_date("debug_electricity_mapping_prices.txt")
 
     print(f"\nTesting electricity service conversion logic for {test_date}")
     print("=" * 60)
@@ -557,10 +672,10 @@ def test_electricity_service_against_expected():
         # Check if they match (within small tolerance)
         if abs(actual_snt_kwh - expected_cents) < 0.01:
             successes.append((hour, quarter))
-            print("  ✅ MATCH")
+            print("  OK MATCH")
         else:
             failures.append((hour, quarter, expected_cents, actual_snt_kwh))
-            print("  ❌ MISMATCH")
+            print("  ERROR MISMATCH")
 
         print()
 
@@ -587,8 +702,8 @@ def analyze_timezone_offset():
     helsinki_tz = pytz.timezone("Europe/Helsinki")
     utc_tz = pytz.utc
 
-    # Test for October 14, 2025
-    test_date = date(2025, 10, 14)
+    # Parse test date from file
+    test_date = parse_test_date("debug_electricity_mapping_prices.txt")
 
     # Create midnight in Helsinki time
     helsinki_midnight = helsinki_tz.localize(datetime.combine(test_date, time(0, 0)))
@@ -616,7 +731,7 @@ def test_service_timezone_diagnostics():
         return False
 
     service = ElectricityService("dummy_api_key")
-    test_date = date(2025, 10, 14)
+    test_date = parse_test_date("debug_electricity_mapping_prices.txt")
 
     print(f"\nTesting service timezone diagnostics for {test_date}:")
     diag = service.diagnose_timezone_handling(test_date)
@@ -624,9 +739,15 @@ def test_service_timezone_diagnostics():
     for key, value in diag.items():
         print(f"  {key}: {value}")
 
-    # Expected values for October 14, 2025 (UTC+3)
-    expected_api_start = "202510132100"  # 2025-10-13 21:00 UTC
-    expected_api_end = "202510142100"  # 2025-10-14 21:00 UTC
+    # Calculate expected values based on parsed date (UTC+3 in October)
+    expected_start_date = test_date - timedelta(days=1)
+    expected_end_date = test_date
+    expected_api_start = (
+        f"{expected_start_date.strftime('%Y%m%d')}2100"  # Previous day 21:00 UTC
+    )
+    expected_api_end = (
+        f"{expected_end_date.strftime('%Y%m%d')}2100"  # Same day 21:00 UTC
+    )
 
     print("\nValidation:")
     print(f"  Expected API start: {expected_api_start}")
@@ -638,10 +759,10 @@ def test_service_timezone_diagnostics():
     end_match = diag["api_period_end"] == expected_api_end
 
     if start_match and end_match:
-        print("  ✅ Timezone handling is correct")
+        print("  OK Timezone handling is correct")
         return True
     else:
-        print("  ❌ Timezone handling has issues")
+        print("  ERROR Timezone handling has issues")
         return False
 
 
@@ -687,31 +808,31 @@ if __name__ == "__main__":
     print("=" * 50)
 
     if success_tz:
-        print("✅ Timezone diagnostics: PASSED")
+        print("OK Timezone diagnostics: PASSED")
     else:
-        print("❌ Timezone diagnostics: FAILED")
+        print("ERROR Timezone diagnostics: FAILED")
 
     if success1:
-        print("✅ Conversion logic: PASSED")
+        print("OK Conversion logic: PASSED")
     else:
-        print("❌ Conversion logic: FAILED")
+        print("ERROR Conversion logic: FAILED")
 
     if success2:
-        print("✅ Mocked API test: PASSED")
+        print("OK Mocked API test: PASSED")
     else:
-        print("❌ Mocked API test: FAILED")
+        print("ERROR Mocked API test: FAILED")
 
     if success3:
-        print("✅ Hourly averages test: PASSED")
+        print("OK Hourly averages test: PASSED")
     else:
-        print("❌ Hourly averages test: FAILED")
+        print("ERROR Hourly averages test: FAILED")
 
     if success4:
-        print("✅ Statistics and bar graph test: PASSED")
+        print("OK Statistics and bar graph test: PASSED")
     else:
-        print("❌ Statistics and bar graph test: FAILED")
+        print("ERROR Statistics and bar graph test: FAILED")
 
     if success_tz and success1 and success2 and success3 and success4:
         print("\n🎉 All tests passed!")
     else:
-        print("\n❌ Some tests failed - service needs fixing")
+        print("\nERROR Some tests failed - service needs fixing")

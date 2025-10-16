@@ -127,18 +127,39 @@ class PrecisionLogger:
 
             # Only include string elements in parts
             output = " ".join(str(p) for p in parts if isinstance(p, str))
-            print(f"{timestamp} {output}")  # Main log output
+
+            # Forward to TUI if hook is set, otherwise print to console
+            if _tui_hook:
+                try:
+                    from datetime import datetime
+
+                    dt = datetime.now()
+                    # Determine source type based on context and level
+                    source_type = "SYSTEM"
+                    if context and any(
+                        word in context.lower() for word in ["irc", "server"]
+                    ):
+                        source_type = "IRC"
+                    elif context and "gpt" in context.lower():
+                        source_type = "AI"
+                    elif level.upper() == "MSG":
+                        source_type = "IRC"
+
+                    _tui_hook(
+                        dt, context or "System", level.upper(), message, source_type
+                    )
+                except Exception as e:
+                    # Don't let TUI hook errors break logging
+                    print(f"[LOGGER ERROR] TUI hook failed: {e}")
+            else:
+                # Only print to console if TUI hook is not active
+                print(f"{timestamp} {output}")  # Main console log output
 
         except UnicodeEncodeError:
             # Fall back to ASCII-safe version
             try:
                 if fallback_text:
-                    # Use fallback text if provided
-                    fallback_output = f"{timestamp} [{level.upper():<7}]"
-                    if context:
-                        fallback_output += f" [{context}]"
-                    fallback_output += f" {fallback_text}"
-                    print(fallback_output)
+                    safe_message = fallback_text
                 else:
                     # Replace common Unicode characters with ASCII equivalents
                     safe_message = (
@@ -152,16 +173,53 @@ class PrecisionLogger:
                         .replace("🔧", "[CONFIG]")
                         .replace("🗣️", "[TALK]")
                     )
-                    safe_output = f"{timestamp} [{level.upper():<7}]"
+
+                # Handle output same way as normal logging
+                if _tui_hook:
+                    try:
+                        from datetime import datetime
+
+                        dt = datetime.now()
+                        # Determine source type based on context and level
+                        source_type = "SYSTEM"
+                        if context and any(
+                            word in context.lower() for word in ["irc", "server"]
+                        ):
+                            source_type = "IRC"
+                        elif context and "gpt" in context.lower():
+                            source_type = "AI"
+                        elif level.upper() == "MSG":
+                            source_type = "IRC"
+
+                        _tui_hook(
+                            dt,
+                            context or "System",
+                            level.upper(),
+                            safe_message,
+                            source_type,
+                        )
+                    except Exception as e:
+                        print(f"[LOGGER ERROR] TUI hook failed in fallback: {e}")
+                else:
+                    # Only print to console if TUI hook is not active
+                    fallback_output = f"{timestamp} [{level.upper():<7}]"
                     if context:
-                        safe_output += f" [{context}]"
-                    safe_output += f" {safe_message}"
-                    print(safe_output)
+                        fallback_output += f" [{context}]"
+                    fallback_output += f" {safe_message}"
+                    print(fallback_output)
             except Exception:
-                # Last resort: basic ASCII message
-                print(
-                    f"[LOGGER ERROR] Could not display Unicode message: {repr(message)}"
-                )
+                # Last resort: basic ASCII message - respect TUI hook
+                error_msg = f"Could not display Unicode message: {repr(message)}"
+                if _tui_hook:
+                    try:
+                        from datetime import datetime
+
+                        dt = datetime.now()
+                        _tui_hook(dt, "Logger", "ERROR", error_msg, "SYSTEM")
+                    except Exception:
+                        print(f"[LOGGER ERROR] {error_msg}")
+                else:
+                    print(f"[LOGGER ERROR] {error_msg}")
 
     def info(self, message: str, context: str = "", fallback_text: str = ""):
         self.log(message, "INFO", context, fallback_text)  # Log an info message
@@ -184,6 +242,27 @@ class PrecisionLogger:
 
 # Global logger instance for general use
 _global_logger = PrecisionLogger()
+
+# TUI hook for forwarding log messages
+_tui_hook = None
+
+
+def set_tui_hook(hook_function):
+    """Set a hook function to forward log messages to TUI.
+
+    Args:
+        hook_function: Function that accepts (timestamp, server, level, message, source_type)
+    """
+    global _tui_hook
+    _tui_hook = hook_function
+
+
+def clear_tui_hook():
+    """Clear the TUI hook."""
+    global _tui_hook
+    _tui_hook = None
+
+
 # Expose global logger for convenience:
 log = _global_logger.log
 info = _global_logger.info
