@@ -4,8 +4,10 @@ Admin commands in commands_admin.py
 """
 
 import os
+import random
 import re
 import time
+import urllib.request
 from datetime import datetime
 
 import bot_manager
@@ -184,6 +186,63 @@ def version_command(context: CommandContext, bot_functions):
 def ping_command(context: CommandContext, bot_functions):
     """Simple ping command to check bot responsiveness."""
     return "Pong! 🏓"
+
+
+@command(
+    "quote",
+    description="Display a random quote",
+    usage="!quote",
+    examples=["!quote"],
+)
+def quote_command(context: CommandContext, bot_functions):
+    """Display a random quote from configured source (file or URL)."""
+    config = get_config()
+
+    # Get quotes source from environment, default to quotes.txt
+    quotes_source = getattr(config, "quotes_source", "quotes.txt")
+
+    try:
+        lines = []
+
+        if quotes_source.startswith("http://") or quotes_source.startswith("https://"):
+            # Handle URL source
+            try:
+                with urllib.request.urlopen(quotes_source) as response:
+                    content = response.read().decode("utf-8")
+                    lines = [
+                        line.strip() for line in content.splitlines() if line.strip()
+                    ]
+            except Exception as e:
+                return f"Error fetching quotes from URL: {e}"
+        else:
+            # Handle file source
+            if not os.path.isabs(quotes_source):
+                # If relative path, make it relative to the bot directory
+                quotes_source = os.path.join(os.path.dirname(__file__), quotes_source)
+
+            if not os.path.exists(quotes_source):
+                return f"Quotes file not found: {quotes_source}"
+
+            try:
+                with open(quotes_source, "r", encoding="utf-8") as f:
+                    lines = [line.strip() for line in f if line.strip()]
+            except Exception as e:
+                return f"Error reading quotes file: {e}"
+
+        if not lines:
+            return "No quotes available"
+
+        # Select random quote
+        quote = random.choice(lines)
+
+        # Remove line numbers if present (format: "123|quote text")
+        if "|" in quote and quote.split("|")[0].isdigit():
+            quote = "|".join(quote.split("|")[1:])
+
+        return quote
+
+    except Exception as e:
+        return f"Error getting quote: {e}"
 
 
 @command(

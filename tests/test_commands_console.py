@@ -32,27 +32,62 @@ def ensure_command_registry():
         from command_loader import reset_commands_loaded_flag
 
         reset_commands_loaded_flag()
-    except ImportError:
-        pass
+    except (ImportError, AttributeError):
+        # If the function doesn't exist, manually reset the flag
+        try:
+            import command_loader
+
+            command_loader._commands_loaded = False
+        except Exception:
+            pass
+
+    # Force reload of command modules by clearing from sys.modules if they exist
+    import sys
+
+    modules_to_reload = ["commands", "commands_admin", "commands_irc"]
+    for module_name in modules_to_reload:
+        if module_name in sys.modules:
+            del sys.modules[module_name]
 
     # Load all command modules to register commands properly
     try:
         from command_loader import load_all_commands
 
         load_all_commands()
-    except Exception:
+
+        # Verify commands were loaded
+        from command_registry import get_command_registry
+
+        registry = get_command_registry()
+        if len(registry._commands) == 0:
+            # Force manual import if load_all_commands didn't work
+            import commands
+            import commands_admin
+            import commands_irc
+    except Exception as e:
         # Fallback: try individual imports
         try:
             import commands
             import commands_admin
             import commands_irc
-        except Exception:
-            pass
+        except Exception as e2:
+            print(f"Warning: Failed to load commands in test fixture: {e2}")
 
     yield
 
     # Clean up after test
     reset_command_registry()
+    try:
+        from command_loader import reset_commands_loaded_flag
+
+        reset_commands_loaded_flag()
+    except (ImportError, AttributeError):
+        try:
+            import command_loader
+
+            command_loader._commands_loaded = False
+        except Exception:
+            pass
 
 
 def test_console_command_processing():
@@ -314,11 +349,19 @@ def test_console_tilaa_command():
         def mock_log(msg, level="INFO"):
             pass
 
-        # Mock subscriptions service with all required functions
+        # Create a wrapper object that provides the methods expected by the command
+        class SubscriptionsWrapper:
+            def format_all_subscriptions(self):
+                return subscriptions.format_all_subscriptions()
+
+            def toggle_subscription(self, subscriber, server, topic):
+                return subscriptions.toggle_subscription(subscriber, server, topic)
+
+        # Mock subscriptions service with wrapper
         bot_functions = {
             "notice_message": mock_notice,
             "log": mock_log,
-            "subscriptions": subscriptions,
+            "subscriptions": SubscriptionsWrapper(),
             "send_electricity_price": lambda *args: None,
             "load_leet_winners": lambda: {},
             "send_weather": lambda *args: None,
@@ -1836,6 +1879,155 @@ def test_euribor_non_windows_and_missing_cases(monkeypatch):
     monkeypatch.setattr(_requests, "get", lambda url: Resp(200, xml_no_period))
     res2 = euribor_command(ctx, {})
     assert "No period data" in res2
+
+
+def test_quote_command_functionality():
+    """Test the quote command with various scenarios."""
+    import os
+    import tempfile
+
+    from command_loader import process_console_command
+
+    responses = []
+
+    def mock_notice(msg, *args, **kwargs):
+        responses.append(msg)
+
+    bot_functions = {
+        "notice_message": mock_notice,
+        "log": lambda msg, level="INFO": None,
+        "BOT_VERSION": "2.2.0",
+    }
+
+    # Test with default quotes.txt (should exist)
+    responses.clear()
+    process_console_command("!quote", bot_functions)
+
+    # Should have gotten a quote response
+    assert responses, "Quote command should return a response"
+    assert len(responses) == 1, "Quote command should return exactly one response"
+
+    # Quote should not be empty and should be a string
+    quote = responses[0]
+    assert isinstance(quote, str), "Quote should be a string"
+    assert len(quote) > 0, "Quote should not be empty"
+
+    # Quote should not contain line numbers (they should be stripped)
+    assert not (
+        quote[0].isdigit() and "|" in quote[:10]
+    ), "Quote should not contain line numbers"
+
+    # Test multiple calls return different quotes (with high probability)
+    quotes_seen = set()
+    for _ in range(10):
+        responses.clear()
+        process_console_command("!quote", bot_functions)
+        if responses:
+            quotes_seen.add(responses[0])
+
+    # Should get some variety (at least 3 different quotes in 10 tries)
+    assert len(quotes_seen) >= 3, "Quote command should return varied quotes"
+
+
+def test_quote_command_error_handling(monkeypatch):
+    """Test quote command error handling scenarios."""
+    from command_loader import process_console_command
+    from config import get_config
+
+    responses = []
+
+    def mock_notice(msg, *args, **kwargs):
+        responses.append(msg)
+
+    bot_functions = {
+        "notice_message": mock_notice,
+        "log": lambda msg, level="INFO": None,
+    }
+
+    # Test with non-existent file
+    config = get_config()
+    original_quotes_source = getattr(config, "quotes_source", "quotes.txt")
+
+    try:
+        config.quotes_source = "nonexistent_quotes_file.txt"
+        responses.clear()
+        process_console_command("!quote", bot_functions)
+
+        # Should get an error response
+        assert responses, "Should get error response for missing file"
+        assert any(
+            "not found" in str(response).lower() for response in responses
+        ), "Should indicate file not found"
+    finally:
+        # Restore original quotes source
+        config.quotes_source = original_quotes_source
+
+
+def test_quote_command_with_custom_file():
+    """Test quote command with a custom quotes file."""
+    import os
+    import tempfile
+
+    from command_loader import process_console_command
+    from config import get_config
+
+    responses = []
+
+    def mock_notice(msg, *args, **kwargs):
+        responses.append(msg)
+
+    bot_functions = {
+        "notice_message": mock_notice,
+        "log": lambda msg, level="INFO": None,
+    }
+
+    # Create temporary quotes file
+    with tempfile.NamedTemporaryFile(
+        mode="w", delete=False, suffix=".txt", encoding="utf-8"
+    ) as f:
+        f.write("1|Test quote one\n")
+        f.write("2|Test quote two\n")
+        f.write("3|Test quote three\n")
+        temp_quotes_file = f.name
+
+    try:
+        # Configure to use temporary file
+        config = get_config()
+        original_quotes_source = getattr(config, "quotes_source", "quotes.txt")
+        config.quotes_source = temp_quotes_file
+
+        # Test quote command
+        responses.clear()
+        process_console_command("!quote", bot_functions)
+
+        # Should get a quote response
+        assert responses, "Should get quote response from custom file"
+        quote = responses[0]
+
+        # Should be one of our test quotes (without line numbers)
+        expected_quotes = ["Test quote one", "Test quote two", "Test quote three"]
+        assert (
+            quote in expected_quotes
+        ), f"Quote should be one of {expected_quotes}, got: {quote}"
+
+        # Test multiple calls to ensure randomness
+        quotes_found = set()
+        for _ in range(20):  # Try multiple times to get all quotes
+            responses.clear()
+            process_console_command("!quote", bot_functions)
+            if responses:
+                quotes_found.add(responses[0])
+
+        # Should eventually see all three quotes
+        assert (
+            len(quotes_found) == 3
+        ), f"Should find all 3 quotes, found: {quotes_found}"
+
+    finally:
+        # Clean up
+        config.quotes_source = original_quotes_source
+        if os.path.exists(temp_quotes_file):
+            os.unlink(temp_quotes_file)
 
 
 def test_electricity_command_with_args_split():
