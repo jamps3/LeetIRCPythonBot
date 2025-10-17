@@ -19,6 +19,42 @@ from command_registry import CommandContext
 from commands import command_leets, solarwind_command
 from word_tracking import DataManager, DrinkTracker
 
+
+@pytest.fixture(autouse=True, scope="function")
+def reset_command_registry():
+    """Reset command registry before each test to avoid conflicts."""
+    from command_registry import reset_command_registry
+
+    reset_command_registry()
+
+    # Reset command loader flag so commands get reloaded
+    try:
+        from command_loader import reset_commands_loaded_flag
+
+        reset_commands_loaded_flag()
+    except ImportError:
+        pass
+
+    # Load all command modules to register commands properly
+    try:
+        from command_loader import load_all_commands
+
+        load_all_commands()
+    except Exception:
+        # Fallback: try individual imports
+        try:
+            import commands
+            import commands_admin
+            import commands_irc
+        except Exception:
+            pass
+
+    yield
+
+    # Clean up after test
+    reset_command_registry()
+
+
 # Optional dotenv loading (graceful no-op if not available)
 try:
     from dotenv import load_dotenv  # type: ignore

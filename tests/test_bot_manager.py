@@ -373,6 +373,10 @@ def test_send_response_use_notice_and_message(manager):
     out = []
 
     class S:
+        def __init__(self):
+            self.connected = True
+            self.config = SimpleNamespace(name="test_server")
+
         def send_notice(self, t, m):
             out.append(("notice", t, m))
 
@@ -380,6 +384,9 @@ def test_send_response_use_notice_and_message(manager):
             out.append(("message", t, m))
 
     server = S()
+
+    # Set up joined channels so the channel check passes
+    manager.joined_channels = {"test_server": ["#c"]}
 
     manager.use_notices = True
     manager._send_response(server, "#c", "hi")
@@ -631,6 +638,7 @@ def test_handle_message_core_paths(monkeypatch, manager):
     class Srv:
         def __init__(self):
             self.config = SimpleNamespace(name="srv")
+            self.connected = True  # Mock server as connected
 
         def send_message(self, t, m):
             sent.append(("msg", t, m))
@@ -639,6 +647,9 @@ def test_handle_message_core_paths(monkeypatch, manager):
             sent.append(("not", t, m))
 
     server = Srv()
+
+    # Set up joined channels so the channel check passes
+    manager.joined_channels = {"srv": ["#chan"]}
 
     # Stub youtube service and GPT service
     class YT:
@@ -686,6 +697,8 @@ def test_handle_message_core_paths(monkeypatch, manager):
 
     # At least ytinfo and two GPT lines should be sent
     texts = [m for _, _, m in sent]
+    print(f"DEBUG: sent messages = {sent}")
+    print(f"DEBUG: text messages = {texts}")
     assert any("ytinfo" in m for m in texts)
     assert any("line1" in m for m in texts)
 

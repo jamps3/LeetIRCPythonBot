@@ -11,9 +11,46 @@ import unittest
 from datetime import datetime
 from unittest.mock import Mock, patch
 
+import pytest
 import requests
 
 from services.electricity_service import ElectricityService, create_electricity_service
+
+
+@pytest.fixture(autouse=True, scope="function")
+def reset_command_registry():
+    """Reset command registry before each test to avoid conflicts."""
+    from command_registry import reset_command_registry
+
+    reset_command_registry()
+
+    # Reset command loader flag so commands get reloaded
+    try:
+        from command_loader import reset_commands_loaded_flag
+
+        reset_commands_loaded_flag()
+    except ImportError:
+        pass
+
+    # Load all command modules to register commands properly
+    try:
+        from command_loader import load_all_commands
+
+        load_all_commands()
+    except Exception:
+        # Fallback: try individual imports
+        try:
+            import commands
+            import commands_admin
+            import commands_irc
+        except Exception:
+            pass
+
+    yield
+
+    # Clean up after test
+    reset_command_registry()
+
 
 # Add the services directory to the path to avoid import dependency issues
 # sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "services"))

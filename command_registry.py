@@ -396,6 +396,10 @@ def get_command_registry() -> CommandRegistry:
 def reset_command_registry() -> None:
     """Reset the global command registry instance. Used for testing."""
     global _command_registry
+    if _command_registry is not None:
+        # Clear existing registrations
+        _command_registry._commands.clear()
+        _command_registry._aliases.clear()
     _command_registry = None
 
 
@@ -453,17 +457,19 @@ def parse_command_message(
 
     Args:
         message: The message to parse
-        command_prefix: The prefix that indicates a command (default: "!")
+        command_prefix: The prefix that indicates a command (default: "!", also supports "/")
 
     Returns:
         Tuple of (command_name, arguments, raw_message)
         Returns (None, [], message) if no command is found
     """
-    if not message.startswith(command_prefix):
+    # Support both ! and / prefixes
+    if not message.startswith(("!", "/")):
         return None, [], message
 
-    # Remove prefix and split
-    parts = message[len(command_prefix) :].split()  # noqa E203 - Black formatting
+    # Determine which prefix was used and remove it
+    prefix_char = message[0]
+    parts = message[1:].split()  # Remove prefix and split
     if not parts:
         return None, [], message
 

@@ -57,7 +57,7 @@ def test_dunder_main_guard_execution(monkeypatch):
 
     # Replace BotManager with a fast fake in the real module since run_module will import it
     class BMFast:
-        def __init__(self, name):
+        def __init__(self, name, console_mode=False):
             pass
 
         def start(self):
@@ -113,8 +113,9 @@ def test_parse_arguments_variants(monkeypatch):
 
 
 class _FakeBotManager:
-    def __init__(self, name):
+    def __init__(self, name, console_mode=False):
         self.name = name
+        self.console_mode = console_mode
         self.started = False
         self.stopped = False
 
@@ -130,7 +131,12 @@ class _FakeBotManager:
 
 
 def _install_fake_args(monkeypatch, **kwargs):
-    defaults = {"loglevel": "INFO", "nickname": None, "show_api_keys": False}
+    defaults = {
+        "loglevel": "INFO",
+        "nickname": None,
+        "show_api_keys": False,
+        "console": False,
+    }
     defaults.update(kwargs)
     monkeypatch.setattr(
         main_mod, "parse_arguments", lambda: Namespace(**defaults), raising=True

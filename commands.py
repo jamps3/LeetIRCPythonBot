@@ -551,9 +551,12 @@ def about_command(context: CommandContext, bot_functions):
     description="Shutdown the bot",
     usage="!exit",
     examples=["!exit", "!quit"],
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def exit_command(context: CommandContext, bot_functions):
-    """Shutdown the bot."""
+    """Shutdown the bot (console/TUI only)."""
+    if not context.is_console:
+        return  # Exit command only works from console/TUI
     # Try to get the stop event from bot functions and trigger it
     stop_event = bot_functions.get("stop_event")
     if stop_event:

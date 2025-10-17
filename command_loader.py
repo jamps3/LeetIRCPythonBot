@@ -21,6 +21,7 @@ def load_all_commands():
         # Import all command modules to trigger registration
         import commands  # unified commands module
         import commands_admin
+        import commands_irc  # IRC commands with / prefix
 
         # Resolve registry at call time to avoid early imports
         from command_registry import get_command_registry
@@ -261,8 +262,13 @@ def process_console_command(command_text: str, bot_functions: Dict[str, Any]):
             # Command not recognized
             notice_message = bot_functions.get("notice_message")
             if notice_message:
+                prefix = (
+                    "!"
+                    if command_text.startswith("!")
+                    else "/" if command_text.startswith("/") else "!"
+                )
                 notice_message(
-                    f"Command not recognized: {command_text}. Type !help for available commands."
+                    f"Command not recognized: {command_text}. Type {prefix}help for available commands."
                 )
 
     except Exception as e:
@@ -296,8 +302,8 @@ def process_irc_message(irc, message, bot_functions):
 
     sender, _, target, text = match.groups()
 
-    # Only process commands (starting with !)
-    if not text.startswith("!"):
+    # Only process commands (starting with ! or /)
+    if not text.startswith(("!", "/")):
         # Non-command messages are handled by bot_manager's word tracking system
         return
 
@@ -503,9 +509,24 @@ _commands_loaded = False
 
 def ensure_commands_loaded():
     global _commands_loaded
-    if _commands_loaded:
+
+    # Check if commands are actually loaded in the registry
+    from command_registry import get_command_registry
+
+    registry = get_command_registry()
+
+    if _commands_loaded and len(registry._commands) > 0:
         return
+
     try:
         load_all_commands()
-    finally:
         _commands_loaded = True
+    except Exception as e:
+        _commands_loaded = False
+        raise
+
+
+def reset_commands_loaded_flag():
+    """Reset the commands loaded flag. Used by tests."""
+    global _commands_loaded
+    _commands_loaded = False

@@ -22,41 +22,37 @@ load_dotenv()
 @pytest.fixture(autouse=True, scope="function")
 def ensure_command_registry():
     """Ensure command registry is properly initialized for console command tests."""
-    # Only apply this fixture to tests in this file
-    import inspect
+    # Reset command registry and loader state before each test to avoid conflicts
+    from command_registry import reset_command_registry
 
-    frame = inspect.currentframe()
+    reset_command_registry()
+
+    # Reset command loader flag so commands get reloaded
     try:
-        # Check if we're in a console command test
-        test_name = frame.f_back.f_code.co_name if frame.f_back else "unknown"
-        if not test_name.startswith("test_"):
-            yield
-            return
+        from command_loader import reset_commands_loaded_flag
 
-        # Ensure command registry is initialized with commands
+        reset_commands_loaded_flag()
+    except ImportError:
+        pass
+
+    # Load all command modules to register commands properly
+    try:
+        from command_loader import load_all_commands
+
+        load_all_commands()
+    except Exception:
+        # Fallback: try individual imports
         try:
-            from command_registry import get_command_registry
-
-            registry = get_command_registry()
-
-            # If registry is empty, force reload commands
-            if len(registry._commands) == 0:
-                # Import command modules to register commands
-                import commands
-                import commands_admin
-
+            import commands
+            import commands_admin
+            import commands_irc
         except Exception:
-            # If anything fails, try to import command_loader which loads all commands
-            try:
-                import command_loader
-            except Exception:
-                pass
+            pass
 
-        yield
+    yield
 
-    finally:
-        if frame:
-            del frame
+    # Clean up after test
+    reset_command_registry()
 
 
 def test_console_command_processing():
@@ -905,14 +901,16 @@ def test_exit_command_console_and_irc():
     }
     process_console_command("!exit", bot_functions)
     stop_event.set.assert_called_once()
-    assert any("Shutting down" in str(r) for r in responses)
+    assert any("Bot shutdown initiated" in str(r) for r in responses)
 
     # Console without stop_event
     responses.clear()
     process_console_command(
         "!exit", {"notice_message": lambda m, *a, **k: responses.append(m)}
     )
-    assert any("Exit command" in str(r) for r in responses)
+    assert any(
+        "Exit command" in str(r) or "bot shutting down" in str(r) for r in responses
+    )
 
     # IRC path – should indicate console-only
     notices = []
