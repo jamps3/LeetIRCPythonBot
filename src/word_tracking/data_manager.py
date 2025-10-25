@@ -28,8 +28,7 @@ class DataManager:
         self.data_dir = data_dir
         self.drink_data_file = os.path.join(data_dir, "drink_tracking.json")
         self.general_words_file = os.path.join(data_dir, "general_words.json")
-        self.tamagotchi_state_file = os.path.join(data_dir, "tamagotchi_state.json")
-        self.privacy_settings_file = os.path.join(data_dir, "privacy_settings.json")
+        self.state_file = os.path.join(data_dir, "state.json")
 
         # Initialize data structures
         self._ensure_data_files()
@@ -50,26 +49,29 @@ class DataManager:
             "version": "1.0.0",
         }
 
-        # Tamagotchi state structure
-        tamagotchi_structure = {
-            "servers": {},
-            "global_state": {
-                "level": 1,
-                "experience": 0,
-                "happiness": 50,
-                "hunger": 50,
-                "last_interaction": datetime.now().isoformat(),
-                "mood": "neutral",
+        # Merged state file structure
+        state_structure = {
+            "tamagotchi": {
+                "servers": {},
+                "global_state": {
+                    "level": 1,
+                    "experience": 0,
+                    "happiness": 50,
+                    "hunger": 50,
+                    "last_interaction": datetime.now().isoformat(),
+                    "mood": "neutral",
+                },
+                "last_updated": datetime.now().isoformat(),
+                "version": "1.0.0",
             },
-            "last_updated": datetime.now().isoformat(),
-            "version": "1.0.0",
-        }
-
-        # Privacy settings structure
-        privacy_structure = {
-            "opted_out_users": {},  # server -> [nicks]
-            "last_updated": datetime.now().isoformat(),
-            "version": "1.0.0",
+            "subscriptions": {},
+            "fmi_warnings": {
+                "seen_hashes": [],
+                "seen_data": [],
+            },
+            "otiedote": {
+                "latest_release": 0,
+            },
         }
 
         # Create files if they don't exist
@@ -77,10 +79,7 @@ class DataManager:
         self._create_file_if_not_exists(
             self.general_words_file, general_words_structure
         )
-        self._create_file_if_not_exists(
-            self.tamagotchi_state_file, tamagotchi_structure
-        )
-        self._create_file_if_not_exists(self.privacy_settings_file, privacy_structure)
+        self._create_file_if_not_exists(self.state_file, state_structure)
 
     def _create_file_if_not_exists(
         self, file_path: str, default_structure: Dict[str, Any]
@@ -194,12 +193,28 @@ class DataManager:
         self.save_json(self.general_words_file, data)
 
     def load_tamagotchi_state(self) -> Dict[str, Any]:
-        """Load tamagotchi state data."""
-        return self.load_json(self.tamagotchi_state_file)
+        """Load tamagotchi state data from merged state.json."""
+        state_data = self.load_json(self.state_file)
+        return state_data.get("tamagotchi", {})
 
     def save_tamagotchi_state(self, data: Dict[str, Any]):
-        """Save tamagotchi state data."""
-        self.save_json(self.tamagotchi_state_file, data)
+        """Save tamagotchi state data to merged state.json."""
+        # Load the full state file
+        state_data = self.load_json(self.state_file)
+        if not state_data:
+            # Initialize with default structure if file is empty or corrupted
+            state_data = {
+                "tamagotchi": {},
+                "subscriptions": {},
+                "fmi_warnings": {"seen_hashes": [], "seen_data": []},
+                "otiedote": {"latest_release": 0},
+            }
+
+        # Update the tamagotchi section
+        state_data["tamagotchi"] = data
+
+        # Save the full state file
+        self.save_json(self.state_file, state_data)
 
     # Privacy management methods
     def _parse_opt_out_env(self) -> Dict[str, List[str]]:
@@ -320,14 +335,6 @@ class DataManager:
                 del opt_out_data[server]
 
         return self._update_opt_out_env(opt_out_data)
-
-    def load_privacy_settings(self) -> Dict[str, Any]:
-        """Load privacy settings data."""
-        return self.load_json(self.privacy_settings_file)
-
-    def save_privacy_settings(self, data: Dict[str, Any]):
-        """Save privacy settings data."""
-        self.save_json(self.privacy_settings_file, data)
 
     def get_opted_out_users(self, server: Optional[str] = None) -> Dict[str, List[str]]:
         """

@@ -162,29 +162,6 @@ def test_save_drink_data(data_manager):
     ), "Saved servers data should match"
 
 
-def test_load_privacy_settings(data_manager):
-    """Test loading privacy settings."""
-    data = data_manager.load_privacy_settings()
-    assert "opted_out_users" in data, "Data should contain key 'opted_out_users'"
-    assert "version" in data, "Data should contain key 'version'"
-
-
-def test_save_privacy_settings(data_manager):
-    """Test saving privacy settings."""
-    test_data = {
-        "opted_out_users": {"server1": ["user1", "user2"]},
-        "version": "1.0.0",
-    }
-
-    data_manager.save_privacy_settings(test_data)
-
-    # Verify data was saved
-    loaded_data = data_manager.load_privacy_settings()
-    assert (
-        loaded_data["opted_out_users"] == test_data["opted_out_users"]
-    ), "Saved privacy settings should match"
-
-
 def test_is_user_opted_out(data_manager):
     """Test checking if user is opted out."""
     # Initially no users opted out

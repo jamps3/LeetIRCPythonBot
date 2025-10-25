@@ -502,6 +502,8 @@ class Server:
         join_match = re.search(r":(\S+)!(\S+) JOIN (\S+)", message)
         if join_match:
             sender, hostmask, channel = join_match.groups()
+            # Strip leading colon from channel name if present
+            channel = channel.lstrip(":")
             for callback in self.callbacks["join"]:
                 try:
                     callback(self, sender, channel)

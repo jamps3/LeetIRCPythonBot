@@ -2,7 +2,7 @@
 
 SESSION_NAME="bot"
 VENV_PATH="venv/bin/activate"
-BOT_COMMAND="python3 main.py $@"
+BOT_COMMAND="python3 src/main.py $@"
 LOG_FILE="crashlog.txt"
 
 # Check if virtual environment exists, create if not

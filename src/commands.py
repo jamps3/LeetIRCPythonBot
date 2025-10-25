@@ -21,7 +21,8 @@ from command_registry import (
 from config import get_config
 
 # Word tracking system (extended features)
-from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
+from tamagotchi import TamagotchiBot
+from word_tracking import DataManager, DrinkTracker, GeneralWords
 
 # Initialize word tracking system (shared singletons)
 _data_manager = DataManager()
@@ -217,8 +218,11 @@ def quote_command(context: CommandContext, bot_functions):
         else:
             # Handle file source
             if not os.path.isabs(quotes_source):
-                # If relative path, make it relative to the bot directory
-                quotes_source = os.path.join(os.path.dirname(__file__), quotes_source)
+                # Make relative paths resolve from project root
+                project_root = os.path.abspath(
+                    os.path.join(os.path.dirname(__file__), "..")
+                )
+                quotes_source = os.path.join(project_root, quotes_source)
 
             if not os.path.exists(quotes_source):
                 return f"Quotes file not found: {quotes_source}"
@@ -1307,7 +1311,7 @@ def weather_command(context: CommandContext, bot_functions):
 
         # Determine IRC/server context if available (for IRC responses)
         irc_ctx = bot_functions.get("irc") if not context.is_console else None
-        # Call the weather service
+        # Call the weather service - pass the location as the third parameter
         send_weather(irc_ctx, context.target, location)
         return CommandResponse.no_response()  # Weather service handles the output
     else:
@@ -1409,6 +1413,88 @@ def solarwind_command(context: CommandContext, bot_functions):
         return get_solar_wind_info()
     except Exception as e:
         return f"❌ Solar wind error: {str(e)}"
+
+
+@command(
+    "otiedote",
+    description="Get accident reports (Otiedote)",
+    usage="!otiedote [N | # | #N | set N]",
+    examples=[
+        "!otiedote",
+        "!otiedote 1",
+        "!otiedote 2",
+        "!otiedote #",
+        "!otiedote #2610",
+        "!otiedote set 2610",
+    ],
+)
+def otiedote_command(context: CommandContext, bot_functions):
+    """Handle otiedote (accident report) commands.
+
+    - !otiedote: Display the latest otiedote full description
+    - !otiedote 1, !otiedote 2, etc.: Display the 1st, 2nd, etc. latest otiedote (short description + URL)
+    - !otiedote #: Display the current otiedote release number
+    - !otiedote #1234: Display the short description for otiedote #1234
+    - !otiedote set 1234: Set the latest otiedote release number to 1234
+    """
+    # Get the otiedote helper function from bot_functions
+    get_otiedote = bot_functions.get("get_otiedote_info")
+    set_otiedote = bot_functions.get("set_otiedote_number")
+
+    if not get_otiedote:
+        return "❌ Otiedote service not available"
+
+    # Parse arguments
+    args_text = context.args_text.strip() if context.args_text else ""
+
+    # Case 1: !otiedote (no args) - show latest full description
+    if not args_text:
+        result = get_otiedote("latest_full")
+        if result.get("error"):
+            return result["message"]
+        return result["message"]
+
+    # Case 2: !otiedote set <number> - set the latest release number
+    if args_text.lower().startswith("set "):
+        if not set_otiedote:
+            return "❌ Otiedote set function not available"
+        try:
+            number_str = args_text[4:].strip()
+            number = int(number_str)
+            result = set_otiedote(number)
+            return result.get("message", f"✅ Set latest otiedote to #{number}")
+        except ValueError:
+            return "❌ Invalid number format. Usage: !otiedote set <number>"
+
+    # Case 3: !otiedote # - show current release number
+    if args_text == "#":
+        result = get_otiedote("current_number")
+        if result.get("error"):
+            return result["message"]
+        return result["message"]
+
+    # Case 4: !otiedote #<number> - show short description for specific release number
+    if args_text.startswith("#"):
+        try:
+            number = int(args_text[1:])
+            result = get_otiedote("by_number", number=number)
+            if result.get("error"):
+                return result["message"]
+            return result["message"]
+        except ValueError:
+            return "❌ Invalid number format. Usage: !otiedote #<number>"
+
+    # Case 5: !otiedote <N> - show Nth latest (1=latest, 2=second latest, etc.)
+    try:
+        offset = int(args_text)
+        if offset < 1:
+            return "❌ Number must be positive. Usage: !otiedote <N> (1=latest, 2=second latest, etc.)"
+        result = get_otiedote("nth_latest", offset=offset)
+        if result.get("error"):
+            return result["message"]
+        return result["message"]
+    except ValueError:
+        return "❌ Invalid argument. Usage: !otiedote [N | # | #N | set N]"
 
 
 # EOF

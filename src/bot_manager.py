@@ -19,7 +19,8 @@ from config import get_api_key, get_server_configs, load_env_file
 from leet_detector import create_nanoleet_detector
 from lemmatizer import Lemmatizer
 from server import Server
-from word_tracking import DataManager, DrinkTracker, GeneralWords, TamagotchiBot
+from tamagotchi import TamagotchiBot
+from word_tracking import DataManager, DrinkTracker, GeneralWords
 
 # Try to import readline, but handle gracefully if not available
 try:
@@ -666,14 +667,6 @@ class BotManager:
         target = context["target"]
         text = context["text"]
 
-        # TODO: Quick built-in handler for latest Otiedote description, integrate properly later
-        try:
-            if isinstance(text, str) and text.strip().lower().startswith("!otiedote"):
-                self._send_latest_otiedote(server, target)
-                return
-        except Exception as e:
-            self.logger.warning(f"Error handling !otiedote: {e}")
-
         bot_functions = {
             "data_manager": self.data_manager,
             "drink_tracker": self.drink_tracker,
@@ -719,6 +712,8 @@ class BotManager:
             "stop_event": self.stop_event,  # Allow IRC commands to trigger shutdown
             "set_quit_message": self.set_quit_message,  # Allow setting custom quit message
             "set_openai_model": self.set_openai_model,  # Allow changing OpenAI model at runtime
+            "get_otiedote_info": self._get_otiedote_info,  # Get otiedote information
+            "set_otiedote_number": self._set_otiedote_number,  # Set otiedote release number
         }
 
         # Create a mock IRC message format for commands.py compatibility
@@ -1491,6 +1486,7 @@ class BotManager:
             "join_channel": self._console_join_or_part_channel,  # Join/part channels
             "send_to_channel": self._console_send_to_channel,  # Send messages to channels
             "bot_manager": self,  # Reference to the bot manager itself
+            "subscriptions": self._get_subscriptions_module(),  # Subscription management
         }
 
     def set_quit_message(self, message: str):
@@ -1724,6 +1720,10 @@ class BotManager:
             ):
                 return
 
+        # Log IRC responses to console for visibility
+        server_name = getattr(server.config, "name", "unknown")
+        self.logger.msg(f"[{server_name}:{target}] {message}", "MSG")
+
         if self.use_notices:
             server.send_notice(target, message)
         else:
@@ -1756,6 +1756,195 @@ class BotManager:
         except Exception as e:
             self.logger.error(f"Error sending latest Otiedote: {e}")
             self._send_response(server, target, f"❌ Virhe: {e}")
+
+    def _get_otiedote_info(self, mode: str, number: int = None, offset: int = None):
+        """Get otiedote information based on mode.
+
+        Args:
+            mode: One of 'latest_full', 'current_number', 'by_number', 'nth_latest'
+            number: Release number for 'by_number' mode
+            offset: Offset from latest for 'nth_latest' mode (1=latest, 2=second latest, etc.)
+
+        Returns:
+            Dictionary with 'error' (bool) and 'message' (str) keys
+        """
+        try:
+            # Mode 1: Latest full description (the cached one)
+            if mode == "latest_full":
+                info = getattr(self, "latest_otiedote", None)
+                if not info:
+                    return {
+                        "error": True,
+                        "message": "📢 Ei tallennettua Onnettomuustiedotetta vielä. Odota uutta ilmoitusta.",
+                    }
+
+                desc = (info.get("description") or "").strip()
+                url = info.get("url", "")
+                title = info.get("title", "")
+
+                if not desc:
+                    return {
+                        "error": False,
+                        "message": f"📢 Ei kuvausta saatavilla. | {url}",
+                    }
+
+                return {"error": False, "message": f"📢 {title} | {desc} | {url}"}
+
+            # Mode 2: Current release number
+            elif mode == "current_number":
+                if not self.otiedote_service:
+                    return {
+                        "error": True,
+                        "message": "❌ Otiedote service not available",
+                    }
+
+                info = self.otiedote_service.get_latest_release_info()
+                latest_num = info.get("latest_release", 0)
+                return {
+                    "error": False,
+                    "message": f"📢 Viimeisin seurattu Otiedote: #{latest_num}",
+                }
+
+            # Mode 3: Fetch specific release by number
+            elif mode == "by_number":
+                if number is None:
+                    return {"error": True, "message": "❌ Release number required"}
+
+                if not self.otiedote_service:
+                    return {
+                        "error": True,
+                        "message": "❌ Otiedote service not available",
+                    }
+
+                # Fetch the release from the service
+                try:
+                    release_data = self._fetch_otiedote_by_number(number)
+                    if release_data.get("error"):
+                        return release_data
+                    return {"error": False, "message": release_data["message"]}
+                except Exception as e:
+                    return {
+                        "error": True,
+                        "message": f"❌ Error fetching otiedote #{number}: {e}",
+                    }
+
+            # Mode 4: Nth latest (1=latest, 2=second latest, etc.)
+            elif mode == "nth_latest":
+                if offset is None or offset < 1:
+                    return {
+                        "error": True,
+                        "message": "❌ Valid offset required (1=latest, 2=second latest, etc.)",
+                    }
+
+                if not self.otiedote_service:
+                    return {
+                        "error": True,
+                        "message": "❌ Otiedote service not available",
+                    }
+
+                # Calculate the release number
+                info = self.otiedote_service.get_latest_release_info()
+                latest_num = info.get("latest_release", 0)
+                target_num = latest_num - (offset - 1)
+
+                if target_num < 1:
+                    return {
+                        "error": True,
+                        "message": f"❌ Not enough history. Latest is #{latest_num}",
+                    }
+
+                # Fetch the release
+                try:
+                    release_data = self._fetch_otiedote_by_number(target_num)
+                    if release_data.get("error"):
+                        return release_data
+                    return {"error": False, "message": release_data["message"]}
+                except Exception as e:
+                    return {
+                        "error": True,
+                        "message": f"❌ Error fetching otiedote: {e}",
+                    }
+
+            else:
+                return {"error": True, "message": "❌ Unknown mode"}
+
+        except Exception as e:
+            self.logger.error(f"Error getting otiedote info: {e}")
+            return {"error": True, "message": f"❌ Error: {e}"}
+
+    def _fetch_otiedote_by_number(self, number: int) -> dict:
+        """Fetch a specific otiedote release by number.
+
+        Args:
+            number: The release number to fetch
+
+        Returns:
+            Dictionary with 'error' (bool) and 'message' (str) keys
+        """
+        try:
+            import asyncio
+
+            from bs4 import BeautifulSoup
+
+            # Use the playwright service to fetch the page
+            url = f"https://otiedote.fi/release_view/{number}"
+
+            # Try to fetch the page using the existing playwright infrastructure
+            # This is a simplified version - in production you might want to reuse
+            # the browser instance from otiedote_service
+            try:
+                from playwright.sync_api import sync_playwright
+
+                with sync_playwright() as p:
+                    browser = p.firefox.launch(headless=True)
+                    page = browser.new_page()
+                    page.goto(url, wait_until="networkidle")
+                    page.wait_for_selector("h1", timeout=5000)
+                    html = page.content()
+                    browser.close()
+
+                soup = BeautifulSoup(html, "html.parser")
+                title_tag = soup.find("h1")
+                title = title_tag.text.strip() if title_tag else f"Release {number}"
+
+                return {"error": False, "message": f"📢 #{number}: {title} | {url}"}
+
+            except Exception as fetch_error:
+                # Fallback: just return the URL
+                self.logger.warning(
+                    f"Could not fetch otiedote #{number} details: {fetch_error}"
+                )
+                return {"error": False, "message": f"📢 Otiedote #{number}: {url}"}
+
+        except Exception as e:
+            self.logger.error(f"Error fetching otiedote #{number}: {e}")
+            return {
+                "error": True,
+                "message": f"❌ Error fetching otiedote #{number}: {e}",
+            }
+
+    def _set_otiedote_number(self, number: int) -> dict:
+        """Set the latest otiedote release number.
+
+        Args:
+            number: The release number to set as latest
+
+        Returns:
+            Dictionary with 'error' (bool) and 'message' (str) keys
+        """
+        try:
+            if not self.otiedote_service:
+                return {"error": True, "message": "❌ Otiedote service not available"}
+
+            # Update the service's latest release number and save to file
+            self.otiedote_service.latest_release = number
+            self.otiedote_service._save_latest_release(number)
+
+            return {"error": False, "message": f"✅ Set latest otiedote to #{number}"}
+
+        except Exception as e:
+            self.logger.error(f"Error setting otiedote number: {e}")
+            return {"error": True, "message": f"❌ Error: {e}"}
 
     def _send_weather(self, irc, channel, location):
         """Send weather information."""

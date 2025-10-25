@@ -11,8 +11,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
 import logger as log
-
-from .data_manager import DataManager
+from word_tracking.data_manager import DataManager
 
 
 class TamagotchiBot:

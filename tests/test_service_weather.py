@@ -5,7 +5,6 @@ Pytest Weather Service tests
 Comprehensive tests for the weather service functionality.
 """
 
-import json
 import os
 import sys
 from unittest.mock import Mock, patch

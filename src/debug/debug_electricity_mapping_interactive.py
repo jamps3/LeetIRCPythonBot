@@ -7,6 +7,11 @@ Tests hours 0, 1, 15, 16, 23, and 24 for today and tomorrow.
 import os
 import sys
 from datetime import datetime, timedelta
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root / "src"))
 
 from services.electricity_service import ElectricityService
 
@@ -44,7 +49,7 @@ def test_electricity_mapping():
     test_hours = [0, 1, 23]
 
     for day in ["today", "tomorrow"]:
-        print(f"\n📅 Expected prices for {day.upper()}:")
+        print(f"\nExpected prices for {day.upper()}:")
         for hour in test_hours:
             while True:
                 try:
@@ -67,7 +72,7 @@ def test_electricity_mapping():
     print("=" * 80)
 
     for hour in test_hours:
-        print(f"\n🕐 Testing Hour {hour}")
+        print(f"\nTesting Hour {hour}")
         print("-" * 40)
 
         try:
@@ -76,7 +81,7 @@ def test_electricity_mapping():
             )
 
             if result.get("error"):
-                print(f"❌ Error: {result.get('message', 'Unknown error')}")
+                print(f"Error: {result.get('message', 'Unknown error')}")
                 continue
 
             # Today's price
@@ -87,13 +92,13 @@ def test_electricity_mapping():
                 if expected_today is not None:
                     if abs(snt_per_kwh_today - expected_today) > 0.01:
                         print(
-                            f"⚠️ Mismatch for Today at hour {hour}: Got {snt_per_kwh_today:.2f} c/kWh, Expected {expected_today:.2f} c/kWh"
+                            f"Mismatch for Today at hour {hour}: Got {snt_per_kwh_today:.2f} c/kWh, Expected {expected_today:.2f} c/kWh"
                         )
-                print(f"📅 Today ({result['date']}) at hour {hour}:")
-                print(f"   💰 {snt_per_kwh_today:.2f} c/kWh (with VAT)")
-                print(f"   📊 {today_price['eur_per_mwh']:.2f} EUR/MWh")
+                print(f"Today ({result['date']}) at hour {hour}:")
+                print(f"   {snt_per_kwh_today:.2f} c/kWh (with VAT)")
+                print(f"   {today_price['eur_per_mwh']:.2f} EUR/MWh")
             else:
-                print(f"📅 Today ({result['date']}) at hour {hour}: No price available")
+                print(f"Today ({result['date']}) at hour {hour}: No price available")
 
             # Tomorrow's price
             tomorrow_price = result.get("tomorrow_price")
@@ -109,16 +114,16 @@ def test_electricity_mapping():
                 if expected_tomorrow is not None:
                     if abs(snt_per_kwh_tomorrow - expected_tomorrow) > 0.01:
                         print(
-                            f"⚠️ Mismatch for Tomorrow at hour {hour}: Got {snt_per_kwh_tomorrow:.2f} c/kWh, Expected {expected_tomorrow:.2f} c/kWh"
+                            f"Mismatch for Tomorrow at hour {hour}: Got {snt_per_kwh_tomorrow:.2f} c/kWh, Expected {expected_tomorrow:.2f} c/kWh"
                         )
-                print(f"📅 Tomorrow ({tomorrow_date}) at hour {hour}:")
-                print(f"   💰 {snt_per_kwh_tomorrow:.2f} c/kWh (with VAT)")
-                print(f"   📊 {tomorrow_price['eur_per_mwh']:.2f} EUR/MWh")
+                print(f"Tomorrow ({tomorrow_date}) at hour {hour}:")
+                print(f"   {snt_per_kwh_tomorrow:.2f} c/kWh (with VAT)")
+                print(f"   {tomorrow_price['eur_per_mwh']:.2f} EUR/MWh")
             else:
-                print(f"📅 Tomorrow at hour {hour}: No price available")
+                print(f"Tomorrow at hour {hour}: No price available")
 
         except Exception as e:
-            print(f"❌ Exception testing hour {hour}: {str(e)}")
+            print(f"Exception testing hour {hour}: {str(e)}")
 
     print("\n" + "=" * 80)
     print("🔍 Testing raw daily data to verify position mapping...")
@@ -137,7 +142,7 @@ def test_electricity_mapping():
         tomorrow = current_date + timedelta(days=1)
         tomorrow_data = service.get_daily_prices(tomorrow)
 
-        print("\n📊 Raw data analysis:")
+        print("\nRaw data analysis:")
         print(f"Yesterday ({yesterday.strftime('%Y-%m-%d')}):")
         if not yesterday_data.get("error"):
             positions = sorted(yesterday_data["prices"].keys())
@@ -182,7 +187,7 @@ def test_electricity_mapping():
             )
 
     except Exception as e:
-        print(f"❌ Error analyzing raw data: {str(e)}")
+        print(f"Error analyzing raw data: {str(e)}")
 
 
 if __name__ == "__main__":

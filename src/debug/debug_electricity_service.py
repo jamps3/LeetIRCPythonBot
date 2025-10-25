@@ -6,6 +6,11 @@ Use this when the service is returning incorrect prices.
 
 import sys
 from datetime import date, datetime
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root / "src"))
 
 from services.electricity_service import ElectricityService
 

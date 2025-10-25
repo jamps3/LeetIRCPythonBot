@@ -965,6 +965,46 @@ class TUIManager:
         else:
             self.input_field.set_caption("> Channel message: ")
 
+    def write_log_to_file(self, filename="tui.log"):
+        """Write all log entries to a file.
+
+        Args:
+            filename: The filename to write the log to (default: tui.log)
+        """
+        try:
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write("=" * 80 + "\n")
+                f.write("LeetIRC Bot TUI Log\n")
+                f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"Total Entries: {len(self.log_entries)}\n")
+                f.write("=" * 80 + "\n\n")
+
+                for entry in self.log_entries:
+                    # Write each log entry in a formatted way
+                    timestamp_str = entry.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+                    f.write(
+                        f"[{timestamp_str}] [{entry.server}] [{entry.level}] [{entry.source_type}]\n"
+                    )
+                    f.write(f"  {entry.message}\n")
+                    f.write("\n")
+
+                f.write("=" * 80 + "\n")
+                f.write("End of TUI Log\n")
+                f.write("=" * 80 + "\n")
+
+            # Log success (but only if we still have access to the logger)
+            try:
+                logger.get_logger("TUI").info(f"TUI log written to {filename}")
+            except Exception:
+                pass  # Ignore if logger is unavailable
+
+        except Exception as e:
+            # Try to log the error, but don't fail if we can't
+            try:
+                logger.get_logger("TUI").error(f"Failed to write TUI log: {e}")
+            except Exception:
+                pass  # Ignore if logger is unavailable
+
     def show_help(self):
         """Show help information."""
         help_text = """
@@ -1165,6 +1205,8 @@ Tips:
         try:
             self.loop.run()
         finally:
+            # Write TUI log to file before exiting
+            self.write_log_to_file()
             # Clear the logger hook when TUI exits
             logger.clear_tui_hook()
 

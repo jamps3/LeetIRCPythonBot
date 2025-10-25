@@ -3,15 +3,18 @@
 Pytest tests for main.py
 """
 
-import io
 import os
 import sys
-import types
 from argparse import Namespace
 
 import pytest
 
 import main as main_mod
+
+# Add the parent directory to Python path to ensure imports work in CI
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
 
 def test_setup_environment_warns_when_env_file_missing(monkeypatch):
@@ -128,6 +131,11 @@ class _FakeBotManager:
 
     def stop(self):
         self.stopped = True
+
+    def run(self):
+        self.start()
+        self.wait_for_shutdown()
+        self.stop()
 
 
 def _install_fake_args(monkeypatch, **kwargs):

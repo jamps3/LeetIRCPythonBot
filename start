@@ -13,5 +13,5 @@ if ! command -v "$PY" >/dev/null 2>&1; then
   PY=python
 fi
 
-exec "$PY" main.py "$@"
+exec "$PY" src/main.py "$@"
 

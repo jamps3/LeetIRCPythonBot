@@ -171,19 +171,13 @@ cython_debug/
 .pypirc
 # Saved data
 conversation_history.json
-conversation_history_old.json
 leet_winners.json
 ekavika.json
-last_warning.json
 *_words.json
-subscriptions.json
 voikko*
-tamagotchi_state.json
 eurojackpot.json
 drink_tracking.json
-privacy_settings.json
 leet_detections.json
-latest_otiedote.txt
 
 # Ignore backup files
 *backup
@@ -196,3 +190,4 @@ test-results.txt
 # Others
 commits.csv
 quotes.txt
+tui.log

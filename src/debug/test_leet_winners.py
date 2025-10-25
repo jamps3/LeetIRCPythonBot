@@ -30,10 +30,10 @@ def save_leet_winners(data):
     try:
         with open("leet_winners.json", "w") as f:
             json.dump(data, f, indent=2)
-        print("✅ Successfully saved data to leet_winners.json")
+        print("Successfully saved data to leet_winners.json")
         return True
     except Exception as e:
-        print(f"❌ Error saving leet winners: {e}")
+        print(f"Error saving leet winners: {e}")
         return False
 
 
@@ -46,11 +46,11 @@ def process_leet_winner_summary(text: str):
         return False
 
     first, last, multileet = match.groups()
-    print(f"🎯 Regex matched: first={first}, last={last}, multileet={multileet}")
+    print(f"Regex matched: first={first}, last={last}, multileet={multileet}")
 
     # Load current winners
     winners = load_leet_winners()
-    print(f"📁 Loaded current winners: {winners}")
+    print(f"Loaded current winners: {winners}")
 
     # Helper to bump count in winners dict
     def bump(name: str, category: str):
@@ -65,67 +65,67 @@ def process_leet_winner_summary(text: str):
     bump(last, "last")
     bump(multileet, "multileet")
 
-    print(f"📊 Updated winners: {winners}")
+    print(f"Updated winners: {winners}")
 
     if save_leet_winners(winners):
         print(
-            f"✅ Updated leet winners (first={first}, last={last}, multileet={multileet})"
+            f"Updated leet winners (first={first}, last={last}, multileet={multileet})"
         )
         return True
     else:
-        print("❌ Failed to save leet winners")
+        print("Failed to save leet winners")
         return False
 
 
 def main():
-    print("🧪 Testing leet winners processing...")
+    print("Testing leet winners processing...")
     print("=" * 60)
 
     # Show current working directory
-    print(f"📂 Working directory: {os.getcwd()}")
+    print(f"Working directory: {os.getcwd()}")
 
     # Check if file exists before testing
     if os.path.exists("leet_winners.json"):
-        print("📄 leet_winners.json exists, showing current content:")
+        print("leet_winners.json exists, showing current content:")
         try:
             with open("leet_winners.json", "r") as f:
                 current_data = json.load(f)
                 print(json.dumps(current_data, indent=2))
         except Exception as e:
-            print(f"❌ Error reading file: {e}")
+            print(f"Error reading file: {e}")
     else:
-        print("📄 leet_winners.json does not exist, will be created")
+        print("leet_winners.json does not exist, will be created")
 
-    print("\n🔄 Processing test messages...")
+    print("\nProcessing test messages...")
     print("-" * 40)
 
     success_count = 0
     for i, message in enumerate(test_messages, 1):
-        print(f"\n📝 Message {i}:")
+        print(f"\nMessage {i}:")
         print(f"Text: {message}")
 
         if process_leet_winner_summary(message):
             success_count += 1
-            print("✅ Successfully processed")
+            print("Successfully processed")
         else:
-            print("❌ Failed to process")
+            print("Failed to process")
 
     print("\n" + "=" * 60)
     print(
-        f"📊 Summary: {success_count}/{len(test_messages)} messages processed successfully"
+        f"Summary: {success_count}/{len(test_messages)} messages processed successfully"
     )
 
     # Show final file content
     if os.path.exists("leet_winners.json"):
-        print("\n📄 Final leet_winners.json content:")
+        print("\nFinal leet_winners.json content:")
         try:
             with open("leet_winners.json", "r") as f:
                 final_data = json.load(f)
                 print(json.dumps(final_data, indent=2))
         except Exception as e:
-            print(f"❌ Error reading final file: {e}")
+            print(f"Error reading final file: {e}")
     else:
-        print("❌ leet_winners.json was not created")
+        print("leet_winners.json was not created")
 
 
 if __name__ == "__main__":

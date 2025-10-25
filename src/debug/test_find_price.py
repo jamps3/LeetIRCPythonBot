@@ -6,6 +6,11 @@ Script to explore ENTSO-E API data and find the 1.76 c/kWh price.
 import os
 import sys
 from datetime import datetime, timedelta
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root / "src"))
 
 from services.electricity_service import ElectricityService
 
@@ -48,7 +53,7 @@ def find_price_target():
     target_eur_mwh = target_cents / 1.255 * 10  # ≈ 14.02 EUR/MWh
 
     print(
-        f"🎯 Looking for price: {target_cents:.2f} c/kWh (≈ {target_eur_mwh:.2f} EUR/MWh)"
+        f"Looking for price: {target_cents:.2f} c/kWh (≈ {target_eur_mwh:.2f} EUR/MWh)"
     )
     print("=" * 80)
 
@@ -65,19 +70,19 @@ def find_price_target():
 
     for check_date in dates_to_check:
         print(
-            f"\n📅 Checking {check_date.strftime('%Y-%m-%d')} ({check_date.strftime('%A')}):"
+            f"\nChecking {check_date.strftime('%Y-%m-%d')} ({check_date.strftime('%A')}):"
         )
 
         try:
             daily_prices = service.get_daily_prices(check_date)
 
             if daily_prices.get("error"):
-                print(f"   ❌ Error: {daily_prices.get('message')}")
+                print(f"   Error: {daily_prices.get('message')}")
                 continue
 
             prices = daily_prices.get("prices", {})
             if not prices:
-                print("   ❌ No price data available")
+                print("   No price data available")
                 continue
 
             # Check all positions for this date
@@ -92,12 +97,12 @@ def find_price_target():
                         hour = position if position != 24 else 0
                         found_matches.append((position, hour, eur_mwh, cents_kwh))
                         print(
-                            f"   🎯 MATCH! Position {position} (Hour {hour}): {eur_mwh:.2f} EUR/MWh = {cents_kwh:.2f} c/kWh"
+                            f"   MATCH! Position {position} (Hour {hour}): {eur_mwh:.2f} EUR/MWh = {cents_kwh:.2f} c/kWh"
                         )
 
             if not found_matches:
                 # Show all prices for this day
-                print("   📊 All positions for this day:")
+                print("   All positions for this day:")
                 for position in range(1, 25):
                     if position in prices:
                         eur_mwh = prices[position]
@@ -108,10 +113,10 @@ def find_price_target():
                         )
 
         except Exception as e:
-            print(f"   ❌ Exception: {str(e)}")
+            print(f"   Exception: {str(e)}")
 
     print("\n" + "=" * 80)
-    print("🔍 Summary:")
+    print("Summary:")
     print(f"   Target: {target_cents:.2f} c/kWh (≈ {target_eur_mwh:.2f} EUR/MWh)")
     print("   If no matches found above, the expected value might be from:")
     print("   • A different time period")

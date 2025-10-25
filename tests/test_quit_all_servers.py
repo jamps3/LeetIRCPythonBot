@@ -23,7 +23,7 @@ sys.modules["googleapiclient.discovery"] = Mock()
 
 
 def test_quit_command_console_triggers_shutdown():
-    """Test that quit command in console mode sets stop event."""
+    """Test that exit command in console mode sets stop event."""
     from command_loader import process_console_command
 
     # Create a mock stop event
@@ -42,10 +42,8 @@ def test_quit_command_console_triggers_shutdown():
         "handle_ipfs_command": Mock(),
     }
 
-    # Mock admin password verification
-    with patch("commands_admin.verify_admin_password", return_value=True):
-        # Process the quit command
-        process_console_command("!quit testpass123 Goodbye everyone!", bot_functions)
+    # Process the exit command (no admin password needed)
+    process_console_command("!exit", bot_functions)
 
     # Verify stop event was set
     stop_event.set.assert_called_once()

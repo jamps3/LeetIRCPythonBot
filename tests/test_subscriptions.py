@@ -133,7 +133,10 @@ def otiedote_setup():
     server_config_mock = Mock(
         name=server_name, host="localhost", port=6667, channels=["#general", "#random"]
     )
-    fake_server = Mock(config=Mock(name=server_name))
+    fake_server = Mock()
+    fake_server.config = Mock()
+    fake_server.config.name = server_name  # Set as actual string, not Mock
+    fake_server.connected = True  # Ensure server appears connected
     sent_messages = []
     fake_server.send_message.side_effect = lambda target, msg: sent_messages.append(
         (target, msg)
@@ -156,6 +159,8 @@ def otiedote_setup():
     ):
         manager = BotManager("TestBot")
         manager.servers = {server_name: fake_server}
+        # Add joined channels so _send_response works
+        manager.joined_channels = {server_name: {"#general", "#random"}}
         yield manager, fake_server, sent_messages
 
 
@@ -477,11 +482,12 @@ def test_tilaa_command(temp_subscriptions_file):
     with patch("subscriptions.SUBSCRIBERS_FILE", temp_subscriptions_file):
         responses = []
 
-        def mock_notice(msg, irc, target):
+        def mock_notice(msg, irc=None, target=None):
             responses.append(msg)
 
         bot_functions["notice_message"] = mock_notice
         bot_functions["log"] = lambda msg, level="INFO": None
+        bot_functions["server_name"] = "test_server"
 
         from command_loader import process_irc_message
 

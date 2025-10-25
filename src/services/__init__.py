@@ -18,7 +18,7 @@ except ImportError:
     _HAS_FMI_SERVICE = False
 
 try:
-    from .otiedote_service import OtiedoteService, create_otiedote_service
+    from .otiedote_playwright_service import OtiedoteService, create_otiedote_service
 
     _HAS_OTIEDOTE_SERVICE = True
 except ImportError:

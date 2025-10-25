@@ -3,19 +3,26 @@
 Demo script showing the new IRC command system with / prefix support
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root / "src"))
+
 from command_loader import load_all_commands
 from command_registry import CommandContext, get_command_registry
 
 
 def demo_irc_commands():
     """Demonstrate the IRC command system."""
-    print("🚀 Loading IRC command system...")
+    print("Loading IRC command system...")
 
     # Load all commands
     load_all_commands()
     registry = get_command_registry()
 
-    print(f"✅ Loaded {len(registry._commands)} total commands")
+    print(f"Loaded {len(registry._commands)} total commands")
 
     # Get IRC commands
     irc_commands = [
@@ -46,12 +53,12 @@ def demo_irc_commands():
         ]
     ]
 
-    print(f"\n📋 Available IRC commands ({len(irc_commands)}):")
+    print(f"\nAvailable IRC commands ({len(irc_commands)}):")
     for cmd in sorted(irc_commands):
         cmd_info = registry._commands[cmd].info
         print(f"  /{cmd:<12} - {cmd_info.description}")
 
-    print("\n🧪 Testing IRC command execution...")
+    print("\nTesting IRC command execution...")
 
     # Mock bot functions (minimal for testing)
     bot_functions = {
@@ -90,9 +97,9 @@ def demo_irc_commands():
             except Exception as e:
                 print(f"    Expected error (no IRC connection): {e}")
         else:
-            print(f"    ❌ Command not found: {command}")
+            print(f"    Command not found: {command}")
 
-    print("\n🎯 Command prefix parsing test:")
+    print("\nCommand prefix parsing test:")
     from command_registry import parse_command_message
 
     test_messages = [
@@ -111,7 +118,7 @@ def demo_irc_commands():
         else:
             print(f"  '{msg}' -> Not a command")
 
-    print("\n✅ IRC command system demo complete!")
+    print("\nIRC command system demo complete!")
     print(f"   • {len(irc_commands)} IRC commands available with / prefix")
     print("   • Both ! and / prefixes supported")
     print("   • Commands work in console, TUI, and IRC contexts")
