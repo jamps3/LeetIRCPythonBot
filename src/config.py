@@ -112,7 +112,11 @@ class ConfigManager:
     """
 
     def __init__(self, env_file: str = ".env"):
-        self.env_file = env_file
+        # Resolve .env relative to project root
+        if not os.path.isabs(env_file):
+            src_dir = os.path.dirname(__file__)
+            project_root = os.path.abspath(os.path.join(src_dir, ".."))
+            self.env_file = os.path.join(project_root, env_file)
         self._config: Optional[BotConfig] = None
         self._load_environment()
 

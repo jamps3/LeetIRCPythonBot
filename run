@@ -19,7 +19,7 @@ else
     echo "Starting new tmux session: $SESSION_NAME"
     tmux new-session -d -s $SESSION_NAME
 
-    # Activate venv, install requirements, and run bot inside tmux
+    # Activate venv, install/upgrade requirements, and run bot inside tmux
     tmux send-keys -t $SESSION_NAME "source $VENV_PATH" C-m
     tmux send-keys -t $SESSION_NAME "pip install --upgrade -r requirements.txt" C-m
     tmux send-keys -t $SESSION_NAME "$BOT_COMMAND" C-m

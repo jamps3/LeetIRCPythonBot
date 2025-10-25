@@ -5,6 +5,7 @@ set -euo pipefail
 # Usage: ./start [args...]
 # Notes:
 # - Does NOT create/activate a venv
+# - Does NOT create/activate a tmux session
 # - Does NOT install requirements
 # - Simply runs main.py with any passed arguments
 
