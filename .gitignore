@@ -170,6 +170,7 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 # Saved data
+state.json
 conversation_history.json
 leet_winners.json
 ekavika.json
