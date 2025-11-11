@@ -154,7 +154,12 @@ class ElectricityService:
 
     def get_daily_prices(self, date: datetime) -> Dict[str, Any]:
         """Fetch ENTSO-E prices for a given date and map them to 15-min intervals (1–96)."""
-        date_key = date.strftime("%Y-%m-%d")
+        # Ensure date is a date object (not datetime)
+        if isinstance(date, datetime):
+            requested_date = date.date()
+        else:
+            requested_date = date
+        date_key = requested_date.strftime("%Y-%m-%d")
         now = datetime.now(self.timezone)  # Use timezone-aware timestamp
 
         # Check cache
@@ -184,7 +189,9 @@ class ElectricityService:
                 del self._cache[date_key]
 
         try:
-            local_start = self.timezone.localize(datetime.combine(date, time(0, 0)))
+            local_start = self.timezone.localize(
+                datetime.combine(requested_date, time(0, 0))
+            )
             utc_start = local_start.astimezone(pytz.utc)
             period_start = utc_start.strftime("%Y%m%d%H%M")
 
@@ -214,8 +221,31 @@ class ElectricityService:
             ns = {"ns": tree.getroot().tag.split("}")[0].strip("{")}
 
             interval_prices: Dict[tuple[int, int], float] = {}
+            # Track dates found in the response to validate they match requested date
+            dates_found = set()
 
+            # Check for error messages in the XML response
+            # ENTSO-E API may return error information in the XML even with HTTP 200
+            error_elements = tree.findall(".//ns:Reason", ns)
             timeseries = tree.findall(".//ns:TimeSeries", ns)
+
+            if error_elements and not timeseries:
+                # API returned an error and no TimeSeries data
+                error_texts = [
+                    elem.findtext("ns:text", "", ns) for elem in error_elements
+                ]
+                error_msg = (
+                    " | ".join(error_texts) if error_texts else "Unknown API error"
+                )
+                log(
+                    f"API returned error for {date_key}: {error_msg}",
+                    level="WARNING",
+                    context="ELECTRICITY",
+                )
+                return {
+                    "error": True,
+                    "message": f"No price data available for {date_key}. {error_msg}",
+                }
             for ts in timeseries:
                 period = ts.find("ns:Period", ns)
                 if period is None:
@@ -241,6 +271,17 @@ class ElectricityService:
                     minutes_offset = (pos - 1) * res_min
                     interval_utc = start_time + timedelta(minutes=minutes_offset)
                     interval_local = interval_utc.astimezone(self.timezone)
+                    # Validate that this interval belongs to the requested date
+                    interval_date = interval_local.date()
+                    dates_found.add(interval_date)
+                    # Only include intervals for the requested date
+                    if interval_date != requested_date:
+                        log(
+                            f"Skipping price data for {interval_date} (requested {requested_date})",
+                            level="DEBUG",
+                            context="ELECTRICITY",
+                        )
+                        continue
                     hour = interval_local.hour
                     minute = interval_local.minute
                     quarter = (minute // 15) + 1
@@ -257,7 +298,20 @@ class ElectricityService:
             # for (h, q), price in interval_prices.items():
             #     log(f"Interval: hour={h}, quarter={q}, price={price}")
 
-            # Check if we actually got any price data
+            # Validate that we got data for the requested date
+            if dates_found and requested_date not in dates_found:
+                # API returned data but for a different date (likely returned today's data for tomorrow request)
+                log(
+                    f"API returned data for dates {dates_found} but requested {date_key}",
+                    level="WARNING",
+                    context="ELECTRICITY",
+                )
+                return {
+                    "error": True,
+                    "message": f"No price data available for {date_key}. Data may not be published yet.",
+                }
+
+            # Check if we actually got any price data for the requested date
             if not interval_prices:
                 # No data available - this can happen when requesting future dates
                 # Don't cache empty responses to avoid stale data
