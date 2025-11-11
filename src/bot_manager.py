@@ -714,6 +714,7 @@ class BotManager:
             "set_openai_model": self.set_openai_model,  # Allow changing OpenAI model at runtime
             "get_otiedote_info": self._get_otiedote_info,  # Get otiedote information
             "set_otiedote_number": self._set_otiedote_number,  # Set otiedote release number
+            "bot_manager": self,  # Reference to the bot manager itself (needed for commands)
         }
 
         # Create a mock IRC message format for commands.py compatibility
