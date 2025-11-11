@@ -373,6 +373,20 @@ def electricity_command(context: CommandContext, bot_functions):
             )
         elif parsed_args.get("show_all_hours"):
             # Show all hours for the day
+            # First, check if data is available for the requested date
+            daily_data = bot_manager.electricity_service.get_daily_prices(
+                parsed_args["date"]
+            )
+            if daily_data.get("error"):
+                # Data not available - return error message immediately
+                if parsed_args["is_tomorrow"]:
+                    return f"⚡ Huomisen hintatietoja ei vielä saatavilla. {daily_data.get('message', 'Data may not be published yet.')}"
+                else:
+                    return (
+                        f"⚡ {daily_data.get('message', 'Hintatietoja ei saatavilla.')}"
+                    )
+
+            # Data is available, get prices for all hours
             all_prices = []
             for h in range(24):
                 price_data = bot_manager.electricity_service.get_electricity_price(

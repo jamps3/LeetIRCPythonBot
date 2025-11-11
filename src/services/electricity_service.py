@@ -105,7 +105,12 @@ class ElectricityService:
 
             # Tomorrow's data if available
             tomorrow_data = self.get_daily_prices(date + timedelta(days=1))
-            if not tomorrow_data.get("error") and tomorrow_data.get("interval_prices"):
+            # Check if we got valid data: no error AND interval_prices exists AND is not empty
+            if (
+                not tomorrow_data.get("error")
+                and tomorrow_data.get("interval_prices")
+                and len(tomorrow_data.get("interval_prices", {})) > 0
+            ):
                 interval_prices_tomorrow: Dict[tuple[int, int], float] = tomorrow_data[
                     "interval_prices"
                 ]
@@ -155,12 +160,28 @@ class ElectricityService:
         # Check cache
         cached = self._cache.get(date_key)
         if cached and now - cached["timestamp"] < self._cache_ttl:
-            log(
-                f"Using cached data for {date_key}",
-                level="DEBUG",
-                context="ELECTRICITY",
-            )
-            return cached["data"]
+            cached_data = cached["data"]
+            # Validate cached data - ensure it has actual price data
+            # This handles cases where old cached data might have empty interval_prices
+            if (
+                not cached_data.get("error")
+                and cached_data.get("interval_prices")
+                and len(cached_data.get("interval_prices", {})) > 0
+            ):
+                log(
+                    f"Using cached data for {date_key}",
+                    level="DEBUG",
+                    context="ELECTRICITY",
+                )
+                return cached_data
+            else:
+                # Invalid cached data (empty or error), remove from cache and fetch fresh
+                log(
+                    f"Invalid cached data for {date_key}, fetching fresh",
+                    level="DEBUG",
+                    context="ELECTRICITY",
+                )
+                del self._cache[date_key]
 
         try:
             local_start = self.timezone.localize(datetime.combine(date, time(0, 0)))
@@ -235,6 +256,15 @@ class ElectricityService:
             # Debug print all interval_prices
             # for (h, q), price in interval_prices.items():
             #     log(f"Interval: hour={h}, quarter={q}, price={price}")
+
+            # Check if we actually got any price data
+            if not interval_prices:
+                # No data available - this can happen when requesting future dates
+                # Don't cache empty responses to avoid stale data
+                return {
+                    "error": True,
+                    "message": f"No price data available for {date_key}. Data may not be published yet.",
+                }
 
             result = {
                 "error": False,
@@ -679,6 +709,17 @@ class ElectricityService:
             return "⚡ Ei hintatietoja saatavilla"
 
         day_label = "Huomenna" if is_tomorrow else "Tänään"
+
+        # Check if all entries have errors (data not available)
+        all_errors = all(price_entry.get("error", False) for price_entry in all_prices)
+        if all_errors and is_tomorrow:
+            # If all entries failed and we're requesting tomorrow, return a clear message
+            error_msg = (
+                all_prices[0].get("message", "Data not available")
+                if all_prices
+                else "Data not available"
+            )
+            return f"⚡ Huomisen hintatietoja ei vielä saatavilla. {error_msg}"
 
         # Get the date from the first successful price entry
         date_str = None
