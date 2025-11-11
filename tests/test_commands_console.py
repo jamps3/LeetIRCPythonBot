@@ -1885,12 +1885,28 @@ def test_euribor_non_windows_and_missing_cases(monkeypatch):
     assert "No period data" in res2
 
 
-def test_quote_command_functionality():
+def test_quote_command_functionality(monkeypatch, tmp_path):
     """Test the quote command with various scenarios."""
     import os
     import tempfile
 
     from command_loader import process_console_command
+
+    # Create a test quotes file with multiple quotes
+    quotes_file = tmp_path / "quotes.txt"
+    quotes_file.write_text(
+        "Quote 1: This is the first test quote.\n"
+        "Quote 2: This is the second test quote.\n"
+        "Quote 3: This is the third test quote.\n"
+        "Quote 4: This is the fourth test quote.\n"
+        "Quote 5: This is the fifth test quote.\n"
+    )
+
+    # Mock the config to use our test quotes file
+    class MockConfig:
+        quotes_source = str(quotes_file)
+
+    monkeypatch.setattr("commands.get_config", lambda: MockConfig())
 
     responses = []
 
@@ -1903,7 +1919,7 @@ def test_quote_command_functionality():
         "BOT_VERSION": "2.2.0",
     }
 
-    # Test with default quotes.txt (should exist)
+    # Test with test quotes file
     responses.clear()
     process_console_command("!quote", bot_functions)
 

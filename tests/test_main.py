@@ -29,7 +29,7 @@ def test_setup_environment_warns_when_env_file_missing(monkeypatch):
 
 
 def test_main_nickname_override(monkeypatch):
-    _install_fake_args(monkeypatch, nickname="NickX")
+    _install_fake_args(monkeypatch, nickname="NickX", console=True)
     monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
     monkeypatch.setattr(main_mod, "BotManager", _FakeBotManager, raising=True)
     assert main_mod.main() == 0
@@ -152,7 +152,7 @@ def _install_fake_args(monkeypatch, **kwargs):
 
 
 def test_main_success_flow(monkeypatch):
-    _install_fake_args(monkeypatch)
+    _install_fake_args(monkeypatch, console=True)
     monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
     monkeypatch.setattr(main_mod, "BotManager", _FakeBotManager, raising=True)
     assert main_mod.main() == 0
@@ -174,7 +174,7 @@ def test_main_keyboard_interrupt(monkeypatch):
         def wait_for_shutdown(self):
             raise KeyboardInterrupt
 
-    _install_fake_args(monkeypatch)
+    _install_fake_args(monkeypatch, console=True)
     monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
     monkeypatch.setattr(main_mod, "BotManager", BM, raising=True)
     assert main_mod.main() == 0

@@ -179,6 +179,7 @@ voikko*
 eurojackpot.json
 drink_tracking.json
 leet_detections.json
+last_warning.json
 
 # Ignore backup files
 *backup

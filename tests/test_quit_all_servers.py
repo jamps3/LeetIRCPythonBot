@@ -24,7 +24,31 @@ sys.modules["googleapiclient.discovery"] = Mock()
 
 def test_quit_command_console_triggers_shutdown():
     """Test that exit command in console mode sets stop event."""
+    import importlib
+
     from command_loader import process_console_command
+    from command_registry import reset_command_registry
+
+    # Reset and load commands
+    reset_command_registry()
+    try:
+        from command_loader import reset_commands_loaded_flag
+
+        reset_commands_loaded_flag()
+    except (ImportError, AttributeError):
+        pass
+
+    # Load command modules
+    try:
+        import commands
+        import commands_admin
+        import commands_irc
+
+        importlib.reload(commands)
+        importlib.reload(commands_admin)
+        importlib.reload(commands_irc)
+    except Exception:
+        pass
 
     # Create a mock stop event
     stop_event = Mock()

@@ -46,17 +46,31 @@ def reset_command_registry():
 
     # Load all command modules to register commands properly
     try:
-        from command_loader import load_all_commands
+        import importlib
 
-        load_all_commands()
-    except Exception:
-        # Fallback: try individual imports
+        import commands
+        import commands_admin
+        import commands_irc
+
+        # Force reload so decorators execute again after registry reset
+        # Ignore duplicate registration errors
         try:
-            import commands
-            import commands_admin
-            import commands_irc
-        except Exception:
-            pass
+            importlib.reload(commands)
+        except ValueError as e:
+            if "already registered" not in str(e):
+                raise
+        try:
+            importlib.reload(commands_admin)
+        except ValueError as e:
+            if "already registered" not in str(e):
+                raise
+        try:
+            importlib.reload(commands_irc)
+        except ValueError as e:
+            if "already registered" not in str(e):
+                raise
+    except Exception:
+        pass
 
     yield
 
