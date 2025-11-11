@@ -1316,9 +1316,35 @@ def test_kraks_no_breakdown(monkeypatch, tmp_path):
 
 def test_schedule_management_list_and_cancel(monkeypatch):
     """Test !scheduled list and cancel flows (require admin password)."""
+    import importlib
     import time
 
-    from command_loader import process_console_command
+    from command_loader import ensure_commands_loaded, process_console_command
+    from command_registry import reset_command_registry
+
+    # Ensure commands are loaded for this test
+    reset_command_registry()
+    try:
+        from command_loader import reset_commands_loaded_flag
+
+        reset_commands_loaded_flag()
+    except (ImportError, AttributeError):
+        pass
+
+    # Force reload all command modules to ensure all commands are registered
+    import commands
+    import commands_admin
+    import commands_irc
+
+    # Reload modules to trigger command registration (ignore duplicate errors)
+    for mod in [commands, commands_admin, commands_irc]:
+        try:
+            importlib.reload(mod)
+        except ValueError:
+            pass  # Ignore duplicate registration errors
+
+    # Explicitly ensure commands are loaded
+    ensure_commands_loaded()
 
     class FakeService:
         def __init__(self):
@@ -1778,9 +1804,35 @@ def test_drink_tracker_missing_paths(monkeypatch):
 
 
 def test_scheduled_empty_and_not_found_and_usage(monkeypatch):
+    import importlib
     import time
 
-    from command_loader import process_console_command
+    from command_loader import ensure_commands_loaded, process_console_command
+    from command_registry import reset_command_registry
+
+    # Ensure commands are loaded for this test
+    reset_command_registry()
+    try:
+        from command_loader import reset_commands_loaded_flag
+
+        reset_commands_loaded_flag()
+    except (ImportError, AttributeError):
+        pass
+
+    # Force reload all command modules to ensure all commands are registered
+    import commands
+    import commands_admin
+    import commands_irc
+
+    # Reload modules to trigger command registration (ignore duplicate errors)
+    for mod in [commands, commands_admin, commands_irc]:
+        try:
+            importlib.reload(mod)
+        except ValueError:
+            pass  # Ignore duplicate registration errors
+
+    # Explicitly ensure commands are loaded
+    ensure_commands_loaded()
 
     class EmptyService:
         def list_scheduled_messages(self):
