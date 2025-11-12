@@ -96,7 +96,7 @@ class TestElectricityService(unittest.TestCase):
         result = self.service.get_daily_prices(test_date)
 
         self.assertTrue(result["error"])
-        self.assertIn("request timed out", result["message"])
+        self.assertIn("Failed to fetch daily prices.", result["message"])
 
 
 class TestElectricityServiceIntegration(unittest.TestCase):
