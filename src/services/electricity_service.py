@@ -330,7 +330,12 @@ class ElectricityService:
             return result
 
         except Exception as e:
-            return {"error": True, "message": f"Failed to fetch daily prices: {str(e)}"}
+            log(
+                f"Error fetching daily prices: {str(e)}",
+                level="ERROR",
+                context="ELECTRICITY",
+            )
+            return {"error": True, "message": "Failed to fetch daily prices."}
 
     # ---------- Helpers ----------
 
