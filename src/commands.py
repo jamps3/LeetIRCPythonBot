@@ -189,6 +189,41 @@ def ping_command(context: CommandContext, bot_functions):
     return "Pong! 🏓"
 
 
+@command("np", description="Show name day for today", usage="!np")
+def np_command(context: CommandContext, bot_functions):
+    """Show name day for today using nimipaivat.json data file."""
+    import json
+    import os
+    from datetime import date
+
+    base_dir = os.path.dirname(os.path.dirname(__file__))  # projektin juuri
+    json_path = os.path.join(base_dir, "nimipaivat.json")
+    with open(json_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    today = date.today()
+    # Ignoroidaan vuosi: käytetään vain kuukausi-päivä avaimessa
+    key_suffix = f"-{today.month:02d}-{today.day:02d}"
+
+    # Etsi ensimmäinen avain, joka päättyy samaan kuukauteen ja päivään
+    key = next((k for k in data.keys() if k.endswith(key_suffix)), None)
+
+    if key and data[key]:
+        official = data[key].get("official", [])
+        unofficial = data[key].get("unofficial", [])
+
+        msg_parts = [f"Nimipäivät {today.day}.{today.month}.:"]
+
+        if official:
+            msg_parts.append("Viralliset: " + ", ".join(official))
+        if unofficial:
+            msg_parts.append("| Epäviralliset: " + ", ".join(unofficial))
+
+        return " ".join(msg_parts)
+    else:
+        return f"Tälle päivälle ({today.day}.{today.month}.) ei löytynyt nimipäiviä."
+
+
 @command(
     "quote",
     description="Display a random quote",
