@@ -272,39 +272,81 @@ def driving_distance_osrm(context: CommandContext, bot_functions):
         raise Exception(f"Virhe haettaessa reittiä: {response.status_code}")
 
 
-@command("np", description="Show name day for today", usage="!np")
+@command("np", description="Show name day", usage="!np [päivä|nimi]")
 def np_command(context: CommandContext, bot_functions):
-    """Show name day for today using nimipaivat.json data file."""
+    """Show name day for today, a given date, or search by name using nimipaivat.json data file."""
     import json
     import os
-    from datetime import date
+    import re
+    from datetime import date, datetime
 
     base_dir = os.path.dirname(os.path.dirname(__file__))  # projektin juuri
     json_path = os.path.join(base_dir, "nimipaivat.json")
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    today = date.today()
-    # Ignoroidaan vuosi: käytetään vain kuukausi-päivä avaimessa
-    key_suffix = f"-{today.month:02d}-{today.day:02d}"
+    args = getattr(context, "args", [])
+    query = " ".join(args).strip() if args else ""
 
-    # Etsi ensimmäinen avain, joka päättyy samaan kuukauteen ja päivään
-    key = next((k for k in data.keys() if k.endswith(key_suffix)), None)
+    def format_entry(key, entry):
+        dt = datetime.strptime(key, "%Y-%m-%d")
+        msg_parts = [f"{dt.day}.{dt.month}.{dt.year}:"]
+        if entry.get("official"):
+            msg_parts.append("Viralliset: " + ", ".join(entry["official"]))
+        if entry.get("unofficial"):
+            msg_parts.append("Epäviralliset: " + ", ".join(entry["unofficial"]))
+        if entry.get("dogs"):
+            msg_parts.append("Koirat: " + ", ".join(entry["dogs"]))
+        if entry.get("cats"):
+            msg_parts.append("Kissat: " + ", ".join(entry["cats"]))
+        return " | ".join(msg_parts)
 
-    if key and data[key]:
-        official = data[key].get("official", [])
-        unofficial = data[key].get("unofficial", [])
+    # 1) Ei parametreja → näytä tänään
+    if not query:
+        today = date.today()
+        key_suffix = f"-{today.month:02d}-{today.day:02d}"
+        key = next((k for k in data.keys() if k.endswith(key_suffix)), None)
+        if key:
+            return "Nimipäivät tänään: " + format_entry(key, data[key])
+        else:
+            return (
+                f"Tälle päivälle ({today.day}.{today.month}.) ei löytynyt nimipäiviä."
+            )
 
-        msg_parts = [f"Nimipäivät {today.day}.{today.month}.:"]
+    # 2) Päiväparametri tukee: 1.2, 1.2., 01.02, 01.02., 1.2.25, 01.02.2025
+    date_match = re.fullmatch(r"(\d{1,2})\.(\d{1,2})(?:\.(\d{2}|\d{4}))?\.?$", query)
+    if date_match:
+        d, m, _ = date_match.groups()
+        day = int(d)
+        month = int(m)
+        key_suffix = f"-{month:02d}-{day:02d}"
+        matches = [k for k in data.keys() if k.endswith(key_suffix)]
+        if matches:
+            return f"Nimipäivät {day}.{month}: " + " || ".join(
+                format_entry(k, data[k]) for k in matches
+            )
+        else:
+            return f"Päivälle {day}.{month}. ei löytynyt nimipäiviä."
 
-        if official:
-            msg_parts.append("Viralliset: " + ", ".join(official))
-        if unofficial:
-            msg_parts.append("| Epäviralliset: " + ", ".join(unofficial))
+    # 3) Nimihaku → palautetaan kaikki päivät joissa nimi esiintyy
+    name = query.lower()
+    results = []
 
-        return " ".join(msg_parts)
+    for k, v in data.items():
+        all_names = (
+            v.get("official", [])
+            + v.get("unofficial", [])
+            + v.get("dogs", [])
+            + v.get("cats", [])
+        )
+        if any(name == n.lower() for n in all_names):
+            results.append(format_entry(k, v))
+
+    if results:
+        # Palautetaan kaikki päivät rivitettynä
+        return f"Nimi '{query}' löytyy seuraavilta päiviltä: " + " || ".join(results)
     else:
-        return f"Tälle päivälle ({today.day}.{today.month}.) ei löytynyt nimipäiviä."
+        return f"Nimelle '{query}' ei löytynyt nimipäiviä."
 
 
 @command(
