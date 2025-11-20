@@ -1,9 +1,15 @@
 {
   "2025-01-01": {
     "official": [
-        "Uudenvuodenpäivä"
+      "Uudenvuodenpäivä"
     ],
-    "unofficial": []
+    "unofficial": [],
+    "dogs": [
+      ": -"
+    ],
+    "cats": [
+      ": -"
+    ]
   },
   "2025-01-02": {
     "official": [
@@ -22,6 +28,13 @@
       "Serhat",
       "Set",
       "Seth"
+    ],
+    "dogs": [
+      "Bingo"
+    ],
+    "cats": [
+      "Pusikatti",
+      "Pusu"
     ]
   },
   "2025-01-03": {
@@ -37,6 +50,14 @@
       "Malakai",
       "Vilmeri",
       "Welmeri"
+    ],
+    "dogs": [
+      "Elmo",
+      "Embo"
+    ],
+    "cats": [
+      "Elmeri",
+      "Elmo"
     ]
   },
   "2025-01-04": {
@@ -56,6 +77,13 @@
       "Ruuti",
       "Tiitu",
       "Titus"
+    ],
+    "dogs": [
+      "Rusina",
+      "Ruttu"
+    ],
+    "cats": [
+      "Harmi"
     ]
   },
   "2025-01-05": {
@@ -72,6 +100,13 @@
       "Leia",
       "Lía",
       "Liyana"
+    ],
+    "dogs": [
+      "Lelu"
+    ],
+    "cats": [
+      "Jellona",
+      "Leijona"
     ]
   },
   "2025-01-06": {
@@ -86,6 +121,13 @@
       "Harrintytär",
       "Haru",
       "Harvey"
+    ],
+    "dogs": [
+      "Harmi",
+      "Harmo"
+    ],
+    "cats": [
+      "Hulivili"
     ]
   },
   "2025-01-07": {
@@ -106,6 +148,14 @@
       "Augustus",
       "Auku",
       "Aukusta"
+    ],
+    "dogs": [
+      "Aksu",
+      "Aku"
+    ],
+    "cats": [
+      "Aksu",
+      "Aku"
     ]
   },
   "2025-01-08": {
@@ -122,6 +172,14 @@
       "Tiitta",
       "Timja",
       "Tita"
+    ],
+    "dogs": [
+      "Elvis",
+      "Rocky"
+    ],
+    "cats": [
+      "Mustafa",
+      "Mustapekka"
     ]
   },
   "2025-01-09": {
@@ -156,6 +214,14 @@
       "Weikka",
       "Weikko",
       "Weli"
+    ],
+    "dogs": [
+      "Veikko",
+      "Vellu"
+    ],
+    "cats": [
+      "Viiru",
+      "Viirus"
     ]
   },
   "2025-01-10": {
@@ -167,6 +233,14 @@
       "Nyyti",
       "Sigge",
       "Tomia"
+    ],
+    "dogs": [
+      "Noba",
+      "Nuba"
+    ],
+    "cats": [
+      "Noki",
+      "Nokinenä"
     ]
   },
   "2025-01-11": {
@@ -187,6 +261,14 @@
       "Oimo",
       "Osvaldo",
       "Osvi"
+    ],
+    "dogs": [
+      "Caro",
+      "Karu"
+    ],
+    "cats": [
+      "Nöösi",
+      "Nössö"
     ]
   },
   "2025-01-12": {
@@ -197,6 +279,14 @@
       "Tainio",
       "Tatiana",
       "Tatja"
+    ],
+    "dogs": [
+      "Dana",
+      "Donna"
+    ],
+    "cats": [
+      "Nöpö",
+      "Nuppu"
     ]
   },
   "2025-01-13": {
@@ -212,6 +302,13 @@
       "Nuu",
       "Nuuk",
       "Nuuti"
+    ],
+    "dogs": [
+      "Nyyti"
+    ],
+    "cats": [
+      "Lupu",
+      "Luumu"
     ]
   },
   "2025-01-14": {
@@ -242,6 +339,14 @@
       "Zaki",
       "Zakro",
       "Zeke"
+    ],
+    "dogs": [
+      "Sakke",
+      "Saku"
+    ],
+    "cats": [
+      "Saku",
+      "Sasu"
     ]
   },
   "2025-01-15": {
@@ -251,6 +356,14 @@
     "unofficial": [
       "Dori",
       "Solina"
+    ],
+    "dogs": [
+      "Dora",
+      "Doris"
+    ],
+    "cats": [
+      "Dora",
+      "Doris"
     ]
   },
   "2025-01-16": {
@@ -265,6 +378,13 @@
       "Immu",
       "Munasar",
       "Muntadar"
+    ],
+    "dogs": [
+      "Nuudeli",
+      "Nuusku"
+    ],
+    "cats": [
+      "Immu"
     ]
   },
   "2025-01-17": {
@@ -294,6 +414,14 @@
       "Tio",
       "Tomppa",
       "Tone"
+    ],
+    "dogs": [
+      "Toni",
+      "Tonttu"
+    ],
+    "cats": [
+      "Tirri",
+      "Tiuhti"
     ]
   },
   "2025-01-18": {
@@ -311,6 +439,13 @@
       "Lora",
       "Lori",
       "Loriel"
+    ],
+    "dogs": [
+      "Likka"
+    ],
+    "cats": [
+      "Lara",
+      "Latzi"
     ]
   },
   "2025-01-19": {
@@ -362,6 +497,14 @@
       "Hiski",
       "Huong",
       "Makar"
+    ],
+    "dogs": [
+      "Hekku",
+      "Hessu"
+    ],
+    "cats": [
+      "Hekku",
+      "Hemppu"
     ]
   },
   "2025-01-20": {
@@ -379,6 +522,14 @@
       "Sebe",
       "Silve",
       "Vapeli"
+    ],
+    "dogs": [
+      "Fabbe",
+      "Fabian"
+    ],
+    "cats": [
+      "Sebastian",
+      "Sebi"
     ]
   },
   "2025-01-21": {
@@ -414,6 +565,14 @@
       "Ouna",
       "Sirenetta",
       "Una"
+    ],
+    "dogs": [
+      "Nätti",
+      "Netta"
+    ],
+    "cats": [
+      "Typsy",
+      "Typy"
     ]
   },
   "2025-01-22": {
@@ -424,6 +583,13 @@
       "Frode",
       "Tiera",
       "Viima"
+    ],
+    "dogs": [
+      "Hurtta"
+    ],
+    "cats": [
+      "Veke",
+      "Velmu"
     ]
   },
   "2025-01-23": {
@@ -459,6 +625,14 @@
       "Etsiina",
       "Euniika",
       "Reine"
+    ],
+    "dogs": [
+      "Etta",
+      "Etti"
+    ],
+    "cats": [
+      "Lumikki",
+      "Lumo"
     ]
   },
   "2025-01-24": {
@@ -482,6 +656,13 @@
       "Sere",
       "Serina",
       "Xenia"
+    ],
+    "dogs": [
+      "Pontus",
+      "Ponu"
+    ],
+    "cats": [
+      "Pontus"
     ]
   },
   "2025-01-25": {
@@ -502,6 +683,14 @@
       "Pavel",
       "Pawel",
       "Prince"
+    ],
+    "dogs": [
+      "Pablo",
+      "Pave"
+    ],
+    "cats": [
+      "Paavo",
+      "Palle"
     ]
   },
   "2025-01-26": {
@@ -517,6 +706,14 @@
       "Nate",
       "Nathan",
       "Nathaniel"
+    ],
+    "dogs": [
+      "Hakki",
+      "Hiski"
+    ],
+    "cats": [
+      "Jonttu",
+      "Jope"
     ]
   },
   "2025-01-27": {
@@ -527,6 +724,13 @@
       "Vilmo",
       "Virmo",
       "Wiljo"
+    ],
+    "dogs": [
+      "Vipsu"
+    ],
+    "cats": [
+      "Vili",
+      "Vilperi"
     ]
   },
   "2025-01-28": {
@@ -558,6 +762,13 @@
       "Khaleel",
       "Kille",
       "Soner"
+    ],
+    "dogs": [
+      "Charlie",
+      "Kalle"
+    ],
+    "cats": [
+      "Kalle"
     ]
   },
   "2025-01-29": {
@@ -578,6 +789,14 @@
       "Waltter",
       "Waltteri",
       "Wolter"
+    ],
+    "dogs": [
+      "Valtsu",
+      "Valtti"
+    ],
+    "cats": [
+      "Vallu",
+      "Valtsu"
     ]
   },
   "2025-01-30": {
@@ -589,6 +808,14 @@
       "Iria",
       "Kihla",
       "Nilla"
+    ],
+    "dogs": [
+      "Ira",
+      "Irkku"
+    ],
+    "cats": [
+      "Suti",
+      "Suttu"
     ]
   },
   "2025-01-31": {
@@ -598,6 +825,14 @@
     "unofficial": [
       "Allie",
       "Suonio"
+    ],
+    "dogs": [
+      "Dandy",
+      "Dolly"
+    ],
+    "cats": [
+      "Alli",
+      "Allu"
     ]
   },
   "2025-02-01": {
@@ -614,6 +849,14 @@
       "Piret",
       "Riitta-Maija",
       "Tuana"
+    ],
+    "dogs": [
+      "Rita",
+      "Ritu"
+    ],
+    "cats": [
+      "Rilli",
+      "Rölli"
     ]
   },
   "2025-02-02": {
@@ -672,6 +915,14 @@
       "Snow",
       "Uni",
       "Yemina"
+    ],
+    "dogs": [
+      "Disa",
+      "Dixie"
+    ],
+    "cats": [
+      "Lumi",
+      "Lumipallo"
     ]
   },
   "2025-02-03": {
@@ -690,6 +941,13 @@
       "Ramses",
       "Siimon",
       "Valona"
+    ],
+    "dogs": [
+      "Hugo",
+      "Hukka"
+    ],
+    "cats": [
+      "Vaavi"
     ]
   },
   "2025-02-04": {
@@ -717,6 +975,14 @@
       "Ronia",
       "Ronya",
       "Roya"
+    ],
+    "dogs": [
+      "Ronja",
+      "Roxi"
+    ],
+    "cats": [
+      "Rokki",
+      "Ronja"
     ]
   },
   "2025-02-05": {
@@ -737,6 +1003,14 @@
       "Eleasar",
       "Hyvä",
       "Yasser"
+    ],
+    "dogs": [
+      "Ludde",
+      "Lux"
+    ],
+    "cats": [
+      "Ludde",
+      "Lutu"
     ]
   },
   "2025-02-06": {
@@ -772,6 +1046,12 @@
       "Tutta",
       "Zea",
       "Zoey"
+    ],
+    "dogs": [
+      "Joiku"
+    ],
+    "cats": [
+      "Dolly"
     ]
   },
   "2025-02-07": {
@@ -797,6 +1077,14 @@
       "Rio",
       "Roméo",
       "Romeo"
+    ],
+    "dogs": [
+      "Rico",
+      "Riksu"
+    ],
+    "cats": [
+      "Riki",
+      "Riku"
     ]
   },
   "2025-02-08": {
@@ -810,6 +1098,13 @@
       "Lana",
       "Lanya",
       "Mooa"
+    ],
+    "dogs": [
+      "Didi",
+      "Diiva"
+    ],
+    "cats": [
+      "Donna"
     ]
   },
   "2025-02-09": {
@@ -828,6 +1123,13 @@
       "Raini",
       "Ranja",
       "Ray"
+    ],
+    "dogs": [
+      "Raiku",
+      "Raksu"
+    ],
+    "cats": [
+      "Muikku"
     ]
   },
   "2025-02-10": {
@@ -889,6 +1191,14 @@
       "Pellava",
       "Sara-Ellen",
       "Terve"
+    ],
+    "dogs": [
+      "Ella",
+      "Ellu"
+    ],
+    "cats": [
+      "Ellu",
+      "Eltzi"
     ]
   },
   "2025-02-11": {
@@ -912,6 +1222,14 @@
       "Siisa",
       "Talvi",
       "Toivikki"
+    ],
+    "dogs": [
+      "Bella",
+      "Bellu"
+    ],
+    "cats": [
+      "Bella",
+      "Belladonna"
     ]
   },
   "2025-02-12": {
@@ -922,6 +1240,14 @@
     "unofficial": [
       "Elli-Maija",
       "Elmiina"
+    ],
+    "dogs": [
+      "Cindy",
+      "Sinttu"
+    ],
+    "cats": [
+      "Dudu",
+      "Dusse"
     ]
   },
   "2025-02-13": {
@@ -929,7 +1255,15 @@
       "Sulo",
       "Sulho"
     ],
-    "unofficial": []
+    "unofficial": [],
+    "dogs": [
+      "Samurai",
+      "Sumo"
+    ],
+    "cats": [
+      "Sulo",
+      "Sussu"
+    ]
   },
   "2025-02-14": {
     "official": [
@@ -960,6 +1294,13 @@
       "Voima",
       "Walde",
       "Woitto"
+    ],
+    "dogs": [
+      "Honey",
+      "Tino"
+    ],
+    "cats": [
+      "Symppis"
     ]
   },
   "2025-02-15": {
@@ -970,6 +1311,14 @@
     "unofficial": [
       "Sippora",
       "Sipri"
+    ],
+    "dogs": [
+      "Sipsi",
+      "Sipu"
+    ],
+    "cats": [
+      "Simba",
+      "Simppu"
     ]
   },
   "2025-02-16": {
@@ -997,6 +1346,13 @@
       "Kajus",
       "Kamu",
       "Kay"
+    ],
+    "dogs": [
+      "Kamu",
+      "Kasimir"
+    ],
+    "cats": [
+      "Caesar"
     ]
   },
   "2025-02-17": {
@@ -1022,6 +1378,13 @@
       "Väiski",
       "Wäinämö",
       "Wäinö"
+    ],
+    "dogs": [
+      "Väiski"
+    ],
+    "cats": [
+      "Väiski",
+      "Väyrynen"
     ]
   },
   "2025-02-18": {
@@ -1036,6 +1399,13 @@
       "Tiira",
       "Tyr",
       "Tyyra"
+    ],
+    "dogs": [
+      "Boris",
+      "Brutus"
+    ],
+    "cats": [
+      "Kleopatra"
     ]
   },
   "2025-02-19": {
@@ -1049,6 +1419,13 @@
       "Eja",
       "Kesti",
       "Neija"
+    ],
+    "dogs": [
+      "Figaro",
+      "Fuuga"
+    ],
+    "cats": [
+      "Figaro"
     ]
   },
   "2025-02-20": {
@@ -1070,6 +1447,13 @@
       "Helly",
       "Holly",
       "Tiuku"
+    ],
+    "dogs": [
+      "Bianca"
+    ],
+    "cats": [
+      "Miranda",
+      "Mirkku"
     ]
   },
   "2025-02-21": {
@@ -1083,6 +1467,14 @@
       "Geo",
       "Keke",
       "Kelpo"
+    ],
+    "dogs": [
+      "Keke",
+      "Ketti"
+    ],
+    "cats": [
+      "Bisse",
+      "Bosse"
     ]
   },
   "2025-02-22": {
@@ -1114,6 +1506,13 @@
       "Tuuti",
       "Tuutikki",
       "Vildan"
+    ],
+    "dogs": [
+      "Tuisku",
+      "Tuittu"
+    ],
+    "cats": [
+      "Pirskatti"
     ]
   },
   "2025-02-23": {
@@ -1127,6 +1526,14 @@
       "Aslakka",
       "Aslakki",
       "Aslan"
+    ],
+    "dogs": [
+      "Jappe",
+      "Joppe"
+    ],
+    "cats": [
+      "Asseri",
+      "Asterix"
     ]
   },
   "2025-02-24": {
@@ -1160,6 +1567,14 @@
       "Matvei",
       "Mohammed",
       "Puromatti"
+    ],
+    "dogs": [
+      "Masi",
+      "Matson"
+    ],
+    "cats": [
+      "Masa",
+      "Masi"
     ]
   },
   "2025-02-25": {
@@ -1188,6 +1603,14 @@
       "Vassa",
       "Venus",
       "Wanessa"
+    ],
+    "dogs": [
+      "Tiitu",
+      "Tikru"
+    ],
+    "cats": [
+      "Tuittu",
+      "Tutu"
     ]
   },
   "2025-02-26": {
@@ -1199,6 +1622,13 @@
       "Istervo",
       "Neeri",
       "Nestor"
+    ],
+    "dogs": [
+      "Nessu",
+      "Nestori"
+    ],
+    "cats": [
+      "Nestori"
     ]
   },
   "2025-02-27": {
@@ -1210,6 +1640,14 @@
       "Thorsten",
       "Totte",
       "Totti"
+    ],
+    "dogs": [
+      "Toto",
+      "Tuttu"
+    ],
+    "cats": [
+      "Toffo",
+      "Touho"
     ]
   },
   "2025-02-28": {
@@ -1235,6 +1673,14 @@
       "Sysi",
       "Tashi",
       "Tuuri"
+    ],
+    "dogs": [
+      "Felix",
+      "Onni"
+    ],
+    "cats": [
+      "Onni",
+      "Onnimanni"
     ]
   },
   "2025-03-01": {
@@ -1258,6 +1704,14 @@
       "Aviela",
       "Bilal",
       "Loisto"
+    ],
+    "dogs": [
+      "Apollo",
+      "Aslan"
+    ],
+    "cats": [
+      "Tuikku",
+      "Tuisku"
     ]
   },
   "2025-03-02": {
@@ -1282,6 +1736,14 @@
       "Florina",
       "Virja",
       "Virna"
+    ],
+    "dogs": [
+      "Fanta",
+      "Funny"
+    ],
+    "cats": [
+      "Fani",
+      "Fanni"
     ]
   },
   "2025-03-03": {
@@ -1294,6 +1756,14 @@
       "Kaukomieli",
       "Kauro",
       "Kavo"
+    ],
+    "dogs": [
+      "Jabbe",
+      "Jaffa"
+    ],
+    "cats": [
+      "Nauku",
+      "Niuku"
     ]
   },
   "2025-03-04": {
@@ -1332,6 +1802,12 @@
       "Ati",
       "Atri",
       "Tarkko"
+    ],
+    "dogs": [
+      "Arska"
+    ],
+    "cats": [
+      "Arska"
     ]
   },
   "2025-03-05": {
@@ -1352,6 +1828,14 @@
       "Lelia",
       "Leyla",
       "Lola"
+    ],
+    "dogs": [
+      "Laika",
+      "Liekki"
+    ],
+    "cats": [
+      "Hippi",
+      "Hipsu"
     ]
   },
   "2025-03-06": {
@@ -1369,6 +1853,14 @@
       "Selima",
       "Taku",
       "Tare"
+    ],
+    "dogs": [
+      "Rolle",
+      "Rudolf"
+    ],
+    "cats": [
+      "Rolle",
+      "Rosso"
     ]
   },
   "2025-03-07": {
@@ -1399,6 +1891,13 @@
       "Taruliina",
       "Terje",
       "Terri"
+    ],
+    "dogs": [
+      "Tara",
+      "Tarru"
+    ],
+    "cats": [
+      "Pikku Myy"
     ]
   },
   "2025-03-08": {
@@ -1421,6 +1920,14 @@
       "Philippa",
       "Vilpas",
       "Vilppo"
+    ],
+    "dogs": [
+      "Lady",
+      "Leidi"
+    ],
+    "cats": [
+      "Fiffi",
+      "Fiksu"
     ]
   },
   "2025-03-09": {
@@ -1443,6 +1950,14 @@
       "Ervid",
       "Ervin",
       "Etvi"
+    ],
+    "dogs": [
+      "Happy",
+      "Lucky"
+    ],
+    "cats": [
+      "Mussu",
+      "Mussukka"
     ]
   },
   "2025-03-10": {
@@ -1476,6 +1991,12 @@
       "Koitto",
       "Orion",
       "Revontuli"
+    ],
+    "dogs": [
+      "Frendi"
+    ],
+    "cats": [
+      "Kirnauskis"
     ]
   },
   "2025-03-11": {
@@ -1486,6 +2007,14 @@
       "Kanervo",
       "Kingsley",
       "Kwok"
+    ],
+    "dogs": [
+      "Raisu",
+      "Raju"
+    ],
+    "cats": [
+      "Dahlia",
+      "Diana"
     ]
   },
   "2025-03-12": {
@@ -1507,6 +2036,12 @@
       "Rico",
       "Rymy",
       "Valpas"
+    ],
+    "dogs": [
+      "Rex"
+    ],
+    "cats": [
+      "Riiviö"
     ]
   },
   "2025-03-13": {
@@ -1526,6 +2061,13 @@
       "Ernie",
       "Hama",
       "Roderik"
+    ],
+    "dogs": [
+      "Jymy",
+      "Jysky"
+    ],
+    "cats": [
+      "Soma"
     ]
   },
   "2025-03-14": {
@@ -1563,6 +2105,14 @@
       "Tilta",
       "Tiltu",
       "Titti"
+    ],
+    "dogs": [
+      "Milda",
+      "Tiltu"
+    ],
+    "cats": [
+      "Tilkku",
+      "Tiltu"
     ]
   },
   "2025-03-15": {
@@ -1582,6 +2132,13 @@
       "Ripa",
       "Ristomatti",
       "Siera"
+    ],
+    "dogs": [
+      "Brasse",
+      "Brenda"
+    ],
+    "cats": [
+      "Hannibal"
     ]
   },
   "2025-03-16": {
@@ -1594,6 +2151,14 @@
       "Ike",
       "Ile",
       "Sauramo"
+    ],
+    "dogs": [
+      "Omar",
+      "Onassis"
+    ],
+    "cats": [
+      "Nessi",
+      "Nessu"
     ]
   },
   "2025-03-17": {
@@ -1609,6 +2174,12 @@
       "Kertu",
       "Oma",
       "Triin"
+    ],
+    "dogs": [
+      "Kerttu"
+    ],
+    "cats": [
+      "Kaunotar"
     ]
   },
   "2025-03-18": {
@@ -1631,6 +2202,12 @@
       "Eeti",
       "Ethan",
       "Feetu"
+    ],
+    "dogs": [
+      "Eetu"
+    ],
+    "cats": [
+      "Milli"
     ]
   },
   "2025-03-19": {
@@ -1682,6 +2259,14 @@
       "Serafiia",
       "Serafiina",
       "Yousif"
+    ],
+    "dogs": [
+      "Fiina",
+      "Jusu"
+    ],
+    "cats": [
+      "Jusu",
+      "Juuso"
     ]
   },
   "2025-03-20": {
@@ -1712,6 +2297,13 @@
       "Kie",
       "Kimberly",
       "Yoda"
+    ],
+    "dogs": [
+      "Kimba",
+      "Kimi"
+    ],
+    "cats": [
+      "Näpsä"
     ]
   },
   "2025-03-21": {
@@ -1729,6 +2321,14 @@
       "Peltsi",
       "Pena",
       "Penna"
+    ],
+    "dogs": [
+      "Kingi",
+      "Tutu"
+    ],
+    "cats": [
+      "Bona",
+      "Bonbon"
     ]
   },
   "2025-03-22": {
@@ -1748,6 +2348,14 @@
       "Vito",
       "Wihtori",
       "Wiktor"
+    ],
+    "dogs": [
+      "Vicky",
+      "Vikke"
+    ],
+    "cats": [
+      "Viki",
+      "Vikke"
     ]
   },
   "2025-03-23": {
@@ -1769,6 +2377,12 @@
       "Semira",
       "Serine",
       "Yaxye"
+    ],
+    "dogs": [
+      "Bravo"
+    ],
+    "cats": [
+      "Kulkuri"
     ]
   },
   "2025-03-24": {
@@ -1793,6 +2407,13 @@
       "Kaupo",
       "Kauri",
       "Kobe"
+    ],
+    "dogs": [
+      "Ramses"
+    ],
+    "cats": [
+      "Don",
+      "Donitsi"
     ]
   },
   "2025-03-25": {
@@ -1814,6 +2435,13 @@
       "Elovena",
       "Gunvi",
       "Naava"
+    ],
+    "dogs": [
+      "Ajo",
+      "Jahti"
+    ],
+    "cats": [
+      "Tyyskä"
     ]
   },
   "2025-03-26": {
@@ -1832,6 +2460,13 @@
       "Manuella",
       "Manunpoika",
       "Noelia"
+    ],
+    "dogs": [
+      "Manne",
+      "Manu"
+    ],
+    "cats": [
+      "Manu"
     ]
   },
   "2025-03-27": {
@@ -1846,6 +2481,13 @@
       "Saveli",
       "Savva",
       "Shaul"
+    ],
+    "dogs": [
+      "Snobba",
+      "Snobi"
+    ],
+    "cats": [
+      "Nökö"
     ]
   },
   "2025-03-28": {
@@ -1858,6 +2500,13 @@
       "Asarias",
       "Poika",
       "Poju"
+    ],
+    "dogs": [
+      "Tempo",
+      "Temppu"
+    ],
+    "cats": [
+      "Krumeluu"
     ]
   },
   "2025-03-29": {
@@ -1891,6 +2540,14 @@
       "Juan",
       "Junno",
       "Yona"
+    ],
+    "dogs": [
+      "Joni",
+      "Jonne"
+    ],
+    "cats": [
+      "Jojo",
+      "Jossu"
     ]
   },
   "2025-03-30": {
@@ -1900,6 +2557,14 @@
     "unofficial": [
       "Besjan",
       "Nasu"
+    ],
+    "dogs": [
+      "Smoke",
+      "Smurffi"
+    ],
+    "cats": [
+      "Mökö",
+      "Mörö"
     ]
   },
   "2025-03-31": {
@@ -1915,6 +2580,14 @@
       "Ihannelma",
       "Iman",
       "Mirmeli"
+    ],
+    "dogs": [
+      "Cheri",
+      "Cherry"
+    ],
+    "cats": [
+      "Peetu",
+      "Peto"
     ]
   },
   "2025-04-01": {
@@ -1944,6 +2617,14 @@
       "Raida",
       "Raile",
       "Raito"
+    ],
+    "dogs": [
+      "Pepi",
+      "Pepita"
+    ],
+    "cats": [
+      "Peppi",
+      "Peppiina"
     ]
   },
   "2025-04-02": {
@@ -1954,6 +2635,14 @@
       "Mahla",
       "Pelle",
       "Wikko"
+    ],
+    "dogs": [
+      "Poppana",
+      "Poppe"
+    ],
+    "cats": [
+      "Lörppö",
+      "Lötkö"
     ]
   },
   "2025-04-03": {
@@ -1970,6 +2659,14 @@
       "Veetu",
       "Weeti",
       "Zain"
+    ],
+    "dogs": [
+      "Doggie",
+      "Domino"
+    ],
+    "cats": [
+      "Jörö",
+      "Jösse"
     ]
   },
   "2025-04-04": {
@@ -1983,6 +2680,14 @@
       "Ode",
       "Uki",
       "Ukri"
+    ],
+    "dogs": [
+      "Uki",
+      "Ukko"
+    ],
+    "cats": [
+      "Ukkeli",
+      "Ukko"
     ]
   },
   "2025-04-05": {
@@ -2006,6 +2711,14 @@
       "Irkka",
       "Jiranna",
       "Rei"
+    ],
+    "dogs": [
+      "Ibis",
+      "Ippe"
+    ],
+    "cats": [
+      "Läiskä",
+      "Läntti"
     ]
   },
   "2025-04-06": {
@@ -2082,6 +2795,14 @@
       "Wilmeri",
       "Wilperi",
       "Wimme"
+    ],
+    "dogs": [
+      "Vili",
+      "Vilperi"
+    ],
+    "cats": [
+      "Vilkku",
+      "Ville"
     ]
   },
   "2025-04-07": {
@@ -2094,6 +2815,13 @@
       "Allen",
       "Allu",
       "Helpi"
+    ],
+    "dogs": [
+      "Vilkku",
+      "Virkku"
+    ],
+    "cats": [
+      "Pilli"
     ]
   },
   "2025-04-08": {
@@ -2106,6 +2834,13 @@
       "Reena",
       "Rhea",
       "Sumaiya"
+    ],
+    "dogs": [
+      "Huisku",
+      "Jekku"
+    ],
+    "cats": [
+      "Pulla"
     ]
   },
   "2025-04-09": {
@@ -2154,6 +2889,14 @@
       "Ilyas",
       "Jeeli",
       "Meelis"
+    ],
+    "dogs": [
+      "Halli",
+      "Peni"
+    ],
+    "cats": [
+      "Kölli",
+      "Kolli"
     ]
   },
   "2025-04-10": {
@@ -2169,6 +2912,13 @@
       "Terjo",
       "Terry",
       "Trevor"
+    ],
+    "dogs": [
+      "Täplä",
+      "Töpö"
+    ],
+    "cats": [
+      "Peikko"
     ]
   },
   "2025-04-11": {
@@ -2194,6 +2944,14 @@
       "Venna",
       "Verena",
       "Verla"
+    ],
+    "dogs": [
+      "Fox",
+      "Foxi"
+    ],
+    "cats": [
+      "Hupakko",
+      "Hupu"
     ]
   },
   "2025-04-12": {
@@ -2252,6 +3010,14 @@
       "Ulyana",
       "Yuki",
       "Yulia"
+    ],
+    "dogs": [
+      "Caesar",
+      "Julius"
+    ],
+    "cats": [
+      "Julia",
+      "Julius"
     ]
   },
   "2025-04-13": {
@@ -2264,6 +3030,14 @@
       "Tella",
       "Telle",
       "Tellu"
+    ],
+    "dogs": [
+      "Tella",
+      "Tellu"
+    ],
+    "cats": [
+      "Miisu",
+      "Misu"
     ]
   },
   "2025-04-14": {
@@ -2275,6 +3049,14 @@
       "Rupert",
       "Ruuben",
       "Taimo"
+    ],
+    "dogs": [
+      "Gitta",
+      "Gitty"
+    ],
+    "cats": [
+      "Töpö",
+      "Töpsy"
     ]
   },
   "2025-04-15": {
@@ -2295,6 +3077,14 @@
       "Lindsey",
       "Teolinda",
       "Vilda"
+    ],
+    "dogs": [
+      "Lida",
+      "Linda"
+    ],
+    "cats": [
+      "Lila",
+      "Linda"
     ]
   },
   "2025-04-16": {
@@ -2309,6 +3099,14 @@
       "Patricio",
       "Patrick",
       "Taima"
+    ],
+    "dogs": [
+      "Jalo",
+      "Paddy"
+    ],
+    "cats": [
+      "Silkki",
+      "Silli"
     ]
   },
   "2025-04-17": {
@@ -2319,6 +3117,12 @@
       "Okan",
       "Otra",
       "Ottoville"
+    ],
+    "dogs": [
+      ": -"
+    ],
+    "cats": [
+      "Otto"
     ]
   },
   "2025-04-18": {
@@ -2342,6 +3146,14 @@
       "Walto",
       "Waltti",
       "Wyatt"
+    ],
+    "dogs": [
+      "Vallu",
+      "Valpas"
+    ],
+    "cats": [
+      "Valkkis",
+      "Valko"
     ]
   },
   "2025-04-19": {
@@ -2358,6 +3170,14 @@
       "Solmu",
       "Usva",
       "Utu"
+    ],
+    "dogs": [
+      "Pippuri",
+      "Pipsa"
+    ],
+    "cats": [
+      "Pipari",
+      "Pippuri"
     ]
   },
   "2025-04-20": {
@@ -2388,6 +3208,13 @@
       "Odessa",
       "Petronela",
       "Sinella"
+    ],
+    "dogs": [
+      "Nella",
+      "Nemi"
+    ],
+    "cats": [
+      "Nelson"
     ]
   },
   "2025-04-21": {
@@ -2418,6 +3245,13 @@
       "Kamomilla",
       "Seemi",
       "Semi"
+    ],
+    "dogs": [
+      "Toffee",
+      "Tofu"
+    ],
+    "cats": [
+      "Täplä"
     ]
   },
   "2025-04-22": {
@@ -2452,6 +3286,14 @@
       "Vilina",
       "Vilinä",
       "Vitalina"
+    ],
+    "dogs": [
+      "Candy",
+      "Karkki"
+    ],
+    "cats": [
+      "Candy",
+      "Karkki"
     ]
   },
   "2025-04-23": {
@@ -2484,6 +3326,13 @@
       "Sania",
       "Ykä",
       "Yuri"
+    ],
+    "dogs": [
+      "Ykä"
+    ],
+    "cats": [
+      "Dingo",
+      "Dino"
     ]
   },
   "2025-04-24": {
@@ -2507,6 +3356,13 @@
       "Pablo",
       "Pera",
       "Pertteli"
+    ],
+    "dogs": [
+      "Pera",
+      "Pessi"
+    ],
+    "cats": [
+      "Pirpana"
     ]
   },
   "2025-04-25": {
@@ -2540,6 +3396,14 @@
       "Messi",
       "Mirco",
       "Mirko"
+    ],
+    "dogs": [
+      "Murre",
+      "Muru"
+    ],
+    "cats": [
+      "Morris",
+      "Mortti"
     ]
   },
   "2025-04-26": {
@@ -2563,6 +3427,14 @@
       "Theresa",
       "Therese",
       "Theresia"
+    ],
+    "dogs": [
+      "Tessa",
+      "Tessu"
+    ],
+    "cats": [
+      "Tepsu",
+      "Tessa"
     ]
   },
   "2025-04-27": {
@@ -2587,6 +3459,14 @@
       "Merle",
       "Meya",
       "Valama"
+    ],
+    "dogs": [
+      "Pluto",
+      "Sirius"
+    ],
+    "cats": [
+      "Mirre",
+      "Mirri"
     ]
   },
   "2025-04-28": {
@@ -2603,6 +3483,14 @@
       "Thure",
       "Tuoni",
       "Turja"
+    ],
+    "dogs": [
+      "Nami",
+      "Namu"
+    ],
+    "cats": [
+      "Laikku",
+      "Laku"
     ]
   },
   "2025-04-29": {
@@ -2611,6 +3499,13 @@
     ],
     "unofficial": [
       "Tyyko"
+    ],
+    "dogs": [
+      "Bedo",
+      "Beku"
+    ],
+    "cats": [
+      "Putte"
     ]
   },
   "2025-04-30": {
@@ -2680,6 +3575,13 @@
       "Muska",
       "Mya",
       "Niia"
+    ],
+    "dogs": [
+      "Mira",
+      "Mirkku"
+    ],
+    "cats": [
+      "Mirru"
     ]
   },
   "2025-05-01": {
@@ -2695,6 +3597,14 @@
       "Tamana",
       "Valpu",
       "Walpuri"
+    ],
+    "dogs": [
+      "Huli",
+      "Hupi"
+    ],
+    "cats": [
+      "Pöpö",
+      "Pösö"
     ]
   },
   "2025-05-02": {
@@ -2728,6 +3638,14 @@
       "Wagner",
       "Wiivi",
       "Wivi"
+    ],
+    "dogs": [
+      "Viiru",
+      "Viivi"
+    ],
+    "cats": [
+      "Viikari",
+      "Viivi"
     ]
   },
   "2025-05-03": {
@@ -2744,6 +3662,13 @@
       "Outi-Maija",
       "Vin",
       "Vinsent"
+    ],
+    "dogs": [
+      "Pandora"
+    ],
+    "cats": [
+      "Whisky",
+      "Winston"
     ]
   },
   "2025-05-04": {
@@ -2794,6 +3719,14 @@
       "Roxanne",
       "Roza",
       "Ruusa"
+    ],
+    "dogs": [
+      "Rosso",
+      "Ruusu"
+    ],
+    "cats": [
+      "Rosa",
+      "Ruususuu"
     ]
   },
   "2025-05-05": {
@@ -2835,6 +3768,14 @@
       "Melodi",
       "Mileina",
       "Mirina"
+    ],
+    "dogs": [
+      "Pörri",
+      "Pössi"
+    ],
+    "cats": [
+      "Pörri",
+      "Pörrö"
     ]
   },
   "2025-05-06": {
@@ -2849,6 +3790,13 @@
       "Freyja",
       "Friia",
       "Juolas"
+    ],
+    "dogs": [
+      "Ylppö"
+    ],
+    "cats": [
+      "Bobo",
+      "Bubba"
     ]
   },
   "2025-05-07": {
@@ -2871,6 +3819,14 @@
       "Thua",
       "Tuua",
       "Tuva"
+    ],
+    "dogs": [
+      "Helmeri",
+      "Helmi"
+    ],
+    "cats": [
+      "Helmi",
+      "Helppis"
     ]
   },
   "2025-05-08": {
@@ -2883,6 +3839,14 @@
       "Haiku",
       "Heinz",
       "Oke"
+    ],
+    "dogs": [
+      "Hamlet",
+      "Romeo"
+    ],
+    "cats": [
+      "Murre",
+      "Murri"
     ]
   },
   "2025-05-09": {
@@ -2903,6 +3867,13 @@
       "Timothy",
       "Timppa",
       "Timur"
+    ],
+    "dogs": [
+      "Tico",
+      "Timi"
+    ],
+    "cats": [
+      "Tarzan"
     ]
   },
   "2025-05-10": {
@@ -2931,6 +3902,14 @@
       "Malja",
       "Tais",
       "Taisiia"
+    ],
+    "dogs": [
+      "Tumppi",
+      "Tupsu"
+    ],
+    "cats": [
+      "Rääpäle",
+      "Räpsy"
     ]
   },
   "2025-05-11": {
@@ -2951,6 +3930,14 @@
       "Oumar",
       "Ousman",
       "Ozan"
+    ],
+    "dogs": [
+      "Dami",
+      "Dante"
+    ],
+    "cats": [
+      "Nemo",
+      "Nero"
     ]
   },
   "2025-05-12": {
@@ -2969,6 +3956,14 @@
       "Lottie",
       "Nea-Lotta",
       "Sarlotta"
+    ],
+    "dogs": [
+      "Lotsku",
+      "Lotta"
+    ],
+    "cats": [
+      "Lolli",
+      "Lotta"
     ]
   },
   "2025-05-13": {
@@ -2995,6 +3990,14 @@
       "Taika-Kukka",
       "Tulikukka",
       "Unikko"
+    ],
+    "dogs": [
+      "Kikka",
+      "Kukka"
+    ],
+    "cats": [
+      "Flora",
+      "Friidu"
     ]
   },
   "2025-05-14": {
@@ -3017,6 +4020,13 @@
       "Tulan",
       "Tupuna",
       "Tuulevi"
+    ],
+    "dogs": [
+      "Nuppeli",
+      "Nuppu"
+    ],
+    "cats": [
+      "Batman"
     ]
   },
   "2025-05-15": {
@@ -3065,6 +4075,14 @@
       "Viiu",
       "Wiia",
       "Zofia"
+    ],
+    "dogs": [
+      "Fiia",
+      "Sohvi"
+    ],
+    "cats": [
+      "Fiia",
+      "Sohvi"
     ]
   },
   "2025-05-16": {
@@ -3090,6 +4108,13 @@
       "Hadassa",
       "Hymy",
       "Nessi"
+    ],
+    "dogs": [
+      "Essi",
+      "Essu"
+    ],
+    "cats": [
+      "Esteri"
     ]
   },
   "2025-05-17": {
@@ -3118,6 +4143,14 @@
       "Rebeca",
       "Rebecca",
       "Repekka"
+    ],
+    "dogs": [
+      "Maisa",
+      "Muusa"
+    ],
+    "cats": [
+      "Molla",
+      "Molli"
     ]
   },
   "2025-05-18": {
@@ -3168,6 +4201,14 @@
       "Eros",
       "Erpo",
       "Jerica"
+    ],
+    "dogs": [
+      "Eddie",
+      "Ekku"
+    ],
+    "cats": [
+      "Ekku",
+      "Emppu"
     ]
   },
   "2025-05-19": {
@@ -3298,6 +4339,14 @@
       "Omelia",
       "Ophelia",
       "Smilla"
+    ],
+    "dogs": [
+      "Mila",
+      "Milou"
+    ],
+    "cats": [
+      "Emma",
+      "Milla"
     ]
   },
   "2025-05-20": {
@@ -3361,6 +4410,14 @@
       "Lilyan",
       "Lisi",
       "Pioni"
+    ],
+    "dogs": [
+      "Lippe",
+      "Lirppu"
+    ],
+    "cats": [
+      "Liinu",
+      "Lilli"
     ]
   },
   "2025-05-21": {
@@ -3387,6 +4444,13 @@
       "Kusti",
       "Quentin",
       "Stanislav"
+    ],
+    "dogs": [
+      "Konsta",
+      "Kossu"
+    ],
+    "cats": [
+      "Pumpuli"
     ]
   },
   "2025-05-22": {
@@ -3404,6 +4468,13 @@
       "Muhammad",
       "Muhammed",
       "Mustafa"
+    ],
+    "dogs": [
+      "Hemmo",
+      "Hemppa"
+    ],
+    "cats": [
+      "Nefertiti"
     ]
   },
   "2025-05-23": {
@@ -3428,6 +4499,13 @@
       "Lyyra",
       "Lyyti",
       "Vilkas"
+    ],
+    "dogs": [
+      "Lölö",
+      "Lyyli"
+    ],
+    "cats": [
+      "Lyyli"
     ]
   },
   "2025-05-24": {
@@ -3441,6 +4519,14 @@
       "Alkia",
       "Kristia",
       "Touho"
+    ],
+    "dogs": [
+      "Riesa",
+      "Riiviö"
+    ],
+    "cats": [
+      "Tiikeri",
+      "Tikru"
     ]
   },
   "2025-05-25": {
@@ -3450,6 +4536,13 @@
     "unofficial": [
       "Sievä",
       "Upi"
+    ],
+    "dogs": [
+      "Urpo",
+      "Ursa"
+    ],
+    "cats": [
+      "Luikku"
     ]
   },
   "2025-05-26": {
@@ -3506,6 +4599,14 @@
       "Wilina",
       "Willa",
       "Wilmiina"
+    ],
+    "dogs": [
+      "Mindy",
+      "Mini"
+    ],
+    "cats": [
+      "Mimmi",
+      "Vilma"
     ]
   },
   "2025-05-27": {
@@ -3519,6 +4620,14 @@
       "Ritja",
       "Ritu",
       "Rivka"
+    ],
+    "dogs": [
+      "Romulus",
+      "Roxy"
+    ],
+    "cats": [
+      "Rocky",
+      "Ruska"
     ]
   },
   "2025-05-28": {
@@ -3529,6 +4638,13 @@
       "Alla",
       "Almiina",
       "Almina"
+    ],
+    "dogs": [
+      "Pikku",
+      "Tiny"
+    ],
+    "cats": [
+      "Alma"
     ]
   },
   "2025-05-29": {
@@ -3560,6 +4676,14 @@
       "Oliwer",
       "Oliwia",
       "Ora"
+    ],
+    "dogs": [
+      "Oliver",
+      "Olivia"
+    ],
+    "cats": [
+      "Oliver",
+      "Olivia"
     ]
   },
   "2025-05-30": {
@@ -3569,6 +4693,13 @@
     "unofficial": [
       "Pascal",
       "Ruurikki"
+    ],
+    "dogs": [
+      "Papu",
+      "Pate"
+    ],
+    "cats": [
+      "Pantteri"
     ]
   },
   "2025-05-31": {
@@ -3587,6 +4718,14 @@
       "Helleka",
       "Huda",
       "Hulda"
+    ],
+    "dogs": [
+      "Honda",
+      "Hoppa"
+    ],
+    "cats": [
+      "Höpsö",
+      "Hupsu"
     ]
   },
   "2025-06-01": {
@@ -3602,6 +4741,14 @@
       "Teukka",
       "Tiger",
       "Tünde"
+    ],
+    "dogs": [
+      "Milky",
+      "Milly"
+    ],
+    "cats": [
+      "Niki",
+      "Nikki"
     ]
   },
   "2025-06-02": {
@@ -3623,6 +4770,13 @@
       "Wenja",
       "Wenla",
       "Wenny"
+    ],
+    "dogs": [
+      "Vendi",
+      "Venla"
+    ],
+    "cats": [
+      "Hunaja"
     ]
   },
   "2025-06-03": {
@@ -3647,6 +4801,14 @@
       "Viula",
       "Wanja",
       "Wiola"
+    ],
+    "dogs": [
+      "Viida",
+      "Viola"
+    ],
+    "cats": [
+      "Miio",
+      "Mio-Mio"
     ]
   },
   "2025-06-04": {
@@ -3664,6 +4826,14 @@
       "Toive",
       "Toivi",
       "Toto"
+    ],
+    "dogs": [
+      "Marski",
+      "Turva"
+    ],
+    "cats": [
+      "Parku",
+      "Surku"
     ]
   },
   "2025-06-05": {
@@ -3674,6 +4844,13 @@
       "Helevä",
       "Stig-Göran",
       "Suleiman"
+    ],
+    "dogs": [
+      "Kulkuri"
+    ],
+    "cats": [
+      "Garfield",
+      "Karvinen"
     ]
   },
   "2025-06-06": {
@@ -3689,6 +4866,12 @@
       "Kössi",
       "Kustava",
       "Taava"
+    ],
+    "dogs": [
+      "Prinssi"
+    ],
+    "cats": [
+      "Kössi"
     ]
   },
   "2025-06-07": {
@@ -3726,6 +4909,14 @@
       "Suvikki",
       "Suvisirkku",
       "Suvituulia"
+    ],
+    "dogs": [
+      "Bobby",
+      "Roope"
+    ],
+    "cats": [
+      "Roberto",
+      "Roope"
     ]
   },
   "2025-06-08": {
@@ -3741,6 +4932,13 @@
       "Salomoni",
       "Solomon",
       "Zalomon"
+    ],
+    "dogs": [
+      "Marina",
+      "Maru"
+    ],
+    "cats": [
+      "Samppa"
     ]
   },
   "2025-06-09": {
@@ -3756,6 +4954,12 @@
       "Enso",
       "Ensti",
       "Enzo"
+    ],
+    "dogs": [
+      "Svante"
+    ],
+    "cats": [
+      "Oliivi"
     ]
   },
   "2025-06-10": {
@@ -3771,6 +4975,14 @@
       "Setti",
       "Sipo",
       "Vantte"
+    ],
+    "dogs": [
+      "Sedu",
+      "Sepi"
+    ],
+    "cats": [
+      "Svante",
+      "Vanttu"
     ]
   },
   "2025-06-11": {
@@ -3782,6 +4994,13 @@
       "Ailas",
       "Hymmi",
       "Pisara"
+    ],
+    "dogs": [
+      "Blondi"
+    ],
+    "cats": [
+      "Nappe",
+      "Nippe"
     ]
   },
   "2025-06-12": {
@@ -3795,6 +5014,13 @@
       "Eska",
       "Eskeli",
       "Vahva"
+    ],
+    "dogs": [
+      "Keikari",
+      "Keikka"
+    ],
+    "cats": [
+      "Elvis"
     ]
   },
   "2025-06-13": {
@@ -3810,6 +5036,13 @@
       "Oosa",
       "Raparperi",
       "Riley"
+    ],
+    "dogs": [
+      "Ralli",
+      "Vauhti"
+    ],
+    "cats": [
+      "Miiru"
     ]
   },
   "2025-06-14": {
@@ -3825,6 +5058,13 @@
       "Pihlaja",
       "Poona",
       "Vinston"
+    ],
+    "dogs": [
+      "Nefer",
+      "Nefi"
+    ],
+    "cats": [
+      "Neppari"
     ]
   },
   "2025-06-15": {
@@ -3854,6 +5094,13 @@
       "Vineta",
       "Vivana",
       "Vivea"
+    ],
+    "dogs": [
+      "Molly",
+      "Mona"
+    ],
+    "cats": [
+      "Monalisa"
     ]
   },
   "2025-06-16": {
@@ -3868,6 +5115,12 @@
       "Päivyt",
       "Pouta",
       "Sena"
+    ],
+    "dogs": [
+      "Daisy"
+    ],
+    "cats": [
+      "Muusa"
     ]
   },
   "2025-06-17": {
@@ -3880,6 +5133,14 @@
       "Urania",
       "Urim",
       "Uuri"
+    ],
+    "dogs": [
+      "Urho",
+      "Urkki"
+    ],
+    "cats": [
+      "Tihru",
+      "Tirppa"
     ]
   },
   "2025-06-18": {
@@ -3892,6 +5153,13 @@
       "Tami",
       "Tapsa",
       "Travis"
+    ],
+    "dogs": [
+      "Bosse",
+      "Buffe"
+    ],
+    "cats": [
+      "Casanova"
     ]
   },
   "2025-06-19": {
@@ -3914,6 +5182,13 @@
       "Sirina",
       "Sirli",
       "Sirri"
+    ],
+    "dogs": [
+      "Pimu"
+    ],
+    "cats": [
+      "Sissi",
+      "Sisu"
     ]
   },
   "2025-06-20": {
@@ -3924,6 +5199,14 @@
       "Inko",
       "Inno",
       "Uuvana"
+    ],
+    "dogs": [
+      "Inssi",
+      "Into"
+    ],
+    "cats": [
+      "Beata",
+      "Bianca"
     ]
   },
   "2025-06-21": {
@@ -3938,6 +5221,13 @@
       "Anian",
       "Ingelill",
       "Seura"
+    ],
+    "dogs": [
+      "Kirppu",
+      "Kiva"
+    ],
+    "cats": [
+      "Histamiini"
     ]
   },
   "2025-06-22": {
@@ -3967,6 +5257,13 @@
       "Pauline",
       "Pomeliina",
       "Rialiina"
+    ],
+    "dogs": [
+      "Palle",
+      "Pallero"
+    ],
+    "cats": [
+      "Kaneli"
     ]
   },
   "2025-06-23": {
@@ -3986,6 +5283,13 @@
       "Atto",
       "Attu",
       "Jaatu"
+    ],
+    "dogs": [
+      "Aatu"
+    ],
+    "cats": [
+      "Hyrrä",
+      "Hyrri"
     ]
   },
   "2025-06-24": {
@@ -4067,6 +5371,14 @@
       "Yannick",
       "Yavuz",
       "Yusuf"
+    ],
+    "dogs": [
+      "Juice",
+      "Yuki"
+    ],
+    "cats": [
+      "Juniori",
+      "Junnu"
     ]
   },
   "2025-06-25": {
@@ -4075,6 +5387,14 @@
     ],
     "unofficial": [
       "Uuna"
+    ],
+    "dogs": [
+      "Upi",
+      "Uuno"
+    ],
+    "cats": [
+      "Pedro",
+      "Pepe"
     ]
   },
   "2025-06-26": {
@@ -4132,6 +5452,14 @@
       "Orma",
       "Viveca",
       "Vivica"
+    ],
+    "dogs": [
+      "Jeppe",
+      "Jerry"
+    ],
+    "cats": [
+      "Jere",
+      "Jerry"
     ]
   },
   "2025-06-27": {
@@ -4161,6 +5489,13 @@
       "Kernas",
       "Viida",
       "Viira"
+    ],
+    "dogs": [
+      "Sabina"
+    ],
+    "cats": [
+      "Mauku",
+      "Miuku"
     ]
   },
   "2025-06-28": {
@@ -4181,6 +5516,14 @@
       "Lion",
       "Lionel",
       "Saunio"
+    ],
+    "dogs": [
+      "Jellona",
+      "Leo"
+    ],
+    "cats": [
+      "Leksu",
+      "Leo"
     ]
   },
   "2025-06-29": {
@@ -4238,6 +5581,14 @@
       "Pjotr",
       "Veli-Pekka",
       "Velipekka"
+    ],
+    "dogs": [
+      "Pelle",
+      "Pepe"
+    ],
+    "cats": [
+      "Pekka Töpöhäntä",
+      "Pelle"
     ]
   },
   "2025-06-30": {
@@ -4245,7 +5596,15 @@
       "Päiviö",
       "Päivö"
     ],
-    "unofficial": []
+    "unofficial": [],
+    "dogs": [
+      "Poem",
+      "Pomo"
+    ],
+    "cats": [
+      "Boss",
+      "Pomo"
+    ]
   },
   "2025-07-01": {
     "official": [
@@ -4264,6 +5623,13 @@
       "Casmir",
       "Haron",
       "Kasmiira"
+    ],
+    "dogs": [
+      "Idefix"
+    ],
+    "cats": [
+      "Kasimir",
+      "Kassu"
     ]
   },
   "2025-07-02": {
@@ -4387,6 +5753,14 @@
       "Rilla",
       "Tuulimaria",
       "Warinda"
+    ],
+    "dogs": [
+      "Maikku",
+      "Riia"
+    ],
+    "cats": [
+      "Maija Maitoparta",
+      "Maikki"
     ]
   },
   "2025-07-03": {
@@ -4396,6 +5770,13 @@
     "unofficial": [
       "Armo",
       "Egon"
+    ],
+    "dogs": [
+      "Aramis",
+      "Arietta"
+    ],
+    "cats": [
+      "Käpälä"
     ]
   },
   "2025-07-04": {
@@ -4411,6 +5792,13 @@
       "Ulriika",
       "Ulriikka",
       "Uma"
+    ],
+    "dogs": [
+      "Rin Tin Tin"
+    ],
+    "cats": [
+      "Paukku",
+      "Piukku"
     ]
   },
   "2025-07-05": {
@@ -4425,6 +5813,13 @@
       "Unho",
       "Unski",
       "Wolf"
+    ],
+    "dogs": [
+      "Monttu",
+      "Monza"
+    ],
+    "cats": [
+      "Ujo"
     ]
   },
   "2025-07-06": {
@@ -4444,6 +5839,12 @@
       "Hozan",
       "Leino",
       "Riimi"
+    ],
+    "dogs": [
+      "Taika"
+    ],
+    "cats": [
+      "Zorro"
     ]
   },
   "2025-07-07": {
@@ -4456,6 +5857,13 @@
       "Claus",
       "Laban",
       "Landon"
+    ],
+    "dogs": [
+      "Limppu"
+    ],
+    "cats": [
+      "Pommi",
+      "Pummi"
     ]
   },
   "2025-07-08": {
@@ -4469,6 +5877,14 @@
       "Troi",
       "Troy",
       "Turgay"
+    ],
+    "dogs": [
+      "Turre",
+      "Turri"
+    ],
+    "cats": [
+      "Tosse",
+      "Tusse"
     ]
   },
   "2025-07-09": {
@@ -4533,6 +5949,13 @@
       "Yasmina",
       "Yasmine",
       "Yasna"
+    ],
+    "dogs": [
+      "Jade",
+      "Jasmin"
+    ],
+    "cats": [
+      "Nunnu"
     ]
   },
   "2025-07-10": {
@@ -4545,6 +5968,13 @@
       "Samia",
       "Soma",
       "Zahraa"
+    ],
+    "dogs": [
+      "Soma",
+      "Sora"
+    ],
+    "cats": [
+      "Rumba"
     ]
   },
   "2025-07-11": {
@@ -4612,6 +6042,14 @@
       "Nura",
       "Nuru",
       "Nuura"
+    ],
+    "dogs": [
+      "Elli",
+      "Nelli"
+    ],
+    "cats": [
+      "Elli",
+      "Noora"
     ]
   },
   "2025-07-12": {
@@ -4629,6 +6067,14 @@
       "Hermine",
       "Huvi",
       "Manni"
+    ],
+    "dogs": [
+      "Herkku",
+      "Hermanni"
+    ],
+    "cats": [
+      "Hemmo",
+      "Hermanni"
     ]
   },
   "2025-07-13": {
@@ -4655,6 +6101,12 @@
       "Larri",
       "Noeli",
       "Olari"
+    ],
+    "dogs": [
+      ": -"
+    ],
+    "cats": [
+      "Jysky"
     ]
   },
   "2025-07-14": {
@@ -4683,6 +6135,13 @@
       "Ayse",
       "Eloisa",
       "Keula"
+    ],
+    "dogs": [
+      "Asterix",
+      "Obelix"
+    ],
+    "cats": [
+      "Moppe"
     ]
   },
   "2025-07-15": {
@@ -4697,6 +6156,13 @@
       "Raune",
       "Rowena",
       "Vladislav"
+    ],
+    "dogs": [
+      "Geena",
+      "Geisha"
+    ],
+    "cats": [
+      "Sheeba"
     ]
   },
   "2025-07-16": {
@@ -4720,6 +6186,14 @@
       "Rento",
       "Retu",
       "Rino"
+    ],
+    "dogs": [
+      "Renttu",
+      "Ressu"
+    ],
+    "cats": [
+      "Renttu",
+      "Rontti"
     ]
   },
   "2025-07-17": {
@@ -4735,6 +6209,13 @@
       "Osmi",
       "Ozzi",
       "Pallio"
+    ],
+    "dogs": [
+      "Opa"
+    ],
+    "cats": [
+      "Sinappi",
+      "Sippe"
     ]
   },
   "2025-07-18": {
@@ -4760,6 +6241,14 @@
       "Riika",
       "Riikka-Liisa",
       "Riikkaliina"
+    ],
+    "dogs": [
+      "Reetu",
+      "Rekku"
+    ],
+    "cats": [
+      "Veeti",
+      "Vertti"
     ]
   },
   "2025-07-19": {
@@ -4835,6 +6324,13 @@
       "Zahra",
       "Zara",
       "Zarina"
+    ],
+    "dogs": [
+      "Sally",
+      "Sara"
+    ],
+    "cats": [
+      "Musta-Saara"
     ]
   },
   "2025-07-20": {
@@ -4892,6 +6388,14 @@
       "Reettu",
       "Renate",
       "Renee"
+    ],
+    "dogs": [
+      "Gara",
+      "Greta"
+    ],
+    "cats": [
+      "Garbo",
+      "Kreeta"
     ]
   },
   "2025-07-21": {
@@ -4970,6 +6474,14 @@
       "Thandiwe",
       "Yolanda",
       "Yolande"
+    ],
+    "dogs": [
+      "Hantta",
+      "Jenni"
+    ],
+    "cats": [
+      "Jenkka",
+      "Jenni"
     ]
   },
   "2025-07-22": {
@@ -5016,6 +6528,14 @@
       "Olena",
       "Sannaleena",
       "Tarleena"
+    ],
+    "dogs": [
+      "Leenu",
+      "Leni"
+    ],
+    "cats": [
+      "Leeni",
+      "Leenu"
     ]
   },
   "2025-07-23": {
@@ -5028,6 +6548,12 @@
       "Olka",
       "Ooga",
       "Orla"
+    ],
+    "dogs": [
+      "Olga"
+    ],
+    "cats": [
+      "Olga"
     ]
   },
   "2025-07-24": {
@@ -5129,6 +6655,14 @@
       "Trine",
       "Tuikku",
       "Zina"
+    ],
+    "dogs": [
+      "Tintti",
+      "Titi"
+    ],
+    "cats": [
+      "Tiitu",
+      "Titi"
     ]
   },
   "2025-07-25": {
@@ -5157,6 +6691,14 @@
       "Jiska",
       "Kobi",
       "Yakup"
+    ],
+    "dogs": [
+      "Jakke",
+      "Jimmy"
+    ],
+    "cats": [
+      "James",
+      "Jassu"
     ]
   },
   "2025-07-26": {
@@ -5169,6 +6711,14 @@
       "Marna",
       "Martha",
       "Mertta"
+    ],
+    "dogs": [
+      "Mallu",
+      "Martta"
+    ],
+    "cats": [
+      "Mapu",
+      "Masse"
     ]
   },
   "2025-07-27": {
@@ -5181,6 +6731,14 @@
       "Hedi",
       "Heidi-Hannele",
       "Heile"
+    ],
+    "dogs": [
+      "Luppa",
+      "Lurppa"
+    ],
+    "cats": [
+      "Liri",
+      "Lörö"
     ]
   },
   "2025-07-28": {
@@ -5191,6 +6749,12 @@
       "Asto",
       "Haakon",
       "Hakki"
+    ],
+    "dogs": [
+      "Attila"
+    ],
+    "cats": [
+      "Hymy"
     ]
   },
   "2025-07-29": {
@@ -5217,6 +6781,13 @@
       "Serika",
       "Utti",
       "Uula"
+    ],
+    "dogs": [
+      "Spede",
+      "Speedy"
+    ],
+    "cats": [
+      "Olli-Kolli"
     ]
   },
   "2025-07-30": {
@@ -5226,6 +6797,13 @@
     "unofficial": [
       "Asja",
       "Asma"
+    ],
+    "dogs": [
+      "Amadeus"
+    ],
+    "cats": [
+      "Amadeus",
+      "Amigo"
     ]
   },
   "2025-07-31": {
@@ -5260,6 +6838,14 @@
       "Lene",
       "Nele",
       "Olenna"
+    ],
+    "dogs": [
+      "Hellu",
+      "Heluna"
+    ],
+    "cats": [
+      "Neilikka",
+      "Nelli"
     ]
   },
   "2025-08-01": {
@@ -5274,6 +6860,14 @@
       "Mairit",
       "Maris",
       "Maru"
+    ],
+    "dogs": [
+      "Mölli",
+      "Mörö"
+    ],
+    "cats": [
+      "Mindy",
+      "Mini"
     ]
   },
   "2025-08-02": {
@@ -5286,6 +6880,14 @@
       "Kirmo",
       "Siveä",
       "Vasko"
+    ],
+    "dogs": [
+      "Taku",
+      "Tiku"
+    ],
+    "cats": [
+      "Kisse",
+      "Kissi"
     ]
   },
   "2025-08-03": {
@@ -5312,6 +6914,14 @@
       "Neve",
       "Nevea",
       "Nevia"
+    ],
+    "dogs": [
+      "Nekku",
+      "Nene"
+    ],
+    "cats": [
+      "Nynny",
+      "Nysä"
     ]
   },
   "2025-08-04": {
@@ -5336,6 +6946,13 @@
       "Vira",
       "Weera",
       "Wera"
+    ],
+    "dogs": [
+      "Veeruska"
+    ],
+    "cats": [
+      "Veera",
+      "Veeruska"
     ]
   },
   "2025-08-05": {
@@ -5350,6 +6967,14 @@
       "Sannelma",
       "Shahed",
       "Tieto"
+    ],
+    "dogs": [
+      "Lola",
+      "Lolita"
+    ],
+    "cats": [
+      "Lola",
+      "Lolle"
     ]
   },
   "2025-08-06": {
@@ -5360,6 +6985,12 @@
     "unofficial": [
       "Sointo",
       "Teimo"
+    ],
+    "dogs": [
+      "Snoopy"
+    ],
+    "cats": [
+      "Vilkas"
     ]
   },
   "2025-08-07": {
@@ -5369,6 +7000,13 @@
     "unofficial": [
       "Lalla",
       "Lemmes"
+    ],
+    "dogs": [
+      "Bisse",
+      "Bistro"
+    ],
+    "cats": [
+      "Muisku"
     ]
   },
   "2025-08-08": {
@@ -5386,6 +7024,13 @@
       "Sylva",
       "Sylvie",
       "Syrilla"
+    ],
+    "dogs": [
+      "Xani",
+      "Xixi"
+    ],
+    "cats": [
+      "Manteli"
     ]
   },
   "2025-08-09": {
@@ -5419,6 +7064,14 @@
       "Natja",
       "Natta",
       "Talia"
+    ],
+    "dogs": [
+      "Errol",
+      "Exa"
+    ],
+    "cats": [
+      "Piipero",
+      "Pirre"
     ]
   },
   "2025-08-10": {
@@ -5440,6 +7093,13 @@
       "Loreta",
       "Lorik",
       "Silas"
+    ],
+    "dogs": [
+      "Laku",
+      "Lassie"
+    ],
+    "cats": [
+      "Lalli"
     ]
   },
   "2025-08-11": {
@@ -5492,6 +7152,13 @@
       "Suzanne",
       "Zana",
       "Zuzanna"
+    ],
+    "dogs": [
+      "Sandy",
+      "Susse"
+    ],
+    "cats": [
+      "Susu"
     ]
   },
   "2025-08-12": {
@@ -5518,6 +7185,13 @@
       "Klára",
       "Klarissa",
       "Kyra"
+    ],
+    "dogs": [
+      "Kairi",
+      "Kira"
+    ],
+    "cats": [
+      "Kirppu"
     ]
   },
   "2025-08-13": {
@@ -5536,6 +7210,13 @@
       "Oki",
       "Okku",
       "Ooke"
+    ],
+    "dogs": [
+      "Jesse"
+    ],
+    "cats": [
+      "Jesse",
+      "Jessi"
     ]
   },
   "2025-08-14": {
@@ -5549,6 +7230,14 @@
       "Heather",
       "Minerva",
       "Onervo"
+    ],
+    "dogs": [
+      "Remo",
+      "Remu"
+    ],
+    "cats": [
+      "Kassinen",
+      "Kattinen"
     ]
   },
   "2025-08-15": {
@@ -5642,13 +7331,28 @@
       "Rienna",
       "Ruusunmarja",
       "Yana"
+    ],
+    "dogs": [
+      "Napoleon",
+      "Nappi"
+    ],
+    "cats": [
+      "Mustikka",
+      "Mustis"
     ]
   },
   "2025-08-16": {
     "official": [
       "Aulis"
     ],
-    "unofficial": []
+    "unofficial": [],
+    "dogs": [
+      "Boy",
+      "Poju"
+    ],
+    "cats": [
+      "Mouru"
+    ]
   },
   "2025-08-17": {
     "official": [
@@ -5674,6 +7378,14 @@
       "Werner",
       "Werneri",
       "Weronika"
+    ],
+    "dogs": [
+      "Vekku",
+      "Venni"
+    ],
+    "cats": [
+      "Niisku",
+      "Niksu"
     ]
   },
   "2025-08-18": {
@@ -5691,6 +7403,14 @@
       "Levon",
       "Lewis",
       "Talja"
+    ],
+    "dogs": [
+      "Leksu",
+      "Lex"
+    ],
+    "cats": [
+      "Puppe",
+      "Pupu"
     ]
   },
   "2025-08-19": {
@@ -5702,6 +7422,13 @@
       "Malakias",
       "Mano",
       "Maunus"
+    ],
+    "dogs": [
+      "Magnus",
+      "Mauno"
+    ],
+    "cats": [
+      "Monni"
     ]
   },
   "2025-08-20": {
@@ -5738,6 +7465,14 @@
       "Sunny",
       "Zaid",
       "Zamzam"
+    ],
+    "dogs": [
+      "Samba",
+      "Samu"
+    ],
+    "cats": [
+      "Sami",
+      "Samu"
     ]
   },
   "2025-08-21": {
@@ -5752,6 +7487,13 @@
       "Veino",
       "Venne",
       "Vini"
+    ],
+    "dogs": [
+      "Lord"
+    ],
+    "cats": [
+      "Vinku",
+      "Vinski"
     ]
   },
   "2025-08-22": {
@@ -5765,6 +7507,14 @@
       "Iivu",
       "Ivo",
       "Kave"
+    ],
+    "dogs": [
+      "Igor",
+      "Sergei"
+    ],
+    "cats": [
+      "Iivana",
+      "Iivari"
     ]
   },
   "2025-08-23": {
@@ -5776,6 +7526,14 @@
       "Sauva",
       "Sikke",
       "Vanda"
+    ],
+    "dogs": [
+      "Tipsu",
+      "Tirri"
+    ],
+    "cats": [
+      "Tapsu",
+      "Tipsu"
     ]
   },
   "2025-08-24": {
@@ -5793,6 +7551,14 @@
       "Penni",
       "Penny",
       "Perttuli"
+    ],
+    "dogs": [
+      "Beda",
+      "Bertta"
+    ],
+    "cats": [
+      "Vilpertti",
+      "Vilppu"
     ]
   },
   "2025-08-25": {
@@ -5810,6 +7576,14 @@
       "Luisa",
       "Luvi",
       "Vilena"
+    ],
+    "dogs": [
+      "Lulu",
+      "Lumppu"
+    ],
+    "cats": [
+      "Loulou",
+      "Lulu"
     ]
   },
   "2025-08-26": {
@@ -5821,6 +7595,13 @@
     "unofficial": [
       "Märtha",
       "Skyler"
+    ],
+    "dogs": [
+      "Winnie",
+      "Woody"
+    ],
+    "cats": [
+      "Mörri"
     ]
   },
   "2025-08-27": {
@@ -5833,6 +7614,14 @@
       "Ralph",
       "Raoul",
       "Rollo"
+    ],
+    "dogs": [
+      "Fonja",
+      "Fonzie"
+    ],
+    "cats": [
+      "Romeo",
+      "Rommi"
     ]
   },
   "2025-08-28": {
@@ -5844,6 +7633,13 @@
       "Moose",
       "Moussa",
       "Tauri"
+    ],
+    "dogs": [
+      "Tarkka"
+    ],
+    "cats": [
+      "Höpö",
+      "Hörhö"
     ]
   },
   "2025-08-29": {
@@ -5866,6 +7662,14 @@
       "Inni",
       "Jiina",
       "Uina"
+    ],
+    "dogs": [
+      "Vinkki",
+      "Vinku"
+    ],
+    "cats": [
+      "Taku",
+      "Tiku"
     ]
   },
   "2025-08-30": {
@@ -5895,6 +7699,13 @@
       "Emre",
       "Jeemil",
       "Mehmet"
+    ],
+    "dogs": [
+      "Emppu",
+      "Eppu"
+    ],
+    "cats": [
+      "Eemeli"
     ]
   },
   "2025-08-31": {
@@ -5906,6 +7717,14 @@
       "Eko",
       "Ervo",
       "Lloyd"
+    ],
+    "dogs": [
+      "Mahti",
+      "Vahti"
+    ],
+    "cats": [
+      "Poika",
+      "Poju"
     ]
   },
   "2025-09-01": {
@@ -5918,6 +7737,14 @@
       "Joosia",
       "Joosu",
       "Joshua"
+    ],
+    "dogs": [
+      "Puti",
+      "Putte"
+    ],
+    "cats": [
+      "Pimpula",
+      "Pompula"
     ]
   },
   "2025-09-02": {
@@ -5945,6 +7772,13 @@
       "Sinituuli",
       "Synnove",
       "Synnøve"
+    ],
+    "dogs": [
+      "Justiina",
+      "Justus"
+    ],
+    "cats": [
+      "Boris"
     ]
   },
   "2025-09-03": {
@@ -5964,6 +7798,14 @@
       "Soli",
       "Zoe",
       "Zoya"
+    ],
+    "dogs": [
+      "Sesa",
+      "Sessa"
+    ],
+    "cats": [
+      "Madame",
+      "Madonna"
     ]
   },
   "2025-09-04": {
@@ -5972,6 +7814,12 @@
     ],
     "unofficial": [
       "Anais"
+    ],
+    "dogs": [
+      "Rufus"
+    ],
+    "cats": [
+      "Rapa-Ripa"
     ]
   },
   "2025-09-05": {
@@ -5992,6 +7840,14 @@
       "Ronnie",
       "Rony",
       "Siivo"
+    ],
+    "dogs": [
+      "Rondo",
+      "Roni"
+    ],
+    "cats": [
+      "Casimir",
+      "Cassius"
     ]
   },
   "2025-09-06": {
@@ -6014,6 +7870,13 @@
       "Phoenix",
       "Veele",
       "Veeli"
+    ],
+    "dogs": [
+      "Pupi",
+      "Puppe"
+    ],
+    "cats": [
+      "Felix"
     ]
   },
   "2025-09-07": {
@@ -6045,6 +7908,13 @@
       "Regine",
       "Renja",
       "Roi"
+    ],
+    "dogs": [
+      "Miro",
+      "Mirsku"
+    ],
+    "cats": [
+      "Ipana"
     ]
   },
   "2025-09-08": {
@@ -6053,6 +7923,13 @@
     ],
     "unofficial": [
       "Taini"
+    ],
+    "dogs": [
+      "Robin",
+      "Roy"
+    ],
+    "cats": [
+      "Sinuhe"
     ]
   },
   "2025-09-09": {
@@ -6072,6 +7949,13 @@
       "Ewert",
       "Veerti",
       "Wertti"
+    ],
+    "dogs": [
+      "Vertti",
+      "Veturi"
+    ],
+    "cats": [
+      "Tiuku"
     ]
   },
   "2025-09-10": {
@@ -6086,6 +7970,14 @@
       "Kamal",
       "Khalid",
       "Luonne"
+    ],
+    "dogs": [
+      "Nuca",
+      "Nuka"
+    ],
+    "cats": [
+      "Suku",
+      "Sumppi"
     ]
   },
   "2025-09-11": {
@@ -6140,6 +8032,14 @@
       "Sasha",
       "Xander",
       "Zandra"
+    ],
+    "dogs": [
+      "Alexa",
+      "Santtu"
+    ],
+    "cats": [
+      "Sandra",
+      "Santtu"
     ]
   },
   "2025-09-12": {
@@ -6167,6 +8067,13 @@
       "Vinja",
       "Walma",
       "Wilja"
+    ],
+    "dogs": [
+      "Melissa",
+      "Melli"
+    ],
+    "cats": [
+      "Darling"
     ]
   },
   "2025-09-13": {
@@ -6178,6 +8085,13 @@
       "Oras",
       "Orpo",
       "Ylvie"
+    ],
+    "dogs": [
+      "Moritz",
+      "Morris"
+    ],
+    "cats": [
+      "Cicciolina"
     ]
   },
   "2025-09-14": {
@@ -6215,6 +8129,13 @@
       "Siida",
       "Telta",
       "Vida"
+    ],
+    "dogs": [
+      "Angelika",
+      "Ansku"
+    ],
+    "cats": [
+      "Iitu"
     ]
   },
   "2025-09-15": {
@@ -6224,6 +8145,13 @@
     "unofficial": [
       "Ippa",
       "Sirppa"
+    ],
+    "dogs": [
+      "Gloria"
+    ],
+    "cats": [
+      "Rulla",
+      "Ruppana"
     ]
   },
   "2025-09-16": {
@@ -6247,6 +8175,13 @@
       "Hilve",
       "Hippu",
       "Tehilla"
+    ],
+    "dogs": [
+      "Hili",
+      "Hilla"
+    ],
+    "cats": [
+      "Kinuski"
     ]
   },
   "2025-09-17": {
@@ -6268,6 +8203,14 @@
       "Aylin",
       "Aysha",
       "Elpida"
+    ],
+    "dogs": [
+      "Napero",
+      "Nappu"
+    ],
+    "cats": [
+      "Fifi",
+      "Fiinu"
     ]
   },
   "2025-09-18": {
@@ -6284,6 +8227,13 @@
       "Tyti",
       "Tytteli",
       "Tyty"
+    ],
+    "dogs": [
+      "Tyllerö",
+      "Typy"
+    ],
+    "cats": [
+      "Pamela"
     ]
   },
   "2025-09-19": {
@@ -6294,6 +8244,13 @@
       "Reina",
       "Renata",
       "Silpo"
+    ],
+    "dogs": [
+      "Rusa",
+      "Ruska"
+    ],
+    "cats": [
+      "Kullanmuru"
     ]
   },
   "2025-09-20": {
@@ -6304,6 +8261,12 @@
     "unofficial": [
       "Vaara",
       "Vanni"
+    ],
+    "dogs": [
+      "Prisse"
+    ],
+    "cats": [
+      "Esmeralda"
     ]
   },
   "2025-09-21": {
@@ -6318,6 +8281,13 @@
       "Merve",
       "Mirve",
       "Mitri"
+    ],
+    "dogs": [
+      "Piki",
+      "Pikki"
+    ],
+    "cats": [
+      "Hippu"
     ]
   },
   "2025-09-22": {
@@ -6332,6 +8302,12 @@
       "Mostafa",
       "Munir",
       "Syksy"
+    ],
+    "dogs": [
+      "Maukka"
+    ],
+    "cats": [
+      "Musti"
     ]
   },
   "2025-09-23": {
@@ -6349,6 +8325,14 @@
       "Miisu",
       "Mino",
       "Minta"
+    ],
+    "dogs": [
+      "Mimi",
+      "Mimosa"
+    ],
+    "cats": [
+      "Bingo",
+      "Bongo"
     ]
   },
   "2025-09-24": {
@@ -6364,6 +8348,14 @@
       "Alvaro",
       "Alwan",
       "Alwar"
+    ],
+    "dogs": [
+      "Aston",
+      "Avallon"
+    ],
+    "cats": [
+      "Napero",
+      "Nappi"
     ]
   },
   "2025-09-25": {
@@ -6374,6 +8366,12 @@
       "Nilkas",
       "Serko",
       "Sirwan"
+    ],
+    "dogs": [
+      "Musti"
+    ],
+    "cats": [
+      ": -"
     ]
   },
   "2025-09-26": {
@@ -6382,6 +8380,13 @@
     ],
     "unofficial": [
       "Fingal"
+    ],
+    "dogs": [
+      "Ringo"
+    ],
+    "cats": [
+      "Juippi",
+      "Juppi"
     ]
   },
   "2025-09-27": {
@@ -6398,6 +8403,12 @@
       "Vesku",
       "Vesse",
       "Wellu"
+    ],
+    "dogs": [
+      "Vinski"
+    ],
+    "cats": [
+      "Linus"
     ]
   },
   "2025-09-28": {
@@ -6428,6 +8439,13 @@
       "Lenni-Kalle",
       "Lenny",
       "Lester"
+    ],
+    "dogs": [
+      "Ruben",
+      "Rudi"
+    ],
+    "cats": [
+      "Leonardo"
     ]
   },
   "2025-09-29": {
@@ -6506,6 +8524,14 @@
       "Mishka",
       "Miso",
       "Mixu"
+    ],
+    "dogs": [
+      "Mikki",
+      "Miska"
+    ],
+    "cats": [
+      "Mikke",
+      "Miku"
     ]
   },
   "2025-09-30": {
@@ -6528,6 +8554,13 @@
       "Sorella",
       "Sorjo",
       "Suri"
+    ],
+    "dogs": [
+      "Söpö"
+    ],
+    "cats": [
+      "Söpö",
+      "Söpöliini"
     ]
   },
   "2025-10-01": {
@@ -6545,6 +8578,13 @@
       "Rayyan",
       "Ryan",
       "Turva"
+    ],
+    "dogs": [
+      "Jazzi",
+      "Soolo"
+    ],
+    "cats": [
+      "Jatsi"
     ]
   },
   "2025-10-02": {
@@ -6556,6 +8596,13 @@
       "Ludovik",
       "Ludwig",
       "Vaito"
+    ],
+    "dogs": [
+      "Master"
+    ],
+    "cats": [
+      "Lurjus",
+      "Luru"
     ]
   },
   "2025-10-03": {
@@ -6575,6 +8622,14 @@
       "Ramazan",
       "Ramon",
       "Raymond"
+    ],
+    "dogs": [
+      "Raikku",
+      "Riski"
+    ],
+    "cats": [
+      "Remu",
+      "Remus"
     ]
   },
   "2025-10-04": {
@@ -6609,6 +8664,13 @@
       "Saira",
       "Salvia",
       "Sine"
+    ],
+    "dogs": [
+      "Ransu",
+      "Ranttu"
+    ],
+    "cats": [
+      "Ransu"
     ]
   },
   "2025-10-05": {
@@ -6630,6 +8692,12 @@
       "Inkku",
       "Keilo",
       "Ninka"
+    ],
+    "dogs": [
+      "Inkku"
+    ],
+    "cats": [
+      "Mango"
     ]
   },
   "2025-10-06": {
@@ -6656,6 +8724,14 @@
       "Raikas",
       "Roine",
       "Ystävä"
+    ],
+    "dogs": [
+      "Pike",
+      "Pikke"
+    ],
+    "cats": [
+      "Minttu",
+      "Minus"
     ]
   },
   "2025-10-07": {
@@ -6713,6 +8789,13 @@
       "Pirtta",
       "Priita",
       "Priitta"
+    ],
+    "dogs": [
+      "Pirre",
+      "Pizza"
+    ],
+    "cats": [
+      "Hermes"
     ]
   },
   "2025-10-08": {
@@ -6723,6 +8806,13 @@
       "Aika",
       "Eliaana",
       "Peikko"
+    ],
+    "dogs": [
+      "Haukku"
+    ],
+    "cats": [
+      "Pikkis",
+      "Pikku"
     ]
   },
   "2025-10-09": {
@@ -6741,6 +8831,14 @@
       "Marena",
       "Mariina",
       "Olina"
+    ],
+    "dogs": [
+      "Jolly",
+      "Riemu"
+    ],
+    "cats": [
+      "Ressu",
+      "Ressukka"
     ]
   },
   "2025-10-10": {
@@ -6763,6 +8861,14 @@
       "Jooseviina",
       "Malek",
       "Oleksi"
+    ],
+    "dogs": [
+      "Kiiski",
+      "Killi"
+    ],
+    "cats": [
+      "Killi",
+      "Killinen"
     ]
   },
   "2025-10-11": {
@@ -6781,6 +8887,13 @@
       "Otro",
       "Saukar",
       "Sinaida"
+    ],
+    "dogs": [
+      "Nalle",
+      "Otso"
+    ],
+    "cats": [
+      "Nalle"
     ]
   },
   "2025-10-12": {
@@ -6798,6 +8911,12 @@
       "Arre",
       "Farhad",
       "Kulta"
+    ],
+    "dogs": [
+      "Bruno"
+    ],
+    "cats": [
+      "Domino"
     ]
   },
   "2025-10-13": {
@@ -6827,6 +8946,13 @@
       "Tanya",
       "Tatjaana",
       "Tonja"
+    ],
+    "dogs": [
+      "Easy",
+      "Ebba"
+    ],
+    "cats": [
+      "Vintiö"
     ]
   },
   "2025-10-14": {
@@ -6844,6 +8970,13 @@
       "Ilsa",
       "Izel",
       "Kalikstus"
+    ],
+    "dogs": [
+      "Dina",
+      "Dino"
+    ],
+    "cats": [
+      "Ringo"
     ]
   },
   "2025-10-15": {
@@ -6859,6 +8992,14 @@
       "Heta-Stiina",
       "Hetta",
       "Hetti"
+    ],
+    "dogs": [
+      "Hera",
+      "Heta"
+    ],
+    "cats": [
+      "Heta",
+      "Hetu"
     ]
   },
   "2025-10-16": {
@@ -6897,6 +9038,14 @@
       "Stella-Maria",
       "Stelle",
       "Tiana"
+    ],
+    "dogs": [
+      "Diana",
+      "Stella"
+    ],
+    "cats": [
+      "Siro",
+      "Siru"
     ]
   },
   "2025-10-17": {
@@ -6922,6 +9071,14 @@
       "Suana",
       "Zainab",
       "Zeineb"
+    ],
+    "dogs": [
+      "Jola",
+      "Jolanda"
+    ],
+    "cats": [
+      "Didi",
+      "Diiva"
     ]
   },
   "2025-10-18": {
@@ -6956,6 +9113,14 @@
       "Seida",
       "Sita",
       "Valonsäde"
+    ],
+    "dogs": [
+      "Luca",
+      "Luke"
+    ],
+    "cats": [
+      "Murina",
+      "Muru"
     ]
   },
   "2025-10-19": {
@@ -6967,6 +9132,14 @@
       "Huima",
       "Uuras",
       "Wiking"
+    ],
+    "dogs": [
+      "Hevi",
+      "Jätti"
+    ],
+    "cats": [
+      "Mosse",
+      "Mozart"
     ]
   },
   "2025-10-20": {
@@ -7001,6 +9174,13 @@
       "Kastor",
       "Kuuno",
       "Yaya"
+    ],
+    "dogs": [
+      "Kassu"
+    ],
+    "cats": [
+      "Jesper",
+      "Kasperi"
     ]
   },
   "2025-10-21": {
@@ -7010,6 +9190,13 @@
     "unofficial": [
       "Urpu",
       "Ursa"
+    ],
+    "dogs": [
+      "Hippi",
+      "Hissu"
+    ],
+    "cats": [
+      "Terri"
     ]
   },
   "2025-10-22": {
@@ -7047,6 +9234,13 @@
       "Milanja",
       "Niitta",
       "Nitta"
+    ],
+    "dogs": [
+      "Nissi",
+      "Nita"
+    ],
+    "cats": [
+      "Carmen"
     ]
   },
   "2025-10-23": {
@@ -7057,6 +9251,14 @@
       "Seimikki",
       "Severiina",
       "Severus"
+    ],
+    "dogs": [
+      "Rape",
+      "Rapsu"
+    ],
+    "cats": [
+      "Prinsessa",
+      "Prinssi"
     ]
   },
   "2025-10-24": {
@@ -7076,6 +9278,14 @@
       "Rasse",
       "Renni",
       "Teljo"
+    ],
+    "dogs": [
+      "Kofi",
+      "Rasmus"
+    ],
+    "cats": [
+      "Brassailija",
+      "Brasse"
     ]
   },
   "2025-10-25": {
@@ -7092,6 +9302,14 @@
       "Melodie",
       "Melody",
       "Sävel"
+    ],
+    "dogs": [
+      "Turbo",
+      "Turpo"
+    ],
+    "cats": [
+      "Tassu",
+      "Tossu"
     ]
   },
   "2025-10-26": {
@@ -7145,6 +9363,14 @@
       "Nunnu",
       "Samantha",
       "Timitri"
+    ],
+    "dogs": [
+      "Niisku",
+      "Ninja"
+    ],
+    "cats": [
+      "Manda",
+      "Manta"
     ]
   },
   "2025-10-27": {
@@ -7160,6 +9386,13 @@
       "Sabiriin",
       "Sabriin",
       "Sabrina"
+    ],
+    "dogs": [
+      "Bona",
+      "Bonzo"
+    ],
+    "cats": [
+      "Hemuli"
     ]
   },
   "2025-10-28": {
@@ -7173,6 +9406,13 @@
       "Simona",
       "Simopekka",
       "Sipe"
+    ],
+    "dogs": [
+      "Simba",
+      "Simppa"
+    ],
+    "cats": [
+      "Simson"
     ]
   },
   "2025-10-29": {
@@ -7187,6 +9427,14 @@
       "Anastassia",
       "Ferdi",
       "Silta"
+    ],
+    "dogs": [
+      "Bimbim",
+      "Bimbo"
+    ],
+    "cats": [
+      "Alfred",
+      "Reetu"
     ]
   },
   "2025-10-30": {
@@ -7201,6 +9449,13 @@
       "Juna",
       "Kustaava",
       "Zeynep"
+    ],
+    "dogs": [
+      "Noppe",
+      "Noppi"
+    ],
+    "cats": [
+      "Ramona"
     ]
   },
   "2025-10-31": {
@@ -7228,6 +9483,13 @@
       "Forat",
       "Karhu",
       "Kontio"
+    ],
+    "dogs": [
+      "Arttu"
+    ],
+    "cats": [
+      "Arthur",
+      "Arttu"
     ]
   },
   "2025-11-01": {
@@ -7246,6 +9508,14 @@
       "Puro",
       "Tuisku",
       "Yll"
+    ],
+    "dogs": [
+      "Baby",
+      "Beibi"
+    ],
+    "cats": [
+      "Baby",
+      "Barbi"
     ]
   },
   "2025-11-02": {
@@ -7258,6 +9528,14 @@
       "Toffe",
       "Topia",
       "Topo"
+    ],
+    "dogs": [
+      "Topi",
+      "Tossu"
+    ],
+    "cats": [
+      "Topi",
+      "Topikatti"
     ]
   },
   "2025-11-03": {
@@ -7269,6 +9547,14 @@
       "Saleva",
       "Terhomatti",
       "Terno"
+    ],
+    "dogs": [
+      "Teri",
+      "Terri"
+    ],
+    "cats": [
+      "Gin",
+      "Tonic"
     ]
   },
   "2025-11-04": {
@@ -7282,6 +9568,14 @@
       "Jertta",
       "Kasandra",
       "Silmä"
+    ],
+    "dogs": [
+      "Heksu",
+      "Hertta"
+    ],
+    "cats": [
+      "Catsy",
+      "Katti"
     ]
   },
   "2025-11-05": {
@@ -7292,6 +9586,14 @@
       "Reemus",
       "Remus",
       "Roman"
+    ],
+    "dogs": [
+      "Rambo",
+      "Ramona"
+    ],
+    "cats": [
+      "Nassu",
+      "Nasta"
     ]
   },
   "2025-11-06": {
@@ -7303,6 +9605,12 @@
       "Miili",
       "Mima",
       "Mimori"
+    ],
+    "dogs": [
+      "Svea"
+    ],
+    "cats": [
+      ": -"
     ]
   },
   "2025-11-07": {
@@ -7322,6 +9630,13 @@
       "Glenda",
       "Tai",
       "Taylor"
+    ],
+    "dogs": [
+      "Molli",
+      "Moppe"
+    ],
+    "cats": [
+      "Goljat"
     ]
   },
   "2025-11-08": {
@@ -7340,6 +9655,14 @@
       "Derya",
       "Dexter",
       "Vitjakka"
+    ],
+    "dogs": [
+      "Aatos",
+      "Allu"
+    ],
+    "cats": [
+      "Kille",
+      "Kilu"
     ]
   },
   "2025-11-09": {
@@ -7355,6 +9678,13 @@
       "Tex",
       "Thai",
       "Theodor"
+    ],
+    "dogs": [
+      "Devil",
+      "Teddy"
+    ],
+    "cats": [
+      "Töppönen"
     ]
   },
   "2025-11-10": {
@@ -7376,6 +9706,13 @@
       "Mertsi",
       "Mortimer",
       "Mortti"
+    ],
+    "dogs": [
+      "Mara",
+      "Marlon"
+    ],
+    "cats": [
+      "Marakatti"
     ]
   },
   "2025-11-11": {
@@ -7386,6 +9723,13 @@
       "Boran",
       "Liekki",
       "Pami"
+    ],
+    "dogs": [
+      "Panja",
+      "Panu"
+    ],
+    "cats": [
+      "Rambo"
     ]
   },
   "2025-11-12": {
@@ -7399,6 +9743,12 @@
       "Reipas",
       "Viri",
       "Virpa"
+    ],
+    "dogs": [
+      "Hektor"
+    ],
+    "cats": [
+      "Kurre"
     ]
   },
   "2025-11-13": {
@@ -7423,6 +9773,13 @@
       "Kristijan",
       "Kristjan",
       "Tian"
+    ],
+    "dogs": [
+      "Chris",
+      "Krisse"
+    ],
+    "cats": [
+      "Kirre"
     ]
   },
   "2025-11-14": {
@@ -7431,6 +9788,13 @@
     ],
     "unofficial": [
       "Iiri"
+    ],
+    "dogs": [
+      "Tosca"
+    ],
+    "cats": [
+      "Iiris",
+      "Ira"
     ]
   },
   "2025-11-15": {
@@ -7478,6 +9842,13 @@
       "Maalin",
       "Niika",
       "Nika"
+    ],
+    "dogs": [
+      "Mister"
+    ],
+    "cats": [
+      "Missi",
+      "Missu"
     ]
   },
   "2025-11-16": {
@@ -7506,6 +9877,14 @@
       "Hartti",
       "Kaarne",
       "Saarni"
+    ],
+    "dogs": [
+      "Picasso",
+      "Pikkis"
+    ],
+    "cats": [
+      "Picasso",
+      "Piku"
     ]
   },
   "2025-11-17": {
@@ -7524,6 +9903,13 @@
       "Erwin",
       "Heineri",
       "Soima"
+    ],
+    "dogs": [
+      "Eikka"
+    ],
+    "cats": [
+      "Napoleon",
+      "Nappula"
     ]
   },
   "2025-11-18": {
@@ -7548,6 +9934,13 @@
       "Maxton",
       "Maxwell",
       "Milian"
+    ],
+    "dogs": [
+      "Max"
+    ],
+    "cats": [
+      "Muska",
+      "Musse"
     ]
   },
   "2025-11-19": {
@@ -7603,6 +9996,14 @@
       "Pettiina",
       "Sisi",
       "Sissi"
+    ],
+    "dogs": [
+      "Betty",
+      "Lissu"
+    ],
+    "cats": [
+      "Kisumisu",
+      "Misuli"
     ]
   },
   "2025-11-20": {
@@ -7633,6 +10034,12 @@
       "Ponteva",
       "Ponttu",
       "Viljari"
+    ],
+    "dogs": [
+      "Jali"
+    ],
+    "cats": [
+      "Vinsentti"
     ]
   },
   "2025-11-21": {
@@ -7644,6 +10051,13 @@
       "Helma",
       "Hiltu",
       "Imara"
+    ],
+    "dogs": [
+      "Hilma",
+      "Hilu"
+    ],
+    "cats": [
+      "Salmiakki"
     ]
   },
   "2025-11-22": {
@@ -7695,6 +10109,13 @@
       "Sinja",
       "Zelal",
       "Zelda"
+    ],
+    "dogs": [
+      "Sessi",
+      "Sessu"
+    ],
+    "cats": [
+      "Sessi"
     ]
   },
   "2025-11-23": {
@@ -7705,6 +10126,14 @@
       "Isma",
       "Ismahaan",
       "Ismail"
+    ],
+    "dogs": [
+      "Cliff",
+      "Clint"
+    ],
+    "cats": [
+      "Nakki",
+      "Napsu"
     ]
   },
   "2025-11-24": {
@@ -7720,6 +10149,13 @@
       "Miera",
       "Siviä",
       "Sivia"
+    ],
+    "dogs": [
+      "Lelli",
+      "Lempi"
+    ],
+    "cats": [
+      "Minou"
     ]
   },
   "2025-11-25": {
@@ -7824,6 +10260,14 @@
       "Sipriina",
       "Triinu",
       "Trina"
+    ],
+    "dogs": [
+      "Riina",
+      "Ringa"
+    ],
+    "cats": [
+      "Kaisa",
+      "Riina"
     ]
   },
   "2025-11-26": {
@@ -7835,6 +10279,13 @@
       "Sandy",
       "Sisla",
       "Unnukka"
+    ],
+    "dogs": [
+      "Sade",
+      "Saida"
+    ],
+    "cats": [
+      "Hurmuri"
     ]
   },
   "2025-11-27": {
@@ -7846,6 +10297,13 @@
       "Astri",
       "Astrit",
       "Kalma"
+    ],
+    "dogs": [
+      "Neppari"
+    ],
+    "cats": [
+      "Debi",
+      "Demi"
     ]
   },
   "2025-11-28": {
@@ -7866,6 +10324,13 @@
       "Keijukka",
       "Kesäheinä",
       "Kivi"
+    ],
+    "dogs": [
+      "Viski",
+      "Whisky"
+    ],
+    "cats": [
+      "Miu-Mau"
     ]
   },
   "2025-11-29": {
@@ -7880,6 +10345,14 @@
       "Arvin",
       "Ayman",
       "Ayub"
+    ],
+    "dogs": [
+      "Muska",
+      "Mussu"
+    ],
+    "cats": [
+      "Riesa",
+      "Rilla"
     ]
   },
   "2025-11-30": {
@@ -7915,6 +10388,13 @@
       "Ate",
       "Atlas",
       "Atticus"
+    ],
+    "dogs": [
+      "Andy",
+      "Atte"
+    ],
+    "cats": [
+      "Hurjis"
     ]
   },
   "2025-12-01": {
@@ -7928,6 +10408,14 @@
       "Oscar",
       "Oska",
       "Oski"
+    ],
+    "dogs": [
+      "Oskari",
+      "Osku"
+    ],
+    "cats": [
+      "Oskari",
+      "Osku"
     ]
   },
   "2025-12-02": {
@@ -7962,6 +10450,13 @@
       "Unia",
       "Unne",
       "Unnu"
+    ],
+    "dogs": [
+      "Trixie"
+    ],
+    "cats": [
+      "Barbara",
+      "Belinda"
     ]
   },
   "2025-12-03": {
@@ -8008,6 +10503,14 @@
       "Vella",
       "Wellamo",
       "Xavier"
+    ],
+    "dogs": [
+      "Merkki",
+      "Merlin"
+    ],
+    "cats": [
+      "Tupla",
+      "Turbo"
     ]
   },
   "2025-12-04": {
@@ -8023,6 +10526,14 @@
       "Batseba",
       "Riana",
       "Talma"
+    ],
+    "dogs": [
+      "Safi",
+      "Saga"
+    ],
+    "cats": [
+      "Bambi",
+      "Bimbo"
     ]
   },
   "2025-12-05": {
@@ -8035,6 +10546,13 @@
       "Sevi",
       "Telma",
       "Tilma"
+    ],
+    "dogs": [
+      "Selma",
+      "Telma"
+    ],
+    "cats": [
+      "Chanel"
     ]
   },
   "2025-12-06": {
@@ -8095,6 +10613,14 @@
       "Nio",
       "Nipa",
       "Nisse"
+    ],
+    "dogs": [
+      "Nikke",
+      "Niksu"
+    ],
+    "cats": [
+      "Nikke",
+      "Nisse"
     ]
   },
   "2025-12-07": {
@@ -8109,6 +10635,13 @@
       "Neuvo",
       "Samppa",
       "Samsa"
+    ],
+    "dogs": [
+      "Epeli"
+    ],
+    "cats": [
+      "Gubbe",
+      "Gusse"
     ]
   },
   "2025-12-08": {
@@ -8135,6 +10668,14 @@
       "Teiko",
       "Tiko",
       "Tyson"
+    ],
+    "dogs": [
+      "Cara",
+      "Karelia"
+    ],
+    "cats": [
+      "Reppana",
+      "Repsu"
     ]
   },
   "2025-12-09": {
@@ -8240,6 +10781,14 @@
       "Elianna",
       "Hannukka",
       "Vanna"
+    ],
+    "dogs": [
+      "Ana",
+      "Anki"
+    ],
+    "cats": [
+      "Nuuskamuikkunen",
+      "Nuusku"
     ]
   },
   "2025-12-10": {
@@ -8252,6 +10801,12 @@
       "Judi",
       "Juta",
       "Juudit"
+    ],
+    "dogs": [
+      "Jutta"
+    ],
+    "cats": [
+      "Julle"
     ]
   },
   "2025-12-11": {
@@ -8314,6 +10869,14 @@
       "Thanawat",
       "Tune",
       "Tunne"
+    ],
+    "dogs": [
+      "Tassu",
+      "Tatu"
+    ],
+    "cats": [
+      "Kingi",
+      "Kunkku"
     ]
   },
   "2025-12-12": {
@@ -8328,6 +10891,13 @@
       "Tuuva",
       "Tuuve",
       "Tuve"
+    ],
+    "dogs": [
+      "Mörkö",
+      "Möykky"
+    ],
+    "cats": [
+      "Mörkö"
     ]
   },
   "2025-12-13": {
@@ -8354,6 +10924,14 @@
       "Sheila",
       "Siia",
       "Zeina"
+    ],
+    "dogs": [
+      "Lucy",
+      "Lusi"
+    ],
+    "cats": [
+      "Lady",
+      "Leidi"
     ]
   },
   "2025-12-14": {
@@ -8370,6 +10948,13 @@
       "Sverre",
       "Uwe",
       "Valla"
+    ],
+    "dogs": [
+      "Jätkä",
+      "Jehu"
+    ],
+    "cats": [
+      "Kolumbus"
     ]
   },
   "2025-12-15": {
@@ -8391,6 +10976,14 @@
       "Norman",
       "Nuua",
       "Sauma"
+    ],
+    "dogs": [
+      "Nero",
+      "Viksu"
+    ],
+    "cats": [
+      "Hömppä",
+      "Höntti"
     ]
   },
   "2025-12-16": {
@@ -8471,6 +11064,14 @@
       "Oda",
       "Sadette",
       "Teele"
+    ],
+    "dogs": [
+      "Aada",
+      "Adde"
+    ],
+    "cats": [
+      "Rusetti",
+      "Rusina"
     ]
   },
   "2025-12-17": {
@@ -8481,6 +11082,14 @@
       "Karela",
       "Leiho",
       "Rachida"
+    ],
+    "dogs": [
+      "Bambi",
+      "Banjo"
+    ],
+    "cats": [
+      "Tupsu",
+      "Tupu"
     ]
   },
   "2025-12-18": {
@@ -8506,6 +11115,13 @@
       "Ramin",
       "Rani",
       "Remi"
+    ],
+    "dogs": [
+      "Cella",
+      "Cemba"
+    ],
+    "cats": [
+      "Mooses"
     ]
   },
   "2025-12-19": {
@@ -8527,6 +11143,13 @@
       "Isse",
       "Ivalo",
       "Sakki"
+    ],
+    "dogs": [
+      "Kaneli",
+      "Manteli"
+    ],
+    "cats": [
+      "Jytky"
     ]
   },
   "2025-12-20": {
@@ -8554,6 +11177,13 @@
       "Penjami",
       "Penjamin",
       "Venjamin"
+    ],
+    "dogs": [
+      "Beni",
+      "Penni"
+    ],
+    "cats": [
+      "Sumppu"
     ]
   },
   "2025-12-21": {
@@ -8577,6 +11207,14 @@
       "Tomy",
       "Toomas",
       "Tunna"
+    ],
+    "dogs": [
+      "Tomppa",
+      "Tuppu"
+    ],
+    "cats": [
+      "Tom",
+      "Tomppa"
     ]
   },
   "2025-12-22": {
@@ -8590,6 +11228,14 @@
       "Rafe",
       "Raphael",
       "Raphaela"
+    ],
+    "dogs": [
+      "Raffe",
+      "Rafi"
+    ],
+    "cats": [
+      "Piccolo",
+      "Pikkunen"
     ]
   },
   "2025-12-23": {
@@ -8613,6 +11259,13 @@
       "Sheno",
       "Siena",
       "Sundus"
+    ],
+    "dogs": [
+      "Cheetah"
+    ],
+    "cats": [
+      "Nasse",
+      "Nasu"
     ]
   },
   "2025-12-24": {
@@ -8672,11 +11325,25 @@
       "Ieva",
       "Ivie",
       "Vendetta"
+    ],
+    "dogs": [
+      "Evita",
+      "Natalia"
+    ],
+    "cats": [
+      "Misku",
+      "Misse"
     ]
   },
   "2025-12-25": {
     "official": [],
-    "unofficial": []
+    "unofficial": [],
+    "dogs": [
+      ": -"
+    ],
+    "cats": [
+      ": -"
+    ]
   },
   "2025-12-26": {
     "official": [
@@ -8703,6 +11370,14 @@
       "Tahvana",
       "Tamino",
       "Tepi"
+    ],
+    "dogs": [
+      "Tepsa",
+      "Topsy"
+    ],
+    "cats": [
+      "Tahvo",
+      "Takku"
     ]
   },
   "2025-12-27": {
@@ -8722,6 +11397,14 @@
       "Hassan",
       "Hasse",
       "Hazem"
+    ],
+    "dogs": [
+      "Hanski",
+      "Hansu"
+    ],
+    "cats": [
+      "Hansu",
+      "Hasse"
     ]
   },
   "2025-12-28": {
@@ -8735,6 +11418,13 @@
       "Piipa",
       "Piita",
       "Piiu"
+    ],
+    "dogs": [
+      "Fifi",
+      "Fiona"
+    ],
+    "cats": [
+      "Bitti"
     ]
   },
   "2025-12-29": {
@@ -8750,6 +11440,12 @@
       "Lulu",
       "Riitu",
       "Zola"
+    ],
+    "dogs": [
+      "Pax"
+    ],
+    "cats": [
+      "Queen"
     ]
   },
   "2025-12-30": {
@@ -8769,6 +11465,14 @@
       "Taavo",
       "Tuhto",
       "Xhavit"
+    ],
+    "dogs": [
+      "Taavi",
+      "Taffe"
+    ],
+    "cats": [
+      "Dumbo",
+      "Jumbo"
     ]
   },
   "2025-12-31": {
@@ -8783,6 +11487,14 @@
       "Silvio",
       "Sylvesteri",
       "Vesteri"
+    ],
+    "dogs": [
+      "Huppeli",
+      "Nova"
+    ],
+    "cats": [
+      "Syltti",
+      "Sylvesteri"
     ]
   }
 }
