@@ -328,6 +328,26 @@ def np_command(context: CommandContext, bot_functions):
         else:
             return f"Päivälle {day}.{month}. ei löytynyt nimipäiviä."
 
+    # Apufunktio rivinvaihtojen lisäämiseen
+    def wrap_message(msg, limit=459):
+        result = []
+        current = 0
+        while current < len(msg):
+            # Jos jäljellä oleva pituus on pienempi kuin limit, lisää loppu
+            if len(msg) - current <= limit:
+                result.append(msg[current:])
+                break
+            # Etsi seuraava välilyönti tai pilkku limitin jälkeen
+            cut = msg.rfind(" ", current, current + limit)
+            cut_comma = msg.rfind(",", current, current + limit)
+            cut = max(cut, cut_comma)
+            if cut == -1 or cut <= current:
+                # fallback: katkaise suoraan limitin kohdalla
+                cut = current + limit
+            result.append(msg[current : cut + 1].strip())  # noqa: E203
+            current = cut + 1
+        return "\n".join(result)
+
     # 3) Nimihaku → palautetaan kaikki päivät joissa nimi esiintyy
     name = query.lower()
     results = []
@@ -343,10 +363,12 @@ def np_command(context: CommandContext, bot_functions):
             results.append(format_entry(k, v))
 
     if results:
-        # Palautetaan kaikki päivät rivitettynä
-        return f"Nimi '{query}' löytyy seuraavilta päiviltä: " + " || ".join(results)
+        msg = f"Nimi '{query.title()}' löytyy seuraavilta päiviltä: " + " || ".join(
+            results
+        )
+        return wrap_message(msg, 445)
     else:
-        return f"Nimelle '{query}' ei löytynyt nimipäiviä."
+        return f"Nimelle '{query.title()}' ei löytynyt nimipäiviä."
 
 
 @command(
