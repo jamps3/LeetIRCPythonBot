@@ -189,6 +189,86 @@ def ping_command(context: CommandContext, bot_functions):
     return "Pong! 🏓"
 
 
+@command(
+    "matka", description="Show travel time and distance", usage="!matka <from> | <to>"
+)
+def driving_distance_osrm(context: CommandContext, bot_functions):
+    """
+    Laskee ajomatkan pituuden ja keston OSRM:n avulla kahden kaupungin välillä.
+    """
+    import requests
+
+    def get_coordinates(city_name):
+        """Hakee kaupungin koordinaatit (lon, lat) Nominatim-palvelusta."""
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {"q": city_name, "format": "json", "limit": 1}
+        response = requests.get(
+            url, params=params, headers={"User-Agent": "matkalaskuri"}
+        )
+        if response.status_code == 200 and response.json():
+            result = response.json()[0]
+            return float(result["lon"]), float(result["lat"])
+        else:
+            raise Exception(f"Koordinaatteja ei löytynyt kaupungille: {city_name}")
+
+    text = context.args_text.strip()
+
+    # Jos lainausmerkit käytössä → poimitaan niiden sisältö
+    if '"' in text:
+        parts = []
+        buf = ""
+        in_quotes = False
+        for ch in text:
+            if ch == '"':
+                if in_quotes:
+                    parts.append(buf.strip())
+                    buf = ""
+                    in_quotes = False
+                else:
+                    in_quotes = True
+            else:
+                if in_quotes:
+                    buf += ch
+        args = parts
+    else:
+        # Muuten pilkotaan välilyönneillä
+        args = text.split()
+
+    if len(args) != 2:
+        return "Anna kaupungit muodossa: !matka <kaupunki1> <kaupunki2> tai lainausmerkeissä jos nimi sisältää välilyöntejä"
+
+    origin_city, destination_city = args
+
+    origin_coords = get_coordinates(origin_city)
+    destination_coords = get_coordinates(destination_city)
+
+    # OSRM-kutsu
+    url = (
+        f"http://router.project-osrm.org/route/v1/driving/"
+        f"{origin_coords[0]},{origin_coords[1]};{destination_coords[0]},{destination_coords[1]}?overview=false"
+    )
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        data = response.json()
+        route = data["routes"][0]
+        distance_km = route["distance"] / 1000  # metreistä kilometreiksi
+        duration_min = route["duration"] / 60  # sekunneista minuuteiksi
+
+        def _cap_first(x):
+            if isinstance(x, str) and x:
+                return x[0].upper() + x[1:]
+            return x
+
+        return (
+            f"{_cap_first(origin_city)} → {_cap_first(destination_city)} : "
+            f"Matka: {distance_km:.1f} km, "
+            f"Ajoaika: {duration_min/60:.1f} h"
+        )
+    else:
+        raise Exception(f"Virhe haettaessa reittiä: {response.status_code}")
+
+
 @command("np", description="Show name day for today", usage="!np")
 def np_command(context: CommandContext, bot_functions):
     """Show name day for today using nimipaivat.json data file."""
