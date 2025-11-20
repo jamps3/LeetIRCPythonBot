@@ -207,7 +207,12 @@ def driving_distance_osrm(context: CommandContext, bot_functions):
         )
         if response.status_code == 200 and response.json():
             result = response.json()[0]
-            return float(result["lon"]), float(result["lat"])
+            lon, lat = float(result["lon"]), float(result["lat"])
+            # Ota viimeinen osa display_name:sta → "Suomi / Finland"
+            display_name = result.get("display_name", "")
+            parts = [p.strip() for p in display_name.split(",")]
+            country = parts[-1] if parts else "Tuntematon maa"
+            return lon, lat, country
         else:
             raise Exception(f"Koordinaatteja ei löytynyt kaupungille: {city_name}")
 
@@ -239,13 +244,13 @@ def driving_distance_osrm(context: CommandContext, bot_functions):
 
     origin_city, destination_city = args
 
-    origin_coords = get_coordinates(origin_city)
-    destination_coords = get_coordinates(destination_city)
+    origin_lon, origin_lat, origin_country = get_coordinates(origin_city)
+    dest_lon, dest_lat, dest_country = get_coordinates(destination_city)
 
     # OSRM-kutsu
     url = (
         f"http://router.project-osrm.org/route/v1/driving/"
-        f"{origin_coords[0]},{origin_coords[1]};{destination_coords[0]},{destination_coords[1]}?overview=false"
+        f"{origin_lon},{origin_lat};{dest_lon},{dest_lat}?overview=false"
     )
     response = requests.get(url)
 
@@ -254,14 +259,12 @@ def driving_distance_osrm(context: CommandContext, bot_functions):
         route = data["routes"][0]
         distance_km = route["distance"] / 1000  # metreistä kilometreiksi
         duration_min = route["duration"] / 60  # sekunneista minuuteiksi
-
-        def _cap_first(x):
-            if isinstance(x, str) and x:
-                return x[0].upper() + x[1:]
-            return x
-
+        origin_city = origin_city.title()
+        destination_city = destination_city.title()
+        origin_country = origin_country.title()
+        dest_country = dest_country.title()
         return (
-            f"{_cap_first(origin_city)} → {_cap_first(destination_city)} : "
+            f"{origin_city}, {origin_country} → {destination_city}, {dest_country} : "
             f"Matka: {distance_km:.1f} km, "
             f"Ajoaika: {duration_min/60:.1f} h"
         )
