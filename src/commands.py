@@ -3,6 +3,7 @@ Unified Commands Module for LeetIRCPythonBot
 Admin commands in commands_admin.py
 """
 
+import json
 import os
 import random
 import re
@@ -36,6 +37,23 @@ data_manager = _data_manager
 drink_tracker = _drink_tracker
 general_words = _general_words
 tamagotchi_bot = _tamagotchi_bot
+
+
+# =====================
+# Helper functions
+# =====================
+
+
+def load_otiedote_json():
+    JSON_FILE = "otiedote.json"
+    if not os.path.exists(JSON_FILE):
+        print(f"Otiedote JSON file not found: {JSON_FILE}")
+        return []
+    with open(JSON_FILE, "r", encoding="utf8") as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []
 
 
 # =====================
@@ -1613,82 +1631,56 @@ def solarwind_command(context: CommandContext, bot_functions):
 
 @command(
     "otiedote",
-    description="Get accident reports (Otiedote)",
-    usage="!otiedote [N | # | #N | set N]",
+    description="Get accident reports (Onnettomuustiedotteet) from local JSON",
+    usage="!otiedote [N | #N]",
     examples=[
         "!otiedote",
-        "!otiedote 1",
         "!otiedote 2",
-        "!otiedote #",
         "!otiedote #2610",
-        "!otiedote set 2610",
     ],
 )
 def otiedote_command(context: CommandContext, bot_functions):
-    """Handle otiedote (accident report) commands.
+    """Handle otiedote commands from local JSON."""
+    otiedote_list = load_otiedote_json()
+    if not otiedote_list:
+        return "❌ No otiedote data available."
 
-    - !otiedote: Display the latest otiedote full description
-    - !otiedote 1, !otiedote 2, etc.: Display the 1st, 2nd, etc. latest otiedote (short description + URL)
-    - !otiedote #: Display the current otiedote release number
-    - !otiedote #1234: Display the short description for otiedote #1234
-    - !otiedote set 1234: Set the latest otiedote release number to 1234
-    """
-    # Get the otiedote helper function from bot_functions
-    get_otiedote = bot_functions.get("get_otiedote_info")
-    set_otiedote = bot_functions.get("set_otiedote_number")
+    # Latest release number (highest ID)
+    latest_id = max(item["id"] for item in otiedote_list)
 
-    if not get_otiedote:
-        return "❌ Otiedote service not available"
+    # Current number (#) simply returns latest ID
+    if context.args_text and context.args_text.strip() == "#":
+        return f"Current otiedote release number: #{latest_id}"
 
-    # Parse arguments
     args_text = context.args_text.strip() if context.args_text else ""
 
-    # Case 1: !otiedote (no args) - show latest full description
+    # !otiedote → show latest full description
     if not args_text:
-        result = get_otiedote("latest_full")
-        if result.get("error"):
-            return result["message"]
-        return result["message"]
+        latest = max(otiedote_list, key=lambda x: x["id"])
+        if latest["content"]:
+            return f"📄 {latest['title']} {latest['content']} URL: {latest['url']}"
+        else:
+            return f"📄 {latest['title']} URL: {latest['url']}"
 
-    # Case 2: !otiedote set <number> - set the latest release number
-    if args_text.lower().startswith("set "):
-        if not set_otiedote:
-            return "❌ Otiedote set function not available"
-        try:
-            number_str = args_text[4:].strip()
-            number = int(number_str)
-            result = set_otiedote(number)
-            return result.get("message", f"✅ Set latest otiedote to #{number}")
-        except ValueError:
-            return "❌ Invalid number format. Usage: !otiedote set <number>"
-
-    # Case 3: !otiedote # - show current release number
-    if args_text == "#":
-        result = get_otiedote("current_number")
-        if result.get("error"):
-            return result["message"]
-        return result["message"]
-
-    # Case 4: !otiedote #<number> - show short description for specific release number
+    # !otiedote #<number> → show short description for specific release number
     if args_text.startswith("#"):
         try:
             number = int(args_text[1:])
-            result = get_otiedote("by_number", number=number)
-            if result.get("error"):
-                return result["message"]
-            return result["message"]
+            item = next((x for x in otiedote_list if x["id"] == number), None)
+            if not item:
+                return f"❌ Otiedote #{number} not found in local JSON."
+            return f"📄 {item['title']}\n{item['content']}\nOrganization: {item.get('organization', '')}\nURL: {item['url']}"
         except ValueError:
             return "❌ Invalid number format. Usage: !otiedote #<number>"
 
-    # Case 5: !otiedote <N> - show Nth latest (1=latest, 2=second latest, etc.)
+    # !otiedote <N> → show Nth latest (1=latest)
     try:
         offset = int(args_text)
-        if offset < 1:
-            return "❌ Number must be positive. Usage: !otiedote <N> (1=latest, 2=second latest, etc.)"
-        result = get_otiedote("nth_latest", offset=offset)
-        if result.get("error"):
-            return result["message"]
-        return result["message"]
+        if offset < 1 or offset > len(otiedote_list):
+            return f"❌ Invalid number. Must be between 1 and {len(otiedote_list)}."
+        sorted_list = sorted(otiedote_list, key=lambda x: x["id"], reverse=True)
+        item = sorted_list[offset - 1]
+        return f"📄 {item['title']}\n{item['content']}\nOrganization: {item.get('organization', '')}\nURL: {item['url']}"
     except ValueError:
         return "❌ Invalid argument. Usage: !otiedote [N | # | #N | set N]"
 

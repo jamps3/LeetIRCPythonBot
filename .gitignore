@@ -181,6 +181,7 @@ drink_tracking.json
 leet_detections.json
 last_warning.json
 subscriptions.json
+otiedote.json
 
 # Ignore backup files
 *backup

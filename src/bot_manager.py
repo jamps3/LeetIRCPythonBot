@@ -75,7 +75,7 @@ except ImportError as e:
     GPTService = None
 
 try:
-    from services.otiedote_playwright_service import create_otiedote_service
+    from services.otiedote_json_service import create_otiedote_service
 except ImportError as e:
     logger.warning(f"Otiedote service not available: {e}")
     create_otiedote_service = None
