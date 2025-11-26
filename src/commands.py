@@ -1658,7 +1658,7 @@ def otiedote_command(context: CommandContext, bot_functions):
     if not args_text:
         latest = max(otiedote_list, key=lambda x: x["id"])
         if latest["content"]:
-            return f"📄 {latest['title']} {latest['content']} URL: {latest['url']}"
+            return f"📄 {latest['title']} '{latest['content']}' URL: {latest['url']}"
         else:
             return f"📄 {latest['title']} URL: {latest['url']}"
 
@@ -1669,7 +1669,7 @@ def otiedote_command(context: CommandContext, bot_functions):
             item = next((x for x in otiedote_list if x["id"] == number), None)
             if not item:
                 return f"❌ Otiedote #{number} not found in local JSON."
-            return f"📄 {item['title']}\n{item['content']}\nOrganization: {item.get('organization', '')}\nURL: {item['url']}"
+            return f"📄 {item['title']} '{item['content']}' URL: {item['url']}"
         except ValueError:
             return "❌ Invalid number format. Usage: !otiedote #<number>"
 
@@ -1680,7 +1680,7 @@ def otiedote_command(context: CommandContext, bot_functions):
             return f"❌ Invalid number. Must be between 1 and {len(otiedote_list)}."
         sorted_list = sorted(otiedote_list, key=lambda x: x["id"], reverse=True)
         item = sorted_list[offset - 1]
-        return f"📄 {item['title']}\n{item['content']}\nOrganization: {item.get('organization', '')}\nURL: {item['url']}"
+        return f"📄 {item['title']} '{item['content']}' URL: {item['url']}"
     except ValueError:
         return "❌ Invalid argument. Usage: !otiedote [N | # | #N | set N]"
 

@@ -5,6 +5,7 @@ This module provides the BotManager class that orchestrates multiple IRC server
 connections and integrates all bot functionality across servers.
 """
 
+import asyncio
 import os
 import re
 import threading
@@ -133,6 +134,7 @@ class BotManager:
         # Read default quit message from environment or use fallback
         self.quit_message = os.getenv("QUIT_MESSAGE", "Disconnecting")
         self.logger = logger.get_logger("BotManager")
+        self.otiedote_task = None
 
         # Only set up readline and console features when in console mode
         if self.console_mode and READLINE_AVAILABLE:
@@ -309,9 +311,6 @@ class BotManager:
             )
         else:
             self.fmi_warning_service = None
-
-        # Storage for the latest Otiedote release info
-        self.latest_otiedote: Optional[dict] = None
 
         # Initialize Otiedote service
         if create_otiedote_service is not None:
@@ -712,8 +711,6 @@ class BotManager:
             "stop_event": self.stop_event,  # Allow IRC commands to trigger shutdown
             "set_quit_message": self.set_quit_message,  # Allow setting custom quit message
             "set_openai_model": self.set_openai_model,  # Allow changing OpenAI model at runtime
-            "get_otiedote_info": self._get_otiedote_info,  # Get otiedote information
-            "set_otiedote_number": self._set_otiedote_number,  # Set otiedote release number
             "bot_manager": self,  # Reference to the bot manager itself (needed for commands)
         }
 
@@ -739,14 +736,20 @@ class BotManager:
             try:
                 import asyncio
 
-                # Try to run the coroutine properly
+                loop = None
                 try:
                     loop = asyncio.get_running_loop()
-                    # If we're in an event loop, schedule it as a task
-                    asyncio.create_task(self.otiedote_service.start())
                 except RuntimeError:
-                    # No running loop, create new one
-                    asyncio.run(self.otiedote_service.start())
+                    # No running loop, create one
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                # Schedule as a background task and keep a reference for stopping later
+                self.otiedote_task = loop.create_task(self.otiedote_service.start())
+
+                self.logger.info(
+                    "📢 Otiedote monitoring service started in background."
+                )
             except Exception as e:
                 self.logger.warning(f"Could not start Otiedote service: {e}")
 
@@ -1020,7 +1023,7 @@ class BotManager:
                     f"Error sending Otiedote release to {subscriber_nick} on {server_name}: {e}"
                 )
 
-    def stop(self, quit_message: str = None):
+    async def stop(self, quit_message: str = None):
         """Quit all servers, stop all services and shutdown bot gracefully.
 
         Args:
@@ -1038,6 +1041,7 @@ class BotManager:
             self.quit_message = quit_message
 
         # Stop monitoring services
+        # Stop FMIWarningService (thread-based, sync)
         try:
             if self.fmi_warning_service is not None:
                 self.logger.info("Stopping FMI warning service...")
@@ -1045,37 +1049,19 @@ class BotManager:
         except Exception as e:
             self.logger.error(f"Error stopping FMI warning service: {e}")
 
+        # Stop OtiedoteService (async-based)
         try:
             if self.otiedote_service is not None:
-                self.logger.info(
-                    "Stopping Otiedote service (may take up to 10 seconds)..."
-                )
-                try:
-                    import asyncio
-
-                    # Try to run the coroutine properly
+                self.logger.info("Stopping Otiedote service...")
+                # cancel and await the task
+                if self.otiedote_task:
+                    self.otiedote_task.cancel()
                     try:
-                        loop = asyncio.get_running_loop()
-                        # If we're in an event loop, schedule it as a task
-                        asyncio.create_task(self.otiedote_service.stop())
-                        time.sleep(1)  # Brief wait for task to start
-                    except RuntimeError:
-                        # No running loop, create new one
-                        asyncio.run(self.otiedote_service.stop())
-                except Exception as async_e:
-                    self.logger.warning(
-                        f"Could not stop Otiedote service async: {async_e}"
-                    )
-                    # Fallback: try synchronous stop if available
-                    try:
-                        if hasattr(self.otiedote_service, "_stop_sync"):
-                            self.otiedote_service._stop_sync()
-                    except Exception as sync_e:
-                        self.logger.warning(
-                            f"Could not stop Otiedote service sync: {sync_e}"
-                        )
+                        await self.otiedote_task
+                    except asyncio.CancelledError:
+                        pass
+                    self.otiedote_task = None
 
-                time.sleep(2)  # Reduced grace period
                 self.logger.info("Otiedote service stopped")
         except Exception as e:
             self.logger.error(f"Error stopping Otiedote service: {e}")
@@ -1757,195 +1743,6 @@ class BotManager:
         except Exception as e:
             self.logger.error(f"Error sending latest Otiedote: {e}")
             self._send_response(server, target, f"❌ Virhe: {e}")
-
-    def _get_otiedote_info(self, mode: str, number: int = None, offset: int = None):
-        """Get otiedote information based on mode.
-
-        Args:
-            mode: One of 'latest_full', 'current_number', 'by_number', 'nth_latest'
-            number: Release number for 'by_number' mode
-            offset: Offset from latest for 'nth_latest' mode (1=latest, 2=second latest, etc.)
-
-        Returns:
-            Dictionary with 'error' (bool) and 'message' (str) keys
-        """
-        try:
-            # Mode 1: Latest full description (the cached one)
-            if mode == "latest_full":
-                info = getattr(self, "latest_otiedote", None)
-                if not info:
-                    return {
-                        "error": True,
-                        "message": "📢 Ei tallennettua Onnettomuustiedotetta vielä. Odota uutta ilmoitusta.",
-                    }
-
-                desc = (info.get("description") or "").strip()
-                url = info.get("url", "")
-                title = info.get("title", "")
-
-                if not desc:
-                    return {
-                        "error": False,
-                        "message": f"📢 Ei kuvausta saatavilla. | {url}",
-                    }
-
-                return {"error": False, "message": f"📢 {title} | {desc} | {url}"}
-
-            # Mode 2: Current release number
-            elif mode == "current_number":
-                if not self.otiedote_service:
-                    return {
-                        "error": True,
-                        "message": "❌ Otiedote service not available",
-                    }
-
-                info = self.otiedote_service.get_latest_release_info()
-                latest_num = info.get("latest_release", 0)
-                return {
-                    "error": False,
-                    "message": f"📢 Viimeisin seurattu Otiedote: #{latest_num}",
-                }
-
-            # Mode 3: Fetch specific release by number
-            elif mode == "by_number":
-                if number is None:
-                    return {"error": True, "message": "❌ Release number required"}
-
-                if not self.otiedote_service:
-                    return {
-                        "error": True,
-                        "message": "❌ Otiedote service not available",
-                    }
-
-                # Fetch the release from the service
-                try:
-                    release_data = self._fetch_otiedote_by_number(number)
-                    if release_data.get("error"):
-                        return release_data
-                    return {"error": False, "message": release_data["message"]}
-                except Exception as e:
-                    return {
-                        "error": True,
-                        "message": f"❌ Error fetching otiedote #{number}: {e}",
-                    }
-
-            # Mode 4: Nth latest (1=latest, 2=second latest, etc.)
-            elif mode == "nth_latest":
-                if offset is None or offset < 1:
-                    return {
-                        "error": True,
-                        "message": "❌ Valid offset required (1=latest, 2=second latest, etc.)",
-                    }
-
-                if not self.otiedote_service:
-                    return {
-                        "error": True,
-                        "message": "❌ Otiedote service not available",
-                    }
-
-                # Calculate the release number
-                info = self.otiedote_service.get_latest_release_info()
-                latest_num = info.get("latest_release", 0)
-                target_num = latest_num - (offset - 1)
-
-                if target_num < 1:
-                    return {
-                        "error": True,
-                        "message": f"❌ Not enough history. Latest is #{latest_num}",
-                    }
-
-                # Fetch the release
-                try:
-                    release_data = self._fetch_otiedote_by_number(target_num)
-                    if release_data.get("error"):
-                        return release_data
-                    return {"error": False, "message": release_data["message"]}
-                except Exception as e:
-                    return {
-                        "error": True,
-                        "message": f"❌ Error fetching otiedote: {e}",
-                    }
-
-            else:
-                return {"error": True, "message": "❌ Unknown mode"}
-
-        except Exception as e:
-            self.logger.error(f"Error getting otiedote info: {e}")
-            return {"error": True, "message": f"❌ Error: {e}"}
-
-    def _fetch_otiedote_by_number(self, number: int) -> dict:
-        """Fetch a specific otiedote release by number.
-
-        Args:
-            number: The release number to fetch
-
-        Returns:
-            Dictionary with 'error' (bool) and 'message' (str) keys
-        """
-        try:
-            import asyncio
-
-            from bs4 import BeautifulSoup
-
-            # Use the playwright service to fetch the page
-            url = f"https://otiedote.fi/release_view/{number}"
-
-            # Try to fetch the page using the existing playwright infrastructure
-            # This is a simplified version - in production you might want to reuse
-            # the browser instance from otiedote_service
-            try:
-                from playwright.sync_api import sync_playwright
-
-                with sync_playwright() as p:
-                    browser = p.firefox.launch(headless=True)
-                    page = browser.new_page()
-                    page.goto(url, wait_until="networkidle")
-                    page.wait_for_selector("h1", timeout=5000)
-                    html = page.content()
-                    browser.close()
-
-                soup = BeautifulSoup(html, "html.parser")
-                title_tag = soup.find("h1")
-                title = title_tag.text.strip() if title_tag else f"Release {number}"
-
-                return {"error": False, "message": f"📢 #{number}: {title} | {url}"}
-
-            except Exception as fetch_error:
-                # Fallback: just return the URL
-                self.logger.warning(
-                    f"Could not fetch otiedote #{number} details: {fetch_error}"
-                )
-                return {"error": False, "message": f"📢 Otiedote #{number}: {url}"}
-
-        except Exception as e:
-            self.logger.error(f"Error fetching otiedote #{number}: {e}")
-            return {
-                "error": True,
-                "message": f"❌ Error fetching otiedote #{number}: {e}",
-            }
-
-    def _set_otiedote_number(self, number: int) -> dict:
-        """Set the latest otiedote release number.
-
-        Args:
-            number: The release number to set as latest
-
-        Returns:
-            Dictionary with 'error' (bool) and 'message' (str) keys
-        """
-        try:
-            if not self.otiedote_service:
-                return {"error": True, "message": "❌ Otiedote service not available"}
-
-            # Update the service's latest release number and save to file
-            self.otiedote_service.latest_release = number
-            self.otiedote_service._save_latest_release(number)
-
-            return {"error": False, "message": f"✅ Set latest otiedote to #{number}"}
-
-        except Exception as e:
-            self.logger.error(f"Error setting otiedote number: {e}")
-            return {"error": True, "message": f"❌ Error: {e}"}
 
     def _send_weather(self, irc, channel, location):
         """Send weather information."""

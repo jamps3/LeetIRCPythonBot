@@ -30,6 +30,7 @@ Environment Configuration:
 """
 
 import argparse
+import asyncio
 import os
 import sys
 from datetime import datetime
@@ -121,7 +122,7 @@ def setup_environment():
     return bot_name
 
 
-def main():
+async def main():
     """Main entry point for the multi-server IRC bot."""
     # Setup console encoding for Unicode support - broken
     # setup_console_encoding()
@@ -259,7 +260,8 @@ def main():
     finally:
         # Ensure clean shutdown
         try:
-            bot_manager.stop()
+            # Stop services cleanly
+            await bot_manager.stop()
             main_logger.log(
                 "✅ Bot shut down successfully",
                 "INFO",
@@ -276,4 +278,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    asyncio.run(main())

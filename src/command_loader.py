@@ -83,6 +83,7 @@ async def process_irc_command(
         response = await process_command_message(
             message, context, bot_functions_with_irc
         )
+        logger.debug(f"Processed IRC command '{message}' with response: {response}")
 
         if response is not None:
             # Send response if needed
@@ -285,7 +286,7 @@ def process_console_command(command_text: str, bot_functions: Dict[str, Any]):
             notice_message(f"Command error: {str(e)}")
 
 
-def process_irc_message(irc, message, bot_functions):
+async def process_irc_message(irc, message, bot_functions):
     """
     Process IRC messages and route commands to the command registry system.
 
@@ -312,20 +313,9 @@ def process_irc_message(irc, message, bot_functions):
 
     # Process command through command registry
     try:
-        # Run async command processing in a compatible way
-        try:
-            # Get or create an event loop
-            loop = asyncio.get_running_loop()
-        except RuntimeError:  # No running loop
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        processed = loop.run_until_complete(
-            process_irc_command(text, sender, target, irc, bot_functions)
-        )
-
+        processed = await process_irc_command(text, sender, target, irc, bot_functions)
         if processed:
-            return  # Command was handled
+            return
 
     except Exception as e:
         log_func = bot_functions.get("log")
