@@ -115,77 +115,100 @@ def fetch_release(id):
 # Hakuun sisältyvä logiikka
 # ----------------------------------------------------------------------
 def fetch_until_limit(start_id=50, found_limit=10, missing_streak_limit=10):
-    id_map, existing_ids = load_existing_ids()
-    results = list(id_map.values())
+    try:
+        id_map, existing_ids = load_existing_ids()
+        results = list(id_map.values())
 
-    found_count = 0
-    missing_streak = 0
-    current_id = start_id
-    updated = False  # Merkitsee, että JSONiin on tehty muutoksia
+        found_count = 0
+        missing_streak = 0
+        current_id = start_id
+        updated = False  # Merkitsee, että JSONiin on tehty muutoksia
 
-    print(f"Loaded {len(existing_ids)} existing IDs from JSON.")
-    print(f"Starting from ID {start_id}...\n")
+        print(f"Loaded {len(existing_ids)} existing IDs from JSON.")
+        print(f"Starting from ID {start_id}...\n")
 
-    while found_count < found_limit and missing_streak < missing_streak_limit:
-        # OHITA JOS JO JSONISSA
-        if current_id in existing_ids:
-            existing_item = id_map[current_id]
-            # Päivitä organisaatio, jos puuttuu
-            if not existing_item.get("organization"):
-                data = fetch_release(current_id)
-                if data and data.get("organization"):
-                    existing_item["organization"] = data["organization"]
-                    print(
-                        f"ID {current_id} existed but organization updated → {data['organization']}"
-                    )
-                    updated = True
+        while found_count < found_limit and missing_streak < missing_streak_limit:
+            # OHITA JOS JO JSONISSA
+            if current_id in existing_ids:
+                existing_item = id_map[current_id]
 
-            # Päivitä content, jos siellä lukee vain "Tapahtuman kuvaus:" tai se on tyhjä
-            if existing_item.get(
-                "content", ""
-            ).strip() == "Tapahtuman kuvaus:" or not existing_item.get("content"):
-                data = fetch_release(current_id)
-                if data and data.get("content"):
-                    existing_item["content"] = data["content"]
-                    print(
-                        f"ID {current_id} content updated → {data['content'][:60]}..."
-                    )
-                    updated = True
+                # Tarvitaanko päivityksiä?
+                needs_org = not existing_item.get("organization")
+                needs_content = existing_item.get(
+                    "content", ""
+                ).strip() == "Tapahtuman kuvaus:" or not existing_item.get("content")
+
+                if needs_org or needs_content:
+                    data = fetch_release(current_id)
+                    if data:
+                        if needs_org and data.get("organization"):
+                            existing_item["organization"] = data["organization"]
+                            print(
+                                f"ID {current_id} organization updated → {data['organization']}"
+                            )
+                            updated = True
+
+                        if needs_content and data.get("content"):
+                            existing_item["content"] = data["content"]
+                            print(
+                                f"ID {current_id} content updated → {data['content'][:60]}..."
+                            )
+                            updated = True
+
+                current_id += 1
+                continue
+
+            print(f"Checking ID {current_id}...", end=" ")
+
+            data = fetch_release(current_id)
+            if data:
+                print(f"FOUND → {data['title']}")
+                results.append(data)
+                id_map[current_id] = data
+                existing_ids.add(current_id)
+
+                found_count += 1
+                missing_streak = 0
+                updated = True  # Uusi ID lisätty
+            else:
+                print("missing")
+                missing_streak += 1
 
             current_id += 1
-            continue
+            # time.sleep(0.1)  # Hyödytön, palvelin vastaa hitaasti joka tapauksessa
 
-        print(f"Checking ID {current_id}...", end=" ")
+    except KeyboardInterrupt:
+        print("\n\nKESKEYTETTY käyttäjän toimesta (Ctrl+C).")
 
-        data = fetch_release(current_id)
-        if data:
-            print(f"FOUND → {data['title']}")
-            results.append(data)
-            id_map[current_id] = data
-            existing_ids.add(current_id)
-
-            found_count += 1
-            missing_streak = 0
-            updated = True  # Uusi ID lisätty
+    finally:
+        # kysytään tallennus
+        if updated:
+            save = (
+                input("Tallennetaanko tehdyt päivitykset .json-tiedostoon? (k/e): ")
+                .strip()
+                .lower()
+            )
+            if save == "k":
+                with open(JSON_FILE, "w", encoding="utf-8") as f:
+                    json.dump(results_sorted, f, ensure_ascii=False, indent=2)
+                print("Tallennettu.")
+            else:
+                print("Ei tallennettu.")
         else:
-            print("missing")
-            missing_streak += 1
+            print("Ei tallennettavaa.")
 
-        current_id += 1
-        # time.sleep(0.1)  # Hyödytön, palvelin vastaa hitaasti joka tapauksessa
+        # Tallennus JSONiin vain, jos jotain on päivittynyt
+        if updated:
+            # Tallennus JSONiin numerojärjestyksessä
+            results_sorted = sorted(results, key=lambda x: x["id"])
+            with open(JSON_FILE, "w", encoding="utf8") as f:
+                json.dump(results_sorted, f, ensure_ascii=False, indent=2)
 
-    # Tallennus JSONiin vain, jos jotain on päivittynyt
-    if updated:
-        # Tallennus JSONiin numerojärjestyksessä
-        results_sorted = sorted(results, key=lambda x: x["id"])
-        with open(JSON_FILE, "w", encoding="utf8") as f:
-            json.dump(results_sorted, f, ensure_ascii=False, indent=2)
-
-    print("\nSearch finished.")
-    print(f"Found new IDs: {found_count}")
-    print(f"Total IDs now in JSON: {len(results)}")
+        print("\nSearch finished.")
+        print(f"Found new IDs: {found_count}")
+        print(f"Total IDs now in JSON: {len(results)}")
 
 
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
-    fetch_until_limit(start_id=0, found_limit=10, missing_streak_limit=10)
+    fetch_until_limit(start_id=0, found_limit=100, missing_streak_limit=10)
