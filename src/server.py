@@ -6,6 +6,8 @@ related to a single IRC server connection, including connection management,
 reconnection logic, message handling, and maintaining the connection lifecycle.
 """
 
+import asyncio
+import inspect
 import os
 import re
 import socket  # For TLS support
@@ -72,7 +74,7 @@ class Server:
         # Allow 5 messages per 10 seconds (0.5 messages/second)
         self._rate_limit_tokens = 5.0  # Start with full bucket
         self._rate_limit_max_tokens = 5.0  # Maximum tokens
-        self._rate_limit_refill_rate = 0.5  # Tokens per second
+        self._rate_limit_refill_rate = 2  # Tokens per second - raised to 2/sec for better throughput as the limit is not known
         self._rate_limit_last_refill = time.time()
         self._rate_limit_lock = threading.Lock()
 
@@ -467,6 +469,46 @@ class Server:
                     self.connected = False
                 break
 
+    def _invoke_callback(self, callback: Callable, *args):
+        """
+        Invoke a callback, handling both sync and async callbacks.
+
+        Args:
+            callback: The callback function to invoke
+            *args: Arguments to pass to the callback
+        """
+        try:
+            # Check if callback is a coroutine function
+            if inspect.iscoroutinefunction(callback):
+                # Since we're in a thread (message reading thread), we need to
+                # run async callbacks in their own event loop
+                # We run it in a daemon thread to avoid blocking the IRC message processing
+                def run_async():
+                    try:
+                        # Create a new event loop for this async callback
+                        new_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(new_loop)
+                        try:
+                            new_loop.run_until_complete(callback(*args))
+                        except Exception as e:
+                            self.log.error(f"Error in async callback: {e}")
+                        finally:
+                            new_loop.close()
+                            asyncio.set_event_loop(None)
+                    except Exception as e:
+                        self.log.error(f"Error setting up async callback: {e}")
+
+                # Run in a daemon thread to avoid blocking IRC message processing
+                thread = threading.Thread(
+                    target=run_async, daemon=True, name="AsyncCallback"
+                )
+                thread.start()
+            else:
+                # Regular synchronous callback - call it directly
+                callback(*args)
+        except Exception as e:
+            self.log.error(f"Error in callback: {e}")
+
     def _process_message(self, message: str):
         """
         Process an incoming IRC message.
@@ -475,15 +517,12 @@ class Server:
             message (str): The raw IRC message
         """
         # Process PRIVMSG
-        privmsg_match = re.search(r":(\S+)!(\S+) PRIVMSG (\S+) :(.+)", message)
+        privmsg_match = re.search(r":([^!]+)!([^ ]+) PRIVMSG (\S+) :(.+)", message)
         if privmsg_match:
             sender, hostmask, target, text = privmsg_match.groups()
             # Call all registered message callbacks
             for callback in self.callbacks["message"]:
-                try:
-                    callback(self, sender, target, text)
-                except Exception as e:
-                    self.log.error(f"Error in message callback: {e}")
+                self._invoke_callback(callback, self, sender, hostmask, target, text)
             return
 
         # Process NOTICE
@@ -492,10 +531,7 @@ class Server:
             sender, hostmask, target, text = notice_match.groups()
             # Call all registered notice callbacks
             for callback in self.callbacks["notice"]:
-                try:
-                    callback(self, sender, target, text)
-                except Exception as e:
-                    self.log.error(f"Error in notice callback: {e}")
+                self._invoke_callback(callback, self, sender, hostmask, target, text)
             return
 
         # Process JOIN
@@ -505,10 +541,7 @@ class Server:
             # Strip leading colon from channel name if present
             channel = channel.lstrip(":")
             for callback in self.callbacks["join"]:
-                try:
-                    callback(self, sender, channel)
-                except Exception as e:
-                    self.log.error(f"Error in join callback: {e}")
+                self._invoke_callback(callback, self, sender, hostmask, channel)
             return
 
         # Process PART
@@ -516,10 +549,7 @@ class Server:
         if part_match:
             sender, hostmask, channel = part_match.groups()
             for callback in self.callbacks["part"]:
-                try:
-                    callback(self, sender, channel)
-                except Exception as e:
-                    self.log.error(f"Error in part callback: {e}")
+                self._invoke_callback(callback, self, sender, hostmask, channel)
             return
 
         # Process QUIT
@@ -527,10 +557,7 @@ class Server:
         if quit_match:
             sender, hostmask = quit_match.groups()
             for callback in self.callbacks["quit"]:
-                try:
-                    callback(self, sender)
-                except Exception as e:
-                    self.log.error(f"Error in quit callback: {e}")
+                self._invoke_callback(callback, self, sender, hostmask)
             return
 
     def _process_notice(self, message: str):
@@ -547,7 +574,7 @@ class Server:
             # Call all registered message callbacks
             for callback in self.callbacks["notice"]:
                 try:
-                    callback(self, sender, target, text)
+                    callback(self, sender, hostmask, target, text)
                 except Exception as e:
                     self.log.error(f"Error in message callback: {e}")
             return

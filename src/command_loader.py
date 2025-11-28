@@ -28,7 +28,7 @@ def load_all_commands():
 
         registry = get_command_registry()
         command_count = len(registry._commands)
-        logger.info(f"Loaded {command_count} commands from command modules")
+        logger.debug(f"Loaded {command_count} commands from command modules")
 
     except Exception as e:
         logger.warning(f"Warning: Could not load all command modules: {e}")
@@ -39,6 +39,7 @@ async def process_irc_command(
     sender: str,
     target: str,
     irc_connection,
+    ident_host: str,
     bot_functions: Dict[str, Any],
 ) -> bool:
     """
@@ -49,6 +50,7 @@ async def process_irc_command(
         sender: Nickname of the message sender
         target: Channel or target of the message
         irc_connection: IRC socket connection
+        ident_host: Sender's ident@host string
         bot_functions: Dictionary of bot functions and data
 
     Returns:
@@ -61,13 +63,26 @@ async def process_irc_command(
     config = get_config()
     is_private = target.lower() == config.name.lower()
     # For private messages, we should reply to the sender nick instead of the target (bot's nick)
-    reply_target = sender if is_private else target
+    # For channel messages, ALWAYS reply to the channel (target), not the sender
+    # Ensure we never accidentally send channel responses to individual users
+    if target.startswith("#"):
+        reply_target = target  # Always use channel for channel messages
+    else:
+        reply_target = (
+            sender if is_private else target
+        )  # Use sender for private messages
+
+    logger.debug(
+        f"Command from {sender} in {'private' if is_private else 'channel'} "
+        f"'{target}' -> reply_target: {reply_target}"
+    )
 
     context = CommandContext(
         command="",  # Will be filled by process_command_message
         args=[],  # Will be filled by process_command_message
         raw_message=message,
         sender=sender,
+        ident_host=ident_host,
         target=target,
         is_private=is_private,
         is_console=False,
@@ -78,46 +93,87 @@ async def process_irc_command(
     bot_functions_with_irc = bot_functions.copy()
     bot_functions_with_irc["irc"] = irc_connection
 
+    # Ensure commands are loaded before processing
+    ensure_commands_loaded()
+
     # Process the command
     try:
+        logger.debug(f"Processing IRC command message: {message} Context:{context}")
         response = await process_command_message(
             message, context, bot_functions_with_irc
         )
+        logger.debug(f"Command response: {response}")
 
         if response is not None:
             # Send response if needed
             if response.should_respond and response.message:
                 notice_message = bot_functions.get("notice_message")
+                wrap_func = bot_functions.get("wrap_irc_message_utf8_bytes")
+                logger.debug(
+                    f"notice_message function: {notice_message}, reply_target: {reply_target}"
+                )
+
                 if notice_message:
-                    # Always split by newlines for IRC safety (IRC messages cannot contain newlines)
-                    lines = str(response.message).split("\n")
-                    split_func = bot_functions.get("split_message_intelligently")
-                    for line in lines:
-                        line = line.rstrip()
-                        if not line:
-                            continue
-                        if response.split_long_messages and split_func:
-                            # Split per line to respect IRC length limits
-                            parts = split_func(line, 400)
-                            for part in parts:
-                                if part:
-                                    notice_message(part, irc_connection, reply_target)
-                        else:
-                            # Fallback: send each line as a separate notice
-                            notice_message(line, irc_connection, reply_target)
+                    try:
+                        # Always split by newlines for IRC safety (IRC messages cannot contain newlines)
+                        lines = str(response.message).split("\n")
+                        logger.debug(
+                            f"Message split into {len(lines)} lines, split_long_messages: {response.split_long_messages}, wrap_func: {wrap_func}"
+                        )
+
+                        for line in lines:
+                            line = line.rstrip()
+                            if not line:
+                                continue
+
+                            if response.split_long_messages and wrap_func:
+                                # Split per line to respect IRC length limits using wrap function
+                                try:
+                                    parts = wrap_func(line, reply_target, max_lines=10)
+                                    logger.debug(
+                                        f"Wrapped line into {len(parts)} parts"
+                                    )
+                                    for part in parts:
+                                        if part:
+                                            logger.debug(
+                                                f"Sending notice (wrapped): {part[:50]}... to {reply_target}"
+                                            )
+                                            notice_message(
+                                                part, irc_connection, reply_target
+                                            )
+                                except Exception as wrap_error:
+                                    logger.warning(
+                                        f"Error wrapping message: {wrap_error}, sending as-is"
+                                    )
+                                    # Fallback: send without wrapping
+                                    notice_message(line, irc_connection, reply_target)
+                            else:
+                                # Send line as-is without wrapping
+                                logger.debug(
+                                    f"Sending notice (no wrap): {line[:50]}... to {reply_target}"
+                                )
+                                notice_message(line, irc_connection, reply_target)
+                    except Exception as send_error:
+                        import traceback
+
+                        logger.error(
+                            f"Error sending response: {send_error}\n{traceback.format_exc()}"
+                        )
+                else:
+                    logger.warning(
+                        f"notice_message function not found in bot_functions. Available keys: {list(bot_functions.keys())}"
+                    )
 
             return True  # Command was processed
 
     except Exception as e:
         # Log error but don't crash
-        log_func = bot_functions.get("log")
-        if log_func:
-            log_func(f"Error processing command '{message}': {e}", "ERROR")
+        logger.error(f"Error processing command '{message}': {e}")
 
         # Send error message to user
-        notice_message = bot_functions.get("notice_message")
-        if notice_message:
-            notice_message(f"Command error: {str(e)}", irc_connection, reply_target)
+        # notice_message = bot_functions.get("notice_message")
+        # if notice_message:
+        #    notice_message(f"Command error: {str(e)}", irc_connection, reply_target)
 
         return True  # Still consider it processed to avoid fallback
 
@@ -285,7 +341,7 @@ def process_console_command(command_text: str, bot_functions: Dict[str, Any]):
             notice_message(f"Command error: {str(e)}")
 
 
-def process_irc_message(irc, message, bot_functions):
+async def process_irc_message(irc, message, bot_functions):
     """
     Process IRC messages and route commands to the command registry system.
 
@@ -294,17 +350,24 @@ def process_irc_message(irc, message, bot_functions):
     """
     import re
 
-    # Extract message components
-    match = re.search(r":(\S+)!(\S+) PRIVMSG (\S+) :(.+)", message)
+    log = bot_functions.get("log")
+
+    # Extract message components with nick, ident@host, target, and text
+    match = re.search(r":([^!]+)!([^ ]+) PRIVMSG (\S+) :(.+)", message)
     if not match:
         # Not a PRIVMSG, ignore
+        log.debug(f"Ignoring non-PRIVMSG IRC message: {message}")
         return
 
-    sender, _, target, text = match.groups()
+    sender, ident_host, target, text = match.groups()
+    # target = "Joensuu"  # Normalize target case
+    target = target[0].upper() + target[1:] if target else target
+    log.debug(f"Received IRC message from {sender} @ {ident_host} to {target}: {text}")
 
     # Only process commands (starting with ! or /)
     if not text.startswith(("!", "/")):
         # Non-command messages are handled by bot_manager's word tracking system
+        log.debug(f"Ignoring non-command IRC message: {text}")
         return
 
     # Ensure commands are loaded before processing
@@ -312,27 +375,12 @@ def process_irc_message(irc, message, bot_functions):
 
     # Process command through command registry
     try:
-        # Run async command processing in a compatible way
-        try:
-            # Get or create an event loop
-            loop = asyncio.get_running_loop()
-        except RuntimeError:  # No running loop
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        processed = loop.run_until_complete(
-            process_irc_command(text, sender, target, irc, bot_functions)
-        )
-
-        if processed:
-            return  # Command was handled
+        await process_irc_command(text, sender, target, irc, ident_host, bot_functions)
+        return  # Command was handled
 
     except Exception as e:
-        log_func = bot_functions.get("log")
-        if log_func:
-            log_func(
-                f"Command processing failed for IRC command '{text}': {e}", "WARNING"
-            )
+        if log:
+            log.error(f"Command processing failed for IRC command '{text}': {e}")
 
 
 def get_command_help_text() -> str:

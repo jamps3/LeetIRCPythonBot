@@ -67,7 +67,7 @@ def test_service_creation(create_otiedote_service):
 
     try:
         service = create_otiedote_service(
-            callback=callback, state_file="debug_otiedote.txt"
+            callback=callback, state_file="latest_otiedote.txt"
         )
         print("Successfully created otiedote service")
         return service, announcements
@@ -174,7 +174,7 @@ def test_command_variants():
             from src.services.otiedote_playwright_service import create_otiedote_service
 
             service = create_otiedote_service(
-                callback=lambda t, u, d: None, state_file="debug_otiedote.txt"
+                callback=lambda t, u, d: None, state_file="latest_otiedote.txt"
             )
         except Exception as e:
             print(f"Could not create service for command test: {e}")

@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Union
 
+import logger
+
 
 class CommandType(Enum):
     """Types of commands available in the bot."""
@@ -39,6 +41,7 @@ class CommandContext:
     args: List[str]  # Command arguments
     raw_message: str  # Original message text
     sender: Optional[str] = None  # IRC nickname of sender (None for console)
+    ident_host: Optional[str] = None  # IRC ident@host of sender
     target: Optional[str] = None  # IRC channel/target (None for console)
     is_private: bool = False  # True if sent via private message
     is_console: bool = False  # True if executed from console
@@ -499,6 +502,7 @@ async def process_command_message(
     """
     command_name, args, raw_message = parse_command_message(message, command_prefix)
     if not command_name:
+        logger.debug(f"No command found in message: {message}")
         return None
 
     # Update context with parsed command info
@@ -508,4 +512,14 @@ async def process_command_message(
 
     # Execute the command
     registry = get_command_registry()
+    logger.debug(
+        f"Looking up command '{command_name}' in registry with {len(registry._commands)} commands"
+    )
+    handler = registry.get_handler(command_name)
+    if not handler:
+        logger.debug(
+            f"Command '{command_name}' not found in registry. Available commands: {list(registry._commands.keys())[:10]}"
+        )
+        return None
+
     return await registry.execute_command(command_name, context, bot_functions)

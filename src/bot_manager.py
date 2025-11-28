@@ -470,15 +470,17 @@ class BotManager:
             # Register join callback for user tracking
             server.register_callback("join", self._handle_join)
 
-            # Register part callback for cleanup
+            # Register part callback
             server.register_callback("part", self._handle_part)
 
-            # Register quit callback for cleanup
+            # Register quit callback
             server.register_callback("quit", self._handle_quit)
 
             self.logger.info(f"Registered callbacks for server: {server_name}")
 
-    def _handle_notice(self, server: Server, sender: str, target: str, text: str):
+    def _handle_notice(
+        self, server: Server, sender: str, ident_host: str, target: str, text: str
+    ):
         """
         Handle incoming notices from any server.
 
@@ -494,6 +496,7 @@ class BotManager:
                 "server": server,
                 "server_name": server.config.name,
                 "sender": sender,
+                "ident_host": ident_host,
                 "target": target,
                 "text": text,
                 "is_private": not target.startswith("#"),
@@ -509,13 +512,16 @@ class BotManager:
         except Exception as e:
             self.logger.error(f"Error handling notice from {server.config.name}: {e}")
 
-    def _handle_message(self, server: Server, sender: str, target: str, text: str):
+    async def _handle_message(
+        self, server: Server, sender: str, ident_host: str, target: str, text: str
+    ):
         """
         Handle incoming messages from any server.
 
         Args:
             server: The Server instance that received the message
             sender: The nickname who sent the message
+            ident_host: The ident@host of the sender
             target: The target (channel or bot's nick)
             text: The message content
         """
@@ -525,6 +531,7 @@ class BotManager:
                 "server": server,
                 "server_name": server.config.name,
                 "sender": sender,
+                "ident_host": ident_host,
                 "target": target,
                 "text": text,
                 "is_private": not target.startswith("#"),
@@ -589,7 +596,7 @@ class BotManager:
                     self.logger.warning(f"Error in URL title fetcher: {e}")
 
             # Process commands
-            self._process_commands(context)
+            await self._process_commands(context)
 
         except Exception as e:
             self.logger.error(f"Error handling message from {server.config.name}: {e}")
@@ -660,10 +667,11 @@ class BotManager:
                 server = context["server"]
                 self._send_response(server, target, response)
 
-    def _process_commands(self, context: Dict[str, Any]):
+    async def _process_commands(self, context: Dict[str, Any]):
         """Process IRC commands and bot interactions."""
         server = context["server"]
         sender = context["sender"]
+        ident_host = context["ident_host"]
         target = context["target"]
         text = context["text"]
 
@@ -679,7 +687,7 @@ class BotManager:
             "latency_start": lambda: getattr(self, "_latency_start", 0),
             "set_latency_start": lambda value: setattr(self, "_latency_start", value),
             "notice_message": lambda msg, irc=None, target=None: self._send_response(
-                server, target or context["target"], msg
+                irc or server, target or context["target"], msg
             ),
             "send_electricity_price": self._send_electricity_price,
             "measure_latency": self._measure_latency,
@@ -705,25 +713,40 @@ class BotManager:
             "subscriptions": self._get_subscriptions_module(),
             "DRINK_WORDS": self._get_drink_words(),
             "get_latency_start": lambda: getattr(self, "_latency_start", 0),
-            "BOT_VERSION": "2.1.0",
+            "BOT_VERSION": "2.1.1",
             "toggle_tamagotchi": lambda srv, tgt, snd: self.toggle_tamagotchi(
                 srv, tgt, snd
             ),
             "stop_event": self.stop_event,  # Allow IRC commands to trigger shutdown
             "set_quit_message": self.set_quit_message,  # Allow setting custom quit message
             "set_openai_model": self.set_openai_model,  # Allow changing OpenAI model at runtime
-            "get_otiedote_info": self._get_otiedote_info,  # Get otiedote information
-            "set_otiedote_number": self._set_otiedote_number,  # Set otiedote release number
             "bot_manager": self,  # Reference to the bot manager itself (needed for commands)
         }
 
         # Create a mock IRC message format for commands.py compatibility
-        mock_message = f":{sender}!{sender}@host.com PRIVMSG {target} :{text}"
+        # mock_message = f":{sender}!{sender}@host.com PRIVMSG {target} :{text}"
+        # Build a proper IRC line with all info
+        message = f":{sender}!{ident_host} PRIVMSG {target.lower()} :{text}"
+        self.logger.debug(f"Constructed IRC message: {message}")
 
         try:
-            process_irc_message(server, mock_message, bot_functions)
+            self.logger.debug(
+                f"Processing command from {sender} on {server.config.name}: {text}"
+            )
+            from command_loader import process_irc_command
+
+            await process_irc_command(
+                text,  # message body (!s, !np, etc)
+                sender,  # nick
+                target,  # channel or private target
+                server,  # connection instance
+                ident_host,  # ident@host
+                bot_functions,  # function table
+            )
+
+            self.logger.debug(f"Finished processing command from {sender}")
         except Exception as e:
-            self.logger.error(f"Error processing command: {e}")
+            self.logger.error(f"Error @ _process_commands: {e}")
 
     def start(self):
         """Start all servers and bot functionality."""
@@ -1119,11 +1142,11 @@ class BotManager:
 
                 # If no server threads and no console, we should exit
                 if not active_server_threads and not console_active:
-                    self.logger.debug("No active threads, checking stop event...")
                     if self.stop_event.is_set():
+                        self.logger.debug("Stop event set, exiting wait loop")
                         break
                     # If no active threads but stop event not set, wait a bit more
-                    time.sleep(0.5)
+                    time.sleep(1)
                     continue
 
                 time.sleep(0.1)  # Check frequently for faster response
@@ -1710,25 +1733,45 @@ class BotManager:
 
         # Don't send or log messages if we're not connected to the server
         if not server.connected:
+            self.logger.debug(f"Not sending message to {target}: server not connected")
             return
 
         # Don't send or log messages if target is a channel and we haven't joined it
+        # However, if we're receiving messages from a channel, we're clearly in it,
+        # so we'll allow sending even if the join event wasn't tracked properly
         if target.startswith("#"):
             server_name = server.config.name
-            if (
-                server_name not in self.joined_channels
-                or target not in self.joined_channels[server_name]
-            ):
-                return
+            # Normalize channel name to lowercase for case-insensitive comparison (IRC channels are case-insensitive)
+            target_normalized = target.lower()
+            if server_name not in self.joined_channels:
+                self.joined_channels[server_name] = set()
+
+            # Check if any case variant of the channel is in joined_channels
+            joined_channels_normalized = {
+                ch.lower() for ch in self.joined_channels[server_name]
+            }
+            if target_normalized not in joined_channels_normalized:
+                # If channel not tracked, add it now (we're clearly in it if we're sending to it)
+                # Store with the original case as received, but check case-insensitively
+                self.logger.debug(
+                    f"Channel {target} not in joined_channels, adding it now (server: {server_name})"
+                )
+                self.joined_channels[server_name].add(target)
 
         # Log IRC responses to console for visibility
         server_name = getattr(server.config, "name", "unknown")
+        self.logger.debug(
+            f"Sending response to {target} on {server_name}: {message[:100]}"
+        )
         self.logger.msg(f"[{server_name}:{target}] {message}", "MSG")
 
-        if self.use_notices:
-            server.send_notice(target, message)
-        else:
-            server.send_message(target, message)
+        try:
+            if self.use_notices:
+                server.send_notice(target, message)
+            else:
+                server.send_message(target, message)
+        except Exception as e:
+            self.logger.error(f"Error sending message to {target}: {e}", exc_info=True)
 
     def _send_latest_otiedote(self, server, target):
         """Send the latest cached Otiedote description on-demand (no header)."""
@@ -1871,80 +1914,6 @@ class BotManager:
 
         except Exception as e:
             self.logger.error(f"Error getting otiedote info: {e}")
-            return {"error": True, "message": f"❌ Error: {e}"}
-
-    def _fetch_otiedote_by_number(self, number: int) -> dict:
-        """Fetch a specific otiedote release by number.
-
-        Args:
-            number: The release number to fetch
-
-        Returns:
-            Dictionary with 'error' (bool) and 'message' (str) keys
-        """
-        try:
-            import asyncio
-
-            from bs4 import BeautifulSoup
-
-            # Use the playwright service to fetch the page
-            url = f"https://otiedote.fi/release_view/{number}"
-
-            # Try to fetch the page using the existing playwright infrastructure
-            # This is a simplified version - in production you might want to reuse
-            # the browser instance from otiedote_service
-            try:
-                from playwright.sync_api import sync_playwright
-
-                with sync_playwright() as p:
-                    browser = p.firefox.launch(headless=True)
-                    page = browser.new_page()
-                    page.goto(url, wait_until="networkidle")
-                    page.wait_for_selector("h1", timeout=5000)
-                    html = page.content()
-                    browser.close()
-
-                soup = BeautifulSoup(html, "html.parser")
-                title_tag = soup.find("h1")
-                title = title_tag.text.strip() if title_tag else f"Release {number}"
-
-                return {"error": False, "message": f"📢 #{number}: {title} | {url}"}
-
-            except Exception as fetch_error:
-                # Fallback: just return the URL
-                self.logger.warning(
-                    f"Could not fetch otiedote #{number} details: {fetch_error}"
-                )
-                return {"error": False, "message": f"📢 Otiedote #{number}: {url}"}
-
-        except Exception as e:
-            self.logger.error(f"Error fetching otiedote #{number}: {e}")
-            return {
-                "error": True,
-                "message": f"❌ Error fetching otiedote #{number}: {e}",
-            }
-
-    def _set_otiedote_number(self, number: int) -> dict:
-        """Set the latest otiedote release number.
-
-        Args:
-            number: The release number to set as latest
-
-        Returns:
-            Dictionary with 'error' (bool) and 'message' (str) keys
-        """
-        try:
-            if not self.otiedote_service:
-                return {"error": True, "message": "❌ Otiedote service not available"}
-
-            # Update the service's latest release number and save to file
-            self.otiedote_service.latest_release = number
-            self.otiedote_service._save_latest_release(number)
-
-            return {"error": False, "message": f"✅ Set latest otiedote to #{number}"}
-
-        except Exception as e:
-            self.logger.error(f"Error setting otiedote number: {e}")
             return {"error": True, "message": f"❌ Error: {e}"}
 
     def _send_weather(self, irc, channel, location):

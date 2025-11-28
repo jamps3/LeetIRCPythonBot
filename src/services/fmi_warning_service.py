@@ -8,6 +8,7 @@ via RSS feed and provides notifications for filtered locations.
 import hashlib
 import json
 import os
+import re
 import threading
 import time
 from typing import Callable, List, Optional, Set
@@ -158,7 +159,7 @@ class FMIWarningService:
                         # Add to seen data for duplicate checking
                         seen_data.append(
                             {
-                                "title": title,
+                                "title": self._normalize_title(title),
                                 "timestamp": entry.get("published", ""),
                                 "hash": entry_hash,
                             }
@@ -181,8 +182,10 @@ class FMIWarningService:
     def _get_entry_hash(self, entry: dict) -> str:
         """Generate hash for warning entry to detect duplicates."""
         title = entry.get("title", "")
-        summary = entry.get("summary", "")[:100]
-        cleaned = " ".join((title + summary).split())
+        summary = entry.get("summary", "")
+
+        normalized = self._normalize_title(title) + summary
+        cleaned = " ".join(normalized.split())
         return hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
 
     def _load_seen_hashes(self) -> Set[str]:
@@ -259,16 +262,40 @@ class FMIWarningService:
         except IOError as e:
             log(f"Error saving seen data: {e}", level="ERROR", context="FMI_WS")
 
+    def _normalize_title(self, title: str) -> str:
+        """
+        Extract only the END time from the warning title.
+        Removes weekday, start time, dash, and surrounding spaces.
+        """
+        if not title:
+            return ""
+
+        t = title.lower()
+
+        # Examples:
+        # "ma 14.32 - 23.00", "ma 17.49 – 23.00", "ti 06.00-09.00"
+        t = re.sub(
+            r"\b(ma|ti|ke|to|pe|la|su)\s+\d{1,2}\.\d{2}\s*[–-]\s*\d{1,2}\.\d{2}", "", t
+        )
+
+        # Also match "klo 17.49–23.00"
+        t = re.sub(r"klo\s*\d{1,2}\.\d{2}\s*[–-]\s*\d{1,2}\.\d{2}", "", t)
+
+        # Clean multiple spaces
+        t = re.sub(r"\s+", " ", t).strip()
+
+        return t
+
     def _is_duplicate_title(self, title: str, seen_data: List[dict]) -> bool:
         """Check if a title is a duplicate of recently seen warnings."""
         if not title:
             return False
 
         # Clean and normalize title for comparison
-        clean_title = title.strip().lower()
+        clean_title = self._normalize_title(title)
 
         for item in seen_data:
-            seen_title = item.get("title", "").strip().lower()
+            seen_title = self._normalize_title(item.get("title", ""))
             if clean_title == seen_title:
                 return True
 
