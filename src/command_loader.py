@@ -350,7 +350,17 @@ async def process_irc_message(irc, message, bot_functions):
     """
     import re
 
-    log = bot_functions.get("log")
+    import logger
+
+    log_func = bot_functions.get("log")
+    # Handle case where log might be a function or a logger object
+    if log_func is None:
+        log = logger.get_logger("command_loader")
+    elif hasattr(log_func, "debug"):
+        log = log_func
+    else:
+        # If it's a function (like self.logger from bot_manager), wrap it
+        log = logger.get_logger("command_loader")
 
     # Extract message components with nick, ident@host, target, and text
     match = re.search(r":([^!]+)!([^ ]+) PRIVMSG (\S+) :(.+)", message)

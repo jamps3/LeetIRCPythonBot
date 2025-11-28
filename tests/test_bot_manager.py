@@ -691,10 +691,22 @@ def test_handle_message_core_paths(monkeypatch, manager):
         raising=False,
     )
 
-    manager._handle_message(
-        server, "someone", "#chan", "check youtube https://youtube.com/watch?v=x"
+    import asyncio
+
+    asyncio.run(
+        manager._handle_message(
+            server,
+            "someone",
+            "someone@host.com",
+            "#chan",
+            "check youtube https://youtube.com/watch?v=x",
+        )
     )
-    manager._handle_message(server, "nick", "MyBot", "MyBot: hello there")
+    asyncio.run(
+        manager._handle_message(
+            server, "nick", "nick@host.com", "MyBot", "MyBot: hello there"
+        )
+    )
 
     # At least ytinfo and two GPT lines should be sent
     texts = [m for _, _, m in sent]
@@ -1158,7 +1170,9 @@ def test_nanoleet_achievement_send(monkeypatch, manager):
     sent = []
     manager._send_response = lambda s, t, m: sent.append(m)
     server = SimpleNamespace(config=SimpleNamespace(name="srv"))
-    manager._handle_message(server, "u", "#c", "hello")
+    import asyncio
+
+    asyncio.run(manager._handle_message(server, "u", "u@host.com", "#c", "hello"))
     assert "ach" in sent
 
 
@@ -1180,38 +1194,41 @@ def test_process_commands_paths(monkeypatch, manager):
         "sender": "nick",
         "target": "#c",
         "text": "!otiedote",
+        "ident_host": "nick@host.com",
     }
     # Mock get_otiedote_info in the manager for the bot_functions dict
     monkeypatch.setattr(
         manager, "_get_otiedote_info", fake_get_otiedote_info, raising=False
     )
-    manager._process_commands(ctx)
+    import asyncio
+
+    asyncio.run(manager._process_commands(ctx))
     # Command should be processed (may or may not call get_otiedote_info depending on service availability)
     # Just verify _process_commands doesn't crash
     assert True
 
-    # process_irc_message gets called for normal text
+    # process_irc_command gets called for command text
     called2 = {"args": None}
 
-    def mock_process_irc_message(*a, **k):
+    async def mock_process_irc_command(*a, **k):
         called2.update({"args": a})
+        return True  # Command was processed
 
-    # Patch the function in command_loader module (where it's defined)
-    # and also in bot_manager module (where it's imported)
+    # Patch process_irc_command in command_loader module
     import command_loader
 
     monkeypatch.setattr(
-        command_loader, "process_irc_message", mock_process_irc_message, raising=False
-    )
-    monkeypatch.setattr(
-        bm, "process_irc_message", mock_process_irc_message, raising=False
+        command_loader, "process_irc_command", mock_process_irc_command, raising=False
     )
     ctx2 = {
         "server": server,
         "server_name": "srv",
         "sender": "nick",
         "target": "#c",
-        "text": "hello",
+        "text": "!hello",  # Make it a command so it gets processed
+        "ident_host": "nick@host.com",
     }
-    manager._process_commands(ctx2)
+    import asyncio
+
+    asyncio.run(manager._process_commands(ctx2))
     assert called2["args"] is not None

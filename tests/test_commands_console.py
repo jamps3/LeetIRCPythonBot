@@ -971,8 +971,10 @@ def test_exit_command_console_and_irc():
         def __init__(self):
             self.sent = []
 
+    import asyncio
+
     raw = ":nick!u@h PRIVMSG #c :!exit"
-    process_irc_message(_DummyIrc(), raw, botf)
+    asyncio.run(process_irc_message(_DummyIrc(), raw, botf))
     assert notices and any(
         ("only" in n.lower() and "console" in n.lower()) for n in notices
     )
@@ -1235,8 +1237,10 @@ def test_short_forecast_commands_console_and_irc(monkeypatch):
         def __init__(self):
             self.sent = []
 
+    import asyncio
+
     raw = ":nick!u@h PRIVMSG #chan :!sel TestCity 12"
-    process_irc_message(_DummyIrc2(), raw, botfi)
+    asyncio.run(process_irc_message(_DummyIrc2(), raw, botfi))
     assert notices and any("L1" in n[0] for n in notices)
 
 
@@ -1504,10 +1508,12 @@ def test_help_irc_fallback_without_notice():
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
 
     # Without irc
+    import asyncio
+
     raw = ":nick!u@h PRIVMSG #c :!help"
     botf_no_irc = {"notice_message": lambda m, *a, **k: responses.append(m)}
     responses.clear()
-    process_irc_message(_DummyIrc3(), raw, botf_no_irc)
+    asyncio.run(process_irc_message(_DummyIrc3(), raw, botf_no_irc))
     # Should still add response in fallback
 
 

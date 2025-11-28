@@ -503,12 +503,16 @@ def test_tilaa_command(temp_subscriptions_file):
         bot_functions["log"] = lambda msg, level="INFO": None
         bot_functions["server_name"] = "test_server"
 
+        import asyncio
+
         from command_loader import process_irc_message
 
-        process_irc_message(
-            Mock(),
-            ":jamps!user@host.com PRIVMSG #joensuu :!tilaa varoitukset",
-            bot_functions,
+        asyncio.run(
+            process_irc_message(
+                Mock(),
+                ":jamps!user@host.com PRIVMSG #joensuu :!tilaa varoitukset",
+                bot_functions,
+            )
         )
         assert responses
         assert all(s in responses[0] for s in ["✅", "#joensuu", "varoitukset"])
@@ -521,10 +525,12 @@ def test_tilaa_command(temp_subscriptions_file):
         )
 
         responses.clear()
-        process_irc_message(
-            Mock(),
-            ":jamps3!user@host.com PRIVMSG testbot :!tilaa varoitukset",
-            bot_functions,
+        asyncio.run(
+            process_irc_message(
+                Mock(),
+                ":jamps3!user@host.com PRIVMSG testbot :!tilaa varoitukset",
+                bot_functions,
+            )
         )
         assert responses
         assert all(s in responses[0] for s in ["✅", "jamps3", "varoitukset"])
@@ -537,10 +543,12 @@ def test_tilaa_command(temp_subscriptions_file):
         )
 
         responses.clear()
-        process_irc_message(
-            Mock(),
-            ":jamps3!user@host.com PRIVMSG #joensuu :!tilaa varoitukset #other-channel",
-            bot_functions,
+        asyncio.run(
+            process_irc_message(
+                Mock(),
+                ":jamps3!user@host.com PRIVMSG #joensuu :!tilaa varoitukset #other-channel",
+                bot_functions,
+            )
         )
         assert responses
         assert "✅" in responses[0] and "#other-channel" in responses[0]
@@ -557,15 +565,19 @@ def test_tilaa_command(temp_subscriptions_file):
         # the removal of #joensuu without actually removing it in the test
 
         responses.clear()
-        process_irc_message(
-            Mock(),
-            ":jamps3!user@host.com PRIVMSG #testchannel :!tilaa varoitukset",
-            bot_functions,
+        asyncio.run(
+            process_irc_message(
+                Mock(),
+                ":jamps3!user@host.com PRIVMSG #testchannel :!tilaa varoitukset",
+                bot_functions,
+            )
         )
-        process_irc_message(
-            Mock(),
-            ":jamps3!user@host.com PRIVMSG #testchannel :!tilaa list",
-            bot_functions,
+        asyncio.run(
+            process_irc_message(
+                Mock(),
+                ":jamps3!user@host.com PRIVMSG #testchannel :!tilaa list",
+                bot_functions,
+            )
         )
         assert responses
         # Since we're using mocked subscriptions.format_all_subscriptions(),

@@ -106,8 +106,10 @@ class DummyIrc:
 
 
 def _run_irc(process_irc_message, raw_text, bot_functions):
+    import asyncio
+
     mock_irc = DummyIrc()
-    process_irc_message(mock_irc, raw_text, bot_functions)
+    asyncio.run(process_irc_message(mock_irc, raw_text, bot_functions))
     return mock_irc
 
 
@@ -726,8 +728,10 @@ class TestSolarWindCommand:
 
 
 def _run_help(process_irc_message, raw_text, bot_functions):
+    import asyncio
+
     irc = DummyIrc()
-    process_irc_message(irc, raw_text, bot_functions)
+    asyncio.run(process_irc_message(irc, raw_text, bot_functions))
     return irc
 
 

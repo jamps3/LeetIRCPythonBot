@@ -598,19 +598,19 @@ def test_read_messages_timeout_and_errors(monkeypatch, srv):
 def test_process_message_callbacks_and_errors(srv):
     seen = {"m": 0, "j": 0, "p": 0, "q": 0}
 
-    def cbm(_s, sender, target, text):
+    def cbm(_s, sender, hostmask, target, text):
         seen["m"] += 1
         raise RuntimeError("cb err")
 
-    def cbj(_s, sender, channel):
+    def cbj(_s, sender, hostmask, channel):
         seen["j"] += 1
         raise RuntimeError("cb err")
 
-    def cbp(_s, sender, channel):
+    def cbp(_s, sender, hostmask, channel):
         seen["p"] += 1
         raise RuntimeError("cb err")
 
-    def cbq(_s, sender):
+    def cbq(_s, sender, hostmask):
         seen["q"] += 1
         raise RuntimeError("cb err")
 
@@ -619,10 +619,21 @@ def test_process_message_callbacks_and_errors(srv):
     srv.register_callback("part", cbp)
     srv.register_callback("quit", cbq)
 
+    import time
+
     srv._process_message(":nick!u PRIVMSG #c :hello")
     srv._process_message(":nick!u JOIN #c")
     srv._process_message(":nick!u PART #c")
     srv._process_message(":nick!u QUIT :bye")
+
+    # Give async callbacks time to execute (if any were async)
+    # But since these are sync callbacks, they execute immediately
+    # Just give a tiny delay to be safe
+    time.sleep(0.05)
+
+    # Debug: print what was seen
+    if not all(v == 1 for v in seen.values()):
+        print(f"DEBUG: seen values: {seen}")
 
     assert all(v == 1 for v in seen.values())
 

@@ -905,18 +905,28 @@ def test_bot_manager_default_unconnected_state():
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.insert(0, parent_dir)
 
+    # Create bot manager without auto-connect
+    import os
+
     from bot_manager import BotManager
 
-    # Create bot manager without auto-connect
-    bot = BotManager("TestBot")
+    # Make sure AUTO_CONNECT is not set for this test
+    auto_connect_orig = os.environ.pop("AUTO_CONNECT", None)
+    try:
+        bot = BotManager("TestBot")
 
-    # Should default to not connected
-    assert bot.connected is False, "Bot should default to unconnected state"
-    assert bot.auto_connect is False, "Auto-connect should default to False"
-    assert len(bot.server_threads) == 0, "No server threads should be active initially"
+        # Should default to not connected
+        assert bot.connected is False, "Bot should default to unconnected state"
+        assert bot.auto_connect is False, "Auto-connect should default to False"
+        assert (
+            len(bot.server_threads) == 0
+        ), "No server threads should be active initially"
 
-    # Clean up
-    bot.stop_event.set()
+        # Clean up
+        bot.stop_event.set()
+    finally:
+        if auto_connect_orig is not None:
+            os.environ["AUTO_CONNECT"] = auto_connect_orig
 
 
 def test_bot_manager_auto_connect_environment():
