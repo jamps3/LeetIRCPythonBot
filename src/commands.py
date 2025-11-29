@@ -56,6 +56,10 @@ def load_otiedote_json():
             return []
 
 
+def trim_with_dots(text: str, limit: int = 400) -> str:
+    return text if len(text) <= 400 else text[:400].rsplit(" ", 1)[0] + "..."
+
+
 # =====================
 # Basic commands section
 # =====================
@@ -1669,7 +1673,8 @@ def otiedote_command(context: CommandContext, bot_functions):
             item = next((x for x in otiedote_list if x["id"] == number), None)
             if not item:
                 return f"❌ Otiedote #{number} not found in local JSON."
-            return f"📄 {item['title']}\n{item['content']}\nOrganization: {item.get('organization', '')}\nURL: {item['url']}"
+            trimmed_content = trim_with_dots(item["content"])
+            return f"📄 {item['title']} {trimmed_content} {item.get('location', '')} {item.get('date', '')} URL: {item['url']}"
         except ValueError:
             return "❌ Invalid number format. Usage: !otiedote #<number>"
 
@@ -1680,7 +1685,8 @@ def otiedote_command(context: CommandContext, bot_functions):
             return f"❌ Invalid number. Must be between 1 and {len(otiedote_list)}."
         sorted_list = sorted(otiedote_list, key=lambda x: x["id"], reverse=True)
         item = sorted_list[offset - 1]
-        return f"📄 {item['title']}\n{item['content']}\nOrganization: {item.get('organization', '')}\nURL: {item['url']}"
+        trimmed_content = trim_with_dots(item["content"])
+        return f"📄 {item['title']} {trimmed_content} {item.get('location', '')} {item.get('date', '')} URL: {item['url']}"
     except ValueError:
         return "❌ Invalid argument. Usage: !otiedote [N | # | #N | set N]"
 

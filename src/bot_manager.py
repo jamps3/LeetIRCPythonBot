@@ -759,19 +759,59 @@ class BotManager:
         if self.fmi_warning_service is not None:
             self.fmi_warning_service.start()
         if self.otiedote_service is not None:
-            try:
-                import asyncio
-
-                # Try to run the coroutine properly
+            # Start Otiedote service in background thread to avoid blocking startup
+            def start_otiedote_background():
                 try:
-                    loop = asyncio.get_running_loop()
-                    # If we're in an event loop, schedule it as a task
-                    asyncio.create_task(self.otiedote_service.start())
-                except RuntimeError:
-                    # No running loop, create new one
-                    asyncio.run(self.otiedote_service.start())
-            except Exception as e:
-                self.logger.warning(f"Could not start Otiedote service: {e}")
+                    import asyncio
+
+                    # Create a new event loop in this thread
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        # Start the service
+                        new_loop.run_until_complete(self.otiedote_service.start())
+                        # Keep the loop running to handle async operations
+                        # The monitor loop will run until self.running is False
+                        new_loop.run_forever()
+                    except Exception as e:
+                        self.logger.error(
+                            f"Otiedote service background loop error: {e}"
+                        )
+                    finally:
+                        try:
+                            # Stop the service
+                            if self.otiedote_service.running:
+                                new_loop.run_until_complete(
+                                    self.otiedote_service.stop()
+                                )
+                            # Cancel all remaining tasks
+                            pending = asyncio.all_tasks(new_loop)
+                            for task in pending:
+                                task.cancel()
+                            # Wait for tasks to complete cancellation
+                            if pending:
+                                new_loop.run_until_complete(
+                                    asyncio.gather(*pending, return_exceptions=True)
+                                )
+                        except Exception:
+                            pass
+                        finally:
+                            new_loop.close()
+                            asyncio.set_event_loop(None)
+                except Exception as e:
+                    self.logger.error(
+                        f"Could not start Otiedote service in background: {e}"
+                    )
+
+            otiedote_thread = threading.Thread(
+                target=start_otiedote_background,
+                daemon=True,
+                name="OtiedoteService",
+            )
+            otiedote_thread.start()
+            self.logger.debug("Otiedote service started in background thread")
+            # Store reference to thread for potential cleanup
+            self.otiedote_thread = otiedote_thread
 
         # Start console listener thread only in console mode
         if self.console_mode:
@@ -1071,35 +1111,23 @@ class BotManager:
         try:
             if self.otiedote_service is not None:
                 self.logger.info(
-                    "Stopping Otiedote service (may take up to 10 seconds)..."
+                    "Stopping Otiedote service (may take up to 5 seconds)..."
                 )
                 try:
-                    import asyncio
+                    # Signal the service to stop - it runs in its own background thread
+                    # Setting running=False will cause the monitor loop to exit
+                    if hasattr(self.otiedote_service, "running"):
+                        self.otiedote_service.running = False
+                        # The service's stop() method should be called from its own event loop
+                        # but since we can't easily access it, just wait for the thread to exit
+                        # The daemon thread will exit when the process exits anyway
 
-                    # Try to run the coroutine properly
-                    try:
-                        loop = asyncio.get_running_loop()
-                        # If we're in an event loop, schedule it as a task
-                        asyncio.create_task(self.otiedote_service.stop())
-                        time.sleep(1)  # Brief wait for task to start
-                    except RuntimeError:
-                        # No running loop, create new one
-                        asyncio.run(self.otiedote_service.stop())
-                except Exception as async_e:
-                    self.logger.warning(
-                        f"Could not stop Otiedote service async: {async_e}"
-                    )
-                    # Fallback: try synchronous stop if available
-                    try:
-                        if hasattr(self.otiedote_service, "_stop_sync"):
-                            self.otiedote_service._stop_sync()
-                    except Exception as sync_e:
-                        self.logger.warning(
-                            f"Could not stop Otiedote service sync: {sync_e}"
-                        )
+                    # Give it a moment to detect the stop signal
+                    time.sleep(1)
 
-                time.sleep(2)  # Reduced grace period
-                self.logger.info("Otiedote service stopped")
+                    self.logger.info("Otiedote service stop signaled")
+                except Exception as e:
+                    self.logger.warning(f"Error stopping Otiedote service: {e}")
         except Exception as e:
             self.logger.error(f"Error stopping Otiedote service: {e}")
 
