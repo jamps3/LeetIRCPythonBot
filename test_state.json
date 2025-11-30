@@ -1,0 +1,22 @@
+{
+  "fmi_warnings": {
+    "seen_hashes": [
+      "44bab6cf7af66ea0f9ac30b4216fa32ddefcec166017cbd6891d0f2bd81e7726"
+    ],
+    "seen_data": [
+      {
+        "title": "Warning 1 Joensuu",
+        "hash": "hash1"
+      },
+      {
+        "title": "Warning 2 Joensuu",
+        "hash": "hash2"
+      },
+      {
+        "title": "warning 3 joensuu",
+        "timestamp": "",
+        "hash": "44bab6cf7af66ea0f9ac30b4216fa32ddefcec166017cbd6891d0f2bd81e7726"
+      }
+    ]
+  }
+}
