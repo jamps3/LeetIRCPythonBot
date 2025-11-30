@@ -18,7 +18,9 @@ class TamagotchiBot:
     """A virtual pet tamagotchi that responds to trigger words and has emotional states."""
 
     def __init__(
-        self, data_manager: DataManager, tamagotchi_config_file: str = "tamagotchi.json"
+        self,
+        data_manager: DataManager,
+        tamagotchi_config_file: str = "data/tamagotchi.json",
     ):
         """
         Initialize the tamagotchi bot.

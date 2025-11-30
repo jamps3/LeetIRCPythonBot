@@ -197,8 +197,6 @@ def temp_dir():
 @pytest.fixture
 def data_manager(temp_dir):
     """Create a DataManager instance for testing."""
-    # Clear the opt-out environment variable to ensure clean test environment
-    os.environ["DRINK_TRACKING_OPT_OUT"] = ""
     return DataManager(temp_dir)
 
 

@@ -22,7 +22,7 @@ class BotManager {
   +crypto_service: CryptoService?
   +fmi_warning_service: FMIWarningService?
   +otiedote_service: OtiedoteService?
-  +nanoleet_detector: LeetDetector
+  +leet_detector: LeetDetector
   +lemmatizer: Lemmatizer?
   +data_manager: DataManager
   +drink_tracker: DrinkTracker
@@ -380,6 +380,7 @@ IRCClient ..> ServerConfig
 ```
 
 Notes:
+
 - Additional service classes include DigitalTrafficService (train information), EurojackpotService (lottery data), SolarWindService (space weather), ScheduledMessageService (timed messages), WeatherForecastService (extended weather forecasts), and IPFSService (distributed file storage).
 - The Lemmatizer class provides Finnish word lemmatization using Voikko library with fallback to simple normalization when Voikko is unavailable.
 - BotManager now includes console output protection, readline history support, and enhanced signal handling for graceful shutdown.
@@ -387,4 +388,3 @@ Notes:
 - IRCClient is a clean abstraction separate from the lower-level Server class; BotManager coordinates via Server and routes commands through command_loader.
 - The word_tracking module is organized as a separate package containing DataManager, DrinkTracker, GeneralWords, and TamagotchiBot classes.
 - All services implement graceful fallback handling when external dependencies or API keys are unavailable.
-

@@ -124,7 +124,7 @@ def bot_manager():
     with patch("bot_manager.DataManager"), patch(
         "bot_manager.get_api_key", return_value=None
     ), patch("bot_manager.create_crypto_service", return_value=Mock()), patch(
-        "bot_manager.create_nanoleet_detector", return_value=Mock()
+        "bot_manager.create_leet_detector", return_value=Mock()
     ), patch(
         "bot_manager.create_fmi_warning_service", return_value=Mock()
     ), patch(
@@ -207,7 +207,7 @@ def test_persistence(temp_subscriptions_file):
         toggle_subscription("#test", "test_server", "varoitukset")
         with open(temp_subscriptions_file, "r") as f:
             data = json.load(f)
-        assert data == {"test_server": {"#test": ["varoitukset"]}}
+        assert data == {"subscriptions": {"test_server": {"#test": ["varoitukset"]}}}
 
 
 def test_fmi_warnings(bot_manager):
@@ -396,7 +396,7 @@ def test_save_subscriptions(temp_subscriptions_file):
         test_data = {"server1": {"jamps3": ["varoitukset"]}}
         assert save_subscriptions(test_data)
         with open(temp_subscriptions_file, "r", encoding="utf-8") as f:
-            assert json.load(f) == test_data
+            assert json.load(f) == {"subscriptions": test_data}
 
         initial_data = {"server1": {"user1": ["varoitukset"]}}
         with open(temp_subscriptions_file, "w", encoding="utf-8") as f:

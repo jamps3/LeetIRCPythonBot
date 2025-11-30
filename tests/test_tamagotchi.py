@@ -25,9 +25,7 @@ def test_tamagotchi_toggle_functionality():
         with patch("bot_manager.DataManager") as mock_dm:
             with patch("bot_manager.get_api_key", return_value=None):
                 with patch("bot_manager.create_crypto_service", return_value=Mock()):
-                    with patch(
-                        "bot_manager.create_nanoleet_detector", return_value=Mock()
-                    ):
+                    with patch("bot_manager.create_leet_detector", return_value=Mock()):
                         with patch(
                             "bot_manager.create_fmi_warning_service",
                             return_value=Mock(),

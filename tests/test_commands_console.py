@@ -10,7 +10,7 @@ import os
 import sys
 import tempfile
 from io import StringIO
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
 import pytest
 from dotenv import load_dotenv
@@ -1293,7 +1293,6 @@ def test_sana_topwords_leaderboard_commands(monkeypatch):
 
 def test_kraks_no_breakdown(monkeypatch, tmp_path):
     """Cover kraks else-branch when no breakdown but top users exist."""
-    import commands as _cmd
     from command_loader import process_console_command
     from word_tracking import DataManager, DrinkTracker
 
@@ -1505,7 +1504,6 @@ def test_help_irc_fallback_without_notice():
             self.sent = []
 
     responses = []
-    botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
 
     # Without irc
     import asyncio
@@ -2023,9 +2021,6 @@ def test_euribor_non_windows_and_missing_cases(monkeypatch):
 
 def test_quote_command_functionality(monkeypatch, tmp_path):
     """Test the quote command with various scenarios."""
-    import os
-    import tempfile
-
     from command_loader import process_console_command
 
     # Create a test quotes file with multiple quotes
@@ -2184,6 +2179,83 @@ def test_quote_command_with_custom_file():
         config.quotes_source = original_quotes_source
         if os.path.exists(temp_quotes_file):
             os.unlink(temp_quotes_file)
+
+
+def test_quote_command_search_functionality(tmp_path):
+    """Test quote command search functionality."""
+    from command_loader import process_console_command
+
+    responses = []
+
+    def mock_notice(msg, *args, **kwargs):
+        responses.append(msg)
+
+    bot_functions = {
+        "notice_message": mock_notice,
+        "log": lambda msg, level="INFO": None,
+    }
+
+    # Create a test quotes file with searchable content
+    quotes_file = tmp_path / "search_quotes.txt"
+    quotes_file.write_text(
+        "Our motto is excellence.\n"
+        "The best quote ever: strive for greatness.\n"
+        "Random quote about life.\n"
+        "Another motto: work hard, play hard.\n"
+        "Life is what you make it.\n"
+    )
+
+    # Mock the config to use our test quotes file
+    class MockConfig:
+        quotes_source = str(quotes_file)
+
+    # Store original config and restore later
+    import commands
+
+    original_get_config = commands.get_config
+    commands.get_config = lambda: MockConfig()
+
+    try:
+        # Test search functionality - should find first matching quote
+        responses.clear()
+        process_console_command("!quote motto", bot_functions)
+
+        assert responses, "Should get search result response"
+        quote = responses[0]
+
+        # Should be the first quote containing "motto"
+        assert (
+            "motto is excellence" in quote.lower()
+        ), f"Should find first motto quote, got: {quote}"
+
+        # Test search with no matches
+        responses.clear()
+        process_console_command("!quote nonexistent", bot_functions)
+
+        assert responses, "Should get no matches response"
+        assert "No quotes found containing 'nonexistent'" in responses[0]
+
+        # Test empty search (should be random)
+        responses.clear()
+        process_console_command("!quote", bot_functions)
+
+        assert responses, "Should get random quote response"
+        quote = responses[0]
+        assert len(quote) > 0, "Quote should not be empty"
+
+        # Test case-insensitive search
+        responses.clear()
+        process_console_command("!quote MOTTO", bot_functions)
+
+        assert responses, "Should get case-insensitive search result"
+        quote = responses[0]
+        assert (
+            "motto is excellence" in quote.lower()
+        ), f"Should find motto quote case-insensitively, got: {quote}"
+
+    finally:
+        # Restore original get_config
+        commands.get_config = original_get_config
 
 
 def test_electricity_command_with_args_split():

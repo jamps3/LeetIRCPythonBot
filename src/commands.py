@@ -45,7 +45,7 @@ tamagotchi_bot = _tamagotchi_bot
 
 
 def load_otiedote_json():
-    JSON_FILE = "otiedote.json"
+    JSON_FILE = os.path.join("data", os.getenv("OTIEDOTE_FILE", "otiedote.json"))
     if not os.path.exists(JSON_FILE):
         print(f"Otiedote JSON file not found: {JSON_FILE}")
         return []
@@ -54,6 +54,10 @@ def load_otiedote_json():
             return json.load(f)
         except json.JSONDecodeError:
             return []
+
+
+def trim_with_dots(text: str, limit: int = 400) -> str:
+    return text if len(text) <= 400 else text[:400].rsplit(" ", 1)[0] + "..."
 
 
 # =====================
@@ -299,7 +303,7 @@ def np_command(context: CommandContext, bot_functions):
     from datetime import date, datetime
 
     base_dir = os.path.dirname(os.path.dirname(__file__))  # projektin juuri
-    json_path = os.path.join(base_dir, "nimipaivat.json")
+    json_path = os.path.join(base_dir, "data", "nimipaivat.json")
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -391,16 +395,16 @@ def np_command(context: CommandContext, bot_functions):
 
 @command(
     "quote",
-    description="Display a random quote",
-    usage="!quote",
-    examples=["!quote"],
+    description="Display a random quote or search for a specific quote",
+    usage="!quote [search_text]",
+    examples=["!quote", "!quote tunnuslauseemme on"],
 )
 def quote_command(context: CommandContext, bot_functions):
-    """Display a random quote from configured source (file or URL)."""
+    """Display a random quote from configured source (file or URL), or search for a specific quote if text is provided."""
     config = get_config()
 
-    # Get quotes source from environment, default to quotes.txt
-    quotes_source = getattr(config, "quotes_source", "quotes.txt")
+    # Get quotes source from environment, default to data/quotes.txt
+    quotes_source = getattr(config, "quotes_source", "data/quotes.txt")
 
     try:
         lines = []
@@ -425,7 +429,7 @@ def quote_command(context: CommandContext, bot_functions):
                 quotes_source = os.path.join(project_root, quotes_source)
 
             if not os.path.exists(quotes_source):
-                return f"Quotes file not found: {quotes_source}"
+                return "Quotes file not found."
 
             try:
                 with open(quotes_source, "r", encoding="utf-8") as f:
@@ -436,8 +440,23 @@ def quote_command(context: CommandContext, bot_functions):
         if not lines:
             return "No quotes available"
 
-        # Select random quote
-        quote = random.choice(lines)
+        # Check if search text is provided
+        search_text = context.args_text.strip() if context.args_text else ""
+
+        if search_text:
+            # Search for quotes containing the search text (case-insensitive)
+            matching_quotes = [
+                line for line in lines if search_text.lower() in line.lower()
+            ]
+
+            if not matching_quotes:
+                return f"No quotes found containing '{search_text}'"
+
+            # Return the first matching quote
+            quote = matching_quotes[0]
+        else:
+            # Select random quote
+            quote = random.choice(lines)
 
         # Remove line numbers if present (format: "123|quote text")
         if "|" in quote and quote.split("|")[0].isdigit():
@@ -702,6 +721,30 @@ def trains_command(context: CommandContext, bot_functions):
         return CommandResponse.success_msg(result)
     except Exception as e:
         return f"❌ Digitraffic virhe: {str(e)}"
+
+
+@command(
+    "youtube",
+    description="Search YouTube videos or get video info",
+    usage="!youtube <search query>",
+    examples=["!youtube python tutorial", "!youtube cat videos"],
+    requires_args=True,
+)
+def youtube_command(context: CommandContext, bot_functions):
+    """Search YouTube for videos."""
+    search_youtube = bot_functions.get("search_youtube")
+    if not search_youtube:
+        return "YouTube service not available. Please configure YOUTUBE_API_KEY."
+
+    query = context.args_text.strip()
+    if not query:
+        return "Usage: !youtube <search query>"
+
+    try:
+        response = search_youtube(query)
+        return response
+    except Exception as e:
+        return f"❌ YouTube search error: {str(e)}"
 
 
 @command(
@@ -1041,10 +1084,10 @@ def command_leaderboard(context, bot_functions):
     entries = general_words.get_leaderboard(server_name, 100) or []
 
     if entries:
-        # Sort by total_words desc, take top 5, and hide server from output
+        # Sort by total_words desc, take top N based on limit, and hide server from output
         top_users = sorted(
             entries, key=lambda u: u.get("total_words", 0), reverse=True
-        )[:5]
+        )[:limit]
         leaderboard_msg = ", ".join(
             f"{u['nick']}: {u['total_words']}" for u in top_users
         )
@@ -1669,7 +1712,8 @@ def otiedote_command(context: CommandContext, bot_functions):
             item = next((x for x in otiedote_list if x["id"] == number), None)
             if not item:
                 return f"❌ Otiedote #{number} not found in local JSON."
-            return f"📄 {item['title']}\n{item['content']}\nOrganization: {item.get('organization', '')}\nURL: {item['url']}"
+            trimmed_content = trim_with_dots(item["content"])
+            return f"📄 {item['title']} {trimmed_content} {item.get('location', '')} {item.get('date', '')} URL: {item['url']}"
         except ValueError:
             return "❌ Invalid number format. Usage: !otiedote #<number>"
 
@@ -1680,7 +1724,8 @@ def otiedote_command(context: CommandContext, bot_functions):
             return f"❌ Invalid number. Must be between 1 and {len(otiedote_list)}."
         sorted_list = sorted(otiedote_list, key=lambda x: x["id"], reverse=True)
         item = sorted_list[offset - 1]
-        return f"📄 {item['title']}\n{item['content']}\nOrganization: {item.get('organization', '')}\nURL: {item['url']}"
+        trimmed_content = trim_with_dots(item["content"])
+        return f"📄 {item['title']} {trimmed_content} {item.get('location', '')} {item.get('date', '')} URL: {item['url']}"
     except ValueError:
         return "❌ Invalid argument. Usage: !otiedote [N | # | #N | set N]"
 

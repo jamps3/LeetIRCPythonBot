@@ -43,11 +43,11 @@ def test_detect_nano_leet_when_only_nano_contains_1337():
     assert level in {"nano", "super", "mega", "ultimate"}
 
 
-def test_nanoleet_detector_ultimate():
+def test_leet_detector_ultimate():
     """Test ultimate leet detection (perfect 13:37:13.371337133)."""
-    from leet_detector import create_nanoleet_detector
+    from leet_detector import create_leet_detector
 
-    detector = create_nanoleet_detector()
+    detector = create_leet_detector()
 
     # Test perfect ultimate leet timestamp
     ultimate_timestamp = "13:37:13.371337133"
@@ -56,7 +56,7 @@ def test_nanoleet_detector_ultimate():
 
     assert level == "ultimate", f"Expected 'ultimate' level, got '{level}'"
     assert result["is_ultimate"], "Result should be marked as ultimate"
-    assert result["total_count"] >= 1, "Total count should be at least 1"
+    assert result["total_count"] >= 3, "Total count should be at least 3"
 
     # Test achievement message formatting
     message = detector.format_achievement_message("testuser", ultimate_timestamp, level)
@@ -66,11 +66,34 @@ def test_nanoleet_detector_ultimate():
         assert part in message, f"Expected '{part}' in message: {message}"
 
 
-def test_nanoleet_detector_mega():
-    """Test mega leet detection (3+ occurrences of 1337)."""
-    from leet_detector import create_nanoleet_detector
+def test_leet_detector_heroic():
+    """Test heroic leet detection (almost perfect 13:37:13.371337)."""
+    from leet_detector import create_leet_detector
 
-    detector = create_nanoleet_detector()
+    detector = create_leet_detector()
+
+    # Test heroic leet timestamp
+    heroic_timestamp = "13:37:13.371337"
+    result = detector.detect_leet_patterns(heroic_timestamp)
+    level = detector.determine_achievement_level(result)
+
+    assert level == "heroic", f"Expected 'heroic' level, got '{level}'"
+    assert result["is_heroic"], "Result should be marked as heroic"
+    assert result["total_count"] >= 3, "Total count should be at least 3"
+
+    # Test achievement message formatting
+    message = detector.format_achievement_message("testuser", heroic_timestamp, level)
+    expected_parts = ["🥇🚀", "Heroic Leet!!", "[testuser]", heroic_timestamp]
+
+    for part in expected_parts:
+        assert part in message, f"Expected '{part}' in message: {message}"
+
+
+def test_leet_detector_mega():
+    """Test mega leet detection (3+ occurrences of 1337)."""
+    from leet_detector import create_leet_detector
+
+    detector = create_leet_detector()
 
     # Test timestamps with 3+ occurrences of 1337
     test_cases = [
@@ -97,11 +120,11 @@ def test_nanoleet_detector_mega():
             ), f"Expected 'super' level for {timestamp}, got '{level}'"
 
 
-def test_nanoleet_detector_nano():
+def test_leet_detector_nano():
     """Test nano leet detection (1337 only in nanoseconds)."""
-    from leet_detector import create_nanoleet_detector
+    from leet_detector import create_leet_detector
 
-    detector = create_nanoleet_detector()
+    detector = create_leet_detector()
 
     # Test timestamps with 1337 only in nanosecond part
     test_cases = [
@@ -127,9 +150,9 @@ def test_nanoleet_detector_nano():
 
 def test_nanoleet_message_for_leet():
     """Test nanoleet message processing for regular leet detection."""
-    from leet_detector import create_nanoleet_detector
+    from leet_detector import create_leet_detector
 
-    detector = create_nanoleet_detector()
+    detector = create_leet_detector()
 
     # Test check_message_for_leet function
     test_timestamp = "23:13:37.987654321"  # Regular leet (1337 appears in timestamp but not in hours+minutes)
@@ -427,6 +450,7 @@ def test_determine_achievement_parsing_exception_fallback():
     # Craft a minimal detection_result that will raise when splitting time_part
     detection_result = {
         "is_ultimate": False,
+        "is_heroic": False,
         "total_count": 1,
         "time_count": 1,  # ensures we can still classify after exception
         "nano_count": 0,
@@ -441,6 +465,7 @@ def test_determine_achievement_final_none():
     d = LeetDetector()
     detection_result = {
         "is_ultimate": False,
+        "is_heroic": False,
         "total_count": 1,
         "time_count": 0,
         "nano_count": 0,

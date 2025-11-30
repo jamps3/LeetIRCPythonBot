@@ -179,6 +179,59 @@ def scheduled_command(context: CommandContext, bot_functions):
 
 
 @command(
+    "ops",
+    description="Give operator status (+o) to all users in channel",
+    usage="!ops",
+    examples=["!ops"],
+    admin_only=False,
+    requires_args=False,
+)
+def ops_command(context: CommandContext, bot_functions):
+    """Give operator status (+o) to all users in the current channel."""
+    # This command must be used in a channel
+    if not context.target or not context.target.startswith("#"):
+        return "❌ This command must be used in a channel"
+
+    # Check if command is allowed in this channel
+    config = get_config()
+    allowed_channels = getattr(config, "ops_allowed_channels", [])
+    if allowed_channels and context.target.lower() not in [
+        ch.lower() for ch in allowed_channels
+    ]:
+        return f"❌ !ops command not allowed in this channel. Allowed channels: {', '.join(allowed_channels)}"
+
+    # Get IRC connection
+    irc = bot_functions.get("irc")
+    if not irc:
+        return "❌ IRC connection not available"
+
+    try:
+        channel = context.target
+
+        # Send NAMES command to get user list first
+        if hasattr(irc, "send_raw"):
+            irc.send_raw(f"NAMES {channel}")
+        else:
+            irc.send(f"NAMES {channel}")
+
+        # For immediate feedback, we'll send a notice about the operation starting
+        notice = bot_functions.get("notice_message")
+        if notice and context.sender:
+            notice(
+                f"🔄 Requesting user list to op everyone in {channel}...",
+                irc,
+                context.sender,
+            )
+
+        # The NAMES response will be handled asynchronously
+        # For now, return a status message
+        return f"🔄 Requested operator status for all users in {channel}. This may take a moment..."
+
+    except Exception as e:
+        return f"❌ Error requesting operator status: {str(e)}"
+
+
+@command(
     "leetwinnersreset",
     description="Reset leetwinners statistics (admin only)",
     usage="!leetwinnersreset <password>",

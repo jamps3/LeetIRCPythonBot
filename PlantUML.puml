@@ -19,7 +19,7 @@ package "Core Management" {
     +crypto_service: CryptoService
     +fmi_warning_service: FMIWarningService
     +otiedote_service: OtiedoteService
-    +nanoleet_detector: LeetDetector
+    +leet_detector: LeetDetector
     +lemmatizer: Lemmatizer
     +data_manager: DataManager
     +drink_tracker: DrinkTracker

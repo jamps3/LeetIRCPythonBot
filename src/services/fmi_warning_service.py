@@ -15,6 +15,7 @@ from typing import Callable, List, Optional, Set
 
 import feedparser
 
+from config import get_config
 from logger import log
 
 
@@ -22,7 +23,6 @@ class FMIWarningService:
     """Service for monitoring FMI weather warnings."""
 
     FEED_URL = "https://alerts.fmi.fi/cap/feed/rss_fi-FI.rss"
-    DEFAULT_STATE_FILE = "last_warning.json"
     DEFAULT_CHECK_INTERVAL = 300  # 5 minutes
 
     # Locations to exclude from notifications
@@ -56,7 +56,7 @@ class FMIWarningService:
     def __init__(
         self,
         callback: Callable[[List[str]], None],
-        state_file: str = DEFAULT_STATE_FILE,
+        state_file: str = None,
         check_interval: int = DEFAULT_CHECK_INTERVAL,
     ):
         """
@@ -196,7 +196,12 @@ class FMIWarningService:
         try:
             with open(self.state_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return set(data.get("seen_hashes", []))
+                # Support both legacy format and new nested format
+                if "fmi_warnings" in data:
+                    return set(data["fmi_warnings"].get("seen_hashes", []))
+                else:
+                    # Legacy format (last_warning.json)
+                    return set(data.get("seen_hashes", []))
         except (json.JSONDecodeError, ValueError, IOError):
             log(
                 "State file corrupted, resetting seen hashes",
@@ -208,7 +213,7 @@ class FMIWarningService:
     def _save_seen_hashes(self, hashes: Set[str]) -> None:
         """Save seen warning hashes to state file."""
         try:
-            # Load existing data to preserve seen_data
+            # Load existing data to preserve other sections
             existing_data = {}
             if os.path.exists(self.state_file):
                 try:
@@ -217,11 +222,15 @@ class FMIWarningService:
                 except (json.JSONDecodeError, IOError):
                     pass
 
+            # Ensure fmi_warnings section exists
+            if "fmi_warnings" not in existing_data:
+                existing_data["fmi_warnings"] = {}
+
             # Update with new hashes
-            existing_data["seen_hashes"] = list(hashes)
+            existing_data["fmi_warnings"]["seen_hashes"] = list(hashes)
 
             with open(self.state_file, "w", encoding="utf-8") as f:
-                json.dump(existing_data, f, ensure_ascii=False)
+                json.dump(existing_data, f, ensure_ascii=False, indent=2)
         except IOError as e:
             log(f"Error saving seen hashes: {e}", level="ERROR", context="FMI_WS")
 
@@ -233,7 +242,12 @@ class FMIWarningService:
         try:
             with open(self.state_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return data.get("seen_data", [])
+                # Support both legacy format and new nested format
+                if "fmi_warnings" in data:
+                    return data["fmi_warnings"].get("seen_data", [])
+                else:
+                    # Legacy format (last_warning.json)
+                    return data.get("seen_data", [])
         except (json.JSONDecodeError, ValueError, IOError):
             log(
                 "State file corrupted, resetting seen data",
@@ -245,7 +259,7 @@ class FMIWarningService:
     def _save_seen_data(self, seen_data: List[dict]) -> None:
         """Save seen warning data to state file."""
         try:
-            # Load existing data to preserve seen_hashes
+            # Load existing data to preserve other sections
             existing_data = {}
             if os.path.exists(self.state_file):
                 try:
@@ -254,11 +268,15 @@ class FMIWarningService:
                 except (json.JSONDecodeError, IOError):
                     pass
 
+            # Ensure fmi_warnings section exists
+            if "fmi_warnings" not in existing_data:
+                existing_data["fmi_warnings"] = {}
+
             # Update with new seen data
-            existing_data["seen_data"] = seen_data
+            existing_data["fmi_warnings"]["seen_data"] = seen_data
 
             with open(self.state_file, "w", encoding="utf-8") as f:
-                json.dump(existing_data, f, ensure_ascii=False)
+                json.dump(existing_data, f, ensure_ascii=False, indent=2)
         except IOError as e:
             log(f"Error saving seen data: {e}", level="ERROR", context="FMI_WS")
 
@@ -378,7 +396,7 @@ class FMIWarningService:
 
 def create_fmi_warning_service(
     callback: Callable[[List[str]], None],
-    state_file: str = FMIWarningService.DEFAULT_STATE_FILE,
+    state_file: str = None,
     check_interval: int = FMIWarningService.DEFAULT_CHECK_INTERVAL,
 ) -> FMIWarningService:
     """
@@ -386,10 +404,13 @@ def create_fmi_warning_service(
 
     Args:
         callback: Function to call with warning messages
-        state_file: File to store seen warning hashes
+        state_file: File to store seen warning hashes (defaults to config value)
         check_interval: Check interval in seconds
 
     Returns:
         FMIWarningService instance
     """
+    if state_file is None:
+        config = get_config()
+        state_file = config.state_file
     return FMIWarningService(callback, state_file, check_interval)

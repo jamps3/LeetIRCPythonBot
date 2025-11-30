@@ -7,7 +7,7 @@ Provides YouTube video information and search functionality using YouTube Data A
 import random
 import re
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import isodate
 import requests
@@ -452,15 +452,14 @@ class YouTubeService:
         result_lines = []
         for i, result in enumerate(results[:3], 1):  # Show top 3 results
             title = result["title"][:50] + ("..." if len(result["title"]) > 50 else "")
-            channel = result["channel"]
             url = result["url"]
-            result_lines.append(f"{i}. '{title}' by {channel} - {url}")
+            result_lines.append(f"{i}. '{title}' {url}")
 
         if len(results) > 3:
             result_lines.append(f"... and {len(results) - 3} more results")
 
-        header = f"🎥 YouTube search results for '{query}':"
-        return header + "\n" + "\n".join(result_lines)
+        header = "🎥 "
+        return f"{header}" + " 🎥 ".join(result_lines)
 
 
 def create_youtube_service(api_key: str) -> YouTubeService:

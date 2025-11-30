@@ -96,7 +96,7 @@ def manager(monkeypatch):
     )
     monkeypatch.setattr(bm, "Lemmatizer", lambda: object(), raising=True)
     monkeypatch.setattr(
-        bm, "create_nanoleet_detector", lambda: DummyDetector(), raising=True
+        bm, "create_leet_detector", lambda: DummyDetector(), raising=True
     )
 
     # Construct
@@ -110,7 +110,7 @@ def test_bot_manager_initialization_with_services():
     with patch("bot_manager.DataManager") as mock_dm:
         with patch("bot_manager.get_api_key") as mock_api:
             with patch("bot_manager.create_crypto_service") as mock_crypto:
-                with patch("bot_manager.create_nanoleet_detector") as mock_nano:
+                with patch("bot_manager.create_leet_detector") as mock_nano:
                     with patch("bot_manager.create_fmi_warning_service") as mock_fmi:
                         with patch(
                             "bot_manager.create_otiedote_service"
@@ -158,7 +158,7 @@ def test_bot_manager_initialization_with_services():
                                     "general_words",
                                     "tamagotchi",
                                     "crypto_service",
-                                    "nanoleet_detector",
+                                    "leet_detector",
                                 ]
 
                                 for attr in required_attrs:
@@ -193,7 +193,7 @@ def test_url_blacklist_functionality():
     with patch("bot_manager.DataManager"):
         with patch("bot_manager.get_api_key", return_value=None):
             with patch("bot_manager.create_crypto_service", return_value=Mock()):
-                with patch("bot_manager.create_nanoleet_detector", return_value=Mock()):
+                with patch("bot_manager.create_leet_detector", return_value=Mock()):
                     with patch(
                         "bot_manager.create_fmi_warning_service", return_value=Mock()
                     ):
@@ -258,8 +258,8 @@ def test_is_youtube_url_variants():
         "https://www.youtube.com/shorts/abc123",
     ]
     for u in urls:
-        assert bm.BotManager._is_youtube_url(bm.BotManager, u) is True
-    assert bm.BotManager._is_youtube_url(bm.BotManager, "https://example.com") is False
+        assert bm.BotManager._is_youtube_url(u) is True
+    assert bm.BotManager._is_youtube_url("https://example.com") is False
 
 
 def test_youtube_url_detection():
@@ -268,7 +268,7 @@ def test_youtube_url_detection():
     with patch("bot_manager.DataManager"):
         with patch("bot_manager.get_api_key", return_value=None):
             with patch("bot_manager.create_crypto_service", return_value=Mock()):
-                with patch("bot_manager.create_nanoleet_detector", return_value=Mock()):
+                with patch("bot_manager.create_leet_detector", return_value=Mock()):
                     with patch(
                         "bot_manager.create_fmi_warning_service", return_value=Mock()
                     ):
@@ -1166,7 +1166,7 @@ def test_nanoleet_achievement_send(monkeypatch, manager):
         def check_message_for_leet(self, sender, ts, msg):
             return ("ach", "super")
 
-    manager.nanoleet_detector = D()
+    manager.leet_detector = D()
     sent = []
     manager._send_response = lambda s, t, m: sent.append(m)
     server = SimpleNamespace(config=SimpleNamespace(name="srv"))

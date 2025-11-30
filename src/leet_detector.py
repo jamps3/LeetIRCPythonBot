@@ -28,7 +28,7 @@ class LeetDetector:
     - Nano Leet: "1337" appears only in nanosecond digits
     """
 
-    def __init__(self, leet_history_file: str = "leet_detections.json"):
+    def __init__(self, leet_history_file: str = "data/leet_detections.json"):
         """Initialize the leet detector."""
         self.logger = get_logger("LeetDetector")
         self.leet_history_file = leet_history_file
@@ -39,6 +39,12 @@ class LeetDetector:
                 "name": "Ultimate Leet!!",
                 "emoji": "🏆👑",
                 "criteria": "Perfect 13:37:13.371337133 format",
+                "min_count": 1,
+            },
+            "heroic": {
+                "name": "Heroic Leet!!",
+                "emoji": "🥇🚀",
+                "criteria": "Almost perfect 13:37:13.371337 format",
                 "min_count": 1,
             },
             "mega": {
@@ -110,6 +116,9 @@ class LeetDetector:
         # Check for ultimate leet pattern (perfect 13:37:13.371337133)
         is_ultimate = self._check_ultimate_pattern(timestamp)
 
+        # Check for heroic leet pattern (13:37:13.371337)
+        is_heroic = self._check_heroic_pattern(timestamp)
+
         # Find all positions where 1337 occurs
         positions = []
         for match in re.finditer(r"1337", pure_numbers):
@@ -122,6 +131,7 @@ class LeetDetector:
             "time_count": time_count,
             "nano_count": nano_count,
             "is_ultimate": is_ultimate,
+            "is_heroic": is_heroic,
             "positions": positions,
             "time_part": time_part,
             "nano_part": nano_part,
@@ -142,6 +152,20 @@ class LeetDetector:
         pattern = r"^13:37:13\.371337133$"
         return bool(re.match(pattern, timestamp))
 
+    def _check_heroic_pattern(self, timestamp: str) -> bool:
+        """
+        Check if timestamp matches the ultimate leet pattern.
+
+        Args:
+            timestamp: Timestamp string
+
+        Returns:
+            True if it matches 13:37:13.371337 pattern
+        """
+        # The ultimate pattern: 13:37:13.371337
+        # Hours=13, Minutes=37, Seconds=13, Nanoseconds=371337
+        return timestamp.startswith("13:37:13.371337")
+
     def determine_achievement_level(
         self, detection_result: Dict[str, any]
     ) -> Optional[str]:
@@ -157,6 +181,10 @@ class LeetDetector:
         # Check for ultimate leet first
         if detection_result["is_ultimate"]:
             return "ultimate"
+
+        # Check for heroic leet second
+        if detection_result["is_heroic"]:
+            return "heroic"
 
         total_count = detection_result["total_count"]
         time_count = detection_result["time_count"]
@@ -355,20 +383,6 @@ class LeetDetector:
 def create_leet_detector() -> LeetDetector:
     """
     Factory function to create a LeetDetector instance.
-
-    Returns:
-        LeetDetector instance
-    """
-    return LeetDetector()
-
-
-# Backward compatibility - keep old function name but use new class
-def create_nanoleet_detector() -> LeetDetector:
-    """
-    Factory function to create a LeetDetector instance.
-
-    Note: This function is kept for backward compatibility.
-    Use create_leet_detector() for new code.
 
     Returns:
         LeetDetector instance

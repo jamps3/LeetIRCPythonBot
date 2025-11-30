@@ -11,7 +11,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-from leet_detector import create_nanoleet_detector
+from leet_detector import create_leet_detector
 
 
 def demo_nanoleet_detection():
@@ -19,7 +19,7 @@ def demo_nanoleet_detection():
     print("Nanosecond Leet Detection System Demo")
     print("=" * 50)
 
-    detector = create_nanoleet_detector()
+    detector = create_leet_detector()
 
     print("\nSimulating channel messages with leet detection...\n")
 

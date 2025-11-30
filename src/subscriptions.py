@@ -5,8 +5,11 @@ from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
 import logger
+from config import get_config
 
-SUBSCRIBERS_FILE = "subscriptions.json"
+# Get state file from config
+config = get_config()
+SUBSCRIBERS_FILE = config.state_file
 
 # Valid topics for subscriptions
 VALID_TOPICS = {"varoitukset", "onnettomuustiedotteet"}
@@ -102,8 +105,11 @@ def load_subscriptions() -> Dict[str, Dict[str, List[str]]]:
         with open(SUBSCRIBERS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
 
+        # Extract subscriptions data, fallback to old format
+        subscriptions_data = data.get("subscriptions", data)
+
         # Validate and clean the data
-        cleaned_data = validate_and_clean_data(data)
+        cleaned_data = validate_and_clean_data(subscriptions_data)
 
         # If data was corrupted and cleaned, save the cleaned version
         if cleaned_data != data:
@@ -137,6 +143,15 @@ def save_subscriptions(data: Dict[str, Dict[str, List[str]]]) -> bool:
         # Validate data before saving
         cleaned_data = validate_and_clean_data(data)
 
+        # Load existing state.json data to preserve other sections
+        existing_data = {}
+        if os.path.exists(SUBSCRIBERS_FILE):
+            try:
+                with open(SUBSCRIBERS_FILE, "r", encoding="utf-8") as f:
+                    existing_data = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                pass
+
         # Create backup if file exists
         if os.path.exists(SUBSCRIBERS_FILE):
             backup_path = f"{SUBSCRIBERS_FILE}.backup"
@@ -145,10 +160,13 @@ def save_subscriptions(data: Dict[str, Dict[str, List[str]]]) -> bool:
             except Exception as backup_error:
                 logger.error(f"Error: Could not create backup: {backup_error}")
 
+        # Update the subscriptions section
+        existing_data["subscriptions"] = cleaned_data
+
         # Write to temporary file first for atomic operation
         temp_file = f"{SUBSCRIBERS_FILE}.tmp"
         with open(temp_file, "w", encoding="utf-8") as f:
-            json.dump(cleaned_data, f, ensure_ascii=False, indent=2)
+            json.dump(existing_data, f, ensure_ascii=False, indent=2)
 
         # Atomic rename
         os.replace(temp_file, SUBSCRIBERS_FILE)

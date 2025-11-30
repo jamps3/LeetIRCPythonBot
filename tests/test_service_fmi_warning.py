@@ -4,9 +4,6 @@ Pytest tests for services.fmi_warning_service module.
 """
 
 import json
-import os
-import sys
-import time
 import unittest
 from unittest.mock import Mock, mock_open, patch
 
@@ -239,7 +236,9 @@ def test_get_entry_hash_deterministic():
 
 def test_load_and_save_seen_hashes_and_data(tmp_path):
     state = tmp_path / "state.json"
-    content = {"seen_hashes": ["a", "b"], "seen_data": [{"title": "t"}]}
+    content = {
+        "fmi_warnings": {"seen_hashes": ["a", "b"], "seen_data": [{"title": "t"}]}
+    }
     state.write_text(json.dumps(content), encoding="utf-8")
 
     svc = FMIWarningService(callback=lambda x: None, state_file=str(state))
@@ -250,13 +249,13 @@ def test_load_and_save_seen_hashes_and_data(tmp_path):
     # Save merges/preserves complementary fields
     svc._save_seen_hashes({"x"})
     data_after = json.loads(state.read_text(encoding="utf-8"))
-    assert data_after["seen_hashes"] == ["x"]
-    assert data_after["seen_data"] == [{"title": "t"}]
+    assert data_after["fmi_warnings"]["seen_hashes"] == ["x"]
+    assert data_after["fmi_warnings"]["seen_data"] == [{"title": "t"}]
 
     svc._save_seen_data([{"title": "n"}])
     data_after = json.loads(state.read_text(encoding="utf-8"))
-    assert data_after["seen_hashes"] == ["x"]
-    assert data_after["seen_data"] == [{"title": "n"}]
+    assert data_after["fmi_warnings"]["seen_hashes"] == ["x"]
+    assert data_after["fmi_warnings"]["seen_data"] == [{"title": "n"}]
 
 
 def test_load_seen_hashes_and_data_missing_or_corrupt(tmp_path, capsys):
@@ -303,8 +302,8 @@ def test_save_seen_handles_corrupt_existing_file(tmp_path):
     svc._save_seen_data([{"title": "t"}])
 
     data = json.loads(state.read_text(encoding="utf-8"))
-    assert data["seen_hashes"] == ["h"]
-    assert data["seen_data"] == [{"title": "t"}]
+    assert data["fmi_warnings"]["seen_hashes"] == ["h"]
+    assert data["fmi_warnings"]["seen_data"] == [{"title": "t"}]
 
 
 @pytest.mark.parametrize(

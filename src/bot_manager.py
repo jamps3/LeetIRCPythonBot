@@ -14,40 +14,12 @@ from typing import Any, Dict, List, Optional
 import requests
 
 import logger
-from command_loader import process_irc_message  # Import the command processing function
-from config import get_api_key, get_server_configs, load_env_file
-from leet_detector import create_nanoleet_detector
+from config import get_api_key, get_config, get_server_configs, load_env_file
+from leet_detector import create_leet_detector
 from lemmatizer import Lemmatizer
 from server import Server
 from tamagotchi import TamagotchiBot
 from word_tracking import DataManager, DrinkTracker, GeneralWords
-
-# Try to import readline, but handle gracefully if not available
-try:
-    import readline
-
-    READLINE_AVAILABLE = True
-except ImportError:
-    READLINE_AVAILABLE = False
-
-    # Create a dummy readline module for compatibility
-    class DummyReadline:
-        def set_history_length(self, length):
-            pass
-
-        def read_history_file(self, filename):
-            raise FileNotFoundError()
-
-        def write_history_file(self, filename):
-            pass
-
-        def parse_and_bind(self, string):
-            pass
-
-        def redisplay(self):
-            pass
-
-    readline = DummyReadline()
 
 # Optional service imports - handle gracefully if dependencies are missing
 try:
@@ -134,9 +106,39 @@ class BotManager:
         self.quit_message = os.getenv("QUIT_MESSAGE", "Disconnecting")
         self.logger = logger.get_logger("BotManager")
 
-        # Only set up readline and console features when in console mode
-        if self.console_mode and READLINE_AVAILABLE:
-            self.logger.debug("Console mode enabled - setting up readline...")
+        # Only import readline and set up console features when in console mode
+        if self.console_mode:
+            # Try to import readline only when needed
+            try:
+                import readline
+
+                self.readline = readline
+                self.readline_available = True
+                self.logger.debug("Readline imported successfully for console mode")
+            except ImportError:
+                self.logger.warning(
+                    "readline module not available, console history disabled"
+                )
+
+                # Create a dummy readline module for compatibility
+                class DummyReadline:
+                    def set_history_length(self, length):
+                        pass
+
+                    def read_history_file(self, filename):
+                        raise FileNotFoundError()
+
+                    def write_history_file(self, filename):
+                        pass
+
+                    def parse_and_bind(self, string):
+                        pass
+
+                    def redisplay(self):
+                        pass
+
+                self.readline = DummyReadline()
+                self.readline_available = False
 
             # Configure readline for command history and console output protection
             self.logger.debug("Setting up readline history...")
@@ -154,8 +156,6 @@ class BotManager:
                 self.logger.debug(f"Console output protection setup failed: {e}")
 
             self.logger.debug("Readline and console setup complete.")
-        elif self.console_mode:
-            self.logger.debug("Console mode enabled but readline not available")
         else:
             self.logger.debug("TUI mode enabled - skipping readline setup")
 
@@ -188,8 +188,9 @@ class BotManager:
             )
 
         # Initialize bot components
+        config = get_config()  # Load config after environment setup
         self.logger.debug("Initializing data manager...")
-        self.data_manager = DataManager()
+        self.data_manager = DataManager(state_file=config.state_file)
         self.logger.debug("Initializing drink tracker...")
         self.drink_tracker = DrinkTracker(self.data_manager)
         self.logger.debug("Initializing general words...")
@@ -219,7 +220,7 @@ class BotManager:
         # Initialize GPT service
         if GPTService is not None:
             openai_api_key = get_api_key("OPENAI_API_KEY")
-            history_file = os.getenv("HISTORY_FILE", "conversation_history.json")
+            history_file = os.getenv("HISTORY_FILE", "data/conversation_history.json")
             history_limit = int(os.getenv("GPT_HISTORY_LIMIT", "100"))
             if openai_api_key:
                 self.gpt_service = GPTService(
@@ -292,16 +293,16 @@ class BotManager:
             self.crypto_service = None
 
         # Initialize nanoleet detector
-        self.nanoleet_detector = create_nanoleet_detector()
+        self.leet_detector = create_leet_detector()
         self.logger.info(
-            "🎯 Nanosecond leet detector initialized.",
-            fallback_text="Nanosecond leet detector initialized.",
+            "🎯 Leet detector initialized.",
+            fallback_text="Leet detector initialized.",
         )
 
         # Initialize FMI warning service
         if create_fmi_warning_service is not None:
             self.fmi_warning_service = create_fmi_warning_service(
-                callback=self._handle_fmi_warnings
+                callback=self._handle_fmi_warnings, state_file=config.state_file
             )
             self.logger.info(
                 "⚠️ FMI warning service initialized.",
@@ -365,11 +366,11 @@ class BotManager:
             history_file = os.path.expanduser("~/.leetbot_history")
 
             # Set history length (number of commands to remember)
-            readline.set_history_length(1000)
+            self.readline.set_history_length(1000)
 
             # Try to read existing history
             try:
-                readline.read_history_file(history_file)
+                self.readline.read_history_file(history_file)
                 self.logger.debug(f"Loaded command history from {history_file}")
             except FileNotFoundError:
                 # History file doesn't exist yet, that's fine
@@ -378,21 +379,21 @@ class BotManager:
                 self.logger.warning(f"Could not load command history: {e}")
 
             # Configure readline for better editing (Linux/Unix compatible)
-            if READLINE_AVAILABLE:
+            if self.readline_available:
                 try:
                     # Enable tab completion
-                    readline.parse_and_bind("tab: complete")
+                    self.readline.parse_and_bind("tab: complete")
                     # Set editing mode to emacs (supports arrow keys)
-                    readline.parse_and_bind("set editing-mode emacs")
+                    self.readline.parse_and_bind("set editing-mode emacs")
                     # Enable arrow key navigation
-                    readline.parse_and_bind("\\C-p: previous-history")  # Up arrow
-                    readline.parse_and_bind("\\C-n: next-history")  # Down arrow
-                    readline.parse_and_bind("\\C-b: backward-char")  # Left arrow
-                    readline.parse_and_bind("\\C-f: forward-char")  # Right arrow
+                    self.readline.parse_and_bind("\\C-p: previous-history")  # Up arrow
+                    self.readline.parse_and_bind("\\C-n: next-history")  # Down arrow
+                    self.readline.parse_and_bind("\\C-b: backward-char")  # Left arrow
+                    self.readline.parse_and_bind("\\C-f: forward-char")  # Right arrow
                     # Enable better line editing
-                    readline.parse_and_bind("\\C-a: beginning-of-line")  # Ctrl+A
-                    readline.parse_and_bind("\\C-e: end-of-line")  # Ctrl+E
-                    readline.parse_and_bind("\\C-k: kill-line")  # Ctrl+K
+                    self.readline.parse_and_bind("\\C-a: beginning-of-line")  # Ctrl+A
+                    self.readline.parse_and_bind("\\C-e: end-of-line")  # Ctrl+E
+                    self.readline.parse_and_bind("\\C-k: kill-line")  # Ctrl+K
                     self.logger.debug("Readline key bindings configured")
                 except Exception as e:
                     self.logger.warning(f"Could not configure readline bindings: {e}")
@@ -423,7 +424,7 @@ class BotManager:
         """Save command history to file (console mode only)."""
         if self.console_mode and hasattr(self, "_history_file") and self._history_file:
             try:
-                readline.write_history_file(self._history_file)
+                self.readline.write_history_file(self._history_file)
                 self.logger.debug(f"Saved command history to {self._history_file}")
             except Exception as e:
                 self.logger.warning(f"Could not save command history: {e}")
@@ -505,9 +506,15 @@ class BotManager:
 
             # Process leet winners summary lines (first/last/multileet)
             try:
-                self._process_leet_winner_summary(text, sender)
+                self._process_leet_winner_summary(context)
             except Exception as e:
                 self.logger.warning(f"Error processing leet winners summary: {e}")
+
+            # Process ekavika winners summary lines (vika/eka winners)
+            try:
+                self._process_ekavika_winner_summary(context)
+            except Exception as e:
+                self.logger.warning(f"Error processing ekavika winners summary: {e}")
 
         except Exception as e:
             self.logger.error(f"Error handling notice from {server.config.name}: {e}")
@@ -601,7 +608,7 @@ class BotManager:
         except Exception as e:
             self.logger.error(f"Error handling message from {server.config.name}: {e}")
 
-    def _handle_join(self, server: Server, sender: str, channel: str):
+    def _handle_join(self, server: Server, sender: str, ident_host: str, channel: str):
         """Handle user join events."""
         server_name = server.config.name
 
@@ -618,20 +625,18 @@ class BotManager:
             if not self.active_channel or not self.active_server:
                 self.active_channel = channel
                 self.active_server = server_name
-                self.logger.info(f"Set active channel: {channel} on {server_name}")
-
             self.logger.info(f"Bot joined {channel} on {server_name}")
         else:
             # Track other user activity
             self.logger.server(f"{sender} joined {channel}", server_name)
 
-    def _handle_part(self, server: Server, sender: str, channel: str):
+    def _handle_part(self, server: Server, sender: str, channel: str, ident_host: str):
         """Handle user part events."""
         # Track user activity
         server_name = server.config.name
         self.logger.server(f"{sender} left {channel}", server_name)
 
-    def _handle_quit(self, server: Server, sender: str):
+    def _handle_quit(self, server: Server, sender: str, ident_host: str):
         """Handle user quit events."""
         # Track user activity
         server_name = server.config.name
@@ -759,19 +764,59 @@ class BotManager:
         if self.fmi_warning_service is not None:
             self.fmi_warning_service.start()
         if self.otiedote_service is not None:
-            try:
-                import asyncio
-
-                # Try to run the coroutine properly
+            # Start Otiedote service in background thread to avoid blocking startup
+            def start_otiedote_background():
                 try:
-                    loop = asyncio.get_running_loop()
-                    # If we're in an event loop, schedule it as a task
-                    asyncio.create_task(self.otiedote_service.start())
-                except RuntimeError:
-                    # No running loop, create new one
-                    asyncio.run(self.otiedote_service.start())
-            except Exception as e:
-                self.logger.warning(f"Could not start Otiedote service: {e}")
+                    import asyncio
+
+                    # Create a new event loop in this thread
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        # Start the service
+                        new_loop.run_until_complete(self.otiedote_service.start())
+                        # Keep the loop running to handle async operations
+                        # The monitor loop will run until self.running is False
+                        new_loop.run_forever()
+                    except Exception as e:
+                        self.logger.error(
+                            f"Otiedote service background loop error: {e}"
+                        )
+                    finally:
+                        try:
+                            # Stop the service
+                            if self.otiedote_service.running:
+                                new_loop.run_until_complete(
+                                    self.otiedote_service.stop()
+                                )
+                            # Cancel all remaining tasks
+                            pending = asyncio.all_tasks(new_loop)
+                            for task in pending:
+                                task.cancel()
+                            # Wait for tasks to complete cancellation
+                            if pending:
+                                new_loop.run_until_complete(
+                                    asyncio.gather(*pending, return_exceptions=True)
+                                )
+                        except Exception:
+                            pass
+                        finally:
+                            new_loop.close()
+                            asyncio.set_event_loop(None)
+                except Exception as e:
+                    self.logger.error(
+                        f"Could not start Otiedote service in background: {e}"
+                    )
+
+            otiedote_thread = threading.Thread(
+                target=start_otiedote_background,
+                daemon=True,
+                name="OtiedoteService",
+            )
+            otiedote_thread.start()
+            self.logger.debug("Otiedote service started in background thread")
+            # Store reference to thread for potential cleanup
+            self.otiedote_thread = otiedote_thread
 
         # Start console listener thread only in console mode
         if self.console_mode:
@@ -1071,35 +1116,23 @@ class BotManager:
         try:
             if self.otiedote_service is not None:
                 self.logger.info(
-                    "Stopping Otiedote service (may take up to 10 seconds)..."
+                    "Stopping Otiedote service (may take up to 5 seconds)..."
                 )
                 try:
-                    import asyncio
+                    # Signal the service to stop - it runs in its own background thread
+                    # Setting running=False will cause the monitor loop to exit
+                    if hasattr(self.otiedote_service, "running"):
+                        self.otiedote_service.running = False
+                        # The service's stop() method should be called from its own event loop
+                        # but since we can't easily access it, just wait for the thread to exit
+                        # The daemon thread will exit when the process exits anyway
 
-                    # Try to run the coroutine properly
-                    try:
-                        loop = asyncio.get_running_loop()
-                        # If we're in an event loop, schedule it as a task
-                        asyncio.create_task(self.otiedote_service.stop())
-                        time.sleep(1)  # Brief wait for task to start
-                    except RuntimeError:
-                        # No running loop, create new one
-                        asyncio.run(self.otiedote_service.stop())
-                except Exception as async_e:
-                    self.logger.warning(
-                        f"Could not stop Otiedote service async: {async_e}"
-                    )
-                    # Fallback: try synchronous stop if available
-                    try:
-                        if hasattr(self.otiedote_service, "_stop_sync"):
-                            self.otiedote_service._stop_sync()
-                    except Exception as sync_e:
-                        self.logger.warning(
-                            f"Could not stop Otiedote service sync: {sync_e}"
-                        )
+                    # Give it a moment to detect the stop signal
+                    time.sleep(1)
 
-                time.sleep(2)  # Reduced grace period
-                self.logger.info("Otiedote service stopped")
+                    self.logger.info("Otiedote service stop signaled")
+                except Exception as e:
+                    self.logger.warning(f"Error stopping Otiedote service: {e}")
         except Exception as e:
             self.logger.error(f"Error stopping Otiedote service: {e}")
 
@@ -1367,6 +1400,51 @@ class BotManager:
             )
 
         return "\n".join(status_lines)
+
+    def _console_select_channel(self, channel_name: str, server_name: str = None):
+        """Console command to select an active channel (must already be joined).
+
+        Args:
+            channel_name: Channel name (with or without # prefix)
+            server_name: Optional server name. If None, uses first connected server.
+        """
+        # Ensure channel name has # prefix
+        if not channel_name.startswith("#"):
+            channel_name = f"#{channel_name}"
+
+        # Find target server
+        target_server = None
+        if server_name:
+            target_server = self.servers.get(server_name)
+            if not target_server:
+                return f"Server '{server_name}' not found"
+        else:
+            # Use first connected server
+            for name, server in self.servers.items():
+                if (
+                    name in self.server_threads
+                    and self.server_threads[name].is_alive()
+                    and server.connected
+                ):
+                    target_server = server
+                    server_name = name
+                    break
+
+        if not target_server:
+            return "No connected servers available. Use !connect first."
+
+        # Initialize joined channels for this server if needed
+        if server_name not in self.joined_channels:
+            self.joined_channels[server_name] = set()
+
+        # Check if already in channel
+        if channel_name in self.joined_channels[server_name]:
+            # Set as active channel
+            self.active_channel = channel_name
+            self.active_server = server_name
+            return f"Selected {channel_name} on {server_name} (now active)"
+        else:
+            return f"Not joined to {channel_name} on {server_name}. Use !join {channel_name[1:]} first."
 
     def _console_join_or_part_channel(self, channel_name: str, server_name: str = None):
         """Console command to join or part a channel.
@@ -1986,7 +2064,7 @@ class BotManager:
             self.logger.error(f"Error searching YouTube: {e}")
             return f"Error searching YouTube: {str(e)}"
 
-    def _process_leet_winner_summary(self, text: str, sender: str = None):
+    def _process_leet_winner_summary(self, context: Dict[str, Any]):
         """Parser for leet winners summary lines.
 
         Updates leet_winners.json counts for categories:
@@ -2005,6 +2083,10 @@ class BotManager:
         from datetime import datetime
 
         from config import get_config
+
+        # Extract text and sender from context
+        text = context.get("text", "")
+        sender = context.get("sender", "")
 
         # Define allowed nicks for leet winner tracking
         ALLOWED_NICKS = {"beici", "beibi", "beiki"}
@@ -2062,6 +2144,136 @@ class BotManager:
         auth_info = "admin override" if admin_override else f"authorized nick: {sender}"
         self.logger.info(
             f"Updated leet winners (first={first}, last={last}, multileet={multileet}) via {auth_info}"
+        )
+
+    def _process_ekavika_winner_summary(self, context: Dict[str, Any]):
+        """Parser for ekavika winners summary lines.
+
+        Updates state.json ekavika section with competition data:
+        - vika winner (closest before ekavika time)
+        - eka winner (closest after ekavika time)
+
+        Only accepts messages from authorized nicks (Beici, Beibi, Beiki)
+        or messages that start with admin password.
+
+        This keeps ekavika winners in sync with external announcer messages.
+        """
+        import re
+        from datetime import datetime
+
+        from config import get_config
+
+        # Extract text and sender from context
+        text = context.get("text", "")
+        sender = context.get("sender", "")
+        server_name = context.get("server_name", "unknown")
+
+        # Define allowed nicks for ekavika winner tracking
+        ALLOWED_NICKS = {"beici", "beibi", "beiki", "jamps"}
+
+        # Check if message starts with admin password (case-sensitive check)
+        admin_override = False
+        if text and text.strip():
+            config = get_config()
+            admin_password = config.admin_password
+            if admin_password and text.startswith(admin_password):
+                admin_override = True
+                # Remove admin password from text for processing
+                text = text[
+                    len(admin_password) :  # noqa E203 - Black formatting
+                ].strip()
+
+        # Check sender authorization (case-insensitive)
+        if not admin_override and (not sender or sender.lower() not in ALLOWED_NICKS):
+            return
+
+        self.logger.debug(f"Processing ekavika winner summary: {text} from {sender}")
+
+        # Regex pattern for ekavika detection - matches the format from your messages
+        # Pattern: "𝙫𝙞𝙠𝙖 oli [name] kello [time] ([note]), ja 𝖊𝖐𝖆 oli [name] kello [time] ([note])"
+        pattern = r"𝙫𝙞𝙠𝙖 oli (\S+) kello ([^,]+),\s*\(([^)]+)\),\s*ja 𝖊𝖐𝖆 oli (\S+) kello ([^,]+),\s*\(([^)]+)\)"
+        match = re.search(pattern, text, re.IGNORECASE)
+        if not match:
+            self.logger.debug(f"No ekavika pattern match in: {text}")
+            return
+
+        vikq_winner, vikq_time, vikq_note, eka_winner, eka_time, eka_note = (
+            match.groups()
+        )
+
+        # Extract server info from the message context
+        # The server name should be available in the context
+        server_host = getattr(context.get("server", {}).config, "host", server_name)
+
+        # Load current state
+        state = self.data_manager.load_state()
+
+        # Initialize ekavika section if it doesn't exist
+        if "ekavika" not in state:
+            state["ekavika"] = {
+                "competitions": [],
+                "winners": {},
+                "last_updated": datetime.now().isoformat(),
+                "version": "1.0.0",
+            }
+
+        # Create competition record
+        competition = {
+            "event": "ekavika48_00:00:11",  # Default event name, could be parsed from message
+            "server": server_host,
+            "channel": "#joensuu",  # Default channel, could be parsed
+            "vikq_winner": vikq_winner,
+            "vikq_time": vikq_time.strip(),
+            "vikq_note": vikq_note.strip(),
+            "eka_winner": eka_winner,
+            "eka_time": eka_time.strip(),
+            "eka_note": eka_note.strip(),
+            "announced_by": sender,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        # Add competition to list
+        state["ekavika"]["competitions"].append(competition)
+
+        # Update winners statistics
+        winners = state["ekavika"]["winners"]
+
+        # Update vikq winner stats
+        if vikq_winner not in winners:
+            winners[vikq_winner] = {
+                "vikq_wins": 0,
+                "eka_wins": 0,
+                "total_wins": 0,
+                "servers": [],
+            }
+        winners[vikq_winner]["vikq_wins"] += 1
+        winners[vikq_winner]["total_wins"] += 1
+        if server_host not in winners[vikq_winner]["servers"]:
+            winners[vikq_winner]["servers"].append(server_host)
+
+        # Update eka winner stats
+        if eka_winner not in winners:
+            winners[eka_winner] = {
+                "vikq_wins": 0,
+                "eka_wins": 0,
+                "total_wins": 0,
+                "servers": [],
+            }
+        winners[eka_winner]["eka_wins"] += 1
+        winners[eka_winner]["total_wins"] += 1
+        if server_host not in winners[eka_winner]["servers"]:
+            winners[eka_winner]["servers"].append(server_host)
+
+        # Update last_updated timestamp
+        state["ekavika"]["last_updated"] = datetime.now().isoformat()
+
+        # Save updated state
+        self.data_manager.save_state(state)
+
+        # Log with authorization info
+        auth_info = "admin override" if admin_override else f"authorized nick: {sender}"
+        self.logger.info(
+            f"Updated ekavika winners (vikq={vikq_winner}, eka={eka_winner}) via {auth_info} on {server_host}"
         )
 
     def _handle_ipfs_command(self, command_text, irc_client=None, target=None):
@@ -2301,7 +2513,8 @@ class BotManager:
             except Exception as e:
                 self.logger.error(f"Error fetching title for {url}: {e}")
 
-    def _is_youtube_url(self, url: str) -> bool:
+    @staticmethod
+    def _is_youtube_url(url: str) -> bool:
         """Check if a URL is a YouTube URL."""
         import re
 
@@ -2577,20 +2790,21 @@ class BotManager:
         try:
             # 🎯 CRITICAL: Get timestamp with MAXIMUM precision immediately upon message processing
             # This is the most accurate timestamp possible for when the message was processed
-            timestamp = self.nanoleet_detector.get_timestamp_with_nanoseconds()
-
+            timestamp = self.leet_detector.get_timestamp_with_nanoseconds()
             # Check for leet achievement, including the user's message text
-            result = self.nanoleet_detector.check_message_for_leet(
+            result = self.leet_detector.check_message_for_leet(
                 sender, timestamp, user_message
             )
 
             if result:
                 achievement_message, achievement_level = result
-                if achievement_level != "leet":  # Filter out regular leet messages
+                if (
+                    achievement_level != "leet"
+                ):  # Filter out regular leet level messages
                     # Send achievement message to the channel immediately
                     self._send_response(server, target, achievement_message)
 
-                # Log the achievement with high precision
+                # Log the achievement
                 self.logger.info(
                     f"Leet achievement: {achievement_level} for {sender} in {target} at {timestamp} - message: {user_message}"
                 )

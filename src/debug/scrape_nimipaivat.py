@@ -59,7 +59,7 @@ if __name__ == "__main__":
     year = date.today().year
     data = scrape_namedays(year)
 
-    with open("nimipaivat.json", "w", encoding="utf-8") as f:
+    with open("data/nimipaivat.json", "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-    print(f"Nimipäivät tallennettu nimipaivat.json tiedostoon ({year})")
+    print(f"Nimipäivät tallennettu data/nimipaivat.json tiedostoon ({year})")

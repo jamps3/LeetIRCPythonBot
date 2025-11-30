@@ -54,7 +54,7 @@ class GPTService:
     def __init__(
         self,
         api_key: str = "",
-        history_file: str = "conversation_history.json",
+        history_file: str = "data/conversation_history.json",
         history_limit: int = 100,
     ):
         # Prefer explicitly provided key; fall back to environment (.env)
@@ -182,6 +182,6 @@ class GPTService:
 
 
 def create_gpt_service(
-    api_key: str, history_file="conversation_history.json", history_limit=100
+    api_key: str, history_file="data/conversation_history.json", history_limit=100
 ) -> GPTService:
     return GPTService(api_key, history_file, history_limit)

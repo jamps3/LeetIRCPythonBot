@@ -4,13 +4,10 @@ TUI implementation for LeetIRCPythonBot using urwid.
 The default interface. Use --console for the simple interface.
 """
 
-import asyncio
 import os
-import re
 import time
 from collections import deque
 from datetime import datetime
-from typing import Dict, List, Optional
 
 import urwid
 
@@ -47,6 +44,10 @@ PALETTE = [
     ("input_normal", "light gray", "black"),
     ("input_command", "light green", "black"),
     ("input_ai", "light magenta", "black"),
+    # Links
+    ("link", "light blue", "black", "underline"),
+    # Text selection
+    ("selected", "black", "white"),
 ]
 
 
@@ -108,65 +109,693 @@ class LogEntry:
         return level_colors.get(self.level, "log_info")
 
 
+class NonFocusableListBox(urwid.ListBox):
+    """A ListBox that is not focusable but allows mouse interactions and scrolling."""
+
+    def __init__(self, body, *args, **kwargs):
+        super().__init__(body, *args, **kwargs)
+        self._user_scrolled = False
+
+        # Multi-line text selection state
+        self._selection_active = False
+        self._selection_start_line = None
+        self._selection_end_line = None
+        self._selection_start_col = None
+        self._selection_end_col = None
+
+    def selectable(self):
+        return True  # Allow mouse events to reach child widgets
+
+    def mouse_event(self, size, event, button, col, row, focus):
+        """Handle multi-line text selection across the list."""
+        if event == "mouse press" and button == 1:
+            # Start multi-line selection
+            self._start_multi_line_selection(row, col)
+            return True
+
+        elif event == "mouse drag" and button == 1:
+            # Update multi-line selection
+            self._update_multi_line_selection(row, col)
+            return True
+
+        elif event == "mouse release" and button == 1:
+            # End multi-line selection and copy
+            self._end_multi_line_selection(row, col)
+            return True
+
+        # Forward other events to child widgets
+        return super().mouse_event(size, event, button, col, row, focus)
+
+    def _start_multi_line_selection(self, row, col):
+        """Start multi-line text selection."""
+        # For ListBox, row is the visible row index
+        # We need to convert this to the actual walker position
+        try:
+            # Calculate the scroll offset (top visible item index)
+            # The scroll position is the index of the top visible item
+            scroll_offset = self._calculate_scroll_offset()
+            list_index = scroll_offset + row
+
+            # Ensure bounds
+            if 0 <= list_index < len(self.body):
+                self._selection_active = True
+                self._selection_start_line = list_index
+                self._selection_end_line = list_index
+                self._selection_start_col = col
+                self._selection_end_col = col
+                self._update_multi_line_display()
+        except (AttributeError, IndexError, TypeError, ValueError):
+            # Fallback: assume no scrolling, row = list_index
+            if 0 <= row < len(self.body):
+                self._selection_active = True
+                self._selection_start_line = row
+                self._selection_end_line = row
+                self._selection_start_col = col
+                self._selection_end_col = col
+                self._update_multi_line_display()
+
+    def _update_multi_line_selection(self, row, col):
+        """Update multi-line text selection during drag."""
+        if not self._selection_active:
+            return
+
+        try:
+            # Calculate the scroll offset (top visible item index)
+            scroll_offset = self._calculate_scroll_offset()
+            list_index = scroll_offset + row
+
+            # Ensure bounds
+            if 0 <= list_index < len(self.body):
+                self._selection_end_line = list_index
+                self._selection_end_col = col
+                self._update_multi_line_display()
+        except (AttributeError, IndexError, TypeError, ValueError):
+            # Fallback: assume no scrolling, row = list_index
+            if 0 <= row < len(self.body):
+                self._selection_end_line = list_index
+                self._selection_end_col = col
+                self._update_multi_line_display()
+
+    def _calculate_scroll_offset(self):
+        """Calculate the index of the top visible item (scroll offset)."""
+        try:
+            total_items = len(self.body)
+            focus_pos = self.focus_position
+            focus_offset = getattr(self, "focus_position_offset", 0)
+
+            # Method 0: Check if scrolling is actually needed
+            # If all items fit in visible area, or very few items, no scroll offset
+            try:
+                # Estimate visible rows (rough approximation)
+                estimated_visible_rows = getattr(self, "_rows_max", 20)
+                if total_items <= estimated_visible_rows or total_items <= 5:
+                    # All items are visible or very few items - no scrolling
+                    return 0
+            except (AttributeError, TypeError, ValueError):
+                pass
+
+            # Method 1: Use focus_position - focus_position_offset
+            offset1 = max(0, focus_pos - focus_offset)
+
+            # Method 2: Check if we're at the bottom and adjust
+            # If focus is near the end, and offset is small, we might be at bottom
+            if focus_pos >= total_items - 3 and focus_offset <= 2:
+                # We're likely at the bottom, estimate visible area
+                # Assume typical visible area of 20-30 lines
+                estimated_visible_rows = 25  # Conservative estimate
+                offset2 = max(0, total_items - estimated_visible_rows)
+            else:
+                offset2 = offset1
+
+            # Method 3: Use the widget's internal position if available
+            try:
+                # Try to get position from the walker
+                current_pos = self.get_focus()[1]
+                if current_pos is not None and current_pos > 10:
+                    # If we're deeply scrolled, use a position-based estimate
+                    offset3 = max(
+                        0, current_pos - 12
+                    )  # Assume focused item is 12 rows from top
+                else:
+                    offset3 = offset2
+            except (AttributeError, TypeError, ValueError):
+                offset3 = offset2
+
+            # Method 4: Sanity check - if offset would be >= total_items, it's wrong
+            final_offset = max(offset1, offset2, offset3)
+            if final_offset >= total_items:
+                # Offset can't be >= total items, fallback to 0
+                final_offset = 0
+
+            return final_offset
+
+        except (AttributeError, TypeError):
+            # Fallback: try to estimate from focus position
+            try:
+                focus_pos = self.focus_position
+                # Estimate: assume focused item is roughly in the middle of visible area
+                visible_rows = getattr(self, "_rows_max", 10)  # Rough estimate
+                return max(0, focus_pos - visible_rows // 2)
+            except (AttributeError, TypeError):
+                return 0  # No scrolling
+
+    def _end_multi_line_selection(self, row, col):
+        """End multi-line text selection and copy to clipboard."""
+        if not self._selection_active:
+            return
+
+        # Update final position
+        self._update_multi_line_selection(row, col)
+
+        # Extract and copy selected text (before clearing selection)
+        selected_text = self._extract_multi_line_selected_text()
+        if selected_text and CLIPBOARD_AVAILABLE:
+            try:
+                pyperclip.copy(selected_text)
+                # Flash all selected lines
+                self._flash_selected_lines()
+            except Exception:
+                # Log error but don't crash
+                pass
+
+        # Clear selection
+        self._selection_active = False
+        self._selection_start_line = None
+        self._selection_end_line = None
+        self._selection_start_col = None
+        self._selection_end_col = None
+        self._update_multi_line_display()
+
+    def _update_multi_line_display(self):
+        """Update the visual display of all affected lines."""
+        if not self._selection_active:
+            # Clear all selections
+            for i, item in enumerate(self.body):
+                if hasattr(item, "_update_selection_display"):
+                    item._selection_start = None
+                    item._selection_end = None
+                    item._update_selection_display()
+            return
+
+        # Determine affected line range
+        start_line = min(self._selection_start_line, self._selection_end_line)
+        end_line = max(self._selection_start_line, self._selection_end_line)
+
+        # Update each line in the selection
+        for i, item in enumerate(self.body):
+            if hasattr(item, "_update_selection_display"):
+                if start_line <= i <= end_line:
+                    # This line is in the selection range
+                    if (
+                        i == self._selection_start_line
+                        and i == self._selection_end_line
+                    ):
+                        # Single line selection
+                        item._selection_start = min(
+                            self._selection_start_col, self._selection_end_col
+                        )
+                        item._selection_end = max(
+                            self._selection_start_col, self._selection_end_col
+                        )  # noqa: E203
+                    elif i == self._selection_start_line:
+                        # First line of multi-line selection
+                        item._selection_start = self._selection_start_col
+                        item._selection_end = len(
+                            item._text_content
+                        )  # Select to end of line
+                    elif i == self._selection_end_line:
+                        # Last line of multi-line selection
+                        item._selection_start = 0  # Select from start of line
+                        item._selection_end = self._selection_end_col
+                    else:
+                        # Middle line of multi-line selection
+                        item._selection_start = 0
+                        item._selection_end = len(
+                            item._text_content
+                        )  # Select entire line
+
+                    item._update_selection_display()
+                else:
+                    # This line is not in selection
+                    item._selection_start = None
+                    item._selection_end = None
+                    item._update_selection_display()
+
+    def _extract_multi_line_selected_text(self):
+        """Extract the selected text across multiple lines (called before clearing selection)."""
+        if not self._selection_active:
+            return None
+
+        selected_lines = []
+        start_line = min(self._selection_start_line, self._selection_end_line)
+        end_line = max(self._selection_start_line, self._selection_end_line)
+        start_col = min(self._selection_start_col, self._selection_end_col)
+        end_col = max(self._selection_start_col, self._selection_end_col)
+
+        for i in range(start_line, end_line + 1):
+            if i < len(self.body):
+                item = self.body[i]
+                if hasattr(item, "_text_content"):
+                    line_content = item._text_content
+
+                    if i == start_line and i == end_line:
+                        # Single line selection
+                        selected_text = line_content[
+                            min(start_col, end_col) : max(  # noqa: E203
+                                start_col, end_col
+                            )
+                        ]
+                    elif i == start_line:
+                        # First line of multi-line selection
+                        selected_text = line_content[start_col:]
+                    elif i == end_line:
+                        # Last line of multi-line selection
+                        selected_text = line_content[:end_col]
+                    else:
+                        # Middle line - entire line
+                        selected_text = line_content
+
+                    if selected_text:
+                        selected_lines.append(selected_text)
+
+        return "\n".join(selected_lines) if selected_lines else None
+
+    def _get_multi_line_selected_text(self):
+        """Get the selected text across multiple lines."""
+        if not self._selection_active:
+            return None
+
+        selected_lines = []
+        start_line = min(self._selection_start_line, self._selection_end_line)
+        end_line = max(self._selection_start_line, self._selection_end_line)
+        start_col = min(self._selection_start_col, self._selection_end_col)
+        end_col = max(self._selection_start_col, self._selection_end_col)
+
+        for i in range(start_line, end_line + 1):
+            if i < len(self.body):
+                item = self.body[i]
+                if hasattr(item, "_text_content"):
+                    line_content = item._text_content
+
+                    if i == start_line and i == end_line:
+                        # Single line selection
+                        selected_text = line_content[
+                            min(start_col, end_col) : max(  # noqa: E203
+                                start_col, end_col
+                            )
+                        ]
+                    elif i == start_line:
+                        # First line of multi-line selection
+                        selected_text = line_content[start_col:]
+                    elif i == end_line:
+                        # Last line of multi-line selection
+                        selected_text = line_content[:end_col]
+                    else:
+                        # Middle line - entire line
+                        selected_text = line_content
+
+                    if selected_text:
+                        selected_lines.append(selected_text)
+
+        return "\n".join(selected_lines) if selected_lines else None
+
+    def _flash_selected_lines(self):
+        """Flash all lines that were selected."""
+        if not self._selection_active:
+            return
+
+        start_line = min(self._selection_start_line, self._selection_end_line)
+        end_line = max(self._selection_start_line, self._selection_end_line)
+
+        for i in range(start_line, end_line + 1):
+            if i < len(self.body):
+                item = self.body[i]
+                if hasattr(item, "_flash"):
+                    item._flash()
+
+    def scroll_up_page(self):
+        """Scroll up by one page (20 lines) and mark as user scrolled."""
+        self._user_scrolled = True
+        # Scroll up by changing walker focus position
+        if hasattr(self, "body") and len(self.body) > 0:
+            try:
+                current_focus = self.get_focus()[1]
+                if current_focus is not None:
+                    new_focus = max(0, current_focus - 20)
+                    self.body.set_focus(new_focus)
+            except (AttributeError, TypeError):
+                # If we can't get current focus, just set to top
+                self.body.set_focus(0)
+
+    def scroll_down_page(self):
+        """Scroll down by one page (20 lines) and mark as user scrolled."""
+        self._user_scrolled = True
+        # Scroll down by changing walker focus position
+        if hasattr(self, "body") and len(self.body) > 0:
+            try:
+                current_focus = self.get_focus()[1]
+                if current_focus is not None:
+                    new_focus = min(len(self.body) - 1, current_focus + 20)
+                    self.body.set_focus(new_focus)
+            except (AttributeError, TypeError):
+                # If we can't get current focus, just set to bottom
+                self.body.set_focus(len(self.body) - 1)
+
+    def scroll_up(self):
+        """Scroll up by one line and mark as user scrolled."""
+        self._user_scrolled = True
+        # Scroll up by changing walker focus position
+        if hasattr(self, "body") and len(self.body) > 0:
+            try:
+                current_focus = self.get_focus()[1]
+                if current_focus is not None and current_focus > 0:
+                    self.body.set_focus(current_focus - 1)
+            except (AttributeError, TypeError):
+                # If we can't get current focus, just set to top
+                self.body.set_focus(0)
+
+    def scroll_down(self):
+        """Scroll down by one line and mark as user scrolled."""
+        self._user_scrolled = True
+        # Scroll down by changing walker focus position
+        if hasattr(self, "body") and len(self.body) > 0:
+            try:
+                current_focus = self.get_focus()[1]
+                if current_focus is not None and current_focus < len(self.body) - 1:
+                    self.body.set_focus(current_focus + 1)
+            except (AttributeError, TypeError):
+                # If we can't get current focus, just set to bottom
+                self.body.set_focus(len(self.body) - 1)
+
+    def scroll_to_bottom(self):
+        """Scroll to the bottom and reset user scroll flag."""
+        # Scroll to bottom by setting focus to the last item in the walker
+        if hasattr(self, "body") and len(self.body) > 0:
+            # Set focus to the last item
+            self.body.set_focus(len(self.body) - 1)
+        # Reset user scroll flag after scrolling is complete
+        self._user_scrolled = False
+
+    def scroll_to_top(self):
+        """Scroll to the top and mark as user scrolled."""
+        self._user_scrolled = True
+        # Scroll to top by setting focus to the first item in the walker
+        if hasattr(self, "body") and len(self.body) > 0:
+            # Set focus to the first item
+            self.body.set_focus(0)
+
+    def is_at_bottom(self):
+        """Check if currently at the bottom."""
+        if not hasattr(self, "body") or len(self.body) == 0:
+            return True
+        # Get the current focus position from the body
+        try:
+            focus_widget, focus_position = self.get_focus()
+            if focus_position is not None:
+                return focus_position >= len(self.body) - 2  # Within 2 lines of bottom
+        except (AttributeError, TypeError):
+            pass
+        return True  # Default to True if we can't determine
+
+    def should_auto_scroll(self):
+        """Check if auto-scroll should be enabled."""
+        return not self._user_scrolled or self.is_at_bottom()
+
+
 class SelectableText(urwid.WidgetWrap):
     """Text widget that supports mouse selection and clipboard copying."""
 
     def __init__(self, text, original_attr=None):
-        self.text = text
+        self._text_content = text  # Store the actual text content
         self.original_attr = original_attr or "default"
         self._flash_handle = None
+        self._selection_start = None
+        self._selection_end = None
+        self._is_flashing = False
 
-        # Create the underlying text widget
-        text_widget = urwid.Text(text)
-        super().__init__(text_widget)
+        # Parse text for URLs and create markup
+        self.markup_text = self._parse_text_with_links(text)
+
+        # Create the underlying Text widget
+        self._text_widget = urwid.Text(self.markup_text)
+
+        # Wrap in AttrMap for coloring
+        self._attr_map = urwid.AttrMap(self._text_widget, self.original_attr)
+        super().__init__(self._attr_map)
 
     def selectable(self):
         return True
 
     def keypress(self, size, key):
         if key in ("ctrl c", "ctrl C"):
-            if self.text and CLIPBOARD_AVAILABLE:
+            text_widget = self._w._original_widget  # Get the Text widget
+            text = text_widget.get_text()[0]  # Get the actual text content
+            if text and CLIPBOARD_AVAILABLE:
                 try:
-                    pyperclip.copy(self.text)
+                    pyperclip.copy(text)
                     return None
                 except Exception:
                     pass
         return key
 
-    def mouse_event(self, *args):
-        if len(args) >= 5:
-            size, event, button, col, row = args[:5]
-            if event == "mouse press" and button == 1:  # Left click
-                # On click, copy the entire line to clipboard
-                if self.text and CLIPBOARD_AVAILABLE:
-                    try:
-                        pyperclip.copy(self.text)
-                        # Trigger flash effect
-                        self._flash()
-                    except Exception:
-                        pass
-                return True
-        # Forward to parent class
-        return super().mouse_event(*args)
+    def mouse_event(self, size, event, button, col, row, focus):
+        """Mouse events are handled by the parent ListBox for multi-line selection."""
+        # Let parent handle all mouse events
+        return False
+
+    def _parse_text_with_links(self, text):
+        """Parse text and highlight URLs."""
+        import re
+
+        # URL regex pattern
+        url_pattern = r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+
+        # Find all URLs in the text
+        urls = re.findall(url_pattern, text)
+
+        if not urls:
+            return text
+
+        # Create markup with highlighted links
+        markup = []
+        remaining_text = text
+
+        for url in urls:
+            # Find the URL in remaining text
+            url_start = remaining_text.find(url)
+            if url_start == -1:
+                continue
+
+            # Add text before URL
+            if url_start > 0:
+                markup.append(remaining_text[:url_start])
+
+            # Add highlighted URL
+            markup.append(("link", url))
+
+            # Remove processed text
+            remaining_text = remaining_text[url_start + len(url) :]  # noqa: E203
+
+        # Add remaining text
+        if remaining_text:
+            markup.append(remaining_text)
+
+        return markup if markup else text
+
+    def _get_link_at_position(self, col):
+        """Get the URL at the given column position."""
+        import re
+
+        url_pattern = r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+
+        # Get the markup and plain text
+        text_widget = self._w._original_widget  # Get the Text widget
+        markup = text_widget.get_text()[1]  # Get the markup
+        plain_text = text_widget.get_text()[0]  # Get the plain text
+
+        # Find which part of the markup the column position falls into
+        current_pos = 0
+        for attr, length in markup:
+            if attr == "link" and current_pos <= col < current_pos + length:
+                # We're in a link section, find the URL in plain text
+                link_start = current_pos
+                link_end = current_pos + length
+                link_text = plain_text[link_start:link_end]
+                return link_text
+            current_pos += length
+
+        return None
+
+    def _get_selected_text(self):
+        """Get the currently selected text."""
+        if self._selection_start is None or self._selection_end is None:
+            return None
+
+        # Get the markup and plain text
+        text_widget = self._w._original_widget  # Get the Text widget
+        markup = text_widget.get_text()[1]  # Get the markup
+        plain_text = text_widget.get_text()[0]  # Get the plain text
+
+        # For selection, we need to find the text between the start and end screen positions
+        # Since markup can affect positioning, we'll use a simpler approach:
+        # Just extract based on screen positions, assuming the markup doesn't change character positions
+        start_col = min(self._selection_start, self._selection_end)
+        end_col = max(self._selection_start, self._selection_end)
+
+        # Ensure bounds
+        start_col = max(0, min(start_col, len(plain_text)))
+        end_col = max(0, min(end_col, len(plain_text)))
+
+        return plain_text[start_col:end_col]
+
+    def _update_selection_display(self):
+        """Update the visual display to show selected text."""
+        if self._selection_start is None or self._selection_end is None:
+            # No selection, restore original markup
+            self._text_widget.set_text(self.markup_text)
+            return
+
+        # Get the plain text
+        plain_text = self._text_content
+
+        # Calculate selection bounds
+        start_col = min(self._selection_start, self._selection_end)
+        end_col = max(self._selection_start, self._selection_end)
+
+        # Ensure bounds
+        start_col = max(0, min(start_col, len(plain_text)))
+        end_col = max(0, min(end_col, len(plain_text)))
+
+        if start_col >= end_col:
+            # Invalid selection, restore original
+            self._text_widget.set_text(self.markup_text)
+            return
+
+        # Create new markup with selection highlighting
+        new_markup = []
+        current_pos = 0
+
+        # Process original markup and insert selection highlights
+        for item in self.markup_text:
+            if isinstance(item, tuple):
+                # This is a markup tuple (attr, text)
+                attr, text = item
+                text_len = len(text)
+
+                # Check if this text segment overlaps with selection
+                segment_start = current_pos
+                segment_end = current_pos + text_len
+
+                # Find overlap between segment and selection
+                overlap_start = max(segment_start, start_col)
+                overlap_end = min(segment_end, end_col)
+
+                if overlap_start < overlap_end:
+                    # There is overlap - split the text
+                    # Text before selection
+                    if segment_start < overlap_start:
+                        before_text = text[: overlap_start - segment_start]
+                        if before_text:
+                            new_markup.append((attr, before_text))
+
+                    # Selected text
+                    selected_text = text[
+                        overlap_start
+                        - segment_start : overlap_end  # noqa: E203
+                        - segment_start
+                    ]
+                    if selected_text:
+                        # Use the more specific attribute if it exists, otherwise combine
+                        if attr:
+                            new_markup.append(("selected", selected_text))
+                        else:
+                            new_markup.append(("selected", selected_text))
+
+                    # Text after selection
+                    if overlap_end < segment_end:
+                        after_text = text[overlap_end - segment_start :]  # noqa: E203
+                        if after_text:
+                            new_markup.append((attr, after_text))
+                else:
+                    # No overlap, use original
+                    new_markup.append(item)
+
+                current_pos += text_len
+            else:
+                # This is plain text
+                text = item
+                text_len = len(text)
+
+                # Check if this text segment overlaps with selection
+                segment_start = current_pos
+                segment_end = current_pos + text_len
+
+                # Find overlap between segment and selection
+                overlap_start = max(segment_start, start_col)
+                overlap_end = min(segment_end, end_col)
+
+                if overlap_start < overlap_end:
+                    # There is overlap - split the text
+                    # Text before selection
+                    if segment_start < overlap_start:
+                        before_text = text[: overlap_start - segment_start]
+                        if before_text:
+                            new_markup.append(before_text)
+
+                    # Selected text
+                    selected_text = text[
+                        overlap_start
+                        - segment_start : overlap_end  # noqa: E203
+                        - segment_start
+                    ]
+                    if selected_text:
+                        new_markup.append(("selected", selected_text))
+
+                    # Text after selection
+                    if overlap_end < segment_end:
+                        after_text = text[overlap_end - segment_start :]  # noqa: E203
+                        if after_text:
+                            new_markup.append(after_text)
+                else:
+                    # No overlap, use original
+                    new_markup.append(item)
+
+                current_pos += text_len
+
+        # Update the text widget with the new markup
+        self._text_widget.set_text(new_markup)
+
+    def _open_link_in_browser(self, url):
+        """Open URL in default browser."""
+        import webbrowser
+
+        try:
+            webbrowser.open(url)
+        except Exception:
+            # Could log error here, but for now just ignore
+            pass
 
     def _flash(self):
-        """Flash the line briefly to indicate it was copied."""
-        # Get the parent widget (AttrMap) to change its attribute
-        parent = getattr(self, "_parent", None)
-        if parent and hasattr(parent, "set_attr_map"):
-            # Change to flash color
-            parent.set_attr_map({None: "flash"})
+        """Flash the line briefly to indicate it was copied or clicked."""
+        if self._is_flashing:
+            return  # Already flashing
 
-            # Set a timer to restore original color
-            import threading
+        self._is_flashing = True
 
-            def restore_color():
-                if parent and hasattr(parent, "set_attr_map"):
-                    parent.set_attr_map({None: self.original_attr})
+        # Get the AttrMap and change its attribute
+        attr_map = self._w  # The wrapped AttrMap
+        attr_map.set_attr_map({None: "flash"})
 
-            # Flash for 200ms
-            timer = threading.Timer(0.2, restore_color)
-            timer.start()
+        # Set a timer to restore original color
+        import threading
+
+        def restore_color():
+            attr_map.set_attr_map({None: self.original_attr})
+            self._is_flashing = False
+
+        # Flash for 200ms
+        timer = threading.Timer(0.2, restore_color)
+        timer.start()
 
 
 class StatsView:
@@ -518,7 +1147,7 @@ class TUIManager:
         # UI components
         self.header = urwid.Text("")
         self.log_walker = urwid.SimpleListWalker([])
-        self.log_display = urwid.ListBox(self.log_walker)
+        self.log_display = NonFocusableListBox(self.log_walker)
         self.input_field = urwid.Edit("> Enter message (! for bot, - for AI): ")
 
         # Additional views
@@ -645,38 +1274,21 @@ class TUIManager:
 
         # Check if entry matches current filter
         if entry.matches_filter(self.current_filter):
+            # Check if we were at the bottom before adding the new item
+            was_at_bottom = self.log_display.is_at_bottom()
+
             # Create selectable text widget with mouse support
             color_attr = entry.get_color_attr()
-            selectable_text = urwid.AttrMap(
-                SelectableText(entry.get_display_text(), color_attr),
-                color_attr,
-            )
+            selectable_text = SelectableText(entry.get_display_text(), color_attr)
             self.log_walker.append(selectable_text)
 
-            # Auto-scroll to bottom (safe focus handling)
-            try:
-                if len(self.log_walker) > 0:
-                    self.log_display.set_focus(len(self.log_walker) - 1)
-            except IndexError:
-                # Fallback: try to set focus to the last available position
-                try:
-                    if len(self.log_walker) > 0:
-                        self.log_display.set_focus(0)
-                except IndexError:
-                    # If still failing, ignore focus setting
-                    pass
+            # Auto-scroll to bottom only if we were previously at bottom or auto-scroll is enabled
+            if was_at_bottom or self.log_display.should_auto_scroll():
+                self.log_display.scroll_to_bottom()
 
     def apply_filter(self, filter_text: str):
         """Apply a filter to the log display."""
         self.current_filter = filter_text
-
-        # Store current focus position before clearing
-        current_focus = None
-        try:
-            if len(self.log_walker) > 0:
-                current_focus = self.log_display.focus_position
-        except (IndexError, AttributeError):
-            current_focus = None
 
         # Rebuild the display with filtered entries
         self.log_walker.clear()
@@ -685,26 +1297,11 @@ class TUIManager:
             if entry.matches_filter(filter_text):
                 # Create selectable text widget with mouse support
                 color_attr = entry.get_color_attr()
-                selectable_text = urwid.AttrMap(
-                    SelectableText(entry.get_display_text(), color_attr),
-                    color_attr,
-                )
+                selectable_text = SelectableText(entry.get_display_text(), color_attr)
                 self.log_walker.append(selectable_text)
 
-        # Auto-scroll to bottom (safe focus handling)
-        try:
-            if len(self.log_walker) > 0:
-                self.log_display.set_focus(len(self.log_walker) - 1)
-        except IndexError:
-            # Fallback: try to set focus to the first position or maintain previous position
-            try:
-                if len(self.log_walker) > 0:
-                    # Try to maintain focus at a safe position
-                    safe_focus = min(current_focus or 0, len(self.log_walker) - 1)
-                    self.log_display.set_focus(safe_focus)
-            except (IndexError, TypeError):
-                # If still failing, ignore focus setting
-                pass
+        # Auto-scroll to bottom after filtering
+        self.log_display.scroll_to_bottom()
 
     def process_input(self, text: str) -> bool:
         """Process user input.
@@ -751,6 +1348,30 @@ class TUIManager:
             # Switch to console view
             self.switch_view("console")
             return True
+        elif text.startswith("#"):
+            # Channel select command - handle locally instead of going through command_loader
+            try:
+                channel_name = text[1:].strip()
+                if channel_name:
+                    result = self.bot_manager._console_select_channel(channel_name)
+                    self.add_log_entry(
+                        datetime.now(), "Console", "INFO", result, "SYSTEM"
+                    )
+                else:
+                    result = self.bot_manager._get_channel_status()
+                    self.add_log_entry(
+                        datetime.now(), "Console", "INFO", result, "SYSTEM"
+                    )
+                return True
+            except Exception as e:
+                self.add_log_entry(
+                    datetime.now(),
+                    "Console",
+                    "ERROR",
+                    f"Channel command error: {e}",
+                    "SYSTEM",
+                )
+                return True
         else:
             # Use unified command processing from command_loader
             if self.bot_manager:
@@ -778,6 +1399,71 @@ class TUIManager:
                 )
                 return True
 
+    def mouse_event(self, size, event, button, col, row, focus):
+        """Handle mouse events - route them to the appropriate child widget."""
+        self.add_log_entry(
+            datetime.now(),
+            "DEBUG",
+            f"Mouse event: event={event}, button={button}, col={col}, row={row}, focus={focus}",
+            "SYSTEM",
+        )
+        # Get the layout of the Frame
+        head_size = self.header.rows((size[0],))
+        foot_size = self.input_field.rows((size[0],))
+
+        # Check if the mouse event is in the header
+        if row < head_size:
+            # Header area - no special handling
+            return False
+
+        # Check if the mouse event is in the footer (input field)
+        elif row >= size[1] - foot_size:
+            # Input field area - let it handle the event
+            return self.input_field.mouse_event(
+                (size[0], foot_size),
+                event,
+                button,
+                col,
+                row - (size[1] - foot_size),
+                focus,
+            )
+
+        # Mouse event is in the body (log display) area
+        else:
+            # Calculate the relative position within the body
+            body_row = row - head_size
+
+            # Debug: Log scroll state on mouse press
+            if event == "mouse press" and button == 1:
+                try:
+                    focus_pos = self.log_display.focus_position
+                    focus_offset = getattr(
+                        self.log_display, "focus_position_offset", "N/A"
+                    )
+                    scroll_offset = self.log_display._calculate_scroll_offset()
+                    total_items = len(self.log_display.body)
+                    self.add_log_entry(
+                        datetime.now(),
+                        "DEBUG",
+                        f"Mouse press: row={body_row}, focus_pos={focus_pos}, focus_offset={focus_offset}, "
+                        f"scroll_offset={scroll_offset}, total_items={total_items}",
+                        "SYSTEM",
+                    )
+                except Exception as e:
+                    self.add_log_entry(
+                        datetime.now(), "ERROR", f"Debug error: {e}", "SYSTEM"
+                    )
+
+            # Let the log display handle the mouse event
+            return self.log_display.mouse_event(
+                (size[0], size[1] - head_size - foot_size),
+                event,
+                button,
+                col,
+                body_row,
+                focus,
+            )
+
     def handle_key(self, key):
         """Handle keyboard input."""
         if key in ("ctrl c", "ctrl C"):
@@ -798,7 +1484,9 @@ class TUIManager:
             # Command history up
             if self.command_history and self.history_index > 0:
                 self.history_index -= 1
-                self.input_field.set_edit_text(self.command_history[self.history_index])
+                command = self.command_history[self.history_index]
+                self.input_field.set_edit_text(command)
+                self.input_field.set_edit_pos(len(command))  # Move cursor to end
                 self.update_input_style()
 
         elif key == "down":
@@ -808,10 +1496,13 @@ class TUIManager:
                 and self.history_index < len(self.command_history) - 1
             ):
                 self.history_index += 1
-                self.input_field.set_edit_text(self.command_history[self.history_index])
+                command = self.command_history[self.history_index]
+                self.input_field.set_edit_text(command)
+                self.input_field.set_edit_pos(len(command))  # Move cursor to end
                 self.update_input_style()
             elif self.history_index >= len(self.command_history) - 1:
                 self.input_field.set_edit_text("")
+                self.input_field.set_edit_pos(0)
                 self.history_index = len(self.command_history)
                 self.update_input_style()
 
@@ -821,59 +1512,29 @@ class TUIManager:
             self.history_index = len(self.command_history)
             self.update_input_style()
 
-        elif key in ("f1", "?"):
+        elif key in ("f1", "ctrl f1"):
             # Show help
             self.show_help()
 
-        elif key == "f2":
+        elif key in ("f2", "ctrl f2"):
             # Switch to console view
             self.switch_view("console")
 
-        elif key == "f3":
+        elif key in ("f3", "ctrl f3"):
             # Switch to stats view
             self.switch_view("stats")
 
-        elif key == "f4":
+        elif key in ("f4", "ctrl f4"):
             # Switch to config view
             self.switch_view("config")
 
-        elif key == "shift tab":
-            # Switch focus between input field and log display
-            current_focus = self.main_layout.focus_part
-            if current_focus == "footer":
-                # Switch to body (log display)
-                self.main_layout.focus_part = "body"
-                self.add_log_entry(
-                    datetime.now(),
-                    "Console",
-                    "DEBUG",
-                    "Focus switched to log display. Use Shift+Tab to return to input.",
-                    "SYSTEM",
-                )
-            else:
-                # Switch back to footer (input field)
-                self.main_layout.focus_part = "footer"
-                self.add_log_entry(
-                    datetime.now(),
-                    "Console",
-                    "DEBUG",
-                    "Focus switched to input field.",
-                    "SYSTEM",
-                )
+        elif key == "page up":
+            # Scroll log display up by one page
+            self.log_display.scroll_up_page()
 
-    def mouse_event(self, size, event, button, col, row):
-        """Handle mouse events."""
-        # Handle focus switching first
-        if event == "mouse press" and button == 1:  # Left click
-            # If clicking in the log area, switch focus to body
-            if row < size[1] - 3:  # Rough estimate of log area
-                self.main_layout.focus_part = "body"
-            else:
-                # Click in input area, switch focus to footer
-                self.main_layout.focus_part = "footer"
-
-        # Forward mouse events to the focused widget for text selection
-        return self.main_layout.mouse_event(size, event, button, col, row)
+        elif key == "page down":
+            # Scroll log display down by one page
+            self.log_display.scroll_down_page()
 
     def switch_view(self, view_name):
         """Switch between different views (console, stats, config)."""
@@ -888,12 +1549,8 @@ class TUIManager:
                     text_widget = urwid.Text(line)
                     self.log_walker.append(text_widget)
 
-                # Safe focus handling after switching to stats
-                try:
-                    if len(self.log_walker) > 0:
-                        self.log_display.set_focus(0)
-                except IndexError:
-                    pass
+                # Scroll to top for stats view
+                self.log_display.scroll_to_top()
 
                 self.add_log_entry(
                     datetime.now(),
@@ -911,12 +1568,8 @@ class TUIManager:
                     text_widget = urwid.Text(line)
                     self.log_walker.append(text_widget)
 
-                # Safe focus handling after switching to config
-                try:
-                    if len(self.log_walker) > 0:
-                        self.log_display.set_focus(0)
-                except IndexError:
-                    pass
+                # Scroll to top for config view
+                self.log_display.scroll_to_top()
 
                 self.add_log_entry(
                     datetime.now(),
@@ -1027,14 +1680,14 @@ Commands:
 Keyboard Shortcuts:
   Ctrl+C          - Exit TUI immediately
   !exit, !quit    - Shutdown bot gracefully
-  F1, ?           - Show this help
-  F2              - Console view
-  F3              - Statistics view
-  F4              - Configuration editor
+  F1, Ctrl+F1     - Show this help
+  F2, Ctrl+F2     - Console view
+  F3, Ctrl+F3     - Statistics view
+  F4, Ctrl+F4     - Configuration editor
   Up/Down         - Navigate command history
+  PageUp/PageDown - Scroll log display
   Enter           - Send message/command
   Escape          - Clear input field
-  Shift+Tab       - Switch focus between input and log display
 
 Tips:
   - Use 'filter:ERROR' to show only error messages
@@ -1043,14 +1696,15 @@ Tips:
   - Commands run asynchronously - you can type while commands process
   - Statistics view shows real-time bot performance
   - Config editor allows runtime configuration changes
-  - Click on any log line to copy it to clipboard (pyperclip)
+  - Mouse selection: Click and drag to select text, releases to copy to clipboard
+  - PageUp/PageDown scroll the log display (works from input field)
         """
 
         self.add_log_entry(datetime.now(), "Console", "INFO", help_text, "SYSTEM")
 
     def run(self):
         """Run the TUI main loop."""
-        # Set up logger hook to receive all log messages
+        # Set up logger hook to receive all log messages immediately
         logger.set_tui_hook(self.add_log_entry)
 
         # Add initial log entries
@@ -1058,7 +1712,7 @@ Tips:
             datetime.now(),
             "Console",
             "INFO",
-            "TUI started successfully! Type commands or messages below.",
+            "TUI starting up - capturing all logs from now on.",
             "SYSTEM",
         )
 
@@ -1081,33 +1735,16 @@ Tips:
                 datetime.now(), "Console", "INFO", "Bot manager connected", "SYSTEM"
             )
 
-            # Check if AUTO_CONNECT is enabled
-            auto_connect = os.getenv("AUTO_CONNECT", "false").lower() == "true"
-            if auto_connect:
+            # Report connection status (auto-connect is handled by bot manager)
+            auto_connect_enabled = os.getenv("AUTO_CONNECT", "false").lower() == "true"
+            if auto_connect_enabled:
                 self.add_log_entry(
                     datetime.now(),
                     "Console",
                     "INFO",
-                    "Auto-connecting to configured servers...",
+                    "AUTO_CONNECT is enabled. Servers should connect automatically.",
                     "SYSTEM",
                 )
-                try:
-                    self.bot_manager.connect_to_servers()
-                    self.add_log_entry(
-                        datetime.now(),
-                        "Console",
-                        "INFO",
-                        "Connection initiated. Channels will be joined automatically.",
-                        "SYSTEM",
-                    )
-                except Exception as e:
-                    self.add_log_entry(
-                        datetime.now(),
-                        "Console",
-                        "ERROR",
-                        f"Failed to connect to servers: {e}",
-                        "SYSTEM",
-                    )
             else:
                 self.add_log_entry(
                     datetime.now(),
@@ -1133,6 +1770,9 @@ Tips:
                 "SYSTEM",
             )
 
+        # Brief pause to allow initial setup to complete
+        time.sleep(0.5)
+
         # Create and run main loop with mouse support
         self.loop = urwid.MainLoop(
             self.main_layout,
@@ -1155,14 +1795,8 @@ Tips:
                         text_widget = urwid.Text(line)
                         self.log_walker.append(text_widget)
 
-                    # Safe focus handling after refresh
-                    try:
-                        if len(self.log_walker) > 0:
-                            self.log_display.set_focus(
-                                0
-                            )  # Set to first item for stats view
-                    except IndexError:
-                        pass
+                    # Scroll to top for refreshed stats view
+                    self.log_display.scroll_to_top()
 
                 elif self.current_view == "config":
                     # Refresh config display
@@ -1172,14 +1806,8 @@ Tips:
                         text_widget = urwid.Text(line)
                         self.log_walker.append(text_widget)
 
-                    # Safe focus handling after refresh
-                    try:
-                        if len(self.log_walker) > 0:
-                            self.log_display.set_focus(
-                                0
-                            )  # Set to first item for config view
-                    except IndexError:
-                        pass
+                    # Scroll to top for refreshed config view
+                    self.log_display.scroll_to_top()
 
                 self.loop.set_alarm_in(1, lambda *args: update_callback())
             except Exception as e:

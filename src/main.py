@@ -204,6 +204,10 @@ def main():
             bot_manager.wait_for_shutdown()
         else:
             main_logger.log("Starting TUI interface...", "INFO")
+            main_logger.log(
+                "Starting TUI in 5 seconds... Press Ctrl+C to cancel.",
+                "INFO",
+            )
 
             # Import TUI here to avoid import errors if urwid is not available
             try:

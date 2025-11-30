@@ -18,17 +18,20 @@ import logger
 class DataManager:
     """Manages all data persistence for the word tracking system."""
 
-    def __init__(self, data_dir: str = "."):
+    def __init__(self, data_dir: str = "data", state_file: Optional[str] = None):
         """
         Initialize the data manager.
 
         Args:
             data_dir: Directory where data files are stored
+            state_file: Path to the state.json file (optional, defaults to data/state.json)
         """
         self.data_dir = data_dir
         self.drink_data_file = os.path.join(data_dir, "drink_tracking.json")
         self.general_words_file = os.path.join(data_dir, "general_words.json")
-        self.state_file = os.path.join(data_dir, "state.json")
+        self.state_file = os.path.normpath(
+            state_file or os.path.join(data_dir, "state.json")
+        )
 
         # Initialize data structures
         self._ensure_data_files()
@@ -72,6 +75,7 @@ class DataManager:
             "otiedote": {
                 "latest_release": 0,
             },
+            "drink_tracking_opt_out": {},
         }
 
         # Create files if they don't exist
@@ -208,6 +212,7 @@ class DataManager:
                 "subscriptions": {},
                 "fmi_warnings": {"seen_hashes": [], "seen_data": []},
                 "otiedote": {"latest_release": 0},
+                "drink_tracking_opt_out": {},
             }
 
         # Update the tamagotchi section
@@ -216,76 +221,30 @@ class DataManager:
         # Save the full state file
         self.save_json(self.state_file, state_data)
 
-    # Privacy management methods
-    def _parse_opt_out_env(self) -> Dict[str, List[str]]:
-        """
-        Parse the DRINK_TRACKING_OPT_OUT environment variable.
+    def load_drink_tracking_opt_out_state(self) -> Dict[str, Any]:
+        """Load drink tracking opt-out state data from merged state.json."""
+        state_data = self.load_json(self.state_file)
+        return state_data.get("drink_tracking_opt_out", {})
 
-        Returns:
-            Dictionary mapping server names to lists of opted-out nicknames
-        """
-        opt_out_str = os.getenv("DRINK_TRACKING_OPT_OUT", "")
-        if not opt_out_str.strip():
-            return {}
+    def save_drink_tracking_opt_out_state(self, data: Dict[str, Any]):
+        """Save drink tracking opt-out state data to merged state.json."""
+        # Load the full state file
+        state_data = self.load_json(self.state_file)
+        if not state_data:
+            # Initialize with default structure if file is empty or corrupted
+            state_data = {
+                "tamagotchi": {},
+                "subscriptions": {},
+                "fmi_warnings": {"seen_hashes": [], "seen_data": []},
+                "otiedote": {"latest_release": 0},
+                "drink_tracking_opt_out": {},
+            }
 
-        result = {}
-        try:
-            # Split by comma and process each server:nick pair
-            pairs = [pair.strip() for pair in opt_out_str.split(",") if pair.strip()]
+        # Update the drink_tracking_opt_out section
+        state_data["drink_tracking_opt_out"] = data
 
-            for pair in pairs:
-                if ":" not in pair:
-                    continue
-
-                server, nick = pair.split(":", 1)
-                server = server.strip()
-                nick = nick.strip()
-
-                if server and nick:
-                    if server not in result:
-                        result[server] = []
-                    if nick not in result[server]:
-                        result[server].append(nick)
-
-        except Exception as e:
-            logger.error(f"Error parsing DRINK_TRACKING_OPT_OUT: {e}")
-            return {}
-
-        return result
-
-    def _format_opt_out_env(self, opt_out_data: Dict[str, List[str]]) -> str:
-        """
-        Format opt-out data back to environment variable format.
-
-        Args:
-            opt_out_data: Dictionary mapping server names to lists of opted-out nicknames
-
-        Returns:
-            Formatted string for environment variable
-        """
-        pairs = []
-        for server, nicks in opt_out_data.items():
-            for nick in nicks:
-                pairs.append(f"{server}:{nick}")
-        return ",".join(pairs)
-
-    def _update_opt_out_env(self, opt_out_data: Dict[str, List[str]]) -> bool:
-        """
-        Update the DRINK_TRACKING_OPT_OUT environment variable.
-
-        Args:
-            opt_out_data: Dictionary mapping server names to lists of opted-out nicknames
-
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            env_value = self._format_opt_out_env(opt_out_data)
-            os.environ["DRINK_TRACKING_OPT_OUT"] = env_value
-            return True
-        except Exception as e:
-            logger.error(f"Error updating DRINK_TRACKING_OPT_OUT: {e}")
-            return False
+        # Save the full state file
+        self.save_json(self.state_file, state_data)
 
     def is_user_opted_out(self, server: str, nick: str) -> bool:
         """
@@ -298,7 +257,7 @@ class DataManager:
         Returns:
             True if user has opted out, False otherwise
         """
-        opt_out_data = self._parse_opt_out_env()
+        opt_out_data = self.load_drink_tracking_opt_out_state()
         server_opts = opt_out_data.get(server, [])
         return nick.lower() in [n.lower() for n in server_opts]
 
@@ -314,7 +273,7 @@ class DataManager:
         Returns:
             True if successful, False otherwise
         """
-        opt_out_data = self._parse_opt_out_env()
+        opt_out_data = self.load_drink_tracking_opt_out_state()
 
         if server not in opt_out_data:
             opt_out_data[server] = []
@@ -334,7 +293,7 @@ class DataManager:
             if not opt_out_data[server]:
                 del opt_out_data[server]
 
-        return self._update_opt_out_env(opt_out_data)
+        return self.save_drink_tracking_opt_out_state(opt_out_data) is not None
 
     def get_opted_out_users(self, server: Optional[str] = None) -> Dict[str, List[str]]:
         """
@@ -346,7 +305,7 @@ class DataManager:
         Returns:
             Dictionary mapping server names to lists of opted-out nicknames
         """
-        opt_out_data = self._parse_opt_out_env()
+        opt_out_data = self.load_drink_tracking_opt_out_state()
 
         if server is not None:
             return {server: opt_out_data.get(server, [])}
