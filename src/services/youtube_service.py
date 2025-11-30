@@ -4,6 +4,7 @@ YouTube Service Module
 Provides YouTube video information and search functionality using YouTube Data API v3.
 """
 
+import html
 import random
 import re
 from datetime import datetime, timedelta
@@ -146,15 +147,17 @@ class YouTubeService:
             return {
                 "error": False,
                 "video_id": video_id,
-                "title": snippet.get("title", "No title"),
-                "channel": snippet.get("channelTitle", "Unknown channel"),
+                "title": html.unescape(snippet.get("title", "No title")),
+                "channel": html.unescape(
+                    snippet.get("channelTitle", "Unknown channel")
+                ),
                 "duration": duration_str,
                 "view_count": int(statistics.get("viewCount", 0)),
                 "like_count": int(statistics.get("likeCount", 0)),
                 "comment_count": int(statistics.get("commentCount", 0)),
                 "upload_date": upload_date,
-                "description": snippet.get("description", ""),
-                "tags": snippet.get("tags", []),
+                "description": html.unescape(snippet.get("description", "")),
+                "tags": [html.unescape(tag) for tag in snippet.get("tags", [])],
                 "url": f"https://www.youtube.com/watch?v={video_id}",
             }
 
@@ -252,9 +255,13 @@ class YouTubeService:
                     results.append(
                         {
                             "video_id": video_id,
-                            "title": snippet.get("title", "No title"),
-                            "channel": snippet.get("channelTitle", "Unknown channel"),
-                            "description": snippet.get("description", ""),
+                            "title": html.unescape(snippet.get("title", "No title")),
+                            "channel": html.unescape(
+                                snippet.get("channelTitle", "Unknown channel")
+                            ),
+                            "description": html.unescape(
+                                snippet.get("description", "")
+                            ),
                             "upload_date": upload_date,
                             "url": f"https://www.youtube.com/watch?v={video_id}",
                         }
@@ -445,8 +452,6 @@ class YouTubeService:
         results = search_data.get("results", [])
         if not results:
             return f"🎥 No YouTube videos found for '{search_data.get('query', 'unknown query')}'"
-
-        query = search_data.get("query", "unknown")
 
         # Format top results
         result_lines = []
