@@ -510,7 +510,7 @@ class NonFocusableListBox(urwid.ListBox):
             return True
         # Get the current focus position from the body
         try:
-            focus_widget, focus_position = self.get_focus()
+            focus_position = self.focus_position
             if focus_position is not None:
                 return focus_position >= len(self.body) - 2  # Within 2 lines of bottom
         except (AttributeError, TypeError):

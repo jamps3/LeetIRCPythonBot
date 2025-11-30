@@ -16,7 +16,9 @@ class TestFMIWarningService(unittest.TestCase):
 
     def setUp(self):
         self.mock_callback = Mock()
-        self.service = FMIWarningService(callback=self.mock_callback)
+        self.service = FMIWarningService(
+            callback=self.mock_callback, state_file="test_state.json"
+        )
 
     @patch("services.fmi_warning_service.feedparser.parse")
     @patch("services.fmi_warning_service.FMIWarningService._load_seen_hashes")

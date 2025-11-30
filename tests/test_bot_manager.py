@@ -3,11 +3,6 @@
 Pytest tests for bot_manager module.
 """
 
-# import json
-import os
-
-# import sys
-# import time
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -73,7 +68,7 @@ def manager(monkeypatch):
     monkeypatch.setattr(
         bm,
         "DataManager",
-        lambda: SimpleNamespace(migrate_from_pickle=lambda: True),
+        lambda *args, **kwargs: SimpleNamespace(migrate_from_pickle=lambda: True),
         raising=True,
     )
     monkeypatch.setattr(
@@ -410,18 +405,18 @@ def test_process_leet_winner_summary(monkeypatch, manager):
     monkeypatch.setattr(manager, "_save_leet_winners", save, raising=True)
 
     text = "Ensimmäinen leettaaja oli Alice kello 13.37.00,218154740 (”leet”), viimeinen oli Bob kello 13.37.56,267236192 (”leet”). Lähimpänä multileettiä oli Carol kello 13.37.13,242345678 (”leet”)."
-    sender = "Beici"
-    manager._process_leet_winner_summary(text, sender)
+    context = {"text": text, "sender": "Beici"}
+    manager._process_leet_winner_summary(context)
     assert saved.get("Alice", {}).get("first") == 1
     assert saved.get("Bob", {}).get("last") == 1
     assert saved.get("Carol", {}).get("multileet") == 1
-    sender = "Beiki"
-    manager._process_leet_winner_summary(text, sender)
+    context = {"text": text, "sender": "Beiki"}
+    manager._process_leet_winner_summary(context)
     assert saved.get("Alice", {}).get("first") == 2
     assert saved.get("Bob", {}).get("last") == 2
     assert saved.get("Carol", {}).get("multileet") == 2
-    sender = "Beibi"
-    manager._process_leet_winner_summary(text, sender)
+    context = {"text": text, "sender": "Beibi"}
+    manager._process_leet_winner_summary(context)
     assert saved.get("Alice", {}).get("first") == 3
     assert saved.get("Bob", {}).get("last") == 3
     assert saved.get("Carol", {}).get("multileet") == 3

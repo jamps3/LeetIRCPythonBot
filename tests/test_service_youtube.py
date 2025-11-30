@@ -207,7 +207,7 @@ def test_search_videos_success_and_formatting(monkeypatch, svc):
 
     # Formatting: more than 3 should add trailing line
     msg = svc.format_search_results_message(res)
-    assert "YouTube search results for 'query'" in msg
+    assert "🎥 1. 'Title 0'" in msg
     assert "... and 2 more results" in msg
 
 

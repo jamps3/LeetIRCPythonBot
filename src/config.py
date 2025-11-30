@@ -60,6 +60,7 @@ class BotConfig:
     history_file: str = "data/conversation_history.json"
     ekavika_file: str = "data/ekavika.json"
     words_file: str = "data/general_words.json"
+    subscribers_file: str = "data/subscribers.json"
     state_file: str = "state.json"
 
     # Connection settings
@@ -157,6 +158,7 @@ class ConfigManager:
             history_file=os.getenv("HISTORY_FILE", "data/conversation_history.json"),
             ekavika_file=os.getenv("EKAVIKA_FILE", "data/ekavika.json"),
             words_file=os.getenv("WORDS_FILE", "data/general_words.json"),
+            subscribers_file=os.getenv("SUBSCRIBERS_FILE", "data/subscribers.json"),
             state_file=os.getenv("STATE_FILE", "state.json"),
             # Connection settings
             reconnect_delay=int(os.getenv("RECONNECT_DELAY", "60")),
@@ -245,6 +247,7 @@ class ConfigManager:
             ("history_file", "History file"),
             ("ekavika_file", "Ekavika file"),
             ("words_file", "Words file"),
+            ("subscribers_file", "Subscribers file"),
             ("state_file", "State file"),
         ]:
             file_path = getattr(config, file_attr)
@@ -270,6 +273,7 @@ class ConfigManager:
                 "history_file": self.config.history_file,
                 "ekavika_file": self.config.ekavika_file,
                 "words_file": self.config.words_file,
+                "subscribers_file": self.config.subscribers_file,
                 "state_file": self.config.state_file,
             },
             "connection": {
