@@ -40,9 +40,9 @@ def reset_command_registry():
     except Exception:
         # Fallback: try individual imports
         try:
-            import commands
-            import commands_admin
-            import commands_irc
+            import commands  # noqa: F401
+            import commands_admin  # noqa: F401
+            import commands_irc  # noqa: F401
         except Exception:
             pass
 
@@ -145,6 +145,7 @@ class TestElectricityServiceIntegration(unittest.TestCase):
             ["!sahko", "huomenna", "10"],  # Command with tomorrow and hour
             ["!sahko", "tilastot"],  # Command with statistics
             ["!sahko", "stats"],  # Command with statistics (English)
+            ["!sahko", "longbar"],  # Command with longbar
             ["!sahko", "25"],  # Invalid hour
             ["!sahko", "invalid"],  # Invalid argument
         ]
@@ -168,7 +169,7 @@ class TestElectricityServiceIntegration(unittest.TestCase):
                     else:
                         # Some other AttributeError, re-raise
                         raise
-                except Exception as e:
+                except Exception:
                     # Other exceptions are OK (like API errors), we just want to avoid the split() error
                     pass
 
@@ -196,7 +197,7 @@ class TestElectricityServiceIntegration(unittest.TestCase):
                     self.assertTrue(
                         True, f"Successfully handled string input: '{text_input}'"
                     )
-                except Exception as e:
+                except Exception:
                     # Exceptions are OK (like API errors), we just want to ensure no crashes
                     pass
 

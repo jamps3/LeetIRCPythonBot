@@ -387,7 +387,7 @@ class ElectricityService:
         return float(snt.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
     def parse_command_args(self, args: List[str]) -> Dict[str, Any]:
-        """Parse !sahko commands (tänään/huomenna/hour.quarter/stats)."""
+        """Parse !sahko commands (tänään/huomenna/hour.quarter/stats/longbar)."""
         now = datetime.now(self.timezone)
         result = {
             "hour": now.hour,
@@ -396,6 +396,7 @@ class ElectricityService:
             "is_tomorrow": False,
             "show_stats": False,
             "show_all_hours": False,
+            "show_longbar": False,
             "error": None,
         }  # Return date object
 
@@ -408,6 +409,9 @@ class ElectricityService:
                 arg = args[0].lower()
                 if arg in ["tilastot", "stats"]:
                     result["show_stats"] = True
+                    return result
+                elif arg in ["longbar"]:
+                    result["show_longbar"] = True
                     return result
                 elif arg in ["tänään", "tanaan", "today"]:
                     # Show all hours for today (accept multiple variations)
@@ -445,12 +449,12 @@ class ElectricityService:
                     return result
                 else:
                     result["error"] = (
-                        "Virheellinen komento! Käytä: !sahko [tänään|huomenna] [tunti] tai !sahko tilastot/stats"
+                        "Virheellinen komento! Käytä: !sahko [tänään|huomenna|longbar] [tunti] tai !sahko tilastot/stats"
                     )
 
-        except Exception as e:
+        except Exception:
             result["error"] = (
-                "Virheellinen komento! Käytä: !sahko [tänään|huomenna] [tunti] tai !sahko tilastot/stats"
+                "Virheellinen komento! Käytä: !sahko [tänään|huomenna|longbar] [tunti] tai !sahko tilastot/stats"
             )
 
         return result
@@ -650,6 +654,72 @@ class ElectricityService:
             hourly_bars.append(bar)
 
         return "".join(hourly_bars)
+
+    def _create_long_price_bar_graph(
+        self, interval_prices: Dict[Tuple[int, int], float]
+    ) -> str:
+        """
+        Create a long bar graph showing each 15-minute interval for the day.
+
+        Args:
+            interval_prices: Dictionary of (hour, quarter) -> price in EUR/MWh
+
+        Returns:
+            String representation of the long bar graph (96 bars)
+        """
+        # Define bar symbols for different heights (low to high)
+        bar_symbols = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
+
+        # IRC color codes: 3=green, 7=orange/yellow, 4=red
+        green = "\x033"  # Below average (good price)
+        yellow = "\x037"  # At average
+        red = "\x034"  # Above average (expensive)
+        reset = "\x03"  # Reset color
+
+        # Convert prices to snt/kWh and create time-price pairs
+        time_prices = []
+        for hour in range(24):
+            for quarter in range(1, 5):
+                if (hour, quarter) in interval_prices:
+                    price_eur_mwh = interval_prices[(hour, quarter)]
+                    price_snt_kwh = self._convert_price(price_eur_mwh)
+                    time_prices.append((hour, quarter, price_snt_kwh))
+
+        if not time_prices:
+            return "No data"
+
+        # Find min/max for bar height scaling across all intervals
+        all_prices = [price for _, _, price in time_prices]
+        min_price = min(all_prices)
+        max_price = max(all_prices)
+        price_range = max_price - min_price if max_price > min_price else 1
+
+        # Calculate average price for color coding
+        avg_price_snt = sum(all_prices) / len(all_prices)
+
+        # Create bar graph - one bar per 15-minute interval
+        bars = []
+        for hour, quarter, price_snt in time_prices:
+            # Calculate bar height (0-7 index into bar_symbols)
+            if price_range > 0:
+                height_ratio = (price_snt - min_price) / price_range
+                bar_height = min(7, int(height_ratio * 8))
+            else:
+                bar_height = 4  # Middle height if all prices are same
+
+            # Choose color based on comparison to average
+            if abs(price_snt - avg_price_snt) < 0.01:  # Essentially equal
+                color = yellow
+            elif price_snt < avg_price_snt:
+                color = green  # Below average = good = green
+            else:
+                color = red  # Above average = expensive = red
+
+            # Create colored bar
+            bar = f"{color}{bar_symbols[bar_height]}{reset}"
+            bars.append(bar)
+
+        return "".join(bars)
 
     def format_statistics_message(self, stats_data: Dict[str, Any]) -> str:
         """

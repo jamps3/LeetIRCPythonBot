@@ -110,45 +110,20 @@ def help_command(context: CommandContext, bot_functions):
     else:
         infos = registry.get_commands_info(scope=_CS.IRC_ONLY)
 
-    by_name = {}
+    command_names = []
     for info in infos:
         if info.name == "help":
             continue  # exclude help itself
-        by_name[info.name] = info
-
-    # Partition into groups
-    tama_names = {"tamagotchi", "feed", "pet"}
-    regular = [
-        i for i in by_name.values() if not i.admin_only and i.name not in tama_names
-    ]
-    tamas = [i for i in by_name.values() if not i.admin_only and i.name in tama_names]
-    admins = [i for i in by_name.values() if i.admin_only]
-
-    # Sort alphabetically within groups
-    regular.sort(key=lambda x: x.name)
-    tamas.sort(key=lambda x: x.name)
-    admins.sort(key=lambda x: x.name)
-
-    # Format lines
-    lines = ["Available commands:"]
-
-    def fmt(info):
-        line = info.name
+        name = info.name
         if info.admin_only:
-            line += "*"
-        if info.description:
-            line += f" - {info.description}"
-        return line
+            name += "*"
+        command_names.append(name)
 
-    lines.extend(fmt(i) for i in regular)
-    if tamas:
-        lines.extend(fmt(i) for i in tamas)
-    if admins:
-        lines.extend(fmt(i) for i in admins)
-        lines.append("")
-        lines.append("* Admin command (requires password)")
+    # Sort alphabetically
+    command_names.sort()
 
-    help_text = "\n".join(lines)
+    # Join into one line
+    help_text = "Available commands: " + ", ".join(command_names)
 
     if context.is_console:
         return CommandResponse.success_msg(help_text)
@@ -158,9 +133,21 @@ def help_command(context: CommandContext, bot_functions):
         irc = bot_functions.get("irc")
         to_target = context.sender or context.target
         if notice and irc:
-            for line in lines:
-                if line.strip():
-                    notice(line, irc, to_target)
+            # Split into multiple notices if too long
+            if len(help_text) <= 450:
+                notice(help_text, irc, to_target)
+            else:
+                # Split at comma boundaries to avoid breaking command names
+                current = "Available commands: "
+                for name in command_names:
+                    if len(current + name + ", ") > 450:
+                        # Send current line
+                        notice(current.rstrip(", "), irc, to_target)
+                        current = name + ", "
+                    else:
+                        current += name + ", "
+                if current.strip(", "):
+                    notice(current.rstrip(", "), irc, to_target)
             return CommandResponse.no_response()
         return CommandResponse.success_msg(help_text)
 
@@ -559,11 +546,12 @@ def channels_command(context: CommandContext, bot_functions):
     "sahko",
     aliases=["sähkö"],
     description="Get electricity price information",
-    usage="!sahko [tänään|huomenna|tilastot|stats] [tunti]",
+    usage="!sahko [tänään|huomenna|longbar|tilastot|stats] [tunti]",
     examples=[
         "!sahko",
         "!sahko huomenna",
         "!sahko tänään 15",
+        "!sahko longbar",
         "!sahko tilastot",
         "!sahko stats",
     ],
@@ -582,7 +570,27 @@ def electricity_command(context: CommandContext, bot_functions):
         if parsed_args.get("error"):
             return f"⚡ {parsed_args['error']}"
 
-        if parsed_args.get("show_stats"):
+        if parsed_args.get("show_longbar"):
+            # Show long bar graph for today's 15-minute intervals
+            daily_data = bot_manager.electricity_service.get_daily_prices(
+                parsed_args["date"]
+            )
+            if daily_data.get("error"):
+                response = (
+                    f"⚡ {daily_data.get('message', 'Hintatietoja ei saatavilla.')}"
+                )
+            else:
+                long_bar = bot_manager.electricity_service._create_long_price_bar_graph(
+                    daily_data["interval_prices"]
+                )
+                response = (
+                    f"⚡ Tänään {parsed_args['date'].strftime('%Y-%m-%d')}: {long_bar}"
+                )
+                # Return CommandResponse with split_long_messages=False to keep bar graph intact
+                return CommandResponse(
+                    success=True, message=response, split_long_messages=False
+                )
+        elif parsed_args.get("show_stats"):
             # Show daily statistics
             stats_data = bot_manager.electricity_service.get_price_statistics(
                 parsed_args["date"]
@@ -869,14 +877,22 @@ def about_command(context: CommandContext, bot_functions):
     "exit",
     aliases=["quit"],
     description="Shutdown the bot",
-    usage="!exit",
-    examples=["!exit", "!quit"],
+    usage="!exit [quit_message]",
+    examples=["!exit", "!quit", "!quit Custom quit message"],
     scope=CommandScope.CONSOLE_ONLY,
 )
 def exit_command(context: CommandContext, bot_functions):
     """Shutdown the bot (console/TUI only)."""
     if not context.is_console:
         return  # Exit command only works from console/TUI
+
+    # If quit message provided, set it
+    if context.args:
+        quit_message = " ".join(context.args)
+        set_quit_message = bot_functions.get("set_quit_message")
+        if set_quit_message:
+            set_quit_message(quit_message)
+
     # Try to get the stop event from bot functions and trigger it
     stop_event = bot_functions.get("stop_event")
     if stop_event:
