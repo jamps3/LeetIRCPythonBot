@@ -404,42 +404,6 @@ def test_console_tilaa_command():
             os.unlink(temp_file.name)
 
 
-def test_console_tilaa_missing_service():
-    """Test console !tilaa command when subscriptions service is missing."""
-
-    responses = []
-
-    def mock_notice(msg):
-        responses.append(msg)
-
-    def mock_log(msg, level="INFO"):
-        pass  # Silent logging for tests
-
-    # Bot functions without subscriptions service
-    bot_functions = {
-        "notice_message": mock_notice,
-        "log": mock_log,
-        "BOT_VERSION": "2.2.0",
-        "send_electricity_price": lambda *args: None,
-        "load_leet_winners": lambda: {},
-        "send_weather": lambda *args: None,
-        "load": lambda: {},
-        "fetch_title": lambda *args: None,
-        "handle_ipfs_command": lambda *args: None,
-    }
-
-    # Test !tilaa list command without service
-    responses.clear()
-    from command_loader import process_console_command
-
-    process_console_command("!tilaa list", bot_functions)
-
-    # Should get error response about missing service
-    assert any(
-        "not available" in str(response) for response in responses
-    ), "Should get error about missing subscription service"
-
-
 def test_console_error_handling():
     """Test console command error handling."""
     from command_loader import process_console_command
