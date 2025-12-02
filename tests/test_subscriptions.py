@@ -12,7 +12,6 @@ import pytest
 
 from bot_manager import BotManager
 from subscriptions import (
-    VALID_TOPICS,
     format_all_subscriptions,
     format_channel_subscriptions,
     format_server_subscriptions,
@@ -597,7 +596,14 @@ def test_otiedote_subscriptions(otiedote_setup):
     with patch.object(
         manager, "_get_subscriptions_module", return_value=mock_subscriptions
     ):
-        manager._handle_otiedote_release("Test Title", "https://example.com")
+        manager._handle_otiedote_release(
+            {
+                "title": "Test Title",
+                "url": "https://example.com",
+                "description": "Test Description",
+                "units": ["Test Organization"],
+            }
+        )
         targets = [t for t, _ in sent_messages]
         assert "#general" in targets
         assert "user1" in targets
@@ -608,5 +614,12 @@ def test_otiedote_subscriptions(otiedote_setup):
     with patch.object(
         manager, "_get_subscriptions_module", return_value=mock_subscriptions_empty
     ):
-        manager._handle_otiedote_release("Test Title", "https://example.com")
+        manager._handle_otiedote_release(
+            {
+                "title": "Test Title",
+                "url": "https://example.com",
+                "description": "Test Description",
+                "units": ["Test Organization"],
+            }
+        )
         assert not sent_messages

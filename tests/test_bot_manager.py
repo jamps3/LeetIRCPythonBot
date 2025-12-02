@@ -829,7 +829,14 @@ def test_handle_fmi_and_otiedote_release(monkeypatch, manager):
     manager.joined_channels = {"srv": {"#c"}}
 
     manager._handle_fmi_warnings(["w1", "w2"])
-    manager._handle_otiedote_release("Title", "http://url", "Desc")
+    manager._handle_otiedote_release(
+        {
+            "title": "Title",
+            "url": "http://url",
+            "description": "Desc",
+            "units": ["Test Organization"],
+        }
+    )
     assert any("w1" in m for _, m in sent)
     assert manager.latest_otiedote and manager.latest_otiedote["title"] == "Title"
 
@@ -839,7 +846,14 @@ def test_handle_fmi_and_otiedote_release(monkeypatch, manager):
         manager, "_get_subscriptions_module", lambda: subs2, raising=True
     )
     manager._handle_fmi_warnings(["w1"])  # should do nothing
-    manager._handle_otiedote_release("T", "U")  # not broadcast
+    manager._handle_otiedote_release(
+        {
+            "title": "T",
+            "url": "U",
+            "description": "Test Description",
+            "units": ["Test Organization"],
+        }
+    )  # not broadcast
 
     # Error path in get_subscribers
     def boom(topic):
@@ -849,7 +863,14 @@ def test_handle_fmi_and_otiedote_release(monkeypatch, manager):
     monkeypatch.setattr(
         manager, "_get_subscriptions_module", lambda: subs_err, raising=True
     )
-    manager._handle_otiedote_release("T", "U")
+    manager._handle_otiedote_release(
+        {
+            "title": "T",
+            "url": "U",
+            "description": "Test Description",
+            "units": ["Test Organization"],
+        }
+    )
 
 
 def test_stop_and_wait_for_shutdown(monkeypatch, manager):
