@@ -20,9 +20,9 @@ def load_all_commands():
     try:
         # Import all command modules to trigger registration
         import commands  # unified commands module
-        import commands_admin
-        import commands_irc  # IRC commands with / prefix
 
+        # import commands_admin
+        # import commands_irc  # IRC commands with / prefix
         # Resolve registry at call time to avoid early imports
         from command_registry import get_command_registry
 
@@ -71,6 +71,10 @@ async def process_irc_command(
         reply_target = (
             sender if is_private else target
         )  # Use sender for private messages
+
+    # Special handling for help command: send to nick instead of channel
+    if message.startswith("!help"):
+        reply_target = sender
 
     logger.debug(
         f"Command from {sender} in {'private' if is_private else 'channel'} "
@@ -579,7 +583,7 @@ def ensure_commands_loaded():
     try:
         load_all_commands()
         _commands_loaded = True
-    except Exception as e:
+    except Exception:
         _commands_loaded = False
         raise
 

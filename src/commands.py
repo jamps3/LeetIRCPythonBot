@@ -85,71 +85,51 @@ def help_command(context: CommandContext, bot_functions):
 
     registry = get_command_registry()
 
-    # If specific command requested, return its detailed help (private on IRC)
+    # If specific command requested, return its detailed help
     if context.args:
         command_name = context.args[0]
         help_text = registry.generate_help(specific_command=command_name)
         if context.is_console:
+            return help_text
+        else:
             return CommandResponse.success_msg(help_text)
-        # IRC: send privately to the caller (nick)
-        notice = bot_functions.get("notice_message")
-        irc = bot_functions.get("irc")
-        to_target = context.sender or context.target
-        if notice and irc:
-            for line in str(help_text).split("\n"):
-                if line.strip():
-                    notice(line, irc, to_target)
-            return CommandResponse.no_response()
-        return CommandResponse.success_msg(help_text)
-
-    # Build command list depending on context. From IRC, show only IRC_ONLY.
-    if context.is_console:
-        infos = registry.get_commands_info(
-            scope=_CS.CONSOLE_ONLY
-        ) + registry.get_commands_info(scope=_CS.BOTH)
     else:
-        infos = registry.get_commands_info(scope=_CS.IRC_ONLY)
+        # Build command list depending on context. From IRC, show only IRC_ONLY.
+        if context.is_console:
+            infos = registry.get_commands_info(
+                scope=_CS.CONSOLE_ONLY
+            ) + registry.get_commands_info(scope=_CS.BOTH)
+        else:
+            infos = registry.get_commands_info(scope=_CS.IRC_ONLY)
 
-    command_names = []
-    for info in infos:
-        if info.name == "help":
-            continue  # exclude help itself
-        name = info.name
-        if info.admin_only:
-            name += "*"
-        command_names.append(name)
+        command_names = []
+        for info in infos:
+            if info.name == "help":
+                continue  # exclude help itself
+            name = info.name
+            if info.admin_only:
+                name += "*"
+            command_names.append(name)
 
-    # Sort alphabetically
-    command_names.sort()
+        # Sort alphabetically
+        command_names.sort()
 
-    # Join into one line
-    help_text = "Available commands: " + ", ".join(command_names)
+        # Join into one line
+        help_text = "Available commands: " + ", ".join(command_names)
 
-    if context.is_console:
-        return CommandResponse.success_msg(help_text)
-    else:
-        # IRC: send privately to the caller (nick)
-        notice = bot_functions.get("notice_message")
-        irc = bot_functions.get("irc")
-        to_target = context.sender or context.target
-        if notice and irc:
-            # Split into multiple notices if too long
-            if len(help_text) <= 450:
-                notice(help_text, irc, to_target)
-            else:
-                # Split at comma boundaries to avoid breaking command names
-                current = "Available commands: "
-                for name in command_names:
-                    if len(current + name + ", ") > 450:
-                        # Send current line
-                        notice(current.rstrip(", "), irc, to_target)
-                        current = name + ", "
-                    else:
-                        current += name + ", "
-                if current.strip(", "):
-                    notice(current.rstrip(", "), irc, to_target)
-            return CommandResponse.no_response()
-        return CommandResponse.success_msg(help_text)
+        if context.is_console:
+            return help_text
+        else:
+            # IRC: manually send notices to nick
+            notice = bot_functions.get("notice_message")
+            irc = bot_functions.get("irc")
+            if notice and irc:
+                lines = str(help_text).split("\n")
+                for line in lines:
+                    if line.strip():
+                        notice(line, irc, context.sender)
+                return CommandResponse.no_response()
+            return CommandResponse.success_msg(help_text)
 
 
 @command("aika", aliases=["time"], description="Show current time", usage="!aika")
@@ -583,10 +563,30 @@ def electricity_command(context: CommandContext, bot_functions):
                 long_bar = bot_manager.electricity_service._create_long_price_bar_graph(
                     daily_data["interval_prices"]
                 )
-                response = (
-                    f"⚡ Tänään {parsed_args['date'].strftime('%Y-%m-%d')}: {long_bar}"
-                )
-                # Return CommandResponse with split_long_messages=False to keep bar graph intact
+                # Split into bars: each bar is either 4 chars (colored: \x03 + color + symbol + \x0f) or 1 char (space)
+                # We need to find the 48th bar boundary, not character boundary
+                bars = []
+                i = 0
+                while i < len(long_bar):
+                    # Check if this is a colored bar (4 chars: \x03 + color_num + symbol + \x0f)
+                    if (
+                        i + 3 < len(long_bar)
+                        and long_bar[i] == "\x03"
+                        and long_bar[i + 3] == "\x0f"
+                    ):
+                        # Colored bar: \x03 + color + symbol + \x0f
+                        bars.append(long_bar[i : i + 4])  # noqa: E203
+                        i += 4
+                    else:
+                        # Space for missing data
+                        bars.append(long_bar[i])
+                        i += 1
+
+                # Now split into first 48 bars and remaining 48 bars
+                first_half = "".join(bars[:48])
+                second_half = "".join(bars[48:])
+                response = f"⚡ {first_half}\n{second_half}"
+                # Return CommandResponse with split_long_messages=False to preserve newlines
                 return CommandResponse(
                     success=True, message=response, split_long_messages=False
                 )
@@ -1744,6 +1744,82 @@ def otiedote_command(context: CommandContext, bot_functions):
         return f"📄 {item['title']} {trimmed_content} {item.get('location', '')} {item.get('date', '')} URL: {item['url']}"
     except ValueError:
         return "❌ Invalid argument. Usage: !otiedote [N | # | #N | set N]"
+
+
+@command(
+    "wrap",
+    description="Toggle text wrapping mode in TUI",
+    usage="!wrap",
+    examples=["!wrap"],
+    scope=CommandScope.CONSOLE_ONLY,
+)
+def wrap_command(context: CommandContext, bot_functions):
+    """Toggle text wrapping mode in TUI."""
+    # Access the global TUI instance
+    from tui import _current_tui
+
+    if _current_tui is None:
+        return "TUI not available"
+
+    # Toggle the wrap mode
+    _current_tui.toggle_wrap()
+    return ""  # Return empty string since toggle_wrap already logs the change
+
+
+@command(
+    "ksp",
+    description="Play rock-paper-scissors (kivi-paperi-sakset)",
+    usage="!ksp <kivi|paperi|sakset>",
+    examples=["!ksp kivi", "!ksp paperi", "!ksp sakset"],
+    requires_args=True,
+)
+def ksp_command(context: CommandContext, bot_functions):
+    """Play rock-paper-scissors game."""
+    choice = context.args[0].lower()
+    valid_choices = ["kivi", "paperi", "sakset"]
+    if choice not in valid_choices:
+        return f"Virheellinen valinta. Käytä: {', '.join(valid_choices)}"
+
+    # Load current game state
+    current_game = _data_manager.load_ksp_state()
+
+    def determine_winner(c1, c2):
+        if c1 == c2:
+            return "tasapeli"
+        wins = {"kivi": "sakset", "paperi": "kivi", "sakset": "paperi"}
+        if wins[c1] == c2:
+            return "player1"
+        return "player2"
+
+    if current_game is None:
+        # Start new game
+        game_state = {"choice": choice, "sender": context.sender}
+        _data_manager.save_ksp_state(game_state)
+        return f"Peli aloitettu: {choice} pelaajalta {context.sender}"
+    else:
+        player1_sender = current_game["sender"]
+        player1_choice = current_game["choice"]
+        player2_sender = context.sender
+        player2_choice = choice
+
+        if player1_sender == player2_sender:
+            # Same player changing choice
+            game_state = {"choice": choice, "sender": context.sender}
+            _data_manager.save_ksp_state(game_state)
+            return f"Valinta vaihdettu: {choice} (aiempi: {player1_choice})"
+
+        # Different player, play the game
+        winner = determine_winner(player1_choice, player2_choice)
+        if winner == "tasapeli":
+            result = f"Tasapeli: {player1_choice} vs {player2_choice}"
+        elif winner == "player1":
+            result = f"{player1_sender} voitti {player2_sender}: {player1_choice} vs {player2_choice}"
+        else:
+            result = f"{player2_sender} voitti {player1_sender}: {player2_choice} vs {player1_choice}"
+
+        # Reset game
+        _data_manager.save_ksp_state(None)
+        return result
 
 
 # EOF

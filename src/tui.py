@@ -21,6 +21,12 @@ try:
 except ImportError:
     CLIPBOARD_AVAILABLE = False
 
+# Global wrapping mode for log display
+WRAP_MODE = True  # True for wrap, False for clip
+
+# Global reference to current TUI instance
+_current_tui = None
+
 # Color palette for the TUI
 PALETTE = [
     # Basic colors
@@ -128,6 +134,13 @@ class NonFocusableListBox(urwid.ListBox):
 
     def mouse_event(self, size, event, button, col, row, focus):
         """Handle multi-line text selection across the list."""
+        # First try to forward to child widgets (for link clicking)
+        result = super().mouse_event(size, event, button, col, row, focus)
+        if result:
+            # Child widget handled the event (e.g., link clicking)
+            return True
+
+        # Child didn't handle it, handle selection ourselves
         if event == "mouse press" and button == 1:
             # Start multi-line selection
             self._start_multi_line_selection(row, col)
@@ -143,8 +156,7 @@ class NonFocusableListBox(urwid.ListBox):
             self._end_multi_line_selection(row, col)
             return True
 
-        # Forward other events to child widgets
-        return super().mouse_event(size, event, button, col, row, focus)
+        return False
 
     def _start_multi_line_selection(self, row, col):
         """Start multi-line text selection."""
@@ -536,8 +548,9 @@ class SelectableText(urwid.WidgetWrap):
         # Parse text for URLs and create markup
         self.markup_text = self._parse_text_with_links(text)
 
-        # Create the underlying Text widget
-        self._text_widget = urwid.Text(self.markup_text)
+        # Create the underlying Text widget with current wrap mode
+        wrap_mode = "any" if WRAP_MODE else "clip"
+        self._text_widget = urwid.Text(self.markup_text, wrap=wrap_mode)
 
         # Wrap in AttrMap for coloring
         self._attr_map = urwid.AttrMap(self._text_widget, self.original_attr)
@@ -559,8 +572,16 @@ class SelectableText(urwid.WidgetWrap):
         return key
 
     def mouse_event(self, size, event, button, col, row, focus):
-        """Mouse events are handled by the parent ListBox for multi-line selection."""
-        # Let parent handle all mouse events
+        """Handle mouse events for link clicking and text selection."""
+        # Handle link clicking on mouse press
+        if event == "mouse press" and button == 1:
+            link_url = self._get_link_at_position(size[0], row, col)
+            if link_url:
+                self._open_link_in_browser(link_url)
+                self._flash()  # Flash to indicate click
+                return True  # Consume the event
+
+        # For other events, let parent handle text selection
         return False
 
     def _parse_text_with_links(self, text):
@@ -602,27 +623,67 @@ class SelectableText(urwid.WidgetWrap):
 
         return markup if markup else text
 
-    def _get_link_at_position(self, col):
-        """Get the URL at the given column position."""
+    def _visual_to_logical_pos(self, text, maxcol, visual_row, visual_col):
+        """Convert visual (row, col) coordinates to logical character position in text."""
+        if visual_row == 0 and visual_col < len(text):
+            return visual_col
+
+        lines = []
+        remaining = text
+        while remaining:
+            if len(remaining) <= maxcol:
+                lines.append(remaining)
+                break
+            # Find last space before maxcol for word wrapping
+            cut = remaining.rfind(" ", 0, maxcol + 1)
+            if cut == -1 or cut == 0:
+                # No space found or space at beginning, cut at maxcol
+                cut = maxcol
+            lines.append(remaining[:cut])
+            remaining = remaining[cut:].lstrip()
+
+        if visual_row >= len(lines):
+            return len(text)
+
+        line = lines[visual_row]
+        if visual_col >= len(line):
+            # Position beyond line end
+            char_pos = sum(
+                len(l) + (1 if i < visual_row else 0)
+                for i, l in enumerate(lines[: visual_row + 1])
+            )
+            return min(char_pos, len(text))
+
+        # Count characters up to this visual position
+        char_pos = 0
+        for i in range(visual_row):
+            # Add the length of previous lines plus the space that was stripped
+            prev_line = lines[i]
+            char_pos += len(prev_line)
+            if i < visual_row - 1:  # Add space that was stripped between lines
+                char_pos += 1
+
+        char_pos += visual_col
+        return min(char_pos, len(text))
+
+    def _get_link_at_position(self, maxcol, visual_row, visual_col):
+        """Get the URL at the given visual position."""
+        # Get the plain text
+        text_widget = self._w._original_widget
+        plain_text = text_widget.get_text()[0]
+
+        # Convert visual position to logical position
+        logical_pos = self._visual_to_logical_pos(
+            plain_text, maxcol, visual_row, visual_col
+        )
+
+        # Find URL at this position
         import re
 
-        url_pattern = r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
-
-        # Get the markup and plain text
-        text_widget = self._w._original_widget  # Get the Text widget
-        markup = text_widget.get_text()[1]  # Get the markup
-        plain_text = text_widget.get_text()[0]  # Get the plain text
-
-        # Find which part of the markup the column position falls into
-        current_pos = 0
-        for attr, length in markup:
-            if attr == "link" and current_pos <= col < current_pos + length:
-                # We're in a link section, find the URL in plain text
-                link_start = current_pos
-                link_end = current_pos + length
-                link_text = plain_text[link_start:link_end]
-                return link_text
-            current_pos += length
+        url_pattern = r"http[s]?://[^\s]+"
+        for match in re.finditer(url_pattern, plain_text):
+            if match.start() <= logical_pos < match.end():
+                return match.group()
 
         return None
 
@@ -767,13 +828,37 @@ class SelectableText(urwid.WidgetWrap):
 
     def _open_link_in_browser(self, url):
         """Open URL in default browser."""
+        import os
+        import subprocess
+        import sys
         import webbrowser
 
+        # Log the attempt to open URL
+        import logger
+
+        log = logger.get_logger("TUI")
+        log.info(f"Trying to open URL: {url}")
+
         try:
-            webbrowser.open(url)
-        except Exception:
-            # Could log error here, but for now just ignore
-            pass
+            # Try different methods based on platform
+            if sys.platform == "win32":
+                # Windows: try start command first
+                try:
+                    subprocess.run(
+                        ["start", url], shell=True, check=True, capture_output=True
+                    )
+                    log.info(f"Successfully opened URL with start command: {url}")
+                    return
+                except subprocess.CalledProcessError as e:
+                    log.warning(f"Start command failed: {e}, trying webbrowser")
+
+            # Fallback to webbrowser
+            result = webbrowser.open(url)
+            log.info(f"webbrowser.open returned: {result} for URL: {url}")
+
+        except Exception as e:
+            log.error(f"Error opening browser for URL {url}: {e}")
+            # Could show error to user, but for now just ignore
 
     def _flash(self):
         """Flash the line briefly to indicate it was copied or clicked."""
@@ -1128,6 +1213,48 @@ class ConfigEditor:
             return f"Failed to reload configuration: {e}"
 
 
+class FocusProtectingFrame(urwid.Frame):
+    """A Frame that prevents focus changes when clicking on the body area."""
+
+    def mouse_event(self, size, event, button, col, row, focus):
+        """Override mouse_event to prevent focus changes on body clicks."""
+        # Get the layout of the Frame
+        head_size = self.header.rows((size[0],)) if self.header else 0
+        foot_size = self.footer.rows((size[0],)) if self.footer else 0
+
+        # Check if the mouse event is in the header
+        if row < head_size:
+            # Header area - let parent handle
+            return super().mouse_event(size, event, button, col, row, focus)
+
+        # Check if the mouse event is in the footer (input field)
+        elif row >= size[1] - foot_size:
+            # Input field area - let parent handle (this will focus footer)
+            return super().mouse_event(size, event, button, col, row, focus)
+
+        # Mouse event is in the body area
+        else:
+            # Calculate the relative position within the body
+            body_row = row - head_size
+
+            # Let the body handle the mouse event WITHOUT changing focus
+            if self.body and hasattr(self.body, "mouse_event"):
+                body_result = self.body.mouse_event(
+                    (size[0], size[1] - head_size - foot_size),
+                    event,
+                    button,
+                    col,
+                    body_row,
+                    focus,
+                )
+                # Always keep focus on footer
+                if self.focus_part != "footer":
+                    self.set_focus("footer")
+                return body_result
+
+        return False
+
+
 class TUIManager:
     """Main TUI manager class with statistics and configuration editor."""
 
@@ -1154,6 +1281,10 @@ class TUIManager:
         self.stats_view = StatsView(self)
         self.config_editor = ConfigEditor(self)
 
+        # Set global reference
+        global _current_tui
+        _current_tui = self
+
         # Set up layout
         self.setup_layout()
 
@@ -1168,8 +1299,8 @@ class TUIManager:
         # Footer with input
         footer = urwid.AttrMap(self.input_field, "footer")
 
-        # Main layout
-        self.main_layout = urwid.Frame(
+        # Main layout - use FocusProtectingFrame to prevent focus changes on body clicks
+        self.main_layout = FocusProtectingFrame(
             body=self.log_display, header=header, footer=footer, focus_part="footer"
         )
 
@@ -1455,7 +1586,7 @@ class TUIManager:
                     )
 
             # Let the log display handle the mouse event
-            return self.log_display.mouse_event(
+            result = self.log_display.mouse_event(
                 (size[0], size[1] - head_size - foot_size),
                 event,
                 button,
@@ -1463,6 +1594,9 @@ class TUIManager:
                 body_row,
                 focus,
             )
+            # Ensure focus stays on the input field
+            self.main_layout.set_focus("footer")
+            return result
 
     def handle_key(self, key):
         """Handle keyboard input."""
@@ -1604,6 +1738,41 @@ class TUIManager:
                 # If even logging fails, just ignore
                 pass
 
+    def toggle_wrap(self):
+        """Toggle text wrapping mode and rebuild the display."""
+        global WRAP_MODE
+        WRAP_MODE = not WRAP_MODE
+
+        # Rebuild the current view with new wrap mode
+        if self.current_view == "console":
+            self.apply_filter(self.current_filter)  # This rebuilds the log display
+        elif self.current_view == "stats":
+            # Refresh stats display
+            stats_text = self.stats_view.get_stats_display()
+            self.log_walker.clear()
+            for line in stats_text.split("\n"):
+                text_widget = urwid.Text(line)
+                self.log_walker.append(text_widget)
+            self.log_display.scroll_to_top()
+        elif self.current_view == "config":
+            # Refresh config display
+            config_text = self.config_editor.get_config_display()
+            self.log_walker.clear()
+            for line in config_text.split("\n"):
+                text_widget = urwid.Text(line)
+                self.log_walker.append(text_widget)
+            self.log_display.scroll_to_top()
+
+        # Log the change
+        mode_str = "wrapped" if WRAP_MODE else "clipped"
+        self.add_log_entry(
+            datetime.now(),
+            "Console",
+            "INFO",
+            f"Text wrapping toggled to: {mode_str}",
+            "SYSTEM",
+        )
+
     def update_input_style(self):
         """Update input field caption based on current text."""
         text = self.input_field.get_edit_text()
@@ -1718,7 +1887,7 @@ Tips:
 
         # Show clipboard status
         clipboard_status = (
-            "Click-to-copy functionality enabled - click any log line to copy it"
+            "Select-to-copy functionality enabled - select text with mouse to copy it"
             if CLIPBOARD_AVAILABLE
             else "Click functionality available (install pyperclip for clipboard copy)"
         )
@@ -1754,11 +1923,44 @@ Tips:
                     "SYSTEM",
                 )
 
+            # Generate dynamic command list for TUI
+            try:
+                # Ensure command modules are loaded
+                import commands
+                import commands_admin
+                import commands_irc
+                from command_registry import CommandScope as _CS
+                from command_registry import get_command_registry
+
+                registry = get_command_registry()
+                infos = registry.get_commands_info(
+                    scope=_CS.CONSOLE_ONLY
+                ) + registry.get_commands_info(scope=_CS.BOTH)
+
+                # Use a set to avoid duplicates
+                command_names_set = set()
+                for info in infos:
+                    if info.name == "help":
+                        continue  # exclude help itself
+                    name = "!" + info.name  # Add ! prefix for console commands
+                    if info.admin_only:
+                        name += "*"
+                    command_names_set.add(name)
+
+                # Convert to sorted list
+                command_names = sorted(command_names_set)
+
+                # Join into one line
+                available_commands = "Available commands: " + ", ".join(command_names)
+            except Exception as e:
+                # Fallback to static list if registry not available
+                available_commands = "Available commands: !help, !connect, !status, !exit, !quit, !join, !part, !msg, !notice, !nick, !whois..."
+
             self.add_log_entry(
                 datetime.now(),
                 "Console",
                 "INFO",
-                "Available commands: !help, !connect, !status, stats, config",
+                available_commands,
                 "SYSTEM",
             )
         else:

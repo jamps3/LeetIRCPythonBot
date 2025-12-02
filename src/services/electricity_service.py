@@ -570,16 +570,17 @@ class ElectricityService:
         Returns:
             String representation of the bar graph
         """
-        # Define bar symbols for different heights (low to high)
-        bar_symbols = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
+        # Define bar symbols for different heights (low to high) - single-width ASCII
+        bar_symbols = [".", "_", "░", "▒", "▓", "█"]
 
         # IRC color codes: 3=green, 7=orange/yellow, 4=red
         green = "\x033"  # Below average (good price)
-        yellow = "\x037"  # At average
+        yellow = "\x038"  # At average
         red = "\x034"  # Above average (expensive)
-        reset = "\x03"  # Reset color
+        reset = "\x0f"  # Reset color
 
         # Convert prices to snt/kWh and create time-price pairs
+        # Ensure we have all 96 quarters (24 hours × 4 quarters)
         time_prices = []
         for hour in range(24):
             for quarter in range(1, 5):
@@ -587,15 +588,22 @@ class ElectricityService:
                     price_eur_mwh = interval_prices[(hour, quarter)]
                     price_snt_kwh = self._convert_price(price_eur_mwh)
                     time_prices.append((hour, quarter, price_snt_kwh))
+                else:
+                    # Missing data - use None to indicate missing
+                    time_prices.append((hour, quarter, None))
 
         if not time_prices:
             return "No data"
 
-        # Find min/max for bar height scaling
-        all_prices = [price for _, _, price in time_prices]
-        min_price = min(all_prices)
-        max_price = max(all_prices)
-        price_range = max_price - min_price if max_price > min_price else 1
+        # Find min/max for bar height scaling (only from available prices)
+        available_prices = [price for _, _, price in time_prices if price is not None]
+        if available_prices:
+            min_price = min(available_prices)
+            max_price = max(available_prices)
+            price_range = max_price - min_price if max_price > min_price else 1
+        else:
+            min_price = max_price = 0
+            price_range = 1
 
         # Create bar graph - one bar per hour (showing hourly average)
         hourly_bars = []
@@ -606,25 +614,34 @@ class ElectricityService:
             if hour != current_hour:
                 # Process previous hour if we have data
                 if current_hour >= 0 and hour_prices:
-                    avg_hour_price = sum(hour_prices) / len(hour_prices)
+                    # Filter out None values for average calculation
+                    valid_prices = [p for p in hour_prices if p is not None]
+                    if valid_prices:
+                        avg_hour_price = sum(valid_prices) / len(valid_prices)
 
-                    # Calculate bar height (0-7 index into bar_symbols)
-                    if price_range > 0:
-                        height_ratio = (avg_hour_price - min_price) / price_range
-                        bar_height = min(7, int(height_ratio * 8))
+                        # Calculate bar height (0-5 index into bar_symbols)
+                        if price_range > 0:
+                            height_ratio = (avg_hour_price - min_price) / price_range
+                            bar_height = min(5, int(height_ratio * 6))
+                        else:
+                            bar_height = 3  # Middle height if all prices are same
+
+                        # Choose color based on comparison to average
+                        if (
+                            abs(avg_hour_price - avg_price_snt) < 0.01
+                        ):  # Essentially equal
+                            color = yellow
+                        elif avg_hour_price < avg_price_snt:
+                            color = green  # Below average = good = green
+                        else:
+                            color = red  # Above average = expensive = red
+
+                        # Create colored bar
+                        bar = f"{color}{bar_symbols[bar_height]}{reset}"
                     else:
-                        bar_height = 4  # Middle height if all prices are same
+                        # No valid prices for this hour - show empty
+                        bar = " "
 
-                    # Choose color based on comparison to average
-                    if abs(avg_hour_price - avg_price_snt) < 0.01:  # Essentially equal
-                        color = yellow
-                    elif avg_hour_price < avg_price_snt:
-                        color = green  # Below average = good = green
-                    else:
-                        color = red  # Above average = expensive = red
-
-                    # Create colored bar
-                    bar = f"{color}{bar_symbols[bar_height]}{reset}"
                     hourly_bars.append(bar)
 
                 # Start new hour
@@ -635,22 +652,29 @@ class ElectricityService:
 
         # Process the last hour
         if hour_prices:
-            avg_hour_price = sum(hour_prices) / len(hour_prices)
+            # Filter out None values for average calculation
+            valid_prices = [p for p in hour_prices if p is not None]
+            if valid_prices:
+                avg_hour_price = sum(valid_prices) / len(valid_prices)
 
-            if price_range > 0:
-                height_ratio = (avg_hour_price - min_price) / price_range
-                bar_height = min(7, int(height_ratio * 8))
+                if price_range > 0:
+                    height_ratio = (avg_hour_price - min_price) / price_range
+                    bar_height = min(5, int(height_ratio * 6))
+                else:
+                    bar_height = 3
+
+                if abs(avg_hour_price - avg_price_snt) < 0.01:
+                    color = yellow
+                elif avg_hour_price < avg_price_snt:
+                    color = green
+                else:
+                    color = red
+
+                bar = f"{color}{bar_symbols[bar_height]}{reset}"
             else:
-                bar_height = 4
+                # No valid prices for this hour - show empty
+                bar = " "
 
-            if abs(avg_hour_price - avg_price_snt) < 0.01:
-                color = yellow
-            elif avg_hour_price < avg_price_snt:
-                color = green
-            else:
-                color = red
-
-            bar = f"{color}{bar_symbols[bar_height]}{reset}"
             hourly_bars.append(bar)
 
         return "".join(hourly_bars)
@@ -667,16 +691,17 @@ class ElectricityService:
         Returns:
             String representation of the long bar graph (96 bars)
         """
-        # Define bar symbols for different heights (low to high)
-        bar_symbols = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
+        # Define bar symbols for different heights (low to high) - single-width ASCII
+        bar_symbols = [".", "_", "░", "▒", "▓", "█"]
 
         # IRC color codes: 3=green, 7=orange/yellow, 4=red
         green = "\x033"  # Below average (good price)
-        yellow = "\x037"  # At average
+        yellow = "\x038"  # At average
         red = "\x034"  # Above average (expensive)
-        reset = "\x03"  # Reset color
+        reset = "\x0f"  # Reset color
 
         # Convert prices to snt/kWh and create time-price pairs
+        # Ensure we have all 96 quarters (24 hours × 4 quarters)
         time_prices = []
         for hour in range(24):
             for quarter in range(1, 5):
@@ -684,39 +709,49 @@ class ElectricityService:
                     price_eur_mwh = interval_prices[(hour, quarter)]
                     price_snt_kwh = self._convert_price(price_eur_mwh)
                     time_prices.append((hour, quarter, price_snt_kwh))
+                else:
+                    # Missing data - use None to indicate missing
+                    time_prices.append((hour, quarter, None))
 
         if not time_prices:
             return "No data"
 
-        # Find min/max for bar height scaling across all intervals
-        all_prices = [price for _, _, price in time_prices]
-        min_price = min(all_prices)
-        max_price = max(all_prices)
-        price_range = max_price - min_price if max_price > min_price else 1
-
-        # Calculate average price for color coding
-        avg_price_snt = sum(all_prices) / len(all_prices)
+        # Find min/max for bar height scaling (only from available prices)
+        available_prices = [price for _, _, price in time_prices if price is not None]
+        if available_prices:
+            min_price = min(available_prices)
+            max_price = max(available_prices)
+            price_range = max_price - min_price if max_price > min_price else 1
+            avg_price_snt = sum(available_prices) / len(available_prices)
+        else:
+            min_price = max_price = avg_price_snt = 0
+            price_range = 1
 
         # Create bar graph - one bar per 15-minute interval
         bars = []
         for hour, quarter, price_snt in time_prices:
-            # Calculate bar height (0-7 index into bar_symbols)
-            if price_range > 0:
-                height_ratio = (price_snt - min_price) / price_range
-                bar_height = min(7, int(height_ratio * 8))
+            if price_snt is None:
+                # Missing data - show empty space
+                bar = " "
             else:
-                bar_height = 4  # Middle height if all prices are same
+                # Calculate bar height (0-5 index into bar_symbols)
+                if price_range > 0:
+                    height_ratio = (price_snt - min_price) / price_range
+                    bar_height = min(5, int(height_ratio * 6))
+                else:
+                    bar_height = 3  # Middle height if all prices are same
 
-            # Choose color based on comparison to average
-            if abs(price_snt - avg_price_snt) < 0.01:  # Essentially equal
-                color = yellow
-            elif price_snt < avg_price_snt:
-                color = green  # Below average = good = green
-            else:
-                color = red  # Above average = expensive = red
+                # Choose color based on comparison to average
+                if abs(price_snt - avg_price_snt) < 0.01:  # Essentially equal
+                    color = yellow
+                elif price_snt < avg_price_snt:
+                    color = green  # Below average = good = green
+                else:
+                    color = red  # Above average = expensive = red
 
-            # Create colored bar
-            bar = f"{color}{bar_symbols[bar_height]}{reset}"
+                # Create colored bar
+                bar = f"{color}{bar_symbols[bar_height]}{reset}"
+
             bars.append(bar)
 
         return "".join(bars)
@@ -786,7 +821,7 @@ class ElectricityService:
             price_entry: Dict[str, Any], hour: int, quarter: Optional[int] = None
         ) -> str:
             """Format either full-hour or specific 15-minute interval."""
-            avg_hour_eur_mwh = price_entry.get("avg_hour_eur_mwh", 0.0)
+            # avg_hour_eur_mwh = price_entry.get("avg_hour_eur_mwh", 0.0)
             quarter_prices_snt = price_entry.get("quarter_prices_snt", {})
             avg_hour_snt = price_entry.get("hour_avg_snt_kwh", 0.0)
 

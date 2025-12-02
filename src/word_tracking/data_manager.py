@@ -312,6 +312,34 @@ class DataManager:
 
         return opt_out_data
 
+    def load_ksp_state(self) -> Optional[Dict[str, str]]:
+        """Load KSP game state from merged state.json."""
+        state_data = self.load_json(self.state_file)
+        return state_data.get("ksp")
+
+    def save_ksp_state(self, data: Optional[Dict[str, str]]):
+        """Save KSP game state to merged state.json."""
+        # Load the full state file
+        state_data = self.load_json(self.state_file)
+        if not state_data:
+            # Initialize with default structure if file is empty or corrupted
+            state_data = {
+                "tamagotchi": {},
+                "subscriptions": {},
+                "fmi_warnings": {"seen_hashes": [], "seen_data": []},
+                "otiedote": {"latest_release": 0},
+                "drink_tracking_opt_out": {},
+            }
+
+        # Update the ksp section
+        if data is None:
+            state_data.pop("ksp", None)
+        else:
+            state_data["ksp"] = data
+
+        # Save the full state file
+        self.save_json(self.state_file, state_data)
+
     def get_all_servers(self) -> List[str]:
         """
         Return a list of all server names present in general words data.
