@@ -1691,11 +1691,13 @@ def solarwind_command(context: CommandContext, bot_functions):
 @command(
     "otiedote",
     description="Get accident reports (Onnettomuustiedotteet) from local JSON",
-    usage="!otiedote [N | #N]",
+    usage="!otiedote [N | #N | filter #channel *filter* *field*]",
     examples=[
         "!otiedote",
         "!otiedote 2",
         "!otiedote #2610",
+        "!otiedote filter #joensuu Pohjois-Karjalan pelastuslaitos organization",
+        "Fields: id, title, date, location, organization, content, units, url or * for all",
     ],
 )
 def otiedote_command(context: CommandContext, bot_functions):
@@ -1706,6 +1708,52 @@ def otiedote_command(context: CommandContext, bot_functions):
 
     # Latest release number (highest ID)
     latest_id = max(item["id"] for item in otiedote_list)
+
+    # Handle filter subcommand
+    if context.args and context.args[0].lower() == "filter":
+        if len(context.args) < 3:
+            return "❌ Usage: !otiedote filter #channel organization [field]"
+
+        channel = context.args[1]
+        if not channel.startswith("#"):
+            return "❌ Channel must start with #"
+
+        organization = context.args[2]
+        field = context.args[3] if len(context.args) > 3 else "organization"
+
+        # Load state.json
+        state_file = os.path.join("data", os.getenv("STATE_FILE", "state.json"))
+        if os.path.exists(state_file):
+            try:
+                with open(state_file, "r", encoding="utf8") as f:
+                    state = json.load(f)
+            except Exception:
+                state = {}
+        else:
+            state = {}
+
+        # Ensure otiedote section exists
+        if "otiedote" not in state:
+            state["otiedote"] = {"latest_release": 0}
+
+        if "filters" not in state["otiedote"]:
+            state["otiedote"]["filters"] = {}
+
+        # Add filter for channel
+        if channel not in state["otiedote"]["filters"]:
+            state["otiedote"]["filters"][channel] = []
+
+        filter_entry = f"{organization}:{field}"
+        if filter_entry not in state["otiedote"]["filters"][channel]:
+            state["otiedote"]["filters"][channel].append(filter_entry)
+
+        # Save state
+        try:
+            with open(state_file, "w", encoding="utf8") as f:
+                json.dump(state, f, ensure_ascii=False, indent=2)
+            return f"✅ Added filter for {channel}: {organization} (field: {field})"
+        except Exception as e:
+            return f"❌ Failed to save filter: {e}"
 
     # Current number (#) simply returns latest ID
     if context.args_text and context.args_text.strip() == "#":
@@ -1743,7 +1791,7 @@ def otiedote_command(context: CommandContext, bot_functions):
         trimmed_content = trim_with_dots(item["content"])
         return f"📄 {item['title']} {trimmed_content} {item.get('location', '')} {item.get('date', '')} URL: {item['url']}"
     except ValueError:
-        return "❌ Invalid argument. Usage: !otiedote [N | # | #N | set N]"
+        return "❌ Invalid argument. Usage: !otiedote [N | # | #N | filter #channel *filter* organization]"
 
 
 @command(

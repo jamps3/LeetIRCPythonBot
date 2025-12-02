@@ -694,7 +694,7 @@ class SelectableText(urwid.WidgetWrap):
 
         # Get the markup and plain text
         text_widget = self._w._original_widget  # Get the Text widget
-        markup = text_widget.get_text()[1]  # Get the markup
+        # markup = text_widget.get_text()[1]  # Get the markup
         plain_text = text_widget.get_text()[0]  # Get the plain text
 
         # For selection, we need to find the text between the start and end screen positions
@@ -828,7 +828,6 @@ class SelectableText(urwid.WidgetWrap):
 
     def _open_link_in_browser(self, url):
         """Open URL in default browser."""
-        import os
         import subprocess
         import sys
         import webbrowser

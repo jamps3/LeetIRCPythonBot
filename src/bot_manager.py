@@ -5,6 +5,7 @@ This module provides the BotManager class that orchestrates multiple IRC server
 connections and integrates all bot functionality across servers.
 """
 
+import json
 import os
 import re
 import threading
@@ -1029,29 +1030,23 @@ class BotManager:
                         f"Error sending FMI warning to {subscriber_nick} on {server_name}: {e}"
                     )
 
-    def _handle_otiedote_release(
-        self, title: str, url: str, description: Optional[str] = None
-    ):
+    def _handle_otiedote_release(self, release: dict):
         """Handle new Otiedote press release.
 
         Uses the subscriptions system to deliver messages only to explicit
-        onnettomuustiedotteet subscribers per server, mirroring FMI warnings.
+        onnettomuustiedotteet subscribers per server, with channel-specific filtering.
 
-        Automatically broadcasts only title + URL.
+        Automatically broadcasts only title + URL from filtered releases to channels.
         Stores the full info for the !otiedote command to display description on-demand.
         """
         # Persist latest release info for on-demand access via !otiedote
         try:
-            self.latest_otiedote = {
-                "title": title,
-                "url": url,
-                "description": description or "",
-            }
+            self.latest_otiedote = release
         except Exception:
             # Never fail the broadcast due to caching issues
             pass
 
-        header_message = f"📢 {title} | {url}"
+        header_message = f"📢 {release['title']} | {release['url']}"
 
         # Get subscriptions module and subscribers for onnettomuustiedotteet
         subscriptions = self._get_subscriptions_module()
@@ -1068,7 +1063,18 @@ class BotManager:
             )
             return
 
-        # Send to subscribed channels/users on their respective servers
+        # Load state for filters
+        state_file = os.path.join("data", os.getenv("STATE_FILE", "state.json"))
+        filters = {}
+        if os.path.exists(state_file):
+            try:
+                with open(state_file, "r", encoding="utf8") as f:
+                    state = json.load(f)
+                filters = state.get("otiedote", {}).get("filters", {})
+            except Exception:
+                filters = {}
+
+        # Send to subscribed channels/users on their respective servers with filtering
         for subscriber_nick, server_name in subscribers:
             try:
                 server = self.servers.get(server_name)
@@ -1078,11 +1084,54 @@ class BotManager:
                     )
                     continue
 
-                # Broadcast only the header (no description)
-                self._send_response(server, subscriber_nick, header_message)
-                self.logger.info(
-                    f"Sent Otiedote release to {subscriber_nick} on {server_name}"
-                )
+                # Check if this channel has filters
+                channel_filters = filters.get(subscriber_nick, [])
+                should_send = True
+
+                if channel_filters:
+                    # Check if any filter matches
+                    should_send = False
+                    for filter_entry in channel_filters:
+                        if ":" in filter_entry:
+                            organization, field = filter_entry.split(":", 1)
+                        else:
+                            organization = filter_entry
+                            field = "organization"
+
+                        # Check if the field matches the filter
+                        if field == "organization":
+                            # Check if organization is in units
+                            units = release.get("units", [])
+                            if organization.lower() in " ".join(units).lower():
+                                should_send = True
+                                break
+                        elif field == "*":
+                            # Match any field
+                            release_text = json.dumps(
+                                release, ensure_ascii=False
+                            ).lower()
+                            if organization.lower() in release_text:
+                                should_send = True
+                                break
+                        else:
+                            # Check specific field
+                            field_value = release.get(field, "")
+                            if isinstance(field_value, list):
+                                field_value = " ".join(field_value)
+                            if organization.lower() in str(field_value).lower():
+                                should_send = True
+                                break
+
+                if should_send:
+                    # Broadcast only the header (no description)
+                    self._send_response(server, subscriber_nick, header_message)
+                    self.logger.info(
+                        f"Sent Otiedote release to {subscriber_nick} on {server_name}"
+                    )
+                else:
+                    self.logger.debug(
+                        f"Filtered Otiedote release for {subscriber_nick} on {server_name}"
+                    )
             except Exception as e:
                 self.logger.error(
                     f"Error sending Otiedote release to {subscriber_nick} on {server_name}: {e}"

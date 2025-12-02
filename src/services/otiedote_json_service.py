@@ -139,7 +139,7 @@ class OtiedoteService:
 
     def __init__(
         self,
-        callback: Callable[[str, str, Optional[str]], None],
+        callback: Callable[[dict], None],
         check_interval: int = DEFAULT_CHECK_INTERVAL,
         state_file: str = STATE_FILE,
         json_file: str = JSON_FILE,
@@ -253,20 +253,8 @@ class OtiedoteService:
                     releases.append(release)
                     existing_ids.add(release["id"])
 
-                    # Compose description for callback
-                    parts = []
-                    if release.get("location"):
-                        parts.append(f"Sijainti: {release['location']}")
-                    if release.get("content"):
-                        parts.append(release["content"])
-                    if release.get("units"):
-                        parts.append(
-                            "Osallistuneet yksiköt: " + ", ".join(release["units"])
-                        )
-                    description = "\n".join(parts).strip()
-
-                    # Notify bot
-                    self.callback(release["title"], release["url"], description)
+                    # Notify bot with full release data
+                    self.callback(release)
 
                     # Save entire JSON list
                     try:

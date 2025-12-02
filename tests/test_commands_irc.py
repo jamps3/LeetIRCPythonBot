@@ -6,8 +6,6 @@ These tests ensure that IRC context (irc connection and channel) is properly
 propagated to service functions for commands like !s (weather) and !sahko (electricity).
 """
 
-import os
-import sys
 import tempfile
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
