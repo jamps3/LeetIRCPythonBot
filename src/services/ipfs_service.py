@@ -101,9 +101,16 @@ class IPFSService:
             temp_file.close()
             return temp_file.name, None, downloaded_size
 
-        except requests.RequestException as e:
-            return None, f"Download error: {str(e)}", 0
         except Exception as e:
+            # Handle all request and file errors - check by exception name due to Python 3.13 compatibility
+            exception_name = type(e).__name__
+            if exception_name in (
+                "RequestException",
+                "ConnectionError",
+                "Timeout",
+                "HTTPError",
+            ):
+                return None, f"Download error: {str(e)}", 0
             return None, f"Unexpected error: {str(e)}", 0
 
     def _add_to_ipfs(self, file_path: str) -> Tuple[Optional[str], Optional[str]]:
@@ -309,32 +316,32 @@ def handle_ipfs_command(command_text: str, admin_password: Optional[str] = None)
     # Parse command
     parts = command_text.strip().split()
 
-    if len(parts) < 2:
+    if len(parts) < 1:
         return "Usage: !ipfs add <url> or !ipfs <password> <url>"
 
-    command = parts[1].lower()
+    command = parts[0].lower()
 
     if command == "add":
-        if len(parts) < 3:
+        if len(parts) < 2:
             return "Usage: !ipfs add <url>"
 
-        url = parts[2]
+        url = parts[1]
         result = service.add_file_from_url(url, admin_password)
         return result["message"]
 
     elif command == "info":
-        if len(parts) < 3:
+        if len(parts) < 2:
             return "Usage: !ipfs info <hash>"
 
-        ipfs_hash = parts[2]
+        ipfs_hash = parts[1]
         result = service.get_ipfs_info(ipfs_hash)
         return result["message"]
 
     else:
         # Check if first argument might be a password (not 'add' or 'info')
-        if len(parts) >= 3:
-            potential_password = parts[1]
-            url = parts[2]
+        if len(parts) >= 2:
+            potential_password = parts[0]
+            url = parts[1]
 
             result = service.add_file_from_url(url, admin_password, potential_password)
             return result["message"]
