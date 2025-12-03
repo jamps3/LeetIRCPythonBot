@@ -127,12 +127,28 @@ class TestElectricityServiceIntegration(unittest.TestCase):
         # Create service instance for testing
         self.service = ElectricityService("test_integration_key")
 
+        # Mock requests to avoid actual API calls in tests
+        self.requests_patcher = patch("requests.get")
+        self.mock_get = self.requests_patcher.start()
+        # Mock successful API response
+        self.mock_get.return_value.status_code = 200
+        self.mock_get.return_value.text = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Publication_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:0">'
+            "<TimeSeries><Period><Point><position>1</position><price.amount>50.0</price.amount></Point></Period></TimeSeries>"
+            "</Publication_MarketDocument>"
+        )
+
     def tearDown(self):
         """Clean up after tests."""
         if self.original_env:
             os.environ["ELECTRICITY_API_KEY"] = self.original_env
         elif "ELECTRICITY_API_KEY" in os.environ:
             del os.environ["ELECTRICITY_API_KEY"]
+
+        # Stop the requests patcher
+        if hasattr(self, "requests_patcher"):
+            self.requests_patcher.stop()
 
     def test_electricity_command_with_list_input(self):
         """Test electricity command when called with list input (from IRC parsing)."""

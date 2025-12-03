@@ -5,7 +5,6 @@ Pytest tests for IRC server flood protection functionality.
 
 import threading
 import time
-from unittest.mock import Mock
 
 import pytest
 
@@ -98,10 +97,20 @@ class TestServerFloodProtection:
         # Should be able to send again
         assert test_server._can_send_message() is True
 
-    def test_tokens_dont_exceed_maximum(self, test_server):
+    def test_tokens_dont_exceed_maximum(self, test_server, monkeypatch):
         """Test that tokens don't exceed the maximum limit."""
-        # Wait a long time and refill
-        time.sleep(30.0)  # Much longer than needed to fill bucket
+        # Mock time to simulate a very long time has passed
+        # This allows us to test the refill logic without actually waiting
+        import time
+
+        original_time = time.time
+
+        # Simulate time jumping forward by enough to fill the bucket completely
+        test_start_time = original_time()
+        monkeypatch.setattr(
+            time, "time", lambda: test_start_time + 100.0
+        )  # 100 seconds later
+
         test_server._refill_rate_limit_tokens()
 
         # Should not exceed maximum

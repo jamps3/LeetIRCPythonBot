@@ -131,7 +131,8 @@ def irc_part_command(context: CommandContext, bot_functions):
 
 
 @command(
-    "quit",
+    "ircquit",
+    aliases=["quit"],
     description="Disconnect from IRC server",
     usage="/quit [message]",
     examples=["/quit", "/quit Goodbye everyone!"],

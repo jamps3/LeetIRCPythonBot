@@ -1,919 +1,623 @@
 #!/usr/bin/env python3
 """
-Pytest tests for IRC commands.
+Pytest tests for commands_irc module.
 
-These tests ensure that IRC context (irc connection and channel) is properly
-propagated to service functions for commands like !s (weather) and !sahko (electricity).
+Tests IRC-specific commands that use / prefix instead of !.
 """
 
-import tempfile
-from types import SimpleNamespace
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
-# Common imports used by various merged tests
-from command_registry import CommandContext
-from commands import command_leets, solarwind_command
-from word_tracking import DataManager, DrinkTracker
+from command_registry import reset_command_registry
+from commands_irc import (
+    get_irc_connection,
+    irc_admin_command,
+    irc_away_command,
+    irc_invite_command,
+    irc_join_command,
+    irc_kick_command,
+    irc_list_command,
+    irc_mode_command,
+    irc_motd_command,
+    irc_msg_command,
+    irc_names_command,
+    irc_nick_command,
+    irc_notice_command,
+    irc_part_command,
+    irc_ping_command,
+    irc_quit_command,
+    irc_raw_command,
+    irc_time_command,
+    irc_topic_command,
+    irc_version_command,
+    irc_whois_command,
+    irc_whowas_command,
+)
 
 
 @pytest.fixture(autouse=True, scope="function")
-def reset_command_registry():
-    """Reset command registry before each test to avoid conflicts."""
-    from command_registry import reset_command_registry
-
+def reset_registry():
+    """Reset command registry before each test."""
     reset_command_registry()
-
-    # Reset command loader flag so commands get reloaded
-    try:
-        from command_loader import reset_commands_loaded_flag
-
-        reset_commands_loaded_flag()
-    except ImportError:
-        pass
-
-    # Load all command modules to register commands properly
-    try:
-        import importlib
-
-        import commands
-        import commands_admin
-        import commands_irc
-
-        # Force reload so decorators execute again after registry reset
-        # Ignore duplicate registration errors
-        try:
-            importlib.reload(commands)
-        except ValueError as e:
-            if "already registered" not in str(e):
-                raise
-        try:
-            importlib.reload(commands_admin)
-        except ValueError as e:
-            if "already registered" not in str(e):
-                raise
-        try:
-            importlib.reload(commands_irc)
-        except ValueError as e:
-            if "already registered" not in str(e):
-                raise
-
-        # Log the number of registered commands for debugging
-        from command_registry import get_command_registry
-
-        reg = get_command_registry()
-        from logger import info as _info
-
-        _info(f"Loaded {len(reg._commands)} commands from command modules")
-    except Exception as e:
-        from logger import warning as _warn
-
-        _warn(f"Error loading commands in test fixture: {e}")
-
     yield
-
-    # Clean up after test
     reset_command_registry()
 
 
-# Optional dotenv loading (graceful no-op if not available)
-try:
-    from dotenv import load_dotenv  # type: ignore
-except Exception:  # pragma: no cover - fallback for environments without dotenv
+@pytest.fixture
+def mock_context():
+    """Create a mock command context."""
+    from command_registry import CommandContext
 
-    def load_dotenv():  # type: ignore
-        return None
-
-
-load_dotenv()
-
-
-class DummyIrc:
-    """Minimal dummy IRC object to pass through the pipeline."""
-
-    def __init__(self):
-        self.sent = []
-
-    # Provide methods that may be used by _send_response if ever invoked
-    def send_message(self, target, msg):
-        self.sent.append(("PRIVMSG", target, msg))
-
-    def send_notice(self, target, msg):
-        self.sent.append(("NOTICE", target, msg))
-
-
-def _run_irc(process_irc_message, raw_text, bot_functions):
-    import asyncio
-
-    mock_irc = DummyIrc()
-    asyncio.run(process_irc_message(mock_irc, raw_text, bot_functions))
-    return mock_irc
-
-
-def test_irc_weather_command_passes_irc_context():
-    """!s should call send_weather with the IRC connection and channel target."""
-    from command_loader import process_irc_message
-
-    calls = SimpleNamespace(args=None)
-
-    def mock_send_weather(irc, target, location):
-        calls.args = (irc, target, location)
-
-    responses = []
-
-    def mock_notice(msg, irc=None, target=None):
-        responses.append((target, msg))
-
-    bot_functions = {
-        "notice_message": mock_notice,
-        "send_weather": mock_send_weather,
-        "log": lambda msg, level="INFO": None,
-        "server_name": "test_server",
-    }
-
-    # Simulate IRC channel command: :nick!u@h PRIVMSG #chan :!s Joensuu
-    raw_text = ":tester!user@host PRIVMSG #test :!s Joensuu"
-
-    # Just test that the command processing doesn't crash
-    try:
-        mock_irc = _run_irc(process_irc_message, raw_text, bot_functions)
-        # Test passes if no exception is thrown
-        assert True, "Command processing should not crash"
-    except Exception as e:
-        assert False, f"Command processing should not crash: {e}"
-
-
-def test_irc_electricity_command_passes_irc_context():
-    """!sahko should return error when no electricity service is available."""
-    from command_loader import process_irc_message
-
-    responses = []
-
-    def mock_notice(msg, irc=None, target=None):
-        responses.append((target, msg))
-
-    bot_functions = {
-        "notice_message": mock_notice,
-        "log": lambda msg, level="INFO": None,
-        "server_name": "test_server",
-        # No bot_manager means no electricity service
-    }
-
-    # Simulate IRC channel command: :nick!u@h PRIVMSG #chan :!sahko
-    raw_text = ":tester!user@host PRIVMSG #test :!sahko"
-
-    mock_irc = _run_irc(process_irc_message, raw_text, bot_functions)
-
-    # Should get an error response about electricity service not being available
-    assert responses, "Should get error response when electricity service unavailable"
-    target, msg = responses[0]
-    assert target == "#test", "Response should be sent to channel"
-    assert (
-        "not available" in msg.lower()
-    ), f"Should indicate service not available, got: {msg}"
-
-
-# =========================
-# Kraks command (drink tracking) tests (merged from test_commands.py)
-# =========================
+    return CommandContext(
+        command="test",
+        args=["arg1", "arg2"],
+        raw_message="!test arg1 arg2",
+        sender="TestUser",
+        target="#testchannel",
+        is_private=False,
+        is_console=False,
+        server_name="TestServer",
+    )
 
 
 @pytest.fixture
-def temp_dir():
-    """Create and clean up a temporary directory for testing."""
-    temp_dir = tempfile.mkdtemp()
-    yield temp_dir
+def mock_console_context():
+    """Create a mock console command context."""
+    from command_registry import CommandContext
 
-    # Cleanup
-    import shutil
-
-    shutil.rmtree(temp_dir)
+    return CommandContext(
+        command="test",
+        args=["arg1", "arg2"],
+        raw_message="!test arg1 arg2",
+        sender=None,
+        target=None,
+        is_private=False,
+        is_console=True,
+        server_name="console",
+    )
 
 
 @pytest.fixture
-def data_manager(temp_dir):
-    """Create a DataManager instance for testing."""
-    return DataManager(temp_dir)
-
-
-@pytest.fixture
-def drink_tracker(data_manager):
-    """Create a DrinkTracker instance for testing."""
-    return DrinkTracker(data_manager)
-
-
-def test_kraks_command_empty_stats(drink_tracker):
-    """Test !kraks command with no drink words recorded."""
-    server_name = "test_server"
-    stats = drink_tracker.get_server_stats(server_name)
-
-    # Should return empty stats
-    assert stats["total_drink_words"] == 0, "Should have no drink words initially"
-    assert stats["top_users"] == [], "Should have no top users initially"
-
-
-def test_kraks_command_with_data(drink_tracker):
-    """Test !kraks command with recorded drink words."""
-    server_name = "test_server"
-
-    # Add some test data
-    alice_matches = drink_tracker.process_message(
-        server_name, "alice", "krak krak krak"
-    )
-    bob_matches = drink_tracker.process_message(server_name, "bob", "narsk narsk")
-    charlie_matches = drink_tracker.process_message(server_name, "charlie", "parsk")
-
-    # Verify matches were found
-    assert len(alice_matches) == 3, "Alice should have 3 kraks"
-    assert len(bob_matches) == 2, "Bob should have 2 narsks"
-    assert len(charlie_matches) == 1, "Charlie should have 1 parsk"
-
-    # Get stats
-    stats = drink_tracker.get_server_stats(server_name)
-
-    # Should have recorded drink words
-    assert stats["total_drink_words"] == 6, "Should have 6 total drink words"
-    assert len(stats["top_users"]) == 3, "Should have 3 users"
-    assert stats["top_users"][0] == ("alice", 3), "Alice should have most drinks"
-    assert stats["top_users"][1] == ("bob", 2), "Bob should have second most drinks"
-    assert stats["top_users"][2] == ("charlie", 1), "Charlie should have least drinks"
-
-
-def test_kraks_command_drink_word_breakdown(drink_tracker):
-    """Test !kraks command breakdown by drink word."""
-    server_name = "test_server"
-
-    # Add some test data
-    drink_tracker.process_message(server_name, "alice", "krak krak krak")
-    drink_tracker.process_message(server_name, "bob", "narsk narsk")
-    drink_tracker.process_message(server_name, "charlie", "krak")
-
-    # Get breakdown
-    breakdown = drink_tracker.get_drink_word_breakdown(server_name)
-
-    # Should have correct breakdown
-    assert len(breakdown) == 2, "Should have 2 different drink words"
-    assert breakdown[0] == (
-        "krak",
-        4,
-        "alice",
-    ), "Krak should have 4 total with alice as top user"
-    assert breakdown[1] == (
-        "narsk",
-        2,
-        "bob",
-    ), "Narsk should have 2 total with bob as top user"
-
-
-def test_kraks_command_response_format(drink_tracker):
-    """Test !kraks command response formatting."""
-    server_name = "test_server"
-
-    # Add some test data
-    drink_tracker.process_message(server_name, "alice", "krak krak")
-    drink_tracker.process_message(server_name, "bob", "narsk")
-
-    # Get stats and breakdown
-    stats = drink_tracker.get_server_stats(server_name)
-    breakdown = drink_tracker.get_drink_word_breakdown(server_name)
-
-    # Test response construction
-    if stats["total_drink_words"] > 0:
-        if breakdown:
-            details = ", ".join(
-                f"{word}: {count} [{top_user}]"
-                for word, count, top_user in breakdown[:10]
-            )
-            response = f"Krakit yhteensä: {stats['total_drink_words']}, {details}"
-        else:
-            response = (
-                f"Krakit yhteensä: {stats['total_drink_words']}. Top 5: "
-                + ", ".join(
-                    [f"{nick}:{count}" for nick, count in stats["top_users"][:5]]
-                )
-            )
-    else:
-        response = "Ei vielä krakkauksia tallennettuna."
-
-    expected_response = "Krakit yhteensä: 3, krak: 2 [alice], narsk: 1 [bob]"
-    assert response == expected_response, "Response format should match expected format"
-
-
-def test_kraks_command_empty_response(drink_tracker):
-    """Test !kraks command response when no data exists."""
-    server_name = "test_server"
-
-    # Get stats (should be empty)
-    stats = drink_tracker.get_server_stats(server_name)
-
-    # Test response construction
-    if stats["total_drink_words"] > 0:
-        response = f"Krakit yhteensä: {stats['total_drink_words']}"
-    else:
-        response = "Ei vielä krakkauksia tallennettuna."
-
-    assert (
-        response == "Ei vielä krakkauksia tallennettuna."
-    ), "Should show no drinks message"
-
-
-def test_kraks_command_with_specific_drinks(drink_tracker):
-    """Test !kraks command with specific drink information."""
-    server_name = "test_server"
-
-    # Add some test data with specific drinks
-    drink_tracker.process_message(server_name, "alice", "krak (Karhu 5,5%)")
-    drink_tracker.process_message(server_name, "bob", "narsk (Olvi III)")
-    drink_tracker.process_message(server_name, "alice", "krak (Karhu 5,5%)")
-
-    # Get user stats to verify specific drinks are tracked
-    alice_stats = drink_tracker.get_user_stats(server_name, "alice")
-    bob_stats = drink_tracker.get_user_stats(server_name, "bob")
-
-    # Verify specific drinks are recorded
-    assert (
-        alice_stats["total_drink_words"] == 2
-    ), "Alice should have 2 total drink words"
-    assert (
-        alice_stats["drink_words"]["krak"]["drinks"]["Karhu 5,5%"] == 2
-    ), "Alice should have 2 Karhu 5,5%"
-
-    assert bob_stats["total_drink_words"] == 1, "Bob should have 1 total drink word"
-    assert (
-        bob_stats["drink_words"]["narsk"]["drinks"]["Olvi III"] == 1
-    ), "Bob should have 1 Olvi III"
-
-
-def test_kraks_command_user_privacy(drink_tracker, data_manager):
-    """Test !kraks command respects user privacy settings."""
-    server_name = "test_server"
-
-    # Add some test data
-    drink_tracker.process_message(server_name, "alice", "krak krak")
-
-    # Opt alice out
-    data_manager.set_user_opt_out(server_name, "alice", True)
-
-    # Try to add more data - should be ignored
-    drink_tracker.process_message(server_name, "alice", "krak krak")
-
-    # Get stats - should only have the original data
-    stats = drink_tracker.get_server_stats(server_name)
-    alice_stats = drink_tracker.get_user_stats(server_name, "alice")
-
-    assert stats["total_drink_words"] == 2, "Should only have original data"
-    assert (
-        alice_stats["total_drink_words"] == 2
-    ), "No new data should be added for opted-out user"
-
-
-def test_kraks_command_multiple_servers(drink_tracker):
-    """Test !kraks command with multiple servers."""
-    server1 = "server1"
-    server2 = "server2"
-
-    # Add data to both servers
-    drink_tracker.process_message(server1, "alice", "krak krak")
-    drink_tracker.process_message(server2, "bob", "narsk")
-
-    # Get stats for each server
-    stats1 = drink_tracker.get_server_stats(server1)
-    stats2 = drink_tracker.get_server_stats(server2)
-
-    # Should be separate
-    assert stats1["total_drink_words"] == 2, "Server1 should have 2 drink words"
-    assert stats2["total_drink_words"] == 1, "Server2 should have 1 drink word"
-
-    # Global stats should show both
-    global_stats = drink_tracker.get_global_stats()
-    assert (
-        global_stats["total_drink_words"] == 3
-    ), "Global stats should show all drink words"
-
-
-@pytest.mark.parametrize(
-    "drink_word",
-    [
-        "krak",
-        "kr1k",
-        "kr0k",
-        "narsk",
-        "parsk",
-        "tlup",
-        "marsk",
-        "tsup",
-        "plop",
-        "tsirp",
-    ],
-)
-def test_kraks_command_drink_word_patterns(drink_tracker, drink_word):
-    """Test !kraks command recognizes all drink word patterns."""
-    server_name = "test_server"
-
-    # Test individual drink word
-    matches = drink_tracker.process_message(server_name, "testuser", drink_word)
-
-    # Should recognize the drink word
-    assert len(matches) == 1, f"Should recognize {drink_word} as a drink word"
-
-
-def test_kraks_command_all_drink_word_patterns(drink_tracker):
-    """Test !kraks command recognizes all drink word patterns together."""
-    server_name = "test_server"
-
-    # Test various drink words
-    drink_words = [
-        "krak",
-        "kr1k",
-        "kr0k",
-        "narsk",
-        "parsk",
-        "tlup",
-        "marsk",
-        "tsup",
-        "plop",
-        "tsirp",
-    ]
-
-    for word in drink_words:
-        drink_tracker.process_message(server_name, "testuser", word)
-
-    # Get stats
-    stats = drink_tracker.get_server_stats(server_name)
-    breakdown = drink_tracker.get_drink_word_breakdown(server_name)
-
-    # Should have recorded all drink words
-    assert stats["total_drink_words"] == len(
-        drink_words
-    ), f"Should have recorded {len(drink_words)} drink words"
-    assert len(breakdown) == len(
-        drink_words
-    ), f"Breakdown should have {len(drink_words)} different words"
-
-
-def test_help_specific_irc_sends_lines_to_nick():
-    from command_loader import process_irc_message
-
-    notices = []
-
-    def mock_notice(msg, irc=None, target=None):
-        notices.append((target, msg))
-
-    botf = {
-        "notice_message": mock_notice,
-        "log": lambda msg, level="INFO": None,
-        "server_name": "test_server",
-    }
-    raw = ":tester!user@host PRIVMSG #test :!help ping"
-    _run_help(process_irc_message, raw, botf)
-
-    assert notices and all(t == "tester" for t, _ in notices)
-    assert any("ping" in m.lower() for _, m in notices)
-
-
-@pytest.mark.parametrize(
-    "word,expected_normalized",
-    [
-        ("KRAK", "krak"),
-        ("krak", "krak"),
-        ("Krak", "krak"),
-        ("KrAk", "krak"),
-    ],
-)
-def test_kraks_command_case_insensitive(drink_tracker, word, expected_normalized):
-    """Test !kraks command is case insensitive."""
-    server_name = "test_server"
-
-    # Add data with different cases
-    drink_tracker.process_message(server_name, "alice", "KRAK")
-    drink_tracker.process_message(server_name, "bob", "krak")
-    drink_tracker.process_message(server_name, "charlie", "Krak")
-
-    # Get breakdown
-    breakdown = drink_tracker.get_drink_word_breakdown(server_name)
-
-    # Should all be counted as the same word
-    assert len(breakdown) == 1, "All case variations should be counted as one word"
-    assert breakdown[0][0] == "krak", "Should be normalized to lowercase"
-    assert breakdown[0][1] == 3, "Total count should be 3"
-
-
-def test_kraks_command_mixed_messages(drink_tracker):
-    """Test !kraks command with mixed drink and non-drink content."""
-    server_name = "test_server"
-
-    # Add messages with mixed content
-    drink_tracker.process_message(
-        server_name, "alice", "Hello everyone, krak! How are you?"
-    )
-    drink_tracker.process_message(server_name, "bob", "Just had a beer, narsk narsk!")
-    drink_tracker.process_message(
-        server_name, "charlie", "No drinks here, just chatting"
-    )
-
-    # Get stats
-    stats = drink_tracker.get_server_stats(server_name)
-    breakdown = drink_tracker.get_drink_word_breakdown(server_name)
-
-    # Should only count the drink words
-    assert (
-        stats["total_drink_words"] == 3
-    ), "Should count only drink words from mixed messages"
-    assert len(breakdown) == 2, "Should have krak and narsk"
-
-
-def test_kraks_command_user_stats_detail(drink_tracker):
-    """Test detailed user statistics for !kraks command."""
-    server_name = "test_server"
-
-    # Add varied data for one user
-    drink_tracker.process_message(server_name, "alice", "krak krak")
-    drink_tracker.process_message(server_name, "alice", "narsk")
-    drink_tracker.process_message(server_name, "alice", "krak (Karhu)")
-
-    # Get detailed user stats
-    alice_stats = drink_tracker.get_user_stats(server_name, "alice")
-
-    # Verify detailed breakdown
-    assert (
-        alice_stats["total_drink_words"] == 4
-    ), "Alice should have 4 total drink words"
-    assert "krak" in alice_stats["drink_words"], "Alice should have krak words"
-    assert "narsk" in alice_stats["drink_words"], "Alice should have narsk words"
-
-
-# =========================
-# Leets command tests
-# =========================
-
-
-@pytest.fixture
-def mock_leet_detector(monkeypatch):
-    """Fixture to mock the LeetDetector and its history."""
-    mock_detector = MagicMock()
-    mock_detector.get_leet_history.return_value = [
-        {
-            "datetime": "2025-07-21T01:44:07.388625",
-            "nick": "testuser",
-            "timestamp": "13:37:42.987654321",
-            "achievement_level": "leet",
-            "user_message": "First leet message",
-            "achievement_name": "Leet!",
-            "emoji": "🎊✨",
-        },
-        {
-            "datetime": "2025-07-21T01:46:18.259017",
-            "nick": "anotheruser",
-            "timestamp": "13:37:42.987654321",
-            "achievement_level": "leet",
-            "user_message": "Another leet",
-            "achievement_name": "Leet!",
-            "emoji": "🎊✨",
-        },
-    ]
-    monkeypatch.setattr("leet_detector.create_leet_detector", lambda: mock_detector)
-    return mock_detector
-
-
-def test_leets_command_with_mocked_data(mock_leet_detector):
-    """Test the !leets command with mocked leet detection history."""
-    context = MagicMock()
-    args = []
-    response = command_leets(context, args)
-
-    expected_output = "🎉 Recent Leet Detections:\n"
-    expected_output += '🎊✨ Leet! [testuser] 13:37:42.987654321 "First leet message" (21.07 01:44:07)\n'
-    expected_output += (
-        '🎊✨ Leet! [anotheruser] 13:37:42.987654321 "Another leet" (21.07 01:46:18)'
-    )
-
-    assert response == expected_output
-
-
-def test_leets_command_empty_history(monkeypatch):
-    """Test the !leets command when no detections are available."""
-    mock_detector = MagicMock()
-    mock_detector.get_leet_history.return_value = []
-    monkeypatch.setattr("leet_detector.create_leet_detector", lambda: mock_detector)
-
-    context = MagicMock()
-    args = []
-    response = command_leets(context, args)
-
-    assert response == "No leet detections found."
-
-
-# =========================
-# Solarwind command tests
-# =========================
-
-
-class TestSolarWindCommand:
-    """Test cases for the solarwind command."""
-
-    def test_solarwind_command_irc_context(self):
-        """Test solarwind command in IRC context."""
-        # Create IRC context
-        context = CommandContext(
-            command="solarwind",
-            args=[],
-            raw_message="!solarwind",
-            sender="testuser",
-            target="#testchannel",
-            is_console=False,
-            is_private=False,
-        )
-
-        bot_functions = {}
-
-        # Execute command
-        result = solarwind_command(context, bot_functions)
-
-        # Verify result
-        assert isinstance(result, str)
-        if "❌" not in result:
-            assert "Solar Wind" in result
-            assert "Density:" in result
-            assert "Speed:" in result
-            assert "Temperature:" in result
-            assert "Magnetic Field:" in result
-            assert "🌌" in result
-        else:
-            # Accept graceful error in offline or API-failure environments
-            assert "Solar" in result or "solar" in result
-
-    def test_solarwind_command_console_context(self):
-        """Test solarwind command in console context."""
-        # Create console context
-        context = CommandContext(
-            command="solarwind",
-            args=[],
-            raw_message="!solarwind",
-            sender=None,
-            target=None,
-            is_console=True,
-            is_private=False,
-        )
-
-        bot_functions = {}
-
-        # Execute command
-        result = solarwind_command(context, bot_functions)
-
-        # Verify result
-        assert isinstance(result, str)
-        if "❌" not in result:
-            assert "Solar Wind" in result
-            assert "Density:" in result
-            assert "Speed:" in result
-            assert "Temperature:" in result
-            assert "Magnetic Field:" in result
-            assert "🌌" in result
-        else:
-            # Accept graceful error in offline or API-failure environments
-            assert "Solar" in result or "solar" in result
-
-    @patch("services.solarwind_service.requests.get")
-    def test_solarwind_command_api_error(self, mock_get):
-        """Test solarwind command when API fails."""
-        # Mock API failure
-        mock_get.side_effect = Exception("API connection failed")
-
-        context = CommandContext(
-            command="solarwind",
-            args=[],
-            raw_message="!solarwind",
-            sender="testuser",
-            target="#testchannel",
-            is_console=False,
-            is_private=False,
-        )
-
-        bot_functions = {}
-
-        # Execute command
-        result = solarwind_command(context, bot_functions)
-
-        # Verify error handling
-        assert isinstance(result, str)
-        assert "❌" in result
-        assert "Solar wind error" in result or "Solar Wind Error" in result
-
-    def test_solarwind_service_directly(self):
-        """Test the solar wind service directly."""
-        from services.solarwind_service import get_solar_wind_info
-
-        result = get_solar_wind_info()
-
-        # Verify result format
-        assert isinstance(result, str)
-        if "❌" not in result:  # If no error
-            assert "Solar Wind" in result
-            assert "Density:" in result
-            assert "Speed:" in result
-            assert "Temperature:" in result
-            assert "Magnetic Field:" in result
-            assert "🌌" in result
-
-
-# =========================
-# IRC !help command tests
-# =========================
-
-
-def _run_help(process_irc_message, raw_text, bot_functions):
-    import asyncio
-
-    irc = DummyIrc()
-    asyncio.run(process_irc_message(irc, raw_text, bot_functions))
+def mock_irc():
+    """Create a mock IRC connection."""
+    irc = Mock()
+    irc.send_raw = Mock()
+    irc.send_message = Mock()
+    irc.send_notice = Mock()
+    irc.send = Mock()
     return irc
 
 
-def test_help_sends_private_to_nick_and_has_no_duplicates():
-    from command_loader import process_irc_message
-
-    notices = []
-
-    def mock_notice(msg, irc=None, target=None):
-        notices.append((target, msg))
-
-    # Minimal bot_functions for routing
-    bot_functions = {
-        "notice_message": mock_notice,
-        "log": lambda msg, level="INFO": None,
-        "server_name": "test_server",
+@pytest.fixture
+def mock_bot_functions(mock_irc):
+    """Create mock bot functions."""
+    return {
+        "irc": mock_irc,
+        "log": Mock(),
+        "stop_event": Mock(),
     }
 
-    # Simulate IRC channel command invoking !help
-    # :nick!user@host PRIVMSG #chan :!help
-    raw = ":tester!user@host PRIVMSG #test :!help"
 
-    irc = _run_help(process_irc_message, raw, bot_functions)
-
-    # Ensure we sent something
-    assert notices, "!help should produce NOTICE lines"
-
-    # All targets should be the caller nick (private), not the channel
-    targets = {t for t, _ in notices}
-    assert targets == {"tester"} or (
-        len(targets) == 1 and next(iter(targets)) == "tester"
-    ), f"Expected notices to be sent to the nick 'tester', got targets: {targets}"
-
-    # Extract message lines and check no duplicates (excluding footer blank lines)
-    lines = [msg.strip() for _, msg in notices if msg and msg.strip()]
-    # The header line must appear exactly once
-    assert lines[0].startswith("Available commands:"), "First line should be the header"
-    # help itself must not be present
-    assert not any(
-        line.startswith("help") for line in lines
-    ), "!help should not list itself"
-
-    # Check duplicates ignoring the header
-    body = lines[1:]
-    assert len(body) == len(set(body)), "Duplicate command lines found in !help output"
+@pytest.fixture
+def mock_bot_manager(mock_irc):
+    """Create a mock bot manager."""
+    bm = Mock()
+    bm.servers = {"TestServer": mock_irc}
+    bm.joined_channels = {"TestServer": ["#testchannel"]}
+    return bm
 
 
-# =========================
-# Scheduled message service tests
-# =========================
+class TestIRCCommands:
+    """Test IRC-specific commands."""
 
+    def test_get_irc_connection_console_mode(
+        self, mock_console_context, mock_bot_manager
+    ):
+        """Test getting IRC connection in console mode."""
+        mock_console_context.is_console = True
 
-def test_scheduled_message_creation():
-    """Test scheduled message service creation and basic functionality."""
-    # Reset global service instance
-    import services.scheduled_message_service
-    from services.scheduled_message_service import get_scheduled_message_service
+        # Should work with bot_functions passed directly
+        bot_functions = {"bot_manager": mock_bot_manager}
+        result = get_irc_connection(mock_console_context, bot_functions)
+        assert result is not None
 
-    services.scheduled_message_service._scheduled_message_service = None
+    def test_get_irc_connection_irc_mode(self, mock_context, mock_irc):
+        """Test getting IRC connection in IRC mode."""
+        bot_functions = {"irc": mock_irc}
+        result = get_irc_connection(mock_context, bot_functions)
+        assert result == mock_irc
 
-    service = get_scheduled_message_service()
-    mock_irc = Mock()
+    def test_get_irc_connection_no_connection(self, mock_console_context):
+        """Test getting IRC connection when none available."""
+        result = get_irc_connection(mock_console_context, {})
+        assert result is None
 
-    # Schedule message for far future
-    message_id = service.schedule_message(
-        mock_irc, "#test", "Test message", 23, 59, 59, 0
+    def test_irc_join_command_success(self, mock_context, mock_irc, mock_bot_functions):
+        """Test successful IRC join command."""
+        mock_context.args = ["#newchannel"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_join_command(mock_context, mock_bot_functions)
+
+        assert "✅ Joining #newchannel" in result
+        mock_irc.send_raw.assert_called_with("JOIN #newchannel")
+
+    def test_irc_join_command_with_key(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test IRC join command with channel key."""
+        mock_context.args = ["#private", "secret"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_join_command(mock_context, mock_bot_functions)
+
+        assert "✅ Joining #private" in result
+        mock_irc.send_raw.assert_called_with("JOIN #private secret")
+
+    def test_irc_join_command_add_hash(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test IRC join command adds # prefix if missing."""
+        mock_context.args = ["newchannel"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_join_command(mock_context, mock_bot_functions)
+
+        assert "✅ Joining #newchannel" in result
+        mock_irc.send_raw.assert_called_with("JOIN #newchannel")
+
+    def test_irc_join_command_no_args(self, mock_context, mock_bot_functions):
+        """Test IRC join command with no arguments."""
+        mock_context.args = []
+
+        result = irc_join_command(mock_context, mock_bot_functions)
+
+        assert "Usage: /join <#channel> [key]" in result
+
+    def test_irc_join_command_no_connection(self, mock_context):
+        """Test IRC join command with no IRC connection."""
+        mock_context.args = ["#test"]
+
+        result = irc_join_command(mock_context, {})
+
+        assert "❌ No IRC connection available" in result
+
+    def test_irc_part_command_success(self, mock_context, mock_irc, mock_bot_functions):
+        """Test successful IRC part command."""
+        mock_context.args = ["#oldchannel"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_part_command(mock_context, mock_bot_functions)
+
+        assert "✅ Left #oldchannel" in result
+        mock_irc.send_raw.assert_called_with("PART #oldchannel")
+
+    def test_irc_part_command_with_message(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test IRC part command with leave message."""
+        mock_context.args = ["#oldchannel", "Goodbye", "everyone"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_part_command(mock_context, mock_bot_functions)
+
+        assert "✅ Left #oldchannel" in result
+        mock_irc.send_raw.assert_called_with("PART #oldchannel :Goodbye everyone")
+
+    def test_irc_part_command_no_args(self, mock_context, mock_bot_functions):
+        """Test IRC part command with no arguments."""
+        mock_context.args = []
+
+        result = irc_part_command(mock_context, mock_bot_functions)
+
+        assert "Usage: /part <#channel> [message]" in result
+
+    def test_irc_quit_command_success(self, mock_context, mock_irc, mock_bot_functions):
+        """Test successful IRC quit command."""
+        mock_context.args = ["Goodbye", "world"]
+        mock_bot_functions["irc"] = mock_irc
+        mock_bot_functions["stop_event"] = Mock()
+
+        result = irc_quit_command(mock_context, mock_bot_functions)
+
+        assert "✅ Disconnecting: Goodbye world" in result
+        mock_irc.send_raw.assert_called_with("QUIT :Goodbye world")
+
+    def test_irc_quit_command_no_args(self, mock_context, mock_irc, mock_bot_functions):
+        """Test IRC quit command with no arguments."""
+        mock_context.args = []
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_quit_command(mock_context, mock_bot_functions)
+
+        assert "✅ Disconnecting: Quit" in result
+        mock_irc.send_raw.assert_called_with("QUIT :Quit")
+
+    def test_irc_nick_command_success(self, mock_context, mock_irc, mock_bot_functions):
+        """Test successful IRC nick command."""
+        mock_context.args = ["NewNick"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_nick_command(mock_context, mock_bot_functions)
+
+        assert "✅ Changing nick to NewNick" in result
+        mock_irc.send_raw.assert_called_with("NICK NewNick")
+
+    def test_irc_nick_command_no_args(self, mock_context, mock_bot_functions):
+        """Test IRC nick command with no arguments."""
+        mock_context.args = []
+
+        result = irc_nick_command(mock_context, mock_bot_functions)
+
+        assert "Usage: /nick <new_nickname>" in result
+
+    def test_irc_msg_command_success(self, mock_context, mock_irc, mock_bot_functions):
+        """Test successful IRC msg command."""
+        mock_context.args = ["TargetUser", "Hello", "there"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_msg_command(mock_context, mock_bot_functions)
+
+        assert "✅ Message sent to TargetUser" in result
+        mock_irc.send_raw.assert_called_with("PRIVMSG TargetUser :Hello there")
+
+    def test_irc_msg_command_fallback(self, mock_context, mock_irc, mock_bot_functions):
+        """Test IRC msg command fallback when send_raw not available."""
+        mock_context.args = ["TargetUser", "Hello"]
+        mock_bot_functions["irc"] = mock_irc
+        del mock_irc.send_raw  # Remove send_raw to test fallback
+
+        result = irc_msg_command(mock_context, mock_bot_functions)
+
+        assert "✅ Message sent to TargetUser" in result
+        mock_irc.send_message.assert_called_with("TargetUser", "Hello")
+
+    def test_irc_msg_command_no_args(self, mock_context, mock_bot_functions):
+        """Test IRC msg command with insufficient arguments."""
+        mock_context.args = ["TargetUser"]
+
+        result = irc_msg_command(mock_context, mock_bot_functions)
+
+        assert "Usage: /msg <nick> <message>" in result
+
+    def test_irc_notice_command_success(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test successful IRC notice command."""
+        mock_context.args = ["TargetUser", "Important", "message"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_notice_command(mock_context, mock_bot_functions)
+
+        assert "✅ Notice sent to TargetUser" in result
+        mock_irc.send_raw.assert_called_with("NOTICE TargetUser :Important message")
+
+    def test_irc_notice_command_fallback(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test IRC notice command fallback when send_raw not available."""
+        mock_context.args = ["TargetUser", "Notice"]
+        mock_bot_functions["irc"] = mock_irc
+        del mock_irc.send_raw  # Remove send_raw to test fallback
+
+        result = irc_notice_command(mock_context, mock_bot_functions)
+
+        assert "✅ Notice sent to TargetUser" in result
+        mock_irc.send_notice.assert_called_with("TargetUser", "Notice")
+
+    def test_irc_away_command_with_message(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test IRC away command with message."""
+        mock_context.args = ["Gone", "to", "lunch"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_away_command(mock_context, mock_bot_functions)
+
+        assert "✅ Set away: Gone to lunch" in result
+        mock_irc.send_raw.assert_called_with("AWAY :Gone to lunch")
+
+    def test_irc_away_command_no_message(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test IRC away command without message."""
+        mock_context.args = []
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_away_command(mock_context, mock_bot_functions)
+
+        assert "✅ Removed away status" in result
+        mock_irc.send_raw.assert_called_with("AWAY")
+
+    def test_irc_whois_command_success(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test successful IRC whois command."""
+        mock_context.args = ["SomeUser"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_whois_command(mock_context, mock_bot_functions)
+
+        assert "✅ WHOIS request sent for SomeUser" in result
+        mock_irc.send_raw.assert_called_with("WHOIS SomeUser")
+
+    def test_irc_whowas_command_success(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test successful IRC whowas command."""
+        mock_context.args = ["OldUser"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_whowas_command(mock_context, mock_bot_functions)
+
+        assert "✅ WHOWAS request sent for OldUser" in result
+        mock_irc.send_raw.assert_called_with("WHOWAS OldUser")
+
+    def test_irc_list_command_with_channel(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test IRC list command with specific channel."""
+        mock_context.args = ["#specific"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_list_command(mock_context, mock_bot_functions)
+
+        assert "✅ Listing channel info for #specific" in result
+        mock_irc.send_raw.assert_called_with("LIST #specific")
+
+    def test_irc_list_command_all_channels(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test IRC list command for all channels."""
+        mock_context.args = []
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_list_command(mock_context, mock_bot_functions)
+
+        assert "✅ Listing all channels" in result
+        mock_irc.send_raw.assert_called_with("LIST")
+
+    def test_irc_invite_command_success(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test successful IRC invite command."""
+        mock_context.args = ["NewUser", "#private"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_invite_command(mock_context, mock_bot_functions)
+
+        assert "✅ Invited NewUser to #private" in result
+        mock_irc.send_raw.assert_called_with("INVITE NewUser #private")
+
+    def test_irc_invite_command_add_hash(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test IRC invite command adds # prefix."""
+        mock_context.args = ["NewUser", "private"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_invite_command(mock_context, mock_bot_functions)
+
+        assert "✅ Invited NewUser to #private" in result
+        mock_irc.send_raw.assert_called_with("INVITE NewUser #private")
+
+    def test_irc_invite_command_no_args(self, mock_context, mock_bot_functions):
+        """Test IRC invite command with insufficient arguments."""
+        mock_context.args = ["NewUser"]
+
+        result = irc_invite_command(mock_context, mock_bot_functions)
+
+        assert "Usage: /invite <nick> <#channel>" in result
+
+    def test_irc_kick_command_success(self, mock_context, mock_irc, mock_bot_functions):
+        """Test successful IRC kick command."""
+        mock_context.args = ["BadUser", "Spam"]
+        mock_context.target = "#channel"
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_kick_command(mock_context, mock_bot_functions)
+
+        assert "✅ Kicked BadUser from #channel" in result
+        mock_irc.send_raw.assert_called_with("KICK #channel BadUser :Spam")
+
+    def test_irc_kick_command_no_reason(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test IRC kick command without reason."""
+        mock_context.args = ["BadUser"]
+        mock_context.target = "#channel"
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_kick_command(mock_context, mock_bot_functions)
+
+        assert "✅ Kicked BadUser from #channel" in result
+        mock_irc.send_raw.assert_called_with("KICK #channel BadUser")
+
+    def test_irc_kick_command_no_channel(self, mock_context, mock_bot_functions):
+        """Test IRC kick command without target channel."""
+        mock_context.args = ["BadUser"]
+        mock_context.target = None
+
+        result = irc_kick_command(mock_context, mock_bot_functions)
+
+        assert "❌ This command must be used in a channel" in result
+
+    def test_irc_topic_command_success(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test successful IRC topic command."""
+        mock_context.args = ["#channel", "New", "topic", "here"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_topic_command(mock_context, mock_bot_functions)
+
+        assert "✅ Set topic for #channel: New topic here" in result
+        mock_irc.send_raw.assert_called_with("TOPIC #channel :New topic here")
+
+    def test_irc_topic_command_add_hash(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test IRC topic command adds # prefix."""
+        mock_context.args = ["channel", "New topic"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_topic_command(mock_context, mock_bot_functions)
+
+        assert "✅ Set topic for #channel: New topic" in result
+        mock_irc.send_raw.assert_called_with("TOPIC #channel :New topic")
+
+    def test_irc_mode_command_success(self, mock_context, mock_irc, mock_bot_functions):
+        """Test successful IRC mode command."""
+        mock_context.args = ["#channel", "+t", "-l"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_mode_command(mock_context, mock_bot_functions)
+
+        assert "✅ Set mode +t -l on #channel" in result
+        mock_irc.send_raw.assert_called_with("MODE #channel +t -l")
+
+    def test_irc_names_command_success(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test successful IRC names command."""
+        mock_context.args = ["#channel"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_names_command(mock_context, mock_bot_functions)
+
+        assert "✅ Requesting user list for #channel" in result
+        mock_irc.send_raw.assert_called_with("NAMES #channel")
+
+    def test_irc_names_command_add_hash(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test IRC names command adds # prefix."""
+        mock_context.args = ["channel"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_names_command(mock_context, mock_bot_functions)
+
+        assert "✅ Requesting user list for #channel" in result
+        mock_irc.send_raw.assert_called_with("NAMES #channel")
+
+    def test_irc_ping_command_success(self, mock_context, mock_irc, mock_bot_functions):
+        """Test successful IRC ping command."""
+        mock_context.args = ["irc.example.com"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_ping_command(mock_context, mock_bot_functions)
+
+        assert "✅ Ping sent to irc.example.com" in result
+        mock_irc.send_raw.assert_called_with("PING irc.example.com")
+
+    def test_irc_time_command_success(self, mock_context, mock_irc, mock_bot_functions):
+        """Test successful IRC time command."""
+        mock_context.args = []
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_time_command(mock_context, mock_bot_functions)
+
+        assert "✅ Time request sent to server" in result
+        mock_irc.send_raw.assert_called_with("TIME")
+
+    def test_irc_version_command_success(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test successful IRC version command."""
+        mock_context.args = []
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_version_command(mock_context, mock_bot_functions)
+
+        assert "✅ Version request sent to server" in result
+        mock_irc.send_raw.assert_called_with("VERSION")
+
+    def test_irc_admin_command_success(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test successful IRC admin command."""
+        mock_context.args = []
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_admin_command(mock_context, mock_bot_functions)
+
+        assert "✅ Admin info request sent" in result
+        mock_irc.send_raw.assert_called_with("ADMIN")
+
+    def test_irc_admin_command_with_server(
+        self, mock_context, mock_irc, mock_bot_functions
+    ):
+        """Test IRC admin command with server argument."""
+        mock_context.args = ["irc.example.com"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_admin_command(mock_context, mock_bot_functions)
+
+        assert "✅ Admin info request sent" in result
+        mock_irc.send_raw.assert_called_with("ADMIN irc.example.com")
+
+    def test_irc_motd_command_success(self, mock_context, mock_irc, mock_bot_functions):
+        """Test successful IRC motd command."""
+        mock_context.args = []
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_motd_command(mock_context, mock_bot_functions)
+
+        assert "✅ MOTD request sent" in result
+        mock_irc.send_raw.assert_called_with("MOTD")
+
+    def test_irc_raw_command_success(self, mock_context, mock_irc, mock_bot_functions):
+        """Test successful IRC raw command."""
+        mock_context.args = ["MODE", "#channel", "+t"]
+        mock_bot_functions["irc"] = mock_irc
+
+        result = irc_raw_command(mock_context, mock_bot_functions)
+
+        assert "✅ Raw command sent: MODE #channel +t" in result
+        mock_irc.send_raw.assert_called_with("MODE #channel +t")
+
+    def test_irc_raw_command_fallback(self, mock_context, mock_irc, mock_bot_functions):
+        """Test IRC raw command fallback when send_raw not available."""
+        mock_context.args = ["PING", "server"]
+        mock_bot_functions["irc"] = mock_irc
+        del mock_irc.send_raw  # Remove send_raw to test fallback
+
+        result = irc_raw_command(mock_context, mock_bot_functions)
+
+        assert "✅ Raw command sent: PING server" in result
+        mock_irc.send.assert_called_with("PING server")
+
+    # Test error cases for commands that require IRC connection
+    @pytest.mark.parametrize(
+        "command_func,command_name",
+        [
+            (irc_join_command, "join"),
+            (irc_part_command, "part"),
+            (irc_quit_command, "quit"),
+            (irc_nick_command, "nick"),
+            (irc_msg_command, "msg"),
+            (irc_notice_command, "notice"),
+            (irc_away_command, "away"),
+            (irc_whois_command, "whois"),
+            (irc_whowas_command, "whowas"),
+            (irc_list_command, "list"),
+            (irc_invite_command, "invite"),
+            (irc_kick_command, "kick"),
+            (irc_topic_command, "topic"),
+            (irc_mode_command, "mode"),
+            (irc_names_command, "names"),
+            (irc_ping_command, "ping"),
+            (irc_time_command, "time"),
+            (irc_version_command, "version"),
+            (irc_admin_command, "admin"),
+            (irc_motd_command, "motd"),
+            (irc_raw_command, "raw"),
+        ],
     )
-
-    # Should return valid message ID
-    assert isinstance(message_id, str)
-    assert "scheduled_" in message_id
-
-    # Verify message is in the scheduled list
-    scheduled = service.list_scheduled_messages()
-    assert message_id in scheduled
-    assert scheduled[message_id]["message"] == "Test message"
-    assert scheduled[message_id]["channel"] == "#test"
-
-
-def test_scheduled_message_cancellation():
-    """Test scheduled message cancellation."""
-    # Reset global service instance
-    import services.scheduled_message_service
-    from services.scheduled_message_service import get_scheduled_message_service
-
-    services.scheduled_message_service._scheduled_message_service = None
-
-    service = get_scheduled_message_service()
-    mock_irc = Mock()
-
-    # Schedule a message far in the future
-    message_id = service.schedule_message(
-        mock_irc, "#test", "Test message", 23, 59, 58, 0
-    )
-
-    # Verify it exists
-    scheduled = service.list_scheduled_messages()
-    assert message_id in scheduled
-
-    # Cancel it
-    result = service.cancel_message(message_id)
-    assert result is True
-
-    # Verify it's gone
-    scheduled = service.list_scheduled_messages()
-    assert message_id not in scheduled
-
-
-def test_scheduled_message_convenience_function():
-    """Test the convenience function for scheduling messages."""
-    # Reset global service instance
-    import services.scheduled_message_service
-    from services.scheduled_message_service import send_scheduled_message
-
-    services.scheduled_message_service._scheduled_message_service = None
-
-    mock_irc = Mock()
-
-    message_id = send_scheduled_message(
-        mock_irc, "#test", "Convenience test", 23, 59, 57, 123456
-    )
-
-    assert isinstance(message_id, str)
-
-
-# =========================
-# IPFS service tests
-# =========================
-
-
-@patch("subprocess.run")
-def test_ipfs_availability_check(mock_run):
-    """Test IPFS availability checking."""
-    # Reset global service instance
-    import services.ipfs_service
-    from services.ipfs_service import IPFSService
-
-    services.ipfs_service._ipfs_service = None
-
-    # Test when IPFS is available
-    mock_run.return_value.returncode = 0
-    service = IPFSService()
-    assert service.ipfs_available is True
-
-    # Test when IPFS is not available
-    mock_run.side_effect = FileNotFoundError()
-    service2 = IPFSService()
-    assert service2.ipfs_available is False
-
-
-@patch("requests.head")
-@patch("requests.get")
-def test_ipfs_file_size_check(mock_get, mock_head):
-    """Test IPFS file size checking during download."""
-    # Reset global service instance
-    import services.ipfs_service
-    from services.ipfs_service import IPFSService
-
-    services.ipfs_service._ipfs_service = None
-
-    service = IPFSService()
-    service.ipfs_available = True  # Mock as available
-
-    # Test file too large
-    mock_head.return_value.headers = {"content-length": "200000000"}  # 200MB
-
-    temp_file, error, size = service._download_file(
-        "http://example.com/large.file", 100000000
-    )  # 100MB limit
-
-    assert temp_file is None
-    assert "too large" in error
-    assert size == 200000000
-
-
-def test_ipfs_command_handling():
-    """Test IPFS command handling."""
-    # Reset global service instance
-    import services.ipfs_service
-    from services.ipfs_service import handle_ipfs_command
-
-    services.ipfs_service._ipfs_service = None
-
-    # Test invalid command format
-    result = handle_ipfs_command("!ipfs")
-    assert "Usage" in result
-
-    # Test add command without URL
-    result = handle_ipfs_command("!ipfs add")
-    assert "Usage" in result
+    def test_irc_commands_no_connection(
+        self, mock_context, mock_irc, command_func, command_name
+    ):
+        """Test that IRC commands handle no connection gracefully."""
+        result = command_func(mock_context, {})
+        assert "❌ No IRC connection available" in result

@@ -37,11 +37,15 @@ class IPFSService:
                 ["ipfs", "version"], capture_output=True, text=True, timeout=5
             )
             return result.returncode == 0
-        except (
-            subprocess.TimeoutExpired,
-            subprocess.CalledProcessError,
-            FileNotFoundError,
-        ):
+        except Exception as e:
+            # Handle all subprocess and file errors - check by exception name due to Python 3.13 compatibility
+            exception_name = type(e).__name__
+            if exception_name in (
+                "TimeoutExpired",
+                "CalledProcessError",
+                "FileNotFoundError",
+            ):
+                return False
             return False
 
     def _download_file(
@@ -303,7 +307,7 @@ def handle_ipfs_command(command_text: str, admin_password: Optional[str] = None)
     service = get_ipfs_service()
 
     # Parse command
-    parts = command_text.split()
+    parts = command_text.strip().split()
 
     if len(parts) < 2:
         return "Usage: !ipfs add <url> or !ipfs <password> <url>"
@@ -327,7 +331,7 @@ def handle_ipfs_command(command_text: str, admin_password: Optional[str] = None)
         return result["message"]
 
     else:
-        # Check if first argument might be a password
+        # Check if first argument might be a password (not 'add' or 'info')
         if len(parts) >= 3:
             potential_password = parts[1]
             url = parts[2]

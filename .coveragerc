@@ -8,11 +8,21 @@ omit =
     tests/*
     */__init__.py
     conftest.py
-    test_digitraffic-api.py
-    test_electricity_mapping_interactive.py
-    test_find_price.py
-    test_gpt.py
-    test_leet_winners.py
-    test_nanoleet.py
-    test_saaennuste.py
+    setup.py
     setup_hooks.py
+    src/debug/debug_digitraffic-api.py
+    src/debug/debug_electricity_mapping.py
+    src/debug/debug_electricity_mapping_interactive.py
+    src/debug/debug_electricity_service.py
+    src/debug/debug_irc_commands.py
+    src/debug/debug_otiedote_command.py
+    src/debug/debug_tui_mouse.py
+    src/debug/scrape_nimipaivat-dog-cat.py
+    src/debug/scrape_nimipaivat.py
+    src/debug/scrape_otiedote.py
+    src/debug/test_find_price.py
+    src/debug/test_leet_winners.py
+    src/debug/test_nanoleet.py
+    src/debug/test_saaennuste.py
+    src/services/otiedote_playwright_service.py
+    src/services/otiedote_service.py

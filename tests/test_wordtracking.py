@@ -22,27 +22,13 @@ def reset_command_registry():
 
     reset_command_registry()
 
-    # Reset command loader flag so commands get reloaded
+    # Only load the commands module (not IRC commands to avoid conflicts)
     try:
-        from command_loader import reset_commands_loaded_flag
+        import commands
 
-        reset_commands_loaded_flag()
-    except ImportError:
-        pass
-
-    # Load all command modules to register commands properly
-    try:
-        from command_loader import load_all_commands
-
-        load_all_commands()
+        # The commands module will register its commands when imported
     except Exception:
-        # Fallback: try individual imports
-        try:
-            import commands
-            import commands_admin
-            import commands_irc
-        except Exception:
-            pass
+        pass
 
     yield
 

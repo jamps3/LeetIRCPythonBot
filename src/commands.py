@@ -875,10 +875,9 @@ def about_command(context: CommandContext, bot_functions):
 
 @command(
     "exit",
-    aliases=["quit"],
     description="Shutdown the bot",
     usage="!exit [quit_message]",
-    examples=["!exit", "!quit", "!quit Custom quit message"],
+    examples=["!exit", "!exit Custom quit message"],
     scope=CommandScope.CONSOLE_ONLY,
 )
 def exit_command(context: CommandContext, bot_functions):
