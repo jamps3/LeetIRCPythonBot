@@ -1815,9 +1815,9 @@ def wrap_command(context: CommandContext, bot_functions):
 
 @command(
     "ksp",
-    description="Play rock-paper-scissors (kivi-paperi-sakset)",
-    usage="!ksp <kivi|paperi|sakset>",
-    examples=["!ksp kivi", "!ksp paperi", "!ksp sakset"],
+    description="Play rock-paper-scissors (kivi-sakset-paperi)",
+    usage="!ksp <kivi|sakset|paperi>",
+    examples=["!ksp kivi", "!ksp sakset", "!ksp paperi"],
     requires_args=True,
 )
 def ksp_command(context: CommandContext, bot_functions):

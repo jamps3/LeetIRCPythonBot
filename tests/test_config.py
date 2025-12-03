@@ -9,8 +9,6 @@ import json
 import os
 import sys
 import tempfile
-from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -263,6 +261,11 @@ def test_get_server_configs_parsing_and_defaults(monkeypatch, capsys):
 
 
 def test_get_server_config_by_name_and_channel_keys(monkeypatch):
+    # Clear any existing SERVER1 environment variables from .env file
+    for key in list(os.environ.keys()):
+        if key.startswith("SERVER1_"):
+            monkeypatch.delenv(key, raising=False)
+
     # Prepare env for a server
     monkeypatch.setenv("SERVER1_HOST", "h")
     monkeypatch.setenv("SERVER1_CHANNELS", "a,b")
@@ -328,6 +331,9 @@ def test_config_validation():
     critical_errors = [e for e in errors if "not found" in e.lower()]
 
     assert len(critical_errors) == 0, f"Critical config errors: {critical_errors}"
+
+    # Use the config_manager to avoid unused variable warning
+    assert config_manager is not None
 
 
 def test_server_config_parsing():

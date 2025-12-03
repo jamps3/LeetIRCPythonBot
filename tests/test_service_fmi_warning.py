@@ -4,6 +4,9 @@ Pytest tests for services.fmi_warning_service module.
 """
 
 import json
+import os
+import shutil
+import tempfile
 import unittest
 from unittest.mock import Mock, mock_open, patch
 
@@ -16,9 +19,17 @@ class TestFMIWarningService(unittest.TestCase):
 
     def setUp(self):
         self.mock_callback = Mock()
+        # Create a temporary file that gets cleaned up
+        self.temp_dir = tempfile.mkdtemp()
+        self.state_file = os.path.join(self.temp_dir, "test_state.json")
         self.service = FMIWarningService(
-            callback=self.mock_callback, state_file="test_state.json"
+            callback=self.mock_callback, state_file=self.state_file
         )
+
+    def tearDown(self):
+        # Clean up the temporary directory
+        if hasattr(self, "temp_dir") and os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
 
     @patch("services.fmi_warning_service.feedparser.parse")
     @patch("services.fmi_warning_service.FMIWarningService._load_seen_hashes")
