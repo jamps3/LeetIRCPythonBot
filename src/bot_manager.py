@@ -1005,7 +1005,39 @@ class BotManager:
         return True
 
     def _handle_fmi_warnings(self, warnings: List[str]):
-        """Handle new FMI weather warnings."""
+        """Handle new FMI weather warnings.
+
+        Delays announcements until server is connected and channels defined in .env are joined.
+        """
+        # Check if we're connected and have joined channels
+        if not self.connected:
+            self.logger.debug("Delaying FMI warning announcement: server not connected")
+            return
+
+        # Check if we have joined any channels at all
+        if not self.joined_channels:
+            self.logger.debug("Delaying FMI warning announcement: no channels joined")
+            return
+
+        # Check if we have joined channels defined in .env configuration
+        config = get_config()
+        env_channels_joined = False
+        for server_config in config.servers:
+            server_name = server_config.name
+            if server_name in self.joined_channels:
+                # Check if any of the configured channels for this server are joined
+                configured_channels = set(server_config.channels)
+                joined_channels = self.joined_channels[server_name]
+                if configured_channels.intersection(joined_channels):
+                    env_channels_joined = True
+                    break
+
+        if not env_channels_joined:
+            self.logger.debug(
+                "Delaying FMI warning announcement: no .env configured channels joined"
+            )
+            return
+
         # Get subscriptions module
         subscriptions = self._get_subscriptions_module()
 
