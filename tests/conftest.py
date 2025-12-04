@@ -7,9 +7,15 @@ import importlib as _il
 import os as _os
 import sys as _sys
 import traceback as _tb
+import warnings as _warnings
 from types import ModuleType as _ModuleType
 
 import pytest as _pytest
+
+# Suppress specific deprecation warnings from TUI tests
+_warnings.filterwarnings(
+    "ignore", "unittest.mock.Mock is not subclass of Widget", DeprecationWarning
+)
 
 # Ensure src/ is in sys.path for test imports
 _src_path = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", "src"))
