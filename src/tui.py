@@ -4,6 +4,7 @@ TUI implementation for LeetIRCPythonBot using urwid.
 The default interface. Use --console for the simple interface.
 """
 
+import json
 import os
 import time
 from collections import deque
@@ -21,8 +22,8 @@ try:
 except ImportError:
     CLIPBOARD_AVAILABLE = False
 
-# Global wrapping mode for log display
-WRAP_MODE = True  # True for wrap, False for clip
+# Global wrapping mode for log display (will be loaded from state)
+WRAP_MODE = True  # True for wrap, False for clip (default)
 
 # Global reference to current TUI instance
 _current_tui = None
@@ -1267,6 +1268,9 @@ class TUIManager:
         # Configuration
         self.log_buffer_size = int(os.getenv("LOG_BUFFER_SIZE", "1000"))
 
+        # Load wrap mode from state.json
+        self._load_wrap_mode()
+
         # State
         self.log_entries = deque(maxlen=self.log_buffer_size)
         self.command_history = []
@@ -1745,10 +1749,75 @@ class TUIManager:
                 # If even logging fails, just ignore
                 pass
 
+    def _load_wrap_mode(self):
+        """Load text wrapping mode from state.json."""
+        global WRAP_MODE
+        try:
+            state_file = os.path.join("data", "state.json")
+            if os.path.exists(state_file):
+                with open(state_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+
+                # Check for TUI settings in state.json
+                tui_settings = data.get("tui", {})
+                if "wrap_mode" in tui_settings:
+                    WRAP_MODE = bool(tui_settings["wrap_mode"])
+                    self.add_log_entry(
+                        datetime.now(),
+                        "Console",
+                        "INFO",
+                        f"Loaded wrap mode from state.json: {'wrapped' if WRAP_MODE else 'clipped'}",
+                        "SYSTEM",
+                    )
+        except Exception as e:
+            # If loading fails, keep default and log warning
+            self.add_log_entry(
+                datetime.now(),
+                "Console",
+                "WARNING",
+                f"Failed to load wrap mode from state.json: {e}",
+                "SYSTEM",
+            )
+
+    def _save_wrap_mode(self):
+        """Save text wrapping mode to state.json."""
+        try:
+            state_file = os.path.join("data", "state.json")
+
+            # Load existing state
+            data = {}
+            if os.path.exists(state_file):
+                with open(state_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+
+            # Update TUI settings
+            if "tui" not in data:
+                data["tui"] = {}
+            data["tui"]["wrap_mode"] = WRAP_MODE
+
+            # Update last_updated timestamp
+            data["last_updated"] = datetime.now().isoformat()
+
+            # Save state
+            with open(state_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+
+        except Exception as e:
+            self.add_log_entry(
+                datetime.now(),
+                "Console",
+                "ERROR",
+                f"Failed to save wrap mode to state.json: {e}",
+                "SYSTEM",
+            )
+
     def toggle_wrap(self):
         """Toggle text wrapping mode and rebuild the display."""
         global WRAP_MODE
         WRAP_MODE = not WRAP_MODE
+
+        # Save the new wrap mode to state.json
+        self._save_wrap_mode()
 
         # Rebuild the current view with new wrap mode
         if self.current_view == "console":
