@@ -2918,6 +2918,11 @@ class BotManager:
         server_name = server.config.name
 
         try:
+            # Only process NAMES responses if they were explicitly triggered by !ops command
+            # Check if we have pending ops for this server
+            if server_name not in self._pending_ops:
+                return  # No pending ops, ignore this NAMES response
+
             # Handle RPL_NAMREPLY (353) - user list for a channel
             if code == 353:
                 # Format: :server 353 botnick = #channel :user1 user2 user3 ...
@@ -2930,11 +2935,9 @@ class BotManager:
                         -1
                     ]  # Get the last part (channel name)
 
-                    # Initialize pending ops data for this server/channel if needed
-                    if server_name not in self._pending_ops:
-                        self._pending_ops[server_name] = {}
+                    # Only process if we have pending ops for this channel
                     if channel not in self._pending_ops[server_name]:
-                        self._pending_ops[server_name][channel] = {"users": []}
+                        return  # Not a channel we're opping
 
                     # Add users to the list (split by spaces, strip @+ prefixes for ops/voiced)
                     users = [
@@ -2945,7 +2948,7 @@ class BotManager:
                     self._pending_ops[server_name][channel]["users"].extend(users)
 
                     self.logger.debug(
-                        f"Collected {len(users)} users for {channel} on {server_name}"
+                        f"Collected {len(users)} users for {channel} on {server_name} (!ops command)"
                     )
 
             # Handle RPL_ENDOFNAMES (366) - end of names list
@@ -2954,10 +2957,9 @@ class BotManager:
                 # Extract channel name
                 channel = params.split()[0] if params else ""
 
-                # Check if we have pending ops for this channel
+                # Only process if we have pending ops for this channel
                 if (
-                    server_name in self._pending_ops
-                    and channel in self._pending_ops[server_name]
+                    channel in self._pending_ops[server_name]
                     and self._pending_ops[server_name][channel]["users"]
                 ):
 
@@ -2996,7 +2998,7 @@ class BotManager:
                         del self._pending_ops[server_name]
 
                     self.logger.info(
-                        f"Completed ops for {channel} on {server_name} ({len(users)} users)"
+                        f"Completed !ops for {channel} on {server_name} ({len(users)} users)"
                     )
 
         except Exception as e:

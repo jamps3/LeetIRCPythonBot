@@ -1809,13 +1809,11 @@ class TUIManager:
                 f.write("=" * 80 + "\n\n")
 
                 for entry in self.log_entries:
-                    # Write each log entry in a formatted way
+                    # Write each log entry in a compact single-line format
                     timestamp_str = entry.timestamp.strftime("%Y-%m-%d %H:%M:%S")
                     f.write(
-                        f"[{timestamp_str}] [{entry.server}] [{entry.level}] [{entry.source_type}]\n"
+                        f"[{timestamp_str}] [{entry.server}] [{entry.level}] {entry.message}\n"
                     )
-                    f.write(f"  {entry.message}\n")
-                    f.write("\n")
 
                 f.write("=" * 80 + "\n")
                 f.write("End of TUI Log\n")
@@ -1932,10 +1930,10 @@ Tips:
 
             # Generate dynamic command list for TUI
             try:
-                # Ensure command modules are loaded
-                import commands
-                import commands_admin
-                import commands_irc
+                # Import command modules to ensure they're loaded
+                import commands  # noqa: F401
+                import commands_admin  # noqa: F401
+                import commands_irc  # noqa: F401
                 from command_registry import CommandScope as _CS
                 from command_registry import get_command_registry
 
@@ -1959,9 +1957,9 @@ Tips:
 
                 # Join into one line
                 available_commands = "Available commands: " + ", ".join(command_names)
-            except Exception as e:
+            except Exception:
                 # Fallback to static list if registry not available
-                available_commands = "Available commands: !help, !connect, !status, !exit, !quit, !join, !part, !msg, !notice, !nick, !whois..."
+                available_commands = "Available commands: !help, !connect, !status, !exit, !quit, !join, !part, !msg, !notice, !nick..."
 
             self.add_log_entry(
                 datetime.now(),

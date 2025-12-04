@@ -7,16 +7,13 @@ and related classes with comprehensive coverage.
 """
 
 import os
-import tempfile
-import time
 from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
 # Import TUI components
-from tui import (
-    WRAP_MODE,
+from tui import (  # WRAP_MODE,; _current_tui,
     ConfigEditor,
     FocusProtectingFrame,
     LogEntry,
@@ -24,7 +21,6 @@ from tui import (
     SelectableText,
     StatsView,
     TUIManager,
-    _current_tui,
 )
 
 

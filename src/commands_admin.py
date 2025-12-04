@@ -4,15 +4,7 @@ Admin Commands for LeetIRCPythonBot
 This module contains administrative commands that require password authentication.
 """
 
-import os
-
-from command_registry import (
-    CommandContext,
-    CommandResponse,
-    CommandScope,
-    CommandType,
-    command,
-)
+from command_registry import CommandContext, command
 from config import get_config
 
 
@@ -200,6 +192,11 @@ def ops_command(context: CommandContext, bot_functions):
     ]:
         return f"❌ !ops command not allowed in this channel. Allowed channels: {', '.join(allowed_channels)}"
 
+    # Get bot manager to set up pending ops
+    bot_manager = bot_functions.get("bot_manager")
+    if not bot_manager:
+        return "❌ Bot manager not available"
+
     # Get IRC connection
     irc = bot_functions.get("irc")
     if not irc:
@@ -207,25 +204,21 @@ def ops_command(context: CommandContext, bot_functions):
 
     try:
         channel = context.target
+        server_name = context.server_name
 
-        # Send NAMES command to get user list first
+        # Initialize pending ops data structure for this server/channel
+        if not hasattr(bot_manager, "_pending_ops"):
+            bot_manager._pending_ops = {}
+        if server_name not in bot_manager._pending_ops:
+            bot_manager._pending_ops[server_name] = {}
+        if channel not in bot_manager._pending_ops[server_name]:
+            bot_manager._pending_ops[server_name][channel] = {"users": []}
+
+        # Send NAMES command to get user list, response will be handled asynchronously
         if hasattr(irc, "send_raw"):
             irc.send_raw(f"NAMES {channel}")
         else:
             irc.send(f"NAMES {channel}")
-
-        # For immediate feedback, we'll send a notice about the operation starting
-        notice = bot_functions.get("notice_message")
-        if notice and context.sender:
-            notice(
-                f"🔄 Requesting user list to op everyone in {channel}...",
-                irc,
-                context.sender,
-            )
-
-        # The NAMES response will be handled asynchronously
-        # For now, return a status message
-        return f"🔄 Requested operator status for all users in {channel}. This may take a moment..."
 
     except Exception as e:
         return f"❌ Error requesting operator status: {str(e)}"
