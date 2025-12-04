@@ -43,10 +43,22 @@ class Lemmatizer:
                     f"Voikko initialization failed: {e}, using simple word normalization"
                 )
                 self.voikko_enabled = False
+                self.v = None
         else:
             logger.warning(
                 "Voikko not available - using simple word normalization", "Lemmatizer"
             )
+
+    def __del__(self):
+        """Properly clean up Voikko resources."""
+        if self.v is not None:
+            try:
+                self.v.terminate()
+            except Exception:
+                # Ignore cleanup errors during shutdown
+                pass
+            finally:
+                self.v = None
 
     def _get_baseform(self, word):
         """Get base form of a word using Voikko or simple normalization."""
