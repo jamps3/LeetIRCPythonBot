@@ -7,9 +7,14 @@ from typing import Any, Dict, List, Tuple
 import logger
 from config import get_config
 
-# Get state file from config
+# Get state file from config (ensure it includes data directory)
 config = get_config()
-SUBSCRIBERS_FILE = config.state_file
+# Use the same logic as DataManager to get the correct state file path
+SUBSCRIBERS_FILE = os.path.normpath(
+    config.state_file
+    if config.state_file.startswith("data/") or config.state_file.startswith("data\\")
+    else os.path.join("data", config.state_file)
+)
 
 # Valid topics for subscriptions
 VALID_TOPICS = {"varoitukset", "onnettomuustiedotteet"}
