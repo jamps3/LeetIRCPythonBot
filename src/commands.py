@@ -1823,7 +1823,7 @@ def wrap_command(context: CommandContext, bot_functions):
 def ksp_command(context: CommandContext, bot_functions):
     """Play rock-paper-scissors game."""
     choice = context.args[0].lower()
-    valid_choices = ["kivi", "paperi", "sakset"]
+    valid_choices = ["kivi", "sakset", "paperi"]
     if choice not in valid_choices:
         return f"Virheellinen valinta. Käytä: {', '.join(valid_choices)}"
 
