@@ -648,8 +648,12 @@ class TestFocusProtectingFrame:
 
     def test_focus_protecting_frame_creation(self):
         """Test FocusProtectingFrame creation."""
-        frame = FocusProtectingFrame(
-            body=Mock(), header=Mock(), footer=Mock(), focus_part="footer"
-        )
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            frame = FocusProtectingFrame(
+                body=Mock(), header=Mock(), footer=Mock(), focus_part="footer"
+            )
 
         assert hasattr(frame, "mouse_event")
