@@ -143,9 +143,11 @@ def bot_manager():
 def otiedote_setup():
     os.environ.setdefault("USE_NOTICES", "false")
     server_name = "test_server"
-    server_config_mock = Mock(
-        name=server_name, host="localhost", port=6667, channels=["#general", "#random"]
-    )
+    server_config_mock = Mock()
+    server_config_mock.name = server_name
+    server_config_mock.host = "localhost"
+    server_config_mock.port = 6667
+    server_config_mock.channels = ["#general", "#random"]
     fake_server = Mock()
     fake_server.config = Mock()
     fake_server.config.name = server_name  # Set as actual string, not Mock
@@ -159,6 +161,9 @@ def otiedote_setup():
     )
 
     with patch("config.get_server_configs", return_value=[server_config_mock]), patch(
+        "bot_manager.get_config",
+        return_value=Mock(servers=[server_config_mock], state_file="test_state.json"),
+    ), patch(
         "services.electricity_service.create_electricity_service",
         side_effect=ImportError("skip"),
     ), patch(
@@ -174,6 +179,8 @@ def otiedote_setup():
         manager.servers = {server_name: fake_server}
         # Add joined channels so _send_response works
         manager.joined_channels = {server_name: {"#general", "#random"}}
+        # Ensure manager is marked as connected (required for announcement delay logic)
+        manager.connected = True
         yield manager, fake_server, sent_messages
 
 

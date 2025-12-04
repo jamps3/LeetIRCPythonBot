@@ -1038,7 +1038,42 @@ class BotManager:
 
         Automatically broadcasts only title + URL from filtered releases to channels.
         Stores the full info for the !otiedote command to display description on-demand.
+
+        Delays announcements until server is connected and channels defined in .env are joined.
         """
+        # Check if we're connected and have joined channels
+        if not self.connected:
+            self.logger.debug(
+                f"Delaying Otiedote announcement #{release.get('id', 'unknown')}: server not connected"
+            )
+            return
+
+        # Check if we have joined any channels at all
+        if not self.joined_channels:
+            self.logger.debug(
+                f"Delaying Otiedote announcement #{release.get('id', 'unknown')}: no channels joined"
+            )
+            return
+
+        # Check if we have joined channels defined in .env configuration
+        config = get_config()
+        env_channels_joined = False
+        for server_config in config.servers:
+            server_name = server_config.name
+            if server_name in self.joined_channels:
+                # Check if any of the configured channels for this server are joined
+                configured_channels = set(server_config.channels)
+                joined_channels = self.joined_channels[server_name]
+                if configured_channels.intersection(joined_channels):
+                    env_channels_joined = True
+                    break
+
+        if not env_channels_joined:
+            self.logger.debug(
+                f"Delaying Otiedote announcement #{release.get('id', 'unknown')}: no .env configured channels joined"
+            )
+            return
+
         # Persist latest release info for on-demand access via !otiedote
         try:
             self.latest_otiedote = release
