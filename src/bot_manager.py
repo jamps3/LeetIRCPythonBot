@@ -478,7 +478,16 @@ class BotManager:
             # Register quit callback
             server.register_callback("quit", self._handle_quit)
 
+            # Register numeric callback for handling IRC numeric responses
+            server.register_callback("numeric", self._handle_numeric)
+
             self.logger.info(f"Registered callbacks for server: {server_name}")
+
+            # Initialize pending ops data structure for each server
+            if not hasattr(self, "_pending_ops"):
+                self._pending_ops = {}
+            if server_name not in self._pending_ops:
+                self._pending_ops[server_name] = {}
 
     def _handle_notice(
         self, server: Server, sender: str, ident_host: str, target: str, text: str
@@ -2895,3 +2904,100 @@ class BotManager:
 
         except Exception as e:
             self.logger.error(f"Error checking nanoleet achievement: {e}")
+
+    def _handle_numeric(self, server: Server, code: int, target: str, params: str):
+        """
+        Handle IRC numeric responses.
+
+        Args:
+            server: The Server instance that received the response
+            code: The numeric response code (e.g., 353, 366)
+            target: The target (usually the bot's nick)
+            params: The response parameters
+        """
+        server_name = server.config.name
+
+        try:
+            # Handle RPL_NAMREPLY (353) - user list for a channel
+            if code == 353:
+                # Format: :server 353 botnick = #channel :user1 user2 user3 ...
+                # Extract channel and user list
+                parts = params.split(":", 1)
+                if len(parts) == 2:
+                    channel_part, user_list = parts
+                    # channel_part might be "= #channel" or just "#channel"
+                    channel = channel_part.strip().split()[
+                        -1
+                    ]  # Get the last part (channel name)
+
+                    # Initialize pending ops data for this server/channel if needed
+                    if server_name not in self._pending_ops:
+                        self._pending_ops[server_name] = {}
+                    if channel not in self._pending_ops[server_name]:
+                        self._pending_ops[server_name][channel] = {"users": []}
+
+                    # Add users to the list (split by spaces, strip @+ prefixes for ops/voiced)
+                    users = [
+                        user.lstrip("@+").strip()
+                        for user in user_list.split()
+                        if user.strip()
+                    ]
+                    self._pending_ops[server_name][channel]["users"].extend(users)
+
+                    self.logger.debug(
+                        f"Collected {len(users)} users for {channel} on {server_name}"
+                    )
+
+            # Handle RPL_ENDOFNAMES (366) - end of names list
+            elif code == 366:
+                # Format: :server 366 botnick #channel :End of /NAMES list.
+                # Extract channel name
+                channel = params.split()[0] if params else ""
+
+                # Check if we have pending ops for this channel
+                if (
+                    server_name in self._pending_ops
+                    and channel in self._pending_ops[server_name]
+                    and self._pending_ops[server_name][channel]["users"]
+                ):
+
+                    users = self._pending_ops[server_name][channel]["users"]
+
+                    # Remove the bot's own nick from the list to avoid opping itself
+                    users = [
+                        user for user in users if user.lower() != self.bot_name.lower()
+                    ]
+
+                    if users:
+                        # Send MODE commands to op all users
+                        # IRC allows multiple users per MODE command, but we'll do it in batches
+                        batch_size = 10  # Conservative batch size to avoid flooding
+
+                        for i in range(0, len(users), batch_size):
+                            batch = users[
+                                i : i + batch_size  # noqa E203 - Black formatting
+                            ]
+
+                            # Send MODE +o for each user in the batch
+                            for user in batch:
+                                try:
+                                    server.send_raw(f"MODE {channel} +o {user}")
+                                    self.logger.info(
+                                        f"Opped {user} in {channel} on {server_name}"
+                                    )
+                                except Exception as e:
+                                    self.logger.error(
+                                        f"Failed to op {user} in {channel}: {e}"
+                                    )
+
+                    # Clean up the pending ops data
+                    del self._pending_ops[server_name][channel]
+                    if not self._pending_ops[server_name]:
+                        del self._pending_ops[server_name]
+
+                    self.logger.info(
+                        f"Completed ops for {channel} on {server_name} ({len(users)} users)"
+                    )
+
+        except Exception as e:
+            self.logger.error(f"Error handling numeric response {code}: {e}")

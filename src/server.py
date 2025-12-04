@@ -68,6 +68,7 @@ class Server:
             "join": [],  # Callbacks for user join events
             "part": [],  # Callbacks for user part events
             "quit": [],  # Callbacks for user quit events
+            "numeric": [],  # Callbacks for numeric responses (like 353, 366)
         }
 
         # Flood protection - token bucket rate limiter
@@ -558,6 +559,21 @@ class Server:
             sender, hostmask = quit_match.groups()
             for callback in self.callbacks["quit"]:
                 self._invoke_callback(callback, self, sender, hostmask)
+            return
+
+        # Process numeric responses (like 353 RPL_NAMREPLY, 366 RPL_ENDOFNAMES)
+        numeric_match = re.search(r":(\S+) (\d{3}) (\S+)(.*)", message)
+        if numeric_match:
+            server, code, target, params = numeric_match.groups()
+            code = int(code)
+            # Strip leading space and colon from params if present
+            params = params.strip()
+            if params.startswith(":"):
+                params = params[1:]
+
+            # Call all registered numeric callbacks
+            for callback in self.callbacks["numeric"]:
+                self._invoke_callback(callback, self, code, target, params)
             return
 
     def _process_notice(self, message: str):
