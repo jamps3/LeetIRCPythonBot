@@ -22,5 +22,5 @@ then
   EXTRA_ARGS="$EXTRA_ARGS --cov --cov-config=.coveragerc"
 fi
 
-# Run pytest and forward all args
-python -m pytest $EXTRA_ARGS "$@"
+# Run pytest and forward all args, always disable warnings
+python -m pytest -p no:warnings $EXTRA_ARGS "$@"

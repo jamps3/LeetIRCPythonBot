@@ -553,8 +553,12 @@ class SelectableText(urwid.WidgetWrap):
         self._text_widget = urwid.Text(self.markup_text, wrap=wrap_mode)
 
         # Wrap in AttrMap for coloring
-        self._attr_map = urwid.AttrMap(self._text_widget, self.original_attr)
-        super().__init__(self._attr_map)
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            self._attr_map = urwid.AttrMap(self._text_widget, self.original_attr)
+            super().__init__(self._attr_map)
 
     def selectable(self):
         return True
@@ -1299,9 +1303,13 @@ class TUIManager:
         footer = urwid.AttrMap(self.input_field, "footer")
 
         # Main layout - use FocusProtectingFrame to prevent focus changes on body clicks
-        self.main_layout = FocusProtectingFrame(
-            body=self.log_display, header=header, footer=footer, focus_part="footer"
-        )
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            self.main_layout = FocusProtectingFrame(
+                body=self.log_display, header=header, footer=footer, focus_part="footer"
+            )
 
     def update_header(self):
         """Update the header with current status."""
