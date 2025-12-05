@@ -1278,6 +1278,10 @@ class TUIManager:
         self.current_filter = ""
         self.current_view = "console"  # console, stats, config
 
+        # Initialize log file for immediate writing
+        self.log_file = None
+        self._open_log_file()
+
         # UI components
         self.header = urwid.Text("")
         self.log_walker = urwid.SimpleListWalker([])
@@ -1413,6 +1417,9 @@ class TUIManager:
         """Add a new log entry to the display."""
         entry = LogEntry(timestamp, server, level, message, source_type)
         self.log_entries.append(entry)
+
+        # Write to log file immediately
+        self._write_log_entry_to_file(entry)
 
         # Check if entry matches current filter
         if entry.matches_filter(self.current_filter):
@@ -1863,6 +1870,62 @@ class TUIManager:
         else:
             self.input_field.set_caption("> Channel message: ")
 
+    def _open_log_file(self, filename="tui.log"):
+        """Open the log file for immediate writing."""
+        try:
+            self.log_file = open(filename, "a", encoding="utf-8")
+            # Write header if file is new or empty
+            self.log_file.seek(0, 2)  # Seek to end
+            if self.log_file.tell() == 0:  # File is empty
+                self.log_file.write("=" * 80 + "\n")
+                self.log_file.write("LeetIRCBot TUI Log\n")
+                self.log_file.write(
+                    f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                )
+                self.log_file.write("=" * 80 + "\n\n")
+            self.log_file.flush()
+        except Exception as e:
+            # Try to log the error, but don't fail if we can't
+            try:
+                logger.get_logger("TUI").error(f"Failed to open TUI log file: {e}")
+            except Exception:
+                pass  # Ignore if logger is unavailable
+            self.log_file = None
+
+    def _write_log_entry_to_file(self, entry: LogEntry):
+        """Write a single log entry to the file immediately."""
+        if self.log_file is None:
+            return
+
+        try:
+            # Write each log entry in a compact single-line format
+            timestamp_str = entry.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            self.log_file.write(
+                f"[{timestamp_str}] [{entry.server}] [{entry.level}] {entry.message}\n"
+            )
+            self.log_file.flush()  # Ensure it's written immediately
+        except Exception as e:
+            # Try to log the error, but don't fail if we can't
+            try:
+                logger.get_logger("TUI").error(
+                    f"Failed to write log entry to file: {e}"
+                )
+            except Exception:
+                pass  # Ignore if logger is unavailable
+
+    def _close_log_file(self):
+        """Close the log file."""
+        if self.log_file is not None:
+            try:
+                self.log_file.close()
+                self.log_file = None
+            except Exception as e:
+                # Try to log the error, but don't fail if we can't
+                try:
+                    logger.get_logger("TUI").error(f"Failed to close TUI log file: {e}")
+                except Exception:
+                    pass  # Ignore if logger is unavailable
+
     def write_log_to_file(self, filename="tui.log"):
         """Write all log entries to a file.
 
@@ -2109,6 +2172,8 @@ Tips:
         try:
             self.loop.run()
         finally:
+            # Close the log file
+            self._close_log_file()
             # Write TUI log to file before exiting
             self.write_log_to_file()
             # Clear the logger hook when TUI exits

@@ -680,8 +680,7 @@ class BotManager:
         )
 
         # Check kraksdebug configuration for notifications
-        state = self.data_manager.load_state()
-        kraksdebug_config = state.get("kraksdebug", {})
+        kraksdebug_config = self.data_manager.load_kraksdebug_state()
 
         # Send drink word notifications to configured channels
         if drink_words_found and kraksdebug_config.get("channels"):
