@@ -148,6 +148,11 @@ class ConfigManager:
         """
         Load configuration from environment variables.
         """
+        # Prepare state_file with data directory
+        state_file = os.getenv("STATE_FILE", "state.json")
+        if not state_file.startswith(("data/", "data\\")):
+            state_file = os.path.join("data", state_file)
+
         config = BotConfig(
             # Bot identification
             name=os.getenv("BOT_NAME", "jl3b"),
@@ -159,7 +164,7 @@ class ConfigManager:
             ekavika_file=os.getenv("EKAVIKA_FILE", "data/ekavika.json"),
             words_file=os.getenv("WORDS_FILE", "data/general_words.json"),
             subscribers_file=os.getenv("SUBSCRIBERS_FILE", "data/subscribers.json"),
-            state_file=os.getenv("STATE_FILE", "state.json"),
+            state_file=state_file,
             # Connection settings
             reconnect_delay=int(os.getenv("RECONNECT_DELAY", "60")),
             quit_message=os.getenv("QUIT_MESSAGE", "🍺 Nähdään! 🍺"),

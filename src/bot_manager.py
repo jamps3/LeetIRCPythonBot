@@ -303,7 +303,8 @@ class BotManager:
         # Initialize FMI warning service
         if create_fmi_warning_service is not None:
             self.fmi_warning_service = create_fmi_warning_service(
-                callback=self._handle_fmi_warnings, state_file=config.state_file
+                callback=self._handle_fmi_warnings,
+                state_file=os.path.join("data", config.state_file),
             )
             self.logger.info(
                 "⚠️ FMI warning service initialized.",
