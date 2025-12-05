@@ -41,7 +41,7 @@ PALETTE = [
     ("log_info", "light gray", "black"),
     ("log_warning", "yellow", "black"),
     ("log_error", "light red", "black"),
-    ("log_debug", "dark gray", "black"),
+    ("log_debug", "light gray", "black"),
     ("log_success", "light green", "black"),
     # Message types
     ("irc_message", "light cyan", "black"),
