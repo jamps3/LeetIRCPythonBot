@@ -97,6 +97,10 @@ class DrinkTracker:
         """
         data = self.data_manager.load_drink_data()
 
+        # Set statistics_started if this is the first drink word ever recorded
+        if "statistics_started" not in data:
+            data["statistics_started"] = datetime.now().isoformat()
+
         # Ensure structure exists
         if "servers" not in data:
             data["servers"] = {}

@@ -1353,7 +1353,7 @@ class TUIManager:
 
         # Update header text with two lines
         status_line1 = (
-            f"LeetIRC Bot TUI | {current_time} | {server_status} | {service_status} | "
+            f"LeetIRCBot TUI | {current_time} | {server_status} | {service_status} | "
             f"{view_indicator} | Logs: {len(self.log_entries)}"
         )
         status_line2 = "F1=Help F2=Console F3=Stats F4=Config"
@@ -1872,7 +1872,7 @@ class TUIManager:
         try:
             with open(filename, "w", encoding="utf-8") as f:
                 f.write("=" * 80 + "\n")
-                f.write("LeetIRC Bot TUI Log\n")
+                f.write("LeetIRCBot TUI Log\n")
                 f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write(f"Total Entries: {len(self.log_entries)}\n")
                 f.write("=" * 80 + "\n\n")

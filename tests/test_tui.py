@@ -614,7 +614,7 @@ class TestTUIManager:
             with open("test_log.txt", "r") as f:
                 content = f.read()
 
-            assert "LeetIRC Bot TUI Log" in content
+            assert "LeetIRCBot TUI Log" in content
             assert "Test message" in content
 
         finally:

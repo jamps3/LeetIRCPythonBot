@@ -162,13 +162,13 @@ def echo_command(context: CommandContext, bot_functions):
 @command("version", description="Show bot version", usage="!version")
 def version_command(context: CommandContext, bot_functions):
     """Show the bot version."""
-    config = get_config()
+    config_obj = get_config()
     # Prefer a BOT_VERSION provided by the caller's context (e.g., console tests),
     # falling back to configured version.
     version = (
-        bot_functions.get("BOT_VERSION", config.version)
+        bot_functions.get("BOT_VERSION", config_obj.version)
         if isinstance(bot_functions, dict)
-        else config.version
+        else config_obj.version
     )
     return f"Bot version: {version}"
 
@@ -369,10 +369,10 @@ def np_command(context: CommandContext, bot_functions):
 )
 def quote_command(context: CommandContext, bot_functions):
     """Display a random quote from configured source (file or URL), or search for a specific quote if text is provided."""
-    config = get_config()
+    config_obj = get_config()
 
     # Get quotes source from environment, default to data/quotes.txt
-    quotes_source = getattr(config, "quotes_source", "data/quotes.txt")
+    quotes_source = getattr(config_obj, "quotes_source", "data/quotes.txt")
 
     try:
         lines = []
@@ -867,9 +867,9 @@ def leetwinners_command(context: CommandContext, bot_functions):
 @command("about", description="Show information about the bot", usage="!about")
 def about_command(context: CommandContext, bot_functions):
     """Show information about the bot."""
-    config = get_config()
+    config_obj = get_config()
     return (
-        f"LeetIRCPythonBot v{config.version} - A Leet IRC bot with word tracking, "
+        f"LeetIRCPythonBot v{config_obj.version} - A Leet IRC bot with word tracking, "
         f"weather, drink statistics, and more! Type !help for commands."
     )
 
@@ -1216,7 +1216,41 @@ def command_kraks(context, bot_functions):
 
     stats = drink.get_server_stats(server_name)
     if stats.get("total_drink_words", 0) <= 0:
-        return "Ei vielä krakkauksia tallennettuna."
+        # Find the earliest timestamp from drink tracking data
+        data = _data_manager.load_drink_data()
+        earliest_timestamp = None
+
+        # Look through all servers and users for the earliest timestamp
+        if "servers" in data:
+            for server_data in data["servers"].values():
+                if "nicks" in server_data:
+                    for user_data in server_data["nicks"].values():
+                        if "drink_words" in user_data:
+                            for drink_data in user_data["drink_words"].values():
+                                if (
+                                    "timestamps" in drink_data
+                                    and drink_data["timestamps"]
+                                ):
+                                    for timestamp_entry in drink_data["timestamps"]:
+                                        if "time" in timestamp_entry:
+                                            current_time = timestamp_entry["time"]
+                                            if (
+                                                earliest_timestamp is None
+                                                or current_time < earliest_timestamp
+                                            ):
+                                                earliest_timestamp = current_time
+
+        if earliest_timestamp:
+            try:
+                from datetime import datetime
+
+                started_dt = datetime.fromisoformat(earliest_timestamp)
+                formatted_date = started_dt.strftime("%d.%m.%Y %H:%M")
+                return f"Ei vielä krakkauksia tallennettuna. Tilastot aloitettu {formatted_date}."
+            except (ValueError, KeyError):
+                return "Ei vielä krakkauksia tallennettuna."
+        else:
+            return "Ei vielä krakkauksia tallennettuna."
 
     breakdown = drink.get_drink_word_breakdown(server_name)
     if breakdown:
@@ -1722,7 +1756,8 @@ def otiedote_command(context: CommandContext, bot_functions):
         field = context.args[3] if len(context.args) > 3 else "organization"
 
         # Load state.json
-        state_file = config.state_file
+        config_obj = get_config()
+        state_file = config_obj.state_file
         if os.path.exists(state_file):
             try:
                 with open(state_file, "r", encoding="utf8") as f:
@@ -1765,7 +1800,7 @@ def otiedote_command(context: CommandContext, bot_functions):
     if not args_text:
         latest = max(otiedote_list, key=lambda x: x["id"])
         if latest["content"]:
-            return f"📄 {latest['title']} {latest['content']} URL: {latest['url']}"
+            return f"📄 {latest['title']} | {latest['content']} URL: {latest['url']}"
         else:
             return f"📄 {latest['title']} URL: {latest['url']}"
 

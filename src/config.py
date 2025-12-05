@@ -10,6 +10,32 @@ from dotenv import load_dotenv
 import logger
 
 
+def _read_version_from_file() -> str:
+    """
+    Read version from VERSION file.
+
+    Returns:
+        Version string, defaults to "0.1.0" if file doesn't exist
+    """
+    version_file = "VERSION"
+    try:
+        with open(version_file, "r", encoding="utf-8") as f:
+            version = f.read().strip()
+            # Validate version format (basic check)
+            if version and re.match(r"^\d+\.\d+\.\d+$", version):
+                return version
+            else:
+                logger.warning(
+                    f"Invalid version format in {version_file}: {version}, using default"
+                )
+                return "0.1.0"
+    except (FileNotFoundError, IOError) as e:
+        logger.warning(
+            f"Could not read version from {version_file}: {e}, using default"
+        )
+        return "0.1.0"
+
+
 @dataclass
 class ServerConfig:
     """
@@ -51,7 +77,7 @@ class BotConfig:
 
     # Bot identification
     name: str = "jl3b"
-    version: str = "2.2.0"
+    version: str = field(default_factory=_read_version_from_file)
 
     # Logging
     log_level: str = "INFO"

@@ -1962,10 +1962,12 @@ class BotManager:
 
         # Log IRC responses to console for visibility
         server_name = getattr(server.config, "name", "unknown")
+        # Clean message for logging - replace newlines with separators to avoid TUI display issues
+        clean_message = message.replace("\n", " | ").replace("\r", "").strip()
         self.logger.debug(
-            f"Sending response to {target} on {server_name}: {message[:100]}"
+            f"Sending response to {target} on {server_name}: {clean_message[:100]}"
         )
-        self.logger.msg(f"[{server_name}:{target}] {message}", "MSG")
+        self.logger.msg(f"[{server_name}:{target}] {clean_message}", "MSG")
 
         try:
             if self.use_notices:
