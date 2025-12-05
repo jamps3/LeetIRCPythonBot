@@ -507,22 +507,24 @@ class ElectricityService:
                     "message": "No price data available for statistics",
                 }
 
-            # Convert to snt/kWh with VAT for statistics
+            # Convert to snt/kWh with VAT for statistics and find min/max intervals
             prices_snt = []
-            hour_prices = {}  # hour -> list of quarter prices
+            min_price = float("inf")
+            max_price = float("-inf")
+            min_interval = None
+            max_interval = None
 
             for (hour, quarter), eur_mwh in interval_prices.items():
                 price_snt = self._convert_price(eur_mwh)
                 prices_snt.append(price_snt)
 
-                if hour not in hour_prices:
-                    hour_prices[hour] = []
-                hour_prices[hour].append(price_snt)
-
-            # Calculate hourly averages for min/max hour determination
-            hourly_averages = {}
-            for hour, quarter_prices in hour_prices.items():
-                hourly_averages[hour] = sum(quarter_prices) / len(quarter_prices)
+                # Track min/max prices and their intervals
+                if price_snt < min_price:
+                    min_price = price_snt
+                    min_interval = (hour, quarter)
+                if price_snt > max_price:
+                    max_price = price_snt
+                    max_interval = (hour, quarter)
 
             if not prices_snt:
                 return {
@@ -530,25 +532,29 @@ class ElectricityService:
                     "message": "No price data available for statistics",
                 }
 
-            min_hour = min(hourly_averages.keys(), key=lambda h: hourly_averages[h])
-            max_hour = max(hourly_averages.keys(), key=lambda h: hourly_averages[h])
+            # Calculate average price
+            avg_price = sum(prices_snt) / len(prices_snt)
 
             return {
                 "error": False,
                 "date": date.strftime("%Y-%m-%d"),
                 "min_price": {
-                    "hour": min_hour,
-                    "snt_per_kwh_with_vat": hourly_averages[min_hour],
+                    "hour": min_interval[0],
+                    "quarter": min_interval[1],
+                    "time_str": f"{min_interval[0]:02d}:{(min_interval[1]-1)*15:02d}",
+                    "snt_per_kwh_with_vat": min_price,
                 },
                 "max_price": {
-                    "hour": max_hour,
-                    "snt_per_kwh_with_vat": hourly_averages[max_hour],
+                    "hour": max_interval[0],
+                    "quarter": max_interval[1],
+                    "time_str": f"{max_interval[0]:02d}:{(max_interval[1]-1)*15:02d}",
+                    "snt_per_kwh_with_vat": max_price,
                 },
                 "avg_price": {
-                    "snt_per_kwh_with_vat": sum(prices_snt) / len(prices_snt),
+                    "snt_per_kwh_with_vat": avg_price,
                 },
                 "total_intervals": len(prices_snt),
-                "total_hours": len(hourly_averages),
+                "total_hours": len(set(hour for hour, _ in interval_prices.keys())),
             }
 
         except Exception as e:
@@ -776,8 +782,8 @@ class ElectricityService:
 
         message = (
             f"📊 Sähkön hintatilastot {date_str}: "
-            f"🔹 Min: {min_price['snt_per_kwh_with_vat']:.2f} snt/kWh (klo {min_price['hour']:02d}) "
-            f"🔸 Max: {max_price['snt_per_kwh_with_vat']:.2f} snt/kWh (klo {max_price['hour']:02d}) "
+            f"🔹 Min: {min_price['snt_per_kwh_with_vat']:.2f} snt/kWh (klo {min_price['time_str']}) "
+            f"🔸 Max: {max_price['snt_per_kwh_with_vat']:.2f} snt/kWh (klo {max_price['time_str']}) "
             f"🔹 Keskiarvo: {avg_price['snt_per_kwh_with_vat']:.2f} snt/kWh"
         )
 
