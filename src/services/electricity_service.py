@@ -407,9 +407,25 @@ class ElectricityService:
             # Check for special keywords
             if len(args) >= 1:
                 arg = args[0].lower()
+
+                # Handle stats command with optional date specifier
                 if arg in ["tilastot", "stats"]:
                     result["show_stats"] = True
+                    # Check if there's a second argument for date (e.g., "huomenna")
+                    if len(args) >= 2:
+                        date_arg = args[1].lower()
+                        if date_arg in ["huomenna", "tomorrow"]:
+                            result["is_tomorrow"] = True
+                            result["date"] = (now + timedelta(days=1)).date()
+                        elif date_arg in ["tänään", "tanaan", "today"]:
+                            result["is_tomorrow"] = False
+                            result["date"] = now.date()
+                        else:
+                            result["error"] = (
+                                f"Virheellinen päivämäärä argumentti '{args[1]}'. Käytä: huomenna, tänään"
+                            )
                     return result
+
                 elif arg in ["longbar"]:
                     result["show_longbar"] = True
                     return result
@@ -449,7 +465,7 @@ class ElectricityService:
                     return result
                 else:
                     result["error"] = (
-                        "Virheellinen komento! Käytä: !sahko [tänään|huomenna|longbar] [tunti] tai !sahko tilastot/stats"
+                        "Virheellinen komento! Käytä: !sahko [tänään|huomenna|longbar] [tunti] tai !sahko tilastot/stats [huomenna|tänään]"
                     )
 
         except Exception:
