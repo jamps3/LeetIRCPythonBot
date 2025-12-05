@@ -898,10 +898,13 @@ def exit_command(context: CommandContext, bot_functions):
         import logger
 
         logger.info(f"{context.server_name} !{context.command} command received")
+        quit_message = (
+            " ".join(context.args) if context.args else "default quit message"
+        )
         logger.log(
-            "🛑 Shutting down bot...",
+            f"🛑 Shutting down bot with quit message: '{quit_message}'",
             "INFO",
-            fallback_text="[STOP] Shutting down bot...",
+            fallback_text=f"[STOP] Shutting down bot with quit message: '{quit_message}'",
         )
         stop_event.set()
         return "🛑 Bot shutdown initiated..."

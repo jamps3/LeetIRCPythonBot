@@ -665,6 +665,10 @@ class BotManager:
         if not target.startswith("#"):
             return
 
+        # Skip tracking if this is a command (starts with !)
+        if text.strip().startswith("!"):
+            return
+
         # Track drink words
         self.drink_tracker.process_message(server=server_name, nick=sender, text=text)
 
