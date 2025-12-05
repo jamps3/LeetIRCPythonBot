@@ -669,13 +669,48 @@ class BotManager:
         if text.strip().startswith("!"):
             return
 
-        # Track drink words
-        self.drink_tracker.process_message(server=server_name, nick=sender, text=text)
+        # Track drink words and get any drink word detections
+        drink_words_found = self.drink_tracker.process_message(
+            server=server_name, nick=sender, text=text
+        )
 
         # Track general words
         self.general_words.process_message(
             server=server_name, nick=sender, text=text, target=target
         )
+
+        # Check kraksdebug configuration for notifications
+        state = self.data_manager.load_state()
+        kraksdebug_config = state.get("kraksdebug", {})
+
+        # Send drink word notifications to configured channels
+        if drink_words_found and kraksdebug_config.get("channels"):
+            server = context["server"]
+            for channel in kraksdebug_config["channels"]:
+                # Only send to channels that exist on this server
+                if (
+                    server_name in self.joined_channels
+                    and channel in self.joined_channels[server_name]
+                ):
+                    notification = (
+                        f"🐧 {sender} said drink words: {', '.join(drink_words_found)}"
+                    )
+                    self._send_response(server, channel, notification)
+
+        # Send drink word notifications as notices to the sender
+        if drink_words_found and kraksdebug_config.get("nick_notices", False):
+            server = context["server"]
+            notification = f"🐧 You said drink words: {', '.join(drink_words_found)}"
+            # Send as notice to the sender
+            try:
+                if self.use_notices:
+                    server.send_notice(sender, notification)
+                else:
+                    server.send_message(sender, notification)
+            except Exception as e:
+                self.logger.warning(
+                    f"Failed to send drink word notice to {sender}: {e}"
+                )
 
         # Update tamagotchi (only if enabled)
         if self.tamagotchi_enabled:

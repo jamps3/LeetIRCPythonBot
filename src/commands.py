@@ -1933,4 +1933,64 @@ def ksp_command(context: CommandContext, bot_functions):
         return result
 
 
+@command(
+    "kraksdebug",
+    description="Configure drink word detection debugging",
+    usage="!kraksdebug [#channel] or !kraksdebug (toggle nick notices)",
+    examples=["!kraksdebug #test", "!kraksdebug"],
+    admin_only=False,
+)
+def kraksdebug_command(context: CommandContext, bot_functions):
+    """Configure drink word detection debugging notifications.
+
+    With a channel parameter: toggles sending drink word detections to that channel.
+    Without parameters: toggles sending drink word detections as notices to the nick that sent them.
+    """
+    # Get the data manager
+    data_manager = bot_functions.get("data_manager")
+    if not data_manager:
+        return "❌ Data manager not available"
+
+    # Load current state
+    state = data_manager.load_state()
+
+    # Ensure kraksdebug section exists
+    if "kraksdebug" not in state:
+        state["kraksdebug"] = {"channels": [], "nick_notices": False}
+
+    kraksdebug_config = state["kraksdebug"]
+
+    if context.args:
+        # Channel parameter provided
+        channel = context.args[0]
+
+        # Ensure channel starts with #
+        if not channel.startswith("#"):
+            channel = "#" + channel
+
+        # Toggle channel in list
+        if channel in kraksdebug_config["channels"]:
+            kraksdebug_config["channels"].remove(channel)
+            action = "removed from"
+        else:
+            kraksdebug_config["channels"].append(channel)
+            action = "added to"
+
+        # Save state
+        data_manager.save_state(state)
+
+        return f"✅ Channel {channel} {action} drink word detection notifications"
+    else:
+        # No parameter - toggle nick notices
+        kraksdebug_config["nick_notices"] = not kraksdebug_config.get(
+            "nick_notices", False
+        )
+
+        # Save state
+        data_manager.save_state(state)
+
+        status = "enabled" if kraksdebug_config["nick_notices"] else "disabled"
+        return f"✅ Drink word detection notices to nicks are now {status}"
+
+
 # EOF
