@@ -3,9 +3,9 @@ setlocal
 
 set "EXTRA_ARGS="
 
-REM Add -n auto if pytest-xdist is available
+REM Add -n 8 if pytest-xdist is available
 python -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('xdist') else 1)"
-if %ERRORLEVEL% EQU 0 set "EXTRA_ARGS=%EXTRA_ARGS% -n auto"
+if %ERRORLEVEL% EQU 0 set "EXTRA_ARGS=%EXTRA_ARGS% -n 8"
 
 REM Add coverage flags if pytest-cov is available
 python -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('pytest_cov') else 1)"
