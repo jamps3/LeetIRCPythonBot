@@ -12,7 +12,6 @@ import urllib.request
 from datetime import datetime
 
 import bot_manager
-import config
 from command_registry import (
     CommandContext,
     CommandResponse,
@@ -1194,6 +1193,39 @@ def command_drink(context, bot_functions):
     return f"{(', ' + details_text) if details_text else ''}"
 
 
+def _get_statistics_start_date():
+    """Get the earliest timestamp from drink tracking data and format as dd.mm.yyyy."""
+    data = _data_manager.load_drink_data()
+    earliest_timestamp = None
+
+    # Look through all servers and users for the earliest timestamp
+    if "servers" in data:
+        for server_data in data["servers"].values():
+            if "nicks" in server_data:
+                for user_data in server_data["nicks"].values():
+                    if "drink_words" in user_data:
+                        for drink_data in user_data["drink_words"].values():
+                            if "timestamps" in drink_data and drink_data["timestamps"]:
+                                for timestamp_entry in drink_data["timestamps"]:
+                                    if "time" in timestamp_entry:
+                                        current_time = timestamp_entry["time"]
+                                        if (
+                                            earliest_timestamp is None
+                                            or current_time < earliest_timestamp
+                                        ):
+                                            earliest_timestamp = current_time
+
+    if earliest_timestamp:
+        try:
+            from datetime import datetime
+
+            started_dt = datetime.fromisoformat(earliest_timestamp)
+            return started_dt.strftime("%d.%m.%Y")
+        except (ValueError, KeyError):
+            return None
+    return None
+
+
 @command(
     name="kraks",
     command_type=CommandType.PUBLIC,
@@ -1215,40 +1247,13 @@ def command_kraks(context, bot_functions):
     )
 
     stats = drink.get_server_stats(server_name)
+    start_date = _get_statistics_start_date()
+
     if stats.get("total_drink_words", 0) <= 0:
-        # Find the earliest timestamp from drink tracking data
-        data = _data_manager.load_drink_data()
-        earliest_timestamp = None
-
-        # Look through all servers and users for the earliest timestamp
-        if "servers" in data:
-            for server_data in data["servers"].values():
-                if "nicks" in server_data:
-                    for user_data in server_data["nicks"].values():
-                        if "drink_words" in user_data:
-                            for drink_data in user_data["drink_words"].values():
-                                if (
-                                    "timestamps" in drink_data
-                                    and drink_data["timestamps"]
-                                ):
-                                    for timestamp_entry in drink_data["timestamps"]:
-                                        if "time" in timestamp_entry:
-                                            current_time = timestamp_entry["time"]
-                                            if (
-                                                earliest_timestamp is None
-                                                or current_time < earliest_timestamp
-                                            ):
-                                                earliest_timestamp = current_time
-
-        if earliest_timestamp:
-            try:
-                from datetime import datetime
-
-                started_dt = datetime.fromisoformat(earliest_timestamp)
-                formatted_date = started_dt.strftime("%d.%m.%Y %H:%M")
-                return f"Ei vielä krakkauksia tallennettuna. Tilastot aloitettu {formatted_date}."
-            except (ValueError, KeyError):
-                return "Ei vielä krakkauksia tallennettuna."
+        if start_date:
+            return (
+                f"Ei vielä krakkauksia tallennettuna. Tilastot aloitettu {start_date}."
+            )
         else:
             return "Ei vielä krakkauksia tallennettuna."
 
@@ -1257,12 +1262,18 @@ def command_kraks(context, bot_functions):
         details = ", ".join(
             f"{word}: {count} [{top_user}]" for word, count, top_user in breakdown[:10]
         )
-        return f"Krakit yhteensä: {stats['total_drink_words']}, {details}"
+        response = f"Krakit yhteensä: {stats['total_drink_words']}, {details}"
+        if start_date:
+            response += f" (tilastot aloitettu {start_date})"
+        return response
     else:
         top5 = ", ".join(
             [f"{nick}:{count}" for nick, count in stats.get("top_users", [])[:5]]
         )
-        return f"Krakit yhteensä: {stats['total_drink_words']}. Top 5: {top5}"
+        response = f"Krakit yhteensä: {stats['total_drink_words']}. Top 5: {top5}"
+        if start_date:
+            response += f" (tilastot aloitettu {start_date})"
+        return response
 
 
 @command(
