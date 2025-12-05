@@ -1951,14 +1951,8 @@ def kraksdebug_command(context: CommandContext, bot_functions):
     if not data_manager:
         return "❌ Data manager not available"
 
-    # Load current state
-    state = data_manager.load_state()
-
-    # Ensure kraksdebug section exists
-    if "kraksdebug" not in state:
-        state["kraksdebug"] = {"channels": [], "nick_notices": False}
-
-    kraksdebug_config = state["kraksdebug"]
+    # Load current kraksdebug state
+    kraksdebug_config = data_manager.load_kraksdebug_state()
 
     if context.args:
         # Channel parameter provided
@@ -1977,7 +1971,7 @@ def kraksdebug_command(context: CommandContext, bot_functions):
             action = "added to"
 
         # Save state
-        data_manager.save_state(state)
+        data_manager.save_kraksdebug_state(kraksdebug_config)
 
         return f"✅ Channel {channel} {action} drink word detection notifications"
     else:
@@ -1987,7 +1981,7 @@ def kraksdebug_command(context: CommandContext, bot_functions):
         )
 
         # Save state
-        data_manager.save_state(state)
+        data_manager.save_kraksdebug_state(kraksdebug_config)
 
         status = "enabled" if kraksdebug_config["nick_notices"] else "disabled"
         return f"✅ Drink word detection notices to nicks are now {status}"

@@ -340,6 +340,31 @@ class DataManager:
         # Save the full state file
         self.save_json(self.state_file, state_data)
 
+    def load_kraksdebug_state(self) -> Dict[str, Any]:
+        """Load kraksdebug state data from merged state.json."""
+        state_data = self.load_json(self.state_file)
+        return state_data.get("kraksdebug", {"channels": [], "nick_notices": False})
+
+    def save_kraksdebug_state(self, data: Dict[str, Any]):
+        """Save kraksdebug state data to merged state.json."""
+        # Load the full state file
+        state_data = self.load_json(self.state_file)
+        if not state_data:
+            # Initialize with default structure if file is empty or corrupted
+            state_data = {
+                "tamagotchi": {},
+                "subscriptions": {},
+                "fmi_warnings": {"seen_hashes": [], "seen_data": []},
+                "otiedote": {"latest_release": 0},
+                "drink_tracking_opt_out": {},
+            }
+
+        # Update the kraksdebug section
+        state_data["kraksdebug"] = data
+
+        # Save the full state file
+        self.save_json(self.state_file, state_data)
+
     def get_all_servers(self) -> List[str]:
         """
         Return a list of all server names present in general words data.
