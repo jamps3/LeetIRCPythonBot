@@ -7,9 +7,9 @@ from typing import Any, Dict, List, Tuple
 import logger
 from config import get_config
 
-# Get subscribers file from config
+# Get state file from config (subscriptions stored in state.json)
 config = get_config()
-SUBSCRIBERS_FILE = os.path.normpath(config.subscribers_file)
+SUBSCRIBERS_FILE = os.path.normpath(config.state_file)
 
 # Valid topics for subscriptions
 VALID_TOPICS = {"varoitukset", "onnettomuustiedotteet"}
