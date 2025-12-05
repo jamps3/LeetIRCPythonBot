@@ -161,14 +161,33 @@ def echo_command(context: CommandContext, bot_functions):
 @command("version", description="Show bot version", usage="!version")
 def version_command(context: CommandContext, bot_functions):
     """Show the bot version."""
-    config_obj = get_config()
-    # Prefer a BOT_VERSION provided by the caller's context (e.g., console tests),
-    # falling back to configured version.
-    version = (
-        bot_functions.get("BOT_VERSION", config_obj.version)
-        if isinstance(bot_functions, dict)
-        else config_obj.version
-    )
+    # Read version directly from VERSION file to ensure it's current
+    version_file = "VERSION"
+    try:
+        with open(version_file, "r", encoding="utf-8") as f:
+            current_version = f.read().strip()
+            # Validate version format (basic check)
+            import re
+
+            if current_version and re.match(r"^\d+\.\d+\.\d+$", current_version):
+                version = current_version
+            else:
+                # Fallback to config if VERSION file is invalid
+                config_obj = get_config()
+                version = (
+                    bot_functions.get("BOT_VERSION", config_obj.version)
+                    if isinstance(bot_functions, dict)
+                    else config_obj.version
+                )
+    except (FileNotFoundError, IOError):
+        # Fallback to config if VERSION file doesn't exist
+        config_obj = get_config()
+        version = (
+            bot_functions.get("BOT_VERSION", config_obj.version)
+            if isinstance(bot_functions, dict)
+            else config_obj.version
+        )
+
     return f"Bot version: {version}"
 
 
