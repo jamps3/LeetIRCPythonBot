@@ -6,6 +6,7 @@ Subscription-related tests.
 import json
 import os
 import tempfile
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
@@ -130,12 +131,23 @@ def bot_manager():
         "bot_manager.create_otiedote_service", return_value=Mock()
     ), patch(
         "bot_manager.Lemmatizer", side_effect=Exception("Mock error")
+    ), patch(
+        "bot_manager.get_config",
+        return_value=SimpleNamespace(
+            servers=[
+                SimpleNamespace(name="test_server", channels=["#test", "test", "main"])
+            ],
+            state_file="data/state.json",
+        ),
     ):
         bot = BotManager("TestBot")
         mock_server = Mock()
         mock_server.config.name = "test_server"
-        mock_server.config.channels = ["test", "main"]
+        mock_server.config.channels = ["#test", "test", "main"]
         bot.servers = {"test_server": mock_server}
+        # Set up bot_manager for announcement delay logic
+        bot.connected = True
+        bot.joined_channels = {"test_server": {"#test", "test", "main"}}
         yield bot
 
 

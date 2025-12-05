@@ -807,6 +807,13 @@ def test_get_subscriptions_module_import_error(monkeypatch, manager):
 
 
 def test_handle_fmi_and_otiedote_release(monkeypatch, manager):
+    # Mock get_config to return servers with channels
+    mock_config = SimpleNamespace()
+    mock_config.servers = [
+        SimpleNamespace(name="srv", channels=["#general", "#random", "#c"])
+    ]
+    monkeypatch.setattr("bot_manager.get_config", lambda: mock_config, raising=True)
+
     # Subscribers flow
     subs = SimpleNamespace(
         get_subscribers=lambda topic: (
@@ -826,7 +833,7 @@ def test_handle_fmi_and_otiedote_release(monkeypatch, manager):
     )
     manager.servers = {"srv": mock_server}
     # Ensure channels defined in .env are "joined" (required for announcement delay logic)
-    manager.joined_channels = {"srv": {"#general", "#random"}}
+    manager.joined_channels = {"srv": {"#general", "#random", "#c"}}
     # Ensure manager is marked as connected (required for announcement delay logic)
     manager.connected = True
 

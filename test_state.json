@@ -1,0 +1,25 @@
+{
+  "tamagotchi": {
+    "servers": {},
+    "global_state": {
+      "level": 1,
+      "experience": 0,
+      "happiness": 50,
+      "hunger": 50,
+      "last_interaction": "2025-12-05T00:35:39.607729",
+      "mood": "neutral"
+    },
+    "last_updated": "2025-12-05T00:35:39.607734",
+    "version": "1.0.0"
+  },
+  "subscriptions": {},
+  "fmi_warnings": {
+    "seen_hashes": [],
+    "seen_data": []
+  },
+  "otiedote": {
+    "latest_release": 0
+  },
+  "drink_tracking_opt_out": {},
+  "last_updated": "2025-12-05T00:35:39.609251"
+}
