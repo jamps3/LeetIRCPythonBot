@@ -12,6 +12,7 @@ import urllib.request
 from datetime import datetime
 
 import bot_manager
+import config
 from command_registry import (
     CommandContext,
     CommandResponse,
@@ -1721,7 +1722,7 @@ def otiedote_command(context: CommandContext, bot_functions):
         field = context.args[3] if len(context.args) > 3 else "organization"
 
         # Load state.json
-        state_file = os.path.join("data", os.getenv("STATE_FILE", "state.json"))
+        state_file = config.state_file
         if os.path.exists(state_file):
             try:
                 with open(state_file, "r", encoding="utf8") as f:

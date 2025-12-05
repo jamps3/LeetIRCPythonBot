@@ -304,7 +304,7 @@ class BotManager:
         if create_fmi_warning_service is not None:
             self.fmi_warning_service = create_fmi_warning_service(
                 callback=self._handle_fmi_warnings,
-                state_file=os.path.join("data", config.state_file),
+                state_file=config.state_file,
             )
             self.logger.info(
                 "⚠️ FMI warning service initialized.",
@@ -320,7 +320,7 @@ class BotManager:
         if create_otiedote_service is not None:
             self.otiedote_service = create_otiedote_service(
                 callback=self._handle_otiedote_release,
-                state_file=os.path.join("data", config.state_file),
+                state_file=config.state_file,
             )
             self.logger.info(
                 "📢 Otiedote monitoring service initialized.",
@@ -1142,15 +1142,12 @@ class BotManager:
             return
 
         # Load state for filters
-        state_file = os.path.join("data", os.getenv("STATE_FILE", "state.json"))
         filters = {}
-        if os.path.exists(state_file):
-            try:
-                with open(state_file, "r", encoding="utf8") as f:
-                    state = json.load(f)
-                filters = state.get("otiedote", {}).get("filters", {})
-            except Exception:
-                filters = {}
+        try:
+            state = self.data_manager.load_state()
+            filters = state.get("otiedote", {}).get("filters", {})
+        except Exception:
+            filters = {}
 
         # Send to subscribed channels/users on their respective servers with filtering
         for subscriber_nick, server_name in subscribers:
