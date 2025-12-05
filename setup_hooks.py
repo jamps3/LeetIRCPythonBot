@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 Setup Git Pre-commit Hooks for LeetIRCPythonBot
 
@@ -32,24 +32,49 @@ def create_pre_commit_hook():
 
 set -euo pipefail
 
-echo "Running pre-commit: isort, black, flake8..."
+echo "Running pre-commit: isort, black, flake8, and quick tests..."
 
 # Ensure we run in repo root
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
+# Function to find Python executable
+find_python() {
+  # Try different Python executables in order of preference
+  for python_cmd in "python" "python3" "./venv/Scripts/python.exe" "./venv/bin/python"; do
+    if command -v "$python_cmd" >/dev/null 2>&1; then
+      # Test that Python actually works by running a simple command
+      if "$python_cmd" -c "print('test')" >/dev/null 2>&1; then
+        echo "$python_cmd"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
+
+# Find Python executable
+PYTHON_CMD=$(find_python)
+if [ $? -ne 0 ]; then
+  echo "❌ Python not found! Please ensure Python is installed and available in PATH."
+  echo "   On Windows, you can install from the Microsoft Store or use a virtual environment."
+  exit 1
+fi
+
+echo "Using Python: $PYTHON_CMD"
+
 # Run isort if available
-if command -v python -m isort >/dev/null 2>&1; then
-  echo "python -m isort ."
-  python -m isort .
+if $PYTHON_CMD -m isort --version >/dev/null 2>&1; then
+  echo "$PYTHON_CMD -m isort ."
+  $PYTHON_CMD -m isort .
 else
   echo "isort not found, skipping (pip install isort)"
 fi
 
 # Run black if available
-if command -v python -m black >/dev/null 2>&1; then
-  echo "python -m black ."
-  python -m black .
+if $PYTHON_CMD -m black --version >/dev/null 2>&1; then
+  echo "$PYTHON_CMD -m black ."
+  $PYTHON_CMD -m black .
 else
   echo "black not found, skipping (pip install black)"
 fi
@@ -58,9 +83,9 @@ fi
 git add -A
 
 # Run flake8 if available (lint errors should fail the commit)
-if command -v python -m flake8 >/dev/null 2>&1; then
-  echo "python -m flake8 ."
-  python -m flake8 .
+if $PYTHON_CMD -m flake8 --version >/dev/null 2>&1; then
+  echo "$PYTHON_CMD -m flake8 ."
+  $PYTHON_CMD -m flake8 .
 else
   echo "flake8 not found, skipping (pip install flake8)"
 fi
@@ -68,7 +93,7 @@ fi
 # Optionally run tests if PRECOMMIT_RUN_TESTS is enabled
 if [ "${PRECOMMIT_RUN_TESTS:-0}" != "0" ]; then
   echo "Running tests (PRECOMMIT_RUN_TESTS enabled)..."
-  python -m pytest -q
+  $PYTHON_CMD -m pytest -q
   TEST_STATUS=$?
   if [ $TEST_STATUS -ne 0 ]; then
     echo "Tests failed! Commit aborted."
@@ -108,7 +133,7 @@ def create_pre_push_hook():
 
     pre_push_hook = hooks_dir / "pre-push"
 
-    hook_content = """#!/bin/sh
+    hook_content = """#!/bin/bash
 #
 # Pre-push hook that runs all tests before allowing push
 # If tests fail, the push is canceled
@@ -126,6 +151,31 @@ echo "⏳ This may take a moment..."
 REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "$REPO_ROOT" || exit 1
 
+# Function to find Python executable
+find_python() {
+  # Try different Python executables in order of preference
+  for python_cmd in "python" "python3" "./venv/Scripts/python.exe" "./venv/bin/python"; do
+    if command -v "$python_cmd" >/dev/null 2>&1; then
+      # Test that Python actually works by running a simple command
+      if "$python_cmd" -c "print('test')" >/dev/null 2>&1; then
+        echo "$python_cmd"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
+
+# Find Python executable
+PYTHON_CMD=$(find_python)
+if [ $? -ne 0 ]; then
+  echo "❌ Python not found! Please ensure Python is installed and available in PATH."
+  echo "   On Windows, you can install from the Microsoft Store or use a virtual environment."
+  exit 1
+fi
+
+echo "Using Python: $PYTHON_CMD"
+
 # Run tests using the test script
 # Try different approaches for Windows compatibility
 if [ -f "test" ]; then
@@ -138,12 +188,12 @@ if [ -f "test" ]; then
         test_exit_code=$?
     else
         # Fallback: run pytest directly
-        python -m pytest -q
+        $PYTHON_CMD -m pytest -q --disable-warnings
         test_exit_code=$?
     fi
 else
     # Fallback: run pytest directly if test script doesn't exist
-    python -m pytest -q
+    $PYTHON_CMD -m pytest -q --disable-warnings
     test_exit_code=$?
 fi
 
@@ -154,7 +204,7 @@ if [ $test_exit_code -eq 0 ]; then
 else
     echo "❌ Tests failed! Push canceled."
     echo "💡 Fix failing tests before pushing:"
-    echo "   Run: .\\test (or python -m pytest)"
+    echo "   Run: .\\test (or $PYTHON_CMD -m pytest)"
     echo "   Then: git push"
     exit 1
 fi
