@@ -180,9 +180,8 @@ def version_command(context: CommandContext, bot_functions):
                 config_obj = get_config()
                 version = config_obj.version
     except (FileNotFoundError, IOError):
-        # Fallback to config if VERSION file doesn't exist
-        config_obj = get_config()
-        version = config_obj.version
+        # Fallback to "1.0" if VERSION file doesn't exist
+        version = "1.0"
 
     return f"Bot version: {version}"
 

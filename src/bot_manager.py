@@ -734,7 +734,6 @@ class BotManager:
             "subscriptions": self._get_subscriptions_module(),
             "DRINK_WORDS": self._get_drink_words(),
             "get_latency_start": lambda: getattr(self, "_latency_start", 0),
-            "BOT_VERSION": "2.1.1",
             "toggle_tamagotchi": lambda srv, tgt, snd: self.toggle_tamagotchi(
                 srv, tgt, snd
             ),
