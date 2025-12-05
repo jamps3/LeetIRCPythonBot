@@ -161,6 +161,10 @@ def echo_command(context: CommandContext, bot_functions):
 @command("version", description="Show bot version", usage="!version")
 def version_command(context: CommandContext, bot_functions):
     """Show the bot version."""
+    # Check for explicit BOT_VERSION override first (for testing)
+    if isinstance(bot_functions, dict) and "BOT_VERSION" in bot_functions:
+        return f"Bot version: {bot_functions['BOT_VERSION']}"
+
     # Read version directly from VERSION file to ensure it's current
     version_file = "VERSION"
     try:
@@ -174,19 +178,11 @@ def version_command(context: CommandContext, bot_functions):
             else:
                 # Fallback to config if VERSION file is invalid
                 config_obj = get_config()
-                version = (
-                    bot_functions.get("BOT_VERSION", config_obj.version)
-                    if isinstance(bot_functions, dict)
-                    else config_obj.version
-                )
+                version = config_obj.version
     except (FileNotFoundError, IOError):
         # Fallback to config if VERSION file doesn't exist
         config_obj = get_config()
-        version = (
-            bot_functions.get("BOT_VERSION", config_obj.version)
-            if isinstance(bot_functions, dict)
-            else config_obj.version
-        )
+        version = config_obj.version
 
     return f"Bot version: {version}"
 
