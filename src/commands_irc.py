@@ -6,16 +6,7 @@ These commands provide direct IRC functionality like joining channels, changing
 nicks, sending messages, etc.
 """
 
-import time
-from datetime import datetime
-
-from command_registry import (
-    CommandContext,
-    CommandResponse,
-    CommandScope,
-    CommandType,
-    command,
-)
+from command_registry import CommandContext, command
 
 
 def get_irc_connection(context: CommandContext, bot_functions):
@@ -140,6 +131,11 @@ def irc_part_command(context: CommandContext, bot_functions):
 def irc_quit_command(context: CommandContext, bot_functions):
     """Disconnect from IRC server."""
     message = " ".join(context.args) if context.args else "Quit"
+
+    # Set the quit message globally for all servers before quitting
+    set_quit_message = bot_functions.get("set_quit_message")
+    if set_quit_message:
+        set_quit_message(message)
 
     irc = get_irc_connection(context, bot_functions)
     if not irc:
