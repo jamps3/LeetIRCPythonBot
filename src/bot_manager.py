@@ -318,7 +318,8 @@ class BotManager:
         # Initialize Otiedote service
         if create_otiedote_service is not None:
             self.otiedote_service = create_otiedote_service(
-                callback=self._handle_otiedote_release
+                callback=self._handle_otiedote_release,
+                state_file=os.path.join("data", config.state_file),
             )
             self.logger.info(
                 "📢 Otiedote monitoring service initialized.",

@@ -295,5 +295,7 @@ class OtiedoteService:
 
 
 # Factory
-def create_otiedote_service(callback, check_interval=CHECK_INTERVAL):
-    return OtiedoteService(callback, check_interval)
+def create_otiedote_service(
+    callback, check_interval=CHECK_INTERVAL, state_file=STATE_FILE
+):
+    return OtiedoteService(callback, check_interval, state_file)
