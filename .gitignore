@@ -194,4 +194,5 @@ test-results.txt
 # Others
 commits.csv
 quotes.txt
-tui.logtest_state.json
+tui.log
+test_state.json
