@@ -1279,9 +1279,6 @@ class TUIManager:
         self.log_file = None
         self._open_log_file()
 
-        # Load wrap mode from state.json
-        self._load_wrap_mode()
-
         # UI components
         self.header = urwid.Text("")
         self.log_walker = urwid.SimpleListWalker([])
@@ -1298,6 +1295,9 @@ class TUIManager:
 
         # Set up layout
         self.setup_layout()
+
+        # Load wrap mode from state.json (after UI is initialized)
+        self._load_wrap_mode()
 
         # Update header initially
         self.update_header()
