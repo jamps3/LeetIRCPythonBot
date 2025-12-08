@@ -1268,11 +1268,11 @@ class TUIManager:
         # Configuration
         self.log_buffer_size = int(os.getenv("LOG_BUFFER_SIZE", "1000"))
 
-        # Load wrap mode from state.json
-        self._load_wrap_mode()
-
         # State
         self.log_entries = deque(maxlen=self.log_buffer_size)
+
+        # Load wrap mode from state.json
+        self._load_wrap_mode()
         self.command_history = []
         self.history_index = 0
         self.current_filter = ""
