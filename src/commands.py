@@ -1774,7 +1774,7 @@ def otiedote_command(context: CommandContext, bot_functions):
     # Handle filter subcommand
     if context.args and context.args[0].lower() == "filter":
         if len(context.args) < 3:
-            return "❌ Usage: !otiedote filter #channel organization [field]"
+            return "❌ Usage: !otiedote filter #channel [text] [field]"
 
         channel = context.args[1]
         if not channel.startswith("#"):
