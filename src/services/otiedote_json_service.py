@@ -91,6 +91,24 @@ def fetch_release(id: int) -> Optional[dict]:
                 parent.get_text(strip=True).replace("Tapahtumapaikka:", "").strip()
             )
 
+        # Organization (Julkaiseva organisaatio)
+        organization = ""
+        org_label = soup.find(
+            "b", string=lambda s: s and "Julkaiseva organisaatio" in s
+        )
+        if org_label:
+            # Get the row/div containing the organization info
+            row = org_label.find_parent(class_="row") or org_label.find_parent("div")
+            if row:
+                row_text = row.get_text(strip=True)
+                # Extract organization from the row text
+                if "Julkaiseva organisaatio:" in row_text:
+                    organization = row_text.split("Julkaiseva organisaatio:", 1)[
+                        1
+                    ].strip()
+                    # Clean up any extra whitespace or newlines
+                    organization = " ".join(organization.split())
+
         # Description
         content = ""
         description_block = soup.find(
@@ -119,6 +137,7 @@ def fetch_release(id: int) -> Optional[dict]:
             "title": title,
             "date": date,
             "location": location,
+            "organization": organization,
             "content": content,
             "units": units,
             "url": url,

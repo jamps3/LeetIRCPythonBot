@@ -1229,16 +1229,12 @@ class BotManager:
 
                         # Check if the field matches the filter
                         if field == "organization":
-                            # Check if organization is in units
-                            units = release.get("units", [])
-                            self.logger.info(
-                                f"_handle_otiedote_release: Release units: {units}"
-                            )
-                            units_text = " ".join(units).lower()
-                            if organization.lower() in units_text:
+                            # Check if organization matches the organization field
+                            release_org = release.get("organization", "")
+                            if organization.lower() in release_org.lower():
                                 should_send = True
                                 self.logger.info(
-                                    f"_handle_otiedote_release: Filter match found for organization '{organization}' in units"
+                                    f"_handle_otiedote_release: Filter match found for organization '{organization}' in organization field"
                                 )
                                 break
                         elif field == "*":

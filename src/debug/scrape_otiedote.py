@@ -125,7 +125,7 @@ def fetch_until_limit(start_id=50, found_limit=10, missing_streak_limit=10):
     print(f"Loaded {len(existing_ids)} existing IDs from JSON.")
     print(f"Starting from ID {start_id}...\n")
 
-    while found_count < found_limit or missing_streak < missing_streak_limit:
+    while found_count < found_limit and missing_streak < missing_streak_limit:
         # OHITA JOS JO JSONISSA
         if current_id in existing_ids:
             existing_item = id_map[current_id]
