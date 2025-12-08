@@ -293,6 +293,46 @@ class OtiedoteService:
             "json_file": self.json_file,
         }
 
+    def fetch_next_release(self) -> Optional[dict]:
+        """Manually fetch the next release after the current latest one."""
+        # Reload latest_release from state.json to ensure we have the most current value
+        # (in case the monitoring thread has updated it)
+        self.latest_release = self._load_latest_release()
+
+        # Try up to 10 releases ahead in case there are gaps (some releases may be inaccessible)
+        max_attempts = 10
+        for attempt in range(max_attempts):
+            next_id = self.latest_release + 1 + attempt
+            logger.info(
+                f"fetch_next_release: attempting to fetch release #{next_id} (attempt {attempt + 1}/{max_attempts})"
+            )
+            release = fetch_release(next_id)
+            if release:
+                # Update state
+                self.latest_release = release["id"]
+                self._save_latest_release(self.latest_release)
+
+                # Add to JSON file
+                id_map, existing_ids = load_existing_ids()
+                releases = list(id_map.values())
+                releases.append(release)
+
+                try:
+                    with open(self.json_file, "w", encoding="utf8") as f:
+                        json.dump(releases, f, ensure_ascii=False, indent=2)
+                except Exception as e:
+                    logger.warning(f"Failed to save releases JSON: {e}")
+
+                logger.info(
+                    f"Manually fetched Otiedote #{release['id']}: {release['title']}"
+                )
+                return release
+
+        logger.info(
+            f"fetch_next_release: no accessible releases found in next {max_attempts} attempts after #{self.latest_release}"
+        )
+        return None
+
 
 # Factory
 def create_otiedote_service(

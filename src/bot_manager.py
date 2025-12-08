@@ -1121,6 +1121,10 @@ class BotManager:
 
         Delays announcements until server is connected and channels defined in .env are joined.
         """
+        self.logger.info(
+            f"_handle_otiedote_release: Processing release #{release.get('id')} - {release.get('title')}"
+        )
+
         # Check if we're connected and have joined channels
         if not self.connected:
             self.logger.debug(
@@ -1168,6 +1172,9 @@ class BotManager:
         subscribers = []
         try:
             subscribers = subscriptions.get_subscribers("onnettomuustiedotteet")
+            self.logger.info(
+                f"_handle_otiedote_release: Found {len(subscribers)} subscribers for onnettomuustiedotteet: {subscribers}"
+            )
         except Exception as e:
             self.logger.error(f"Error getting onnettomuustiedotteet subscribers: {e}")
             return
@@ -1183,12 +1190,16 @@ class BotManager:
         try:
             state = self.data_manager.load_state()
             filters = state.get("otiedote", {}).get("filters", {})
+            self.logger.info(f"_handle_otiedote_release: Loaded filters: {filters}")
         except Exception:
             filters = {}
 
         # Send to subscribed channels/users on their respective servers with filtering
         for subscriber_nick, server_name in subscribers:
             try:
+                self.logger.info(
+                    f"_handle_otiedote_release: Processing subscriber {subscriber_nick} on {server_name}"
+                )
                 server = self.servers.get(server_name)
                 if not server:
                     self.logger.warning(
@@ -1198,12 +1209,18 @@ class BotManager:
 
                 # Check if this channel has filters
                 channel_filters = filters.get(subscriber_nick, [])
+                self.logger.info(
+                    f"_handle_otiedote_release: Channel {subscriber_nick} has filters: {channel_filters}"
+                )
                 should_send = True
 
                 if channel_filters:
                     # Check if any filter matches
                     should_send = False
                     for filter_entry in channel_filters:
+                        self.logger.info(
+                            f"_handle_otiedote_release: Checking filter: {filter_entry}"
+                        )
                         if ":" in filter_entry:
                             organization, field = filter_entry.split(":", 1)
                         else:
@@ -1214,8 +1231,15 @@ class BotManager:
                         if field == "organization":
                             # Check if organization is in units
                             units = release.get("units", [])
-                            if organization.lower() in " ".join(units).lower():
+                            self.logger.info(
+                                f"_handle_otiedote_release: Release units: {units}"
+                            )
+                            units_text = " ".join(units).lower()
+                            if organization.lower() in units_text:
                                 should_send = True
+                                self.logger.info(
+                                    f"_handle_otiedote_release: Filter match found for organization '{organization}' in units"
+                                )
                                 break
                         elif field == "*":
                             # Match any field
@@ -1224,6 +1248,9 @@ class BotManager:
                             ).lower()
                             if organization.lower() in release_text:
                                 should_send = True
+                                self.logger.info(
+                                    f"_handle_otiedote_release: Filter match found for '{organization}' in any field"
+                                )
                                 break
                         else:
                             # Check specific field
@@ -1232,8 +1259,14 @@ class BotManager:
                                 field_value = " ".join(field_value)
                             if organization.lower() in str(field_value).lower():
                                 should_send = True
+                                self.logger.info(
+                                    f"_handle_otiedote_release: Filter match found for '{organization}' in field '{field}'"
+                                )
                                 break
 
+                self.logger.info(
+                    f"_handle_otiedote_release: should_send = {should_send} for {subscriber_nick}"
+                )
                 if should_send:
                     # Broadcast only the header (no description)
                     self._send_response(server, subscriber_nick, header_message)

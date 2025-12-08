@@ -1753,12 +1753,14 @@ def solarwind_command(context: CommandContext, bot_functions):
 @command(
     "otiedote",
     description="Get accident reports (Onnettomuustiedotteet) from local JSON",
-    usage="!otiedote [N | #N | filter #channel *filter* *field*]",
+    usage="!otiedote [N | #N | seuraava | filter #channel <organization> <field> | filter list]",
     examples=[
         "!otiedote",
         "!otiedote 2",
         "!otiedote #2610",
+        "!otiedote seuraava",
         "!otiedote filter #joensuu Pohjois-Karjalan pelastuslaitos organization",
+        "!otiedote filter list",
         "Fields: id, title, date, location, organization, content, units, url or * for all",
     ],
 )
@@ -1771,17 +1773,84 @@ def otiedote_command(context: CommandContext, bot_functions):
     # Latest release number (highest ID)
     latest_id = max(item["id"] for item in otiedote_list)
 
+    # Handle "seuraava" subcommand - manually fetch next release
+    if context.args and context.args[0].lower() == "seuraava":
+        # Get the otiedote service from bot_manager
+        bot_manager = bot_functions.get("bot_manager")
+        if (
+            not bot_manager
+            or not hasattr(bot_manager, "otiedote_service")
+            or not bot_manager.otiedote_service
+        ):
+            return "❌ Otiedote service not available"
+
+        # Get current latest release number
+        current_release = bot_manager.otiedote_service.latest_release
+
+        try:
+            # Fetch the next release manually
+            release = bot_manager.otiedote_service.fetch_next_release()
+            if release:
+                # Trigger the announcement by calling the callback
+                bot_manager._handle_otiedote_release(release)
+                return f"✅ Manually fetched and announced Otiedote #{release['id']}: {release['title']} (current was #{current_release})"
+            else:
+                return f"❌ No new releases found after #{current_release} (next release may not be published yet)"
+        except Exception as e:
+            return f"❌ Error fetching next release after #{current_release}: {e}"
+
     # Handle filter subcommand
     if context.args and context.args[0].lower() == "filter":
-        if len(context.args) < 3:
-            return "❌ Usage: !otiedote filter #channel [text] [field]"
+        # Check for list subcommand
+        if len(context.args) >= 2 and context.args[1].lower() == "list":
+            # List all filters
+            config_obj = get_config()
+            state_file = config_obj.state_file
+            if os.path.exists(state_file):
+                try:
+                    with open(state_file, "r", encoding="utf8") as f:
+                        state = json.load(f)
+                except Exception:
+                    state = {}
+            else:
+                state = {}
+
+            filters = state.get("otiedote", {}).get("filters", {})
+
+            if not filters:
+                return "📋 No otiedote filters configured."
+
+            lines = ["📋 Current otiedote filters:"]
+            for channel, channel_filters in filters.items():
+                lines.append(f"  {channel}:")
+                if channel_filters:
+                    for filter_entry in channel_filters:
+                        if ":" in filter_entry:
+                            org, field = filter_entry.split(":", 1)
+                            lines.append(f"    - {org} (field: {field})")
+                        else:
+                            lines.append(f"    - {filter_entry}")
+                else:
+                    lines.append("    (no filters)")
+
+            return "\n".join(lines)
+
+        # Add filter
+        if len(context.args) < 4:
+            return "❌ Usage: !otiedote filter #channel <organization> <field>\n   Or: !otiedote filter list"
 
         channel = context.args[1]
         if not channel.startswith("#"):
             return "❌ Channel must start with #"
 
-        organization = context.args[2]
-        field = context.args[3] if len(context.args) > 3 else "organization"
+        # Parse organization name (everything between channel and last word)
+        # Last word is the field type, everything before it is the organization name
+        field = context.args[-1]  # Last argument is the field
+        organization_parts = context.args[2:-1]  # Everything between channel and field
+        organization = " ".join(organization_parts)
+
+        if not organization.strip():
+            return "❌ Organization name cannot be empty"
 
         # Load state.json
         config_obj = get_config()
