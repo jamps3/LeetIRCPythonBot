@@ -1270,9 +1270,6 @@ class TUIManager:
 
         # State
         self.log_entries = deque(maxlen=self.log_buffer_size)
-
-        # Load wrap mode from state.json
-        self._load_wrap_mode()
         self.command_history = []
         self.history_index = 0
         self.current_filter = ""
@@ -1281,6 +1278,9 @@ class TUIManager:
         # Initialize log file for immediate writing
         self.log_file = None
         self._open_log_file()
+
+        # Load wrap mode from state.json
+        self._load_wrap_mode()
 
         # UI components
         self.header = urwid.Text("")
