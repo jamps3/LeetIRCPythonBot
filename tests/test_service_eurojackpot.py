@@ -45,9 +45,21 @@ def mock_optional_external_modules(monkeypatch):
 
 
 @pytest.fixture
-def service(tmp_path):
+def service(tmp_path, monkeypatch):
     """Provide a EurojackpotService instance with an isolated temp DB and quiet logger."""
     from services.eurojackpot_service import EurojackpotService
+
+    # Mock all HTTP requests at the module level to prevent real API calls
+    def mock_requests_get(*args, **kwargs):
+        # Return a mock response that indicates API unavailable
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"error": 1, "message": "Mocked API call"}
+        mock_response.raise_for_status.return_value = None
+        return mock_response
+
+    monkeypatch.setattr("services.eurojackpot_service.requests.get", mock_requests_get)
+    monkeypatch.setattr("services.eurojackpot_service.requests.Session", Mock)
 
     s = EurojackpotService()
     s.db_file = str(tmp_path / "eurojackpot_test_db.json")
