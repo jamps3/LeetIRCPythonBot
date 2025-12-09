@@ -376,18 +376,47 @@ def np_command(context: CommandContext, bot_functions):
 
 @command(
     "quote",
-    description="Display a random quote or search for a specific quote",
-    usage="!quote [search_text]",
-    examples=["!quote", "!quote tunnuslauseemme on"],
+    description="Display a random quote, search for quotes, or add new quotes",
+    usage="!quote [search_text] or !quote add <quote_text>",
+    examples=["!quote", "!quote tunnuslauseemme on", "!quote add This is a new quote"],
 )
 def quote_command(context: CommandContext, bot_functions):
-    """Display a random quote from configured source (file or URL), or search for a specific quote if text is provided."""
+    """Display a random quote from configured source (file or URL), search for a specific quote, or add a new quote."""
     config_obj = get_config()
 
     # Get quotes source from environment, default to data/quotes.txt
     quotes_source = getattr(config_obj, "quotes_source", "data/quotes.txt")
 
+    # Make sure we have an absolute path for file operations
+    if not os.path.isabs(quotes_source):
+        # Make relative paths resolve from project root
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        quotes_source = os.path.join(project_root, quotes_source)
+
     try:
+        # Check if this is an "add" command
+        if context.args and context.args[0].lower() == "add":
+            # Add a new quote
+            if len(context.args) < 2:
+                return "Usage: !quote add <quote_text>"
+
+            quote_text = " ".join(context.args[1:]).strip()
+            if not quote_text:
+                return "Quote text cannot be empty"
+
+            try:
+                # Ensure the directory exists
+                os.makedirs(os.path.dirname(quotes_source), exist_ok=True)
+
+                # Append the quote to the file
+                with open(quotes_source, "a", encoding="utf-8") as f:
+                    f.write(quote_text + "\n")
+
+                return f'✅ Quote added: "{quote_text}"'
+            except Exception as e:
+                return f"Error adding quote: {e}"
+
+        # Handle reading/displaying quotes
         lines = []
 
         if quotes_source.startswith("http://") or quotes_source.startswith("https://"):
@@ -402,13 +431,6 @@ def quote_command(context: CommandContext, bot_functions):
                 return f"Error fetching quotes from URL: {e}"
         else:
             # Handle file source
-            if not os.path.isabs(quotes_source):
-                # Make relative paths resolve from project root
-                project_root = os.path.abspath(
-                    os.path.join(os.path.dirname(__file__), "..")
-                )
-                quotes_source = os.path.join(project_root, quotes_source)
-
             if not os.path.exists(quotes_source):
                 return "Quotes file not found."
 
@@ -446,7 +468,7 @@ def quote_command(context: CommandContext, bot_functions):
         return quote
 
     except Exception as e:
-        return f"Error getting quote: {e}"
+        return f"Error with quote command: {e}"
 
 
 @command(
