@@ -250,7 +250,7 @@ def setup_git_config():
 #   fix(irc): resolve connection timeout issue
 #   test(crypto): add comprehensive price formatting tests
 #
-# Remember: isort, black and flake8 are run automatically before commit and tests run automatically push!
+# Remember: isort, black and flake8 are run automatically before commit and tests run automatically on push!
 """
 
         template_path = Path(".gitmessage")

@@ -70,28 +70,38 @@ class TestServerFloodProtection:
         # Should be rate limited now
         assert test_server._can_send_message() is False
 
-    def test_token_refill_over_time(self, test_server):
+    def test_token_refill_over_time(self, test_server, monkeypatch):
         """Test that tokens refill correctly over time."""
         # Exhaust all tokens
         for _ in range(5):
             test_server._can_send_message()
 
-        # Wait for some time and refill
-        time.sleep(0.6)  # Should refill ~1.2 tokens (0.6 * 2.0)
+        # Mock time to simulate 0.6 seconds passing
+        original_time = time.time
+        test_start_time = original_time()
+
+        # Simulate 0.6 seconds passing (should refill ~1.2 tokens at 2.0 tokens/sec)
+        monkeypatch.setattr(time, "time", lambda: test_start_time + 0.6)
+
         test_server._refill_rate_limit_tokens()
 
         # Should have some tokens now (around 1.2)
         assert test_server._rate_limit_tokens > 1.0
         assert test_server._rate_limit_tokens < 1.5
 
-    def test_can_send_after_token_refill(self, test_server):
+    def test_can_send_after_token_refill(self, test_server, monkeypatch):
         """Test that messages can be sent again after token refill."""
         # Exhaust all tokens
         for _ in range(5):
             test_server._can_send_message()
 
-        # Wait and refill
-        time.sleep(2.5)
+        # Mock time to simulate 2.5 seconds passing (enough to refill tokens)
+        original_time = time.time
+        test_start_time = original_time()
+
+        # Simulate 2.5 seconds passing (should refill ~5 tokens at 2.0 tokens/sec)
+        monkeypatch.setattr(time, "time", lambda: test_start_time + 2.5)
+
         test_server._refill_rate_limit_tokens()
 
         # Should be able to send again
