@@ -2978,10 +2978,7 @@ class BotManager:
                     else:
                         wait_msg = f"🐦 X API rate limited. Request queued; retrying in ~{wait_seconds} seconds."
 
-                    if hasattr(irc, "send_message"):
-                        self._send_response(irc, target, wait_msg)
-                    else:
-                        self.logger.info(wait_msg)
+                    self.logger.info(wait_msg)
 
                     return  # Stop processing now; it will be retried later
 
