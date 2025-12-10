@@ -65,6 +65,16 @@ except ImportError as e:
     logger.warning(f"YouTube service not available: {e}")
     create_youtube_service = None
 
+# Initialize X API client
+try:
+    from xdk import Client as XClient
+
+    x_client_available = True
+except ImportError as e:
+    logger.warning(f"X API client not available: {e}")
+    XClient = None
+    x_client_available = False
+
 
 class BotManager:
     """
@@ -2628,7 +2638,7 @@ class BotManager:
         return out_lines
 
     def _fetch_title(self, irc, target, text):
-        """Fetch and display URL titles (excluding blacklisted URLs and file types)."""
+        """Fetch and display URL titles or X/Twitter post content (excluding blacklisted URLs and file types)."""
         # Try to import BeautifulSoup, but fall back to regex if unavailable
         try:
             from bs4 import BeautifulSoup  # type: ignore
@@ -2642,6 +2652,11 @@ class BotManager:
         )
 
         for url in urls:
+            # Handle X/Twitter URLs specially
+            if self._is_x_url(url):
+                self._fetch_x_post_content(irc, target, url)
+                continue
+
             # Skip blacklisted URLs
             if self._is_url_blacklisted(url):
                 continue
@@ -2725,16 +2740,141 @@ class BotManager:
                 return True
         return False
 
+    @staticmethod
+    def _is_x_url(url: str) -> bool:
+        """Check if a URL is an X/Twitter URL."""
+        import re
+
+        # Match x.com or twitter.com URLs with status and post ID
+        x_patterns = [
+            r"(?:https?://)?(?:www\.)?(?:x\.com|twitter\.com)/(\w+)/status/(\d+)",
+        ]
+
+        for pattern in x_patterns:
+            if re.search(pattern, url, re.IGNORECASE):
+                return True
+        return False
+
+    def _fetch_x_post_content(self, irc, target, url: str):
+        """Fetch X/Twitter post content using X API and send to channel."""
+        try:
+            # Extract post ID from URL
+            import re
+
+            match = re.search(
+                r"(?:https?://)?(?:www\.)?(?:x\.com|twitter\.com)/\w+/status/(\d+)",
+                url,
+                re.IGNORECASE,
+            )
+
+            if not match:
+                self.logger.warning(f"Could not parse X URL: {url}")
+                return
+
+            post_id = match.group(1)
+
+            # Check if X client is available
+            if not x_client_available or not XClient:
+                self.logger.warning("X API client not available")
+                return
+
+            # Get bearer token from environment
+            bearer_token = os.getenv("X_BEARER_TOKEN")
+            if not bearer_token:
+                self.logger.warning("X_BEARER_TOKEN not configured")
+                return
+
+            # Create X client
+            try:
+                x_client = XClient(bearer_token=bearer_token)
+            except Exception as e:
+                self.logger.error(f"Failed to create X client: {e}")
+                return
+
+            # Fetch post by ID
+            try:
+                response = x_client.posts.get_by_id(post_id)
+                if response and hasattr(response, "data") and response.data:
+                    post_data = response.data
+
+                    # Extract the text content (response.data is a dict)
+                    post_text = post_data.get("text", "")
+                    if post_text:
+                        # Clean up the text (remove extra whitespace)
+                        post_text = re.sub(r"\s+", " ", post_text).strip()
+
+                        # Send the post content
+                        if hasattr(irc, "send_message"):
+                            self._send_response(irc, target, f"🐦 {post_text}")
+                        else:
+                            self.logger.info(f"X Post: {post_text}")
+                    else:
+                        self.logger.debug(f"No text content found in X post {post_id}")
+                else:
+                    self.logger.debug(f"No data returned for X post {post_id}")
+
+            except Exception as e:
+                # Check for rate limiting or authentication issues
+                error_str = str(e).lower()
+                if "429" in error_str or "too many requests" in error_str:
+                    self.logger.warning(f"X API rate limited for post {post_id}: {e}")
+                    # Check if this is the first request (immediate 429 suggests invalid token)
+                    if "authentication required" in error_str or "bearer" in error_str:
+                        if hasattr(irc, "send_message"):
+                            self._send_response(
+                                irc,
+                                target,
+                                "🐦 X API authentication failed. Bearer token appears to be invalid or expired.",
+                            )
+                    else:
+                        if hasattr(irc, "send_message"):
+                            self._send_response(
+                                irc,
+                                target,
+                                "🐦 X API rate limited (too many requests). Please try again later.",
+                            )
+                elif "401" in error_str or "unauthorized" in error_str:
+                    self.logger.error(
+                        f"X API authentication failed for post {post_id}: {e}"
+                    )
+                    if hasattr(irc, "send_message"):
+                        self._send_response(
+                            irc,
+                            target,
+                            "🐦 X API authentication failed. Bearer token may be invalid or expired.",
+                        )
+                elif "403" in error_str or "forbidden" in error_str:
+                    self.logger.error(f"X API access forbidden for post {post_id}: {e}")
+                    if hasattr(irc, "send_message"):
+                        self._send_response(
+                            irc,
+                            target,
+                            "🐦 X API access forbidden. Bearer token may not have required permissions.",
+                        )
+                else:
+                    self.logger.error(f"Error fetching X post {post_id}: {e}")
+                    if hasattr(irc, "send_message"):
+                        self._send_response(
+                            irc, target, f"🐦 Error fetching X post: {str(e)[:100]}"
+                        )
+
+        except Exception as e:
+            self.logger.error(f"Error fetching X post content for {url}: {e}")
+
     def _is_url_blacklisted(self, url: str) -> bool:
         """Check if a URL should be blacklisted from title fetching."""
         # Skip YouTube URLs as they are already handled by the YouTube service
         if self._is_youtube_url(url):
             return True
 
+        # Skip X/Twitter URLs as they are handled by the X post content fetcher
+        if self._is_x_url(url):
+            return True
+
         # Get blacklisted domains from environment
         blacklisted_domains = os.getenv(
             "TITLE_BLACKLIST_DOMAINS",
-            "youtube.com,youtu.be,facebook.com,fb.com,x.com,twitter.com,instagram.com,tiktok.com,discord.com,reddit.com,imgur.com",
+            "youtube.com,youtu.be,facebook.com,fb.com,instagram.com,tiktok.com,discord.com,reddit.com,imgur.com",
         ).split(",")
 
         # Get blacklisted extensions from environment
