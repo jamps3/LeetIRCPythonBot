@@ -1856,19 +1856,41 @@ class TUIManager:
             "SYSTEM",
         )
 
+    def _get_timestamp_string(self):
+        """Get formatted timestamp string in Finnish format [ke@vko49_12:58:53]."""
+        now = datetime.now()
+
+        # Finnish day abbreviations
+        days_fi = {
+            0: "ma",  # Monday
+            1: "ti",  # Tuesday
+            2: "ke",  # Wednesday
+            3: "to",  # Thursday
+            4: "pe",  # Friday
+            5: "la",  # Saturday
+            6: "su",  # Sunday
+        }
+
+        # Get ISO week number
+        week_num = now.isocalendar()[1]
+
+        # Format: [day@vko{week}_{HH:MM:SS}]
+        return f"[{days_fi[now.weekday()]}@vko{week_num}_{now.strftime('%H:%M:%S')}]"
+
     def update_input_style(self):
         """Update input field caption based on current text."""
+        timestamp = self._get_timestamp_string()
         text = self.input_field.get_edit_text()
         if text.startswith("!"):
-            self.input_field.set_caption("> Bot command: ")
+            self.input_field.set_caption(f"{timestamp} > Bot command: ")
         elif text.startswith("-"):
-            self.input_field.set_caption("> AI chat: ")
+            self.input_field.set_caption(f"{timestamp} > AI chat: ")
         elif text.lower().startswith("filter:"):
-            self.input_field.set_caption("> Filter logs: ")
+            self.input_field.set_caption(f"{timestamp} > Filter logs: ")
         elif text.lower().startswith("config:"):
-            self.input_field.set_caption("> Config command: ")
+            self.input_field.set_caption(f"{timestamp} > Config command: ")
         else:
-            self.input_field.set_caption("> Channel message: ")
+            self.input_field.set_caption(f"{timestamp} > Channel message: ")
 
     def _open_log_file(self, filename="tui.log"):
         """Open the log file for immediate writing."""
@@ -2124,6 +2146,7 @@ Tips:
         def update_callback():
             try:
                 self.update_header()
+                self.update_input_style()  # Update timestamp in input field
 
                 # Auto-refresh current view if it's stats or config
                 if self.current_view == "stats":
