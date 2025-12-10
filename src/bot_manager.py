@@ -5,6 +5,7 @@ This module provides the BotManager class that orchestrates multiple IRC server
 connections and integrates all bot functionality across servers.
 """
 
+import datetime
 import json
 import os
 import re
@@ -353,6 +354,13 @@ class BotManager:
                 fallback_text=f"Could not initialize lemmatizer: {e}",
             )
             self.lemmatizer = None
+
+        # Initialize X API queue for rate limiting (1 read per 5 minutes)
+        self.x_api_queue = []  # List of (irc, target, url) tuples
+        self.x_api_queue_lock = threading.Lock()
+        self.x_api_last_request_time = 0
+        self.x_api_rate_limit_seconds = 300  # 5 minutes = 300 seconds
+        self.x_api_queue_thread = None
 
         self.logger.debug("BotManager initialization complete!")
 
@@ -1318,42 +1326,20 @@ class BotManager:
                 self.logger.info(
                     "Stopping Otiedote service (may take up to 5 seconds)..."
                 )
-                try:
-                    # Signal the service to stop - it runs in its own background thread
-                    # Setting running=False will cause the monitor loop to exit
-                    if hasattr(self.otiedote_service, "running"):
-                        self.otiedote_service.running = False
-                        # The service's stop() method should be called from its own event loop
-                        # but since we can't easily access it, just wait for the thread to exit
-                        # The daemon thread will exit when the process exits anyway
+                # Signal the service to stop - it runs in its own background thread
+                # Setting running=False will cause the monitor loop to exit
+                if hasattr(self.otiedote_service, "running"):
+                    self.otiedote_service.running = False
+                    # The service's stop() method should be called from its own event loop
+                    # but since we can't easily access it, just wait for the thread to exit
+                    # The daemon thread will exit when the process exits anyway
 
-                    # Give it a moment to detect the stop signal
-                    time.sleep(1)
+                # Give it a moment to detect the stop signal
+                time.sleep(1)
 
-                    self.logger.info("Otiedote service stop signaled")
-                except Exception as e:
-                    self.logger.warning(f"Error stopping Otiedote service: {e}")
+                self.logger.info("Otiedote service stop signaled")
         except Exception as e:
             self.logger.error(f"Error stopping Otiedote service: {e}")
-
-        # Stop all servers with custom quit message
-        for server_name, server in self.servers.items():
-            self.logger.info(
-                f"Stopping server {server_name} with quit message: {self.quit_message}..."
-            )
-            try:
-                server.stop(quit_message=self.quit_message)
-            except Exception as e:
-                self.logger.error(f"Error stopping server {server_name}: {e}")
-
-        # Wait for all server threads to finish with shorter timeout
-        for server_name, thread in self.server_threads.items():
-            self.logger.info(f"Waiting for server thread {server_name} to finish...")
-            thread.join(timeout=5.0)  # Timeout for shutdown
-            if thread.is_alive():
-                self.logger.warning(
-                    f"Server thread {server_name} did not finish cleanly within 5s timeout"
-                )
 
         self.logger.info("Bot manager shut down complete")
 
@@ -2784,11 +2770,51 @@ class BotManager:
                 self.logger.warning("X_BEARER_TOKEN not configured")
                 return
 
+            # Check if enough time has passed since last request
+            current_time = time.time()
+            time_since_last_request = current_time - self.x_api_last_request_time
+
+            if time_since_last_request < self.x_api_rate_limit_seconds:
+                # Rate limited - add to queue instead of processing immediately
+                self.logger.info(
+                    f"X API rate limited, queuing request for post {post_id}"
+                )
+                with self.x_api_queue_lock:
+                    self.x_api_queue.append((irc, target, url))
+                # Start queue processing thread if not already running
+                if (
+                    self.x_api_queue_thread is None
+                    or not self.x_api_queue_thread.is_alive()
+                ):
+                    self.x_api_queue_thread = threading.Thread(
+                        target=self._process_x_api_queue,
+                        daemon=True,
+                        name="X-API-Queue",
+                    )
+                    self.x_api_queue_thread.start()
+                return
+
+            # Process the request immediately
+            self._process_x_api_request(irc, target, url, post_id, bearer_token)
+
+        except Exception as e:
+            self.logger.error(f"Error fetching X post content for {url}: {e}")
+
+    def _process_x_api_request(self, irc, target, url, post_id, bearer_token):
+        """Process a single X API request."""
+        try:
+            # Update last request time
+            self.x_api_last_request_time = time.time()
+
             # Create X client
             try:
                 x_client = XClient(bearer_token=bearer_token)
             except Exception as e:
                 self.logger.error(f"Failed to create X client: {e}")
+                if hasattr(irc, "send_message"):
+                    self._send_response(
+                        irc, target, f"🐦 Error creating X API client: {str(e)[:100]}"
+                    )
                 return
 
             # Fetch post by ID
@@ -2814,52 +2840,230 @@ class BotManager:
                     self.logger.debug(f"No data returned for X post {post_id}")
 
             except Exception as e:
-                # Check for rate limiting or authentication issues
+                # Handle rate limiting, auth issues, etc.
                 error_str = str(e).lower()
+
+                # Helper: extract reset time from exception/headers/error string
+                def _extract_reset_time_from_exception(exc):
+                    reset_time_local = None
+
+                    # Try direct response headers
+                    response_obj = getattr(exc, "response", None)
+                    if response_obj is None and hasattr(exc, "__dict__"):
+                        response_obj = exc.__dict__.get("response")
+
+                    headers = None
+                    if response_obj is not None:
+                        # Many HTTP client responses have .headers as a mapping-like object
+                        headers = getattr(response_obj, "headers", None)
+                        # If response is dict-like with 'headers'
+                        if headers is None and isinstance(response_obj, dict):
+                            headers = response_obj.get("headers")
+
+                    # Normalize headers and read x-rate-limit-reset
+                    try:
+                        if headers:
+                            # Convert to plain dict; support objects with .items()
+                            if hasattr(headers, "items"):
+                                header_dict = {
+                                    str(k).lower(): v for k, v in headers.items()
+                                }
+                            elif isinstance(headers, dict):
+                                header_dict = {
+                                    str(k).lower(): v for k, v in headers.items()
+                                }
+                            else:
+                                # Fallback: try getattr/get style access
+                                header_dict = {}
+                                for key_name in [
+                                    "x-rate-limit-reset",
+                                    "x-rate-limit-remaining",
+                                    "x-rate-limit-limit",
+                                ]:
+                                    val = None
+                                    if hasattr(headers, "get"):
+                                        val = headers.get(key_name)
+                                    elif hasattr(headers, "__getitem__"):
+                                        try:
+                                            val = headers[key_name]
+                                        except Exception:
+                                            val = None
+                                    if val is not None:
+                                        header_dict[key_name] = val
+
+                            reset_header = header_dict.get("x-rate-limit-reset")
+                            if reset_header is not None:
+                                reset_time_local = int(str(reset_header).strip())
+                                return reset_time_local
+                    except Exception as header_error:
+                        self.logger.debug(
+                            f"Could not parse x-rate-limit-reset header: {header_error}"
+                        )
+
+                    # Regex fallback: look in exception string
+                    try:
+                        exc_str = str(exc)
+                        match = re.search(
+                            r"x-rate-limit-reset[:\s]+(\d+)", exc_str, re.IGNORECASE
+                        )
+                        if match:
+                            reset_time_local = int(match.group(1))
+                            return reset_time_local
+
+                        # If no explicit header found, try guessing from 10-digit future timestamps (within 1h)
+                        timestamp_matches = re.findall(r"\b(\d{10})\b", exc_str)
+                        if timestamp_matches:
+                            now = int(time.time())
+                            future_candidates = [
+                                int(ts)
+                                for ts in timestamp_matches
+                                if now < int(ts) < now + 3600
+                            ]
+                            if future_candidates:
+                                reset_time_local = max(future_candidates)
+                                return reset_time_local
+                    except Exception as regex_error:
+                        self.logger.debug(
+                            f"Regex parsing for reset time failed: {regex_error}"
+                        )
+
+                    return reset_time_local
+
                 if "429" in error_str or "too many requests" in error_str:
                     self.logger.warning(f"X API rate limited for post {post_id}: {e}")
-                    # Check if this is the first request (immediate 429 suggests invalid token)
-                    if "authentication required" in error_str or "bearer" in error_str:
-                        if hasattr(irc, "send_message"):
-                            self._send_response(
-                                irc,
-                                target,
-                                "🐦 X API authentication failed. Bearer token appears to be invalid or expired.",
-                            )
+
+                    # Try to get the rate limit reset time
+                    reset_time = _extract_reset_time_from_exception(e)
+
+                    # Log reset time if found
+                    if reset_time:
+                        reset_dt = datetime.datetime.fromtimestamp(reset_time)
+                        self.logger.info(
+                            f"Rate limit resets at {reset_dt} (unix {reset_time})"
+                        )
+                        self.x_api_rate_limit_reset = reset_time
+                        wait_seconds = max(0, reset_time - int(time.time()))
+                        self.logger.debug(
+                            f"Calculated wait time from header: {wait_seconds} seconds"
+                        )
                     else:
-                        if hasattr(irc, "send_message"):
-                            self._send_response(
-                                irc,
-                                target,
-                                "🐦 X API rate limited (too many requests). Please try again later.",
-                            )
+                        # Default wait (e.g., 5 minutes)
+                        wait_seconds = getattr(self, "x_api_rate_limit_seconds", 300)
+                        self.logger.warning(
+                            f"No reset header found; using default wait time: {wait_seconds} seconds"
+                        )
+
+                    # Re-queue this request with calculated delay
+                    scheduled_time = time.time() + wait_seconds
+                    with self.x_api_queue_lock:
+                        # Store as (irc, target, url, scheduled_time) tuple
+                        self.x_api_queue.append((irc, target, url, scheduled_time))
+
+                    # Start queue processing thread if not already running
+                    if (
+                        self.x_api_queue_thread is None
+                        or not self.x_api_queue_thread.is_alive()
+                    ):
+                        self.x_api_queue_thread = threading.Thread(
+                            target=self._process_x_api_queue,
+                            daemon=True,
+                            name="X-API-Queue",
+                        )
+                        self.x_api_queue_thread.start()
+
+                    # Inform user with specific wait time
+                    wait_minutes = int(wait_seconds // 60)
+                    if wait_minutes > 0:
+                        wait_msg = f"🐦 X API rate limited. Request queued for ~{wait_minutes} minute{'s' if wait_minutes != 1 else ''}."
+                    else:
+                        wait_msg = f"🐦 X API rate limited. Request queued; retrying in ~{wait_seconds} seconds."
+
+                    if hasattr(irc, "send_message"):
+                        self._send_response(irc, target, wait_msg)
+                    else:
+                        self.logger.info(wait_msg)
+
+                    return  # Stop processing now; it will be retried later
+
                 elif "401" in error_str or "unauthorized" in error_str:
                     self.logger.error(
                         f"X API authentication failed for post {post_id}: {e}"
                     )
-                    if hasattr(irc, "send_message"):
-                        self._send_response(
-                            irc,
-                            target,
-                            "🐦 X API authentication failed. Bearer token may be invalid or expired.",
-                        )
                 elif "403" in error_str or "forbidden" in error_str:
                     self.logger.error(f"X API access forbidden for post {post_id}: {e}")
-                    if hasattr(irc, "send_message"):
-                        self._send_response(
-                            irc,
-                            target,
-                            "🐦 X API access forbidden. Bearer token may not have required permissions.",
-                        )
                 else:
                     self.logger.error(f"Error fetching X post {post_id}: {e}")
-                    if hasattr(irc, "send_message"):
-                        self._send_response(
-                            irc, target, f"🐦 Error fetching X post: {str(e)[:100]}"
-                        )
 
         except Exception as e:
-            self.logger.error(f"Error fetching X post content for {url}: {e}")
+            self.logger.error(f"Error processing X API request for {url}: {e}")
+
+    def _process_x_api_queue(self):
+        """Process queued X API requests with proper rate limiting."""
+        self.logger.info("Started X API queue processing thread")
+
+        while True:
+            try:
+                # Check if there are requests in the queue
+                with self.x_api_queue_lock:
+                    if not self.x_api_queue:
+                        break  # No more requests, exit thread
+
+                    # Get the next request (can be 3 or 4 tuple depending on format)
+                    request = self.x_api_queue.pop(0)
+                    if len(request) == 4:
+                        irc, target, url, scheduled_time = request
+                        # Check if it's time to process this request
+                        current_time = time.time()
+                        if current_time < scheduled_time:
+                            # Not yet time to process, put it back in queue
+                            self.x_api_queue.append(request)
+                            # Sleep for a bit before checking again
+                            time.sleep(1)
+                            continue
+                    elif len(request) == 3:
+                        irc, target, url = request
+                    else:
+                        self.logger.error(f"Invalid queue request format: {request}")
+                        continue
+
+                self.logger.info(f"Processing queued X API request: {url}")
+
+                # Extract post ID from URL
+                import re
+
+                match = re.search(
+                    r"(?:https?://)?(?:www\.)?(?:x\.com|twitter\.com)/\w+/status/(\d+)",
+                    url,
+                    re.IGNORECASE,
+                )
+
+                if not match:
+                    self.logger.warning(f"Could not parse queued X URL: {url}")
+                    continue
+
+                post_id = match.group(1)
+
+                # Get bearer token from environment
+                bearer_token = os.getenv("X_BEARER_TOKEN")
+                if not bearer_token:
+                    self.logger.warning(
+                        "X_BEARER_TOKEN not configured for queued request"
+                    )
+                    continue
+
+                # Process the request
+                self._process_x_api_request(irc, target, url, post_id, bearer_token)
+
+                # Wait before processing next request (respect rate limit)
+                time.sleep(self.x_api_rate_limit_seconds)
+
+            except Exception as e:
+                self.logger.error(f"Error in X API queue processing: {e}")
+                # Continue processing other requests
+                time.sleep(1)
+
+        self.logger.info("X API queue processing thread finished")
+        self.x_api_queue_thread = None
 
     def _is_url_blacklisted(self, url: str) -> bool:
         """Check if a URL should be blacklisted from title fetching."""

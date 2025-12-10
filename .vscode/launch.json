@@ -7,7 +7,12 @@
       "request": "launch",
       "program": "${workspaceFolder}/src/main.py",
       "console": "integratedTerminal",
-      "args": ["-l", "DEBUG", "-nick", "jl3b2"] // , "-console"
+      "args": [
+        "-l",
+        "DEBUG",
+        "-nick",
+        "jl3b3"
+      ] // , "-console"
     }
   ]
 }
