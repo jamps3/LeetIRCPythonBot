@@ -370,7 +370,28 @@ class BotManager:
     def _initialize_x_cache_settings(self):
         """Initialize X cache settings with defaults if not already set."""
         try:
-            state = self.data_manager.load_state()
+            # Load state using DataManager, fallback to direct JSON loading
+            state = None
+            state_file = "data/state.json"
+
+            # Try to load state with DataManager first
+            try:
+                if hasattr(self.data_manager, "load_state"):
+                    state = self.data_manager.load_state()
+                    state_file = getattr(
+                        self.data_manager, "state_file", "data/state.json"
+                    )
+                else:
+                    raise AttributeError("DataManager has no load_state method")
+            except Exception:
+                # Fallback to direct JSON loading
+                import json
+
+                try:
+                    with open(state_file, "r", encoding="utf-8") as f:
+                        state = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    state = {}
 
             # Initialize x_cache_settings if not present
             if "x_cache_settings" not in state:
@@ -378,7 +399,22 @@ class BotManager:
                     "expiration_hours": 1,  # Default: 1 hour
                     "max_entries": 50,  # Default: 50 URLs
                 }
-                self.data_manager.save_state(state)
+                # Save state
+                try:
+                    if hasattr(self.data_manager, "save_state"):
+                        self.data_manager.save_state(state)
+                    else:
+                        raise AttributeError("DataManager has no save_state method")
+                except Exception:
+                    # Fallback to direct JSON saving
+                    import json
+
+                    try:
+                        with open(state_file, "w", encoding="utf-8") as f:
+                            json.dump(state, f, indent=2, ensure_ascii=False)
+                    except Exception:
+                        pass  # Ignore save errors in fallback mode
+
                 self.logger.debug("Initialized X cache settings with defaults")
 
         except Exception as e:
@@ -2833,7 +2869,29 @@ class BotManager:
     def _get_cached_x_response(self, url: str) -> Optional[str]:
         """Get cached X response for URL if available."""
         try:
-            state = self.data_manager.load_state()
+            # Load state using DataManager, fallback to direct JSON loading
+            state = None
+            state_file = "data/state.json"
+
+            # Try to load state with DataManager first
+            try:
+                if hasattr(self.data_manager, "load_state"):
+                    state = self.data_manager.load_state()
+                    state_file = getattr(
+                        self.data_manager, "state_file", "data/state.json"
+                    )
+                else:
+                    raise AttributeError("DataManager has no load_state method")
+            except Exception:
+                # Fallback to direct JSON loading
+                import json
+
+                try:
+                    with open(state_file, "r", encoding="utf-8") as f:
+                        state = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    state = {}
+
             x_cache = state.get("x_cache", {})
             cached_item = x_cache.get(url)
 
@@ -2852,7 +2910,21 @@ class BotManager:
                 else:
                     # Remove expired entry
                     del x_cache[url]
-                    self.data_manager.save_state(state)
+                    # Save state
+                    try:
+                        if hasattr(self.data_manager, "save_state"):
+                            self.data_manager.save_state(state)
+                        else:
+                            raise AttributeError("DataManager has no save_state method")
+                    except Exception:
+                        # Fallback to direct JSON saving
+                        import json
+
+                        try:
+                            with open(state_file, "w", encoding="utf-8") as f:
+                                json.dump(state, f, indent=2, ensure_ascii=False)
+                        except Exception:
+                            pass  # Ignore save errors in fallback mode
 
         except Exception as e:
             self.logger.warning(f"Error checking X cache: {e}")
@@ -2862,7 +2934,20 @@ class BotManager:
     def _cache_x_response(self, url: str, response: str):
         """Cache X response for URL."""
         try:
-            state = self.data_manager.load_state()
+            # Load state using DataManager if available, fallback to direct JSON loading
+            if hasattr(self.data_manager, "load_state"):
+                state = self.data_manager.load_state()
+            else:
+                # Fallback to direct JSON loading for compatibility
+                import json
+
+                state_file = getattr(self.data_manager, "state_file", "data/state.json")
+                try:
+                    with open(state_file, "r", encoding="utf-8") as f:
+                        state = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    state = {}
+
             if "x_cache" not in state:
                 state["x_cache"] = {}
 
@@ -2872,7 +2957,16 @@ class BotManager:
             # Manage cache size (keep at least 10 URLs, max 50)
             self._manage_x_cache_size(state["x_cache"])
 
-            self.data_manager.save_state(state)
+            # Save state using DataManager if available
+            if hasattr(self.data_manager, "save_state"):
+                self.data_manager.save_state(state)
+            else:
+                # Fallback to direct JSON saving
+                try:
+                    with open(state_file, "w", encoding="utf-8") as f:
+                        json.dump(state, f, indent=2, ensure_ascii=False)
+                except Exception:
+                    pass  # Ignore save errors in fallback mode
 
         except Exception as e:
             self.logger.warning(f"Error caching X response: {e}")
@@ -2880,8 +2974,22 @@ class BotManager:
     def _manage_x_cache_size(self, x_cache: Dict[str, Dict]):
         """Manage X cache size to prevent it from growing too large."""
         try:
+            # Load state using DataManager, fallback to direct JSON loading
+            state = None
+            try:
+                state = self.data_manager.load_state()
+            except AttributeError:
+                # Fallback to direct JSON loading if DataManager doesn't have load_state
+                import json
+
+                state_file = getattr(self.data_manager, "state_file", "data/state.json")
+                try:
+                    with open(state_file, "r", encoding="utf-8") as f:
+                        state = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    state = {}
+
             # Get max entries from settings (default 50)
-            state = self.data_manager.load_state()
             x_cache_settings = state.get("x_cache_settings", {})
             max_entries = x_cache_settings.get("max_entries", 50)
 
