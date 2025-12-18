@@ -362,7 +362,27 @@ class BotManager:
         self.x_api_rate_limit_seconds = 300  # 5 minutes = 300 seconds
         self.x_api_queue_thread = None
 
+        # Initialize X cache settings with defaults
+        self._initialize_x_cache_settings()
+
         self.logger.debug("BotManager initialization complete!")
+
+    def _initialize_x_cache_settings(self):
+        """Initialize X cache settings with defaults if not already set."""
+        try:
+            state = self.data_manager.load_state()
+
+            # Initialize x_cache_settings if not present
+            if "x_cache_settings" not in state:
+                state["x_cache_settings"] = {
+                    "expiration_hours": 1,  # Default: 1 hour
+                    "max_entries": 50,  # Default: 50 URLs
+                }
+                self.data_manager.save_state(state)
+                self.logger.debug("Initialized X cache settings with defaults")
+
+        except Exception as e:
+            self.logger.warning(f"Error initializing X cache settings: {e}")
 
     def _is_interactive_terminal(self):
         """Check if we're running in an interactive terminal."""
@@ -2759,6 +2779,16 @@ class BotManager:
 
             post_id = match.group(1)
 
+            # Check cache first
+            cached_response = self._get_cached_x_response(url)
+            if cached_response:
+                self.logger.debug(f"Using cached X response for {url}")
+                if hasattr(irc, "send_message"):
+                    self._send_response(irc, target, f"🐦 {cached_response}")
+                else:
+                    self.logger.info(f"X Post (cached): {cached_response}")
+                return
+
             # Check if X client is available
             if not x_client_available or not XClient:
                 self.logger.warning("X API client not available")
@@ -2800,6 +2830,77 @@ class BotManager:
         except Exception as e:
             self.logger.error(f"Error fetching X post content for {url}: {e}")
 
+    def _get_cached_x_response(self, url: str) -> Optional[str]:
+        """Get cached X response for URL if available."""
+        try:
+            state = self.data_manager.load_state()
+            x_cache = state.get("x_cache", {})
+            cached_item = x_cache.get(url)
+
+            if cached_item:
+                # Check if cache entry is still valid (not too old)
+                cached_time = cached_item.get("timestamp", 0)
+                current_time = time.time()
+
+                # Get cache expiration time from settings (default 1 hour)
+                x_cache_settings = state.get("x_cache_settings", {})
+                cache_expiration_hours = x_cache_settings.get("expiration_hours", 1)
+                cache_expiration_seconds = cache_expiration_hours * 3600
+
+                if current_time - cached_time < cache_expiration_seconds:
+                    return cached_item.get("response")
+                else:
+                    # Remove expired entry
+                    del x_cache[url]
+                    self.data_manager.save_state(state)
+
+        except Exception as e:
+            self.logger.warning(f"Error checking X cache: {e}")
+
+        return None
+
+    def _cache_x_response(self, url: str, response: str):
+        """Cache X response for URL."""
+        try:
+            state = self.data_manager.load_state()
+            if "x_cache" not in state:
+                state["x_cache"] = {}
+
+            # Add new cache entry
+            state["x_cache"][url] = {"response": response, "timestamp": time.time()}
+
+            # Manage cache size (keep at least 10 URLs, max 50)
+            self._manage_x_cache_size(state["x_cache"])
+
+            self.data_manager.save_state(state)
+
+        except Exception as e:
+            self.logger.warning(f"Error caching X response: {e}")
+
+    def _manage_x_cache_size(self, x_cache: Dict[str, Dict]):
+        """Manage X cache size to prevent it from growing too large."""
+        try:
+            # Get max entries from settings (default 50)
+            state = self.data_manager.load_state()
+            x_cache_settings = state.get("x_cache_settings", {})
+            max_entries = x_cache_settings.get("max_entries", 50)
+
+            # Ensure at least 10 entries
+            max_entries = max(max_entries, 10)
+
+        except Exception as e:
+            self.logger.warning(f"Error reading X cache settings: {e}")
+            max_entries = 50  # Fallback to default
+
+        if len(x_cache) > max_entries:
+            # Sort by timestamp (oldest first) and remove oldest entries
+            sorted_entries = sorted(x_cache.items(), key=lambda x: x[1]["timestamp"])
+
+            # Keep the most recent entries (up to max_entries)
+            entries_to_keep = sorted_entries[-max_entries:]
+            x_cache.clear()
+            x_cache.update(dict(entries_to_keep))
+
     def _process_x_api_request(self, irc, target, url, post_id, bearer_token):
         """Process a single X API request."""
         try:
@@ -2828,6 +2929,9 @@ class BotManager:
                     if post_text:
                         # Clean up the text (remove extra whitespace)
                         post_text = re.sub(r"\s+", " ", post_text).strip()
+
+                        # Cache the successful response
+                        self._cache_x_response(url, post_text)
 
                         # Send the post content
                         if hasattr(irc, "send_message"):
