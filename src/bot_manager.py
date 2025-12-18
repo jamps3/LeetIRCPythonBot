@@ -420,6 +420,21 @@ class BotManager:
         except Exception as e:
             self.logger.warning(f"Error initializing X cache settings: {e}")
 
+    def _get_current_version(self):
+        """Get the current bot version from VERSION file."""
+        try:
+            with open("VERSION", "r", encoding="utf-8") as f:
+                version = f.read().strip()
+                # Basic validation
+                import re
+
+                if re.match(r"^\d+\.\d+\.\d+$", version):
+                    return version
+                else:
+                    return "2.2.0"  # Fallback version
+        except (FileNotFoundError, IOError):
+            return "2.2.0"  # Fallback version
+
     def _is_interactive_terminal(self):
         """Check if we're running in an interactive terminal."""
         try:
@@ -1818,7 +1833,7 @@ class BotManager:
                 if self.gpt_service
                 else "AI not available"
             ),
-            "BOT_VERSION": "2.2.0",
+            "BOT_VERSION": self._get_current_version(),
             "server_name": "console",
             "stop_event": self.stop_event,  # Allow console commands to trigger shutdown
             "set_quit_message": self.set_quit_message,  # Allow setting custom quit message
