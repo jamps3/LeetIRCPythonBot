@@ -272,7 +272,7 @@ def increment_version():
         return
 
     # Parse version components (major.minor.patch)
-    version_match = re.match(r'^\\d+\\.\\d+\\.\\d+$', current_version)
+    version_match = re.match(r'^(\\d+)\\.(\\d+)\\.(\\d+)$', current_version)
     if not version_match:
         print(f"Invalid version format: {current_version}")
         return
