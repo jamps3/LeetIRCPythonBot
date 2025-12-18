@@ -780,15 +780,21 @@ class BotManager:
                     server_name in self.joined_channels
                     and channel in self.joined_channels[server_name]
                 ):
+                    drink_words_list = list(
+                        set(drink_word for drink_word, _ in drink_words_found)
+                    )
                     notification = (
-                        f"🐧 {sender} said drink words: {', '.join(drink_words_found)}"
+                        f"🐧 {sender} said drink words: {', '.join(drink_words_list)}"
                     )
                     self._send_response(server, channel, notification)
 
         # Send drink word notifications as notices to the sender
         if drink_words_found and kraksdebug_config.get("nick_notices", False):
             server = context["server"]
-            notification = f"🐧 You said drink words: {', '.join(drink_words_found)}"
+            drink_words_list = list(
+                set(drink_word for drink_word, _ in drink_words_found)
+            )
+            notification = f"🐧 You said drink words: {', '.join(drink_words_list)}"
             # Send as notice to the sender
             try:
                 if self.use_notices:
