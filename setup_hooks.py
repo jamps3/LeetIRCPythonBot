@@ -1,8 +1,14 @@
 #!/usr/bin/env python
 """
-Setup Git Pre-commit Hooks for LeetIRCPythonBot
+Setup Git Hooks for LeetIRCPythonBot
 
-This script sets up git pre-commit hooks to run tests automatically before commits.
+This script sets up comprehensive git hooks for the LeetIRCPythonBot project:
+- Pre-commit hook: runs code formatting (isort, black), linting (flake8), and optional tests
+- Pre-push hook: runs tests before allowing pushes to prevent broken code from being pushed
+- Post-commit hook: automatically increments version numbers after each commit
+- Git configuration: sets up commit message templates and helpful reminders
+
+Run this script to initialize a complete development environment with automated quality checks.
 """
 
 import os
@@ -227,6 +233,95 @@ fi
         return False
 
 
+def create_post_commit_hook():
+    """Create a post-commit hook that increments the version number."""
+
+    hooks_dir = Path(".git/hooks")
+    if not hooks_dir.exists():
+        print("Git hooks directory not found. Is this a git repository?")
+        return False
+
+    post_commit_hook = hooks_dir / "post-commit"
+
+    hook_content = """#!/usr/bin/env python
+#
+# Git post-commit hook to automatically increment version number
+# Works on both Unix-like systems and Windows
+#
+
+import os
+import re
+import subprocess
+
+
+def increment_version():
+    '''Increment the patch version in VERSION file.'''
+
+    version_file = "VERSION"
+
+    # Only proceed if VERSION file exists
+    if not os.path.exists(version_file):
+        return
+
+    # Read current version
+    try:
+        with open(version_file, "r", encoding="utf-8") as f:
+            current_version = f.read().strip()
+    except (IOError, OSError):
+        print("Could not read VERSION file")
+        return
+
+    # Parse version components (major.minor.patch)
+    version_match = re.match(r'^\\d+\\.\\d+\\.\\d+$', current_version)
+    if not version_match:
+        print(f"Invalid version format: {current_version}")
+        return
+
+    major, minor, patch = version_match.groups()
+
+    # Increment patch version
+    new_patch = int(patch) + 1
+    new_version = f"{major}.{minor}.{new_patch}"
+
+    # Write new version back to file
+    try:
+        with open(version_file, "w", encoding="utf-8") as f:
+            f.write(new_version + "\n")
+    except (IOError, OSError):
+        print("Could not write to VERSION file")
+        return
+
+    # Add the VERSION file to git for the next commit
+    try:
+        subprocess.run(["git", "add", "VERSION"], check=True, capture_output=True)
+    except subprocess.CalledProcessError:
+        print("Could not add VERSION file to git")
+        return
+
+    print(f"Version incremented to {new_version} (staged for next commit)")
+
+
+if __name__ == "__main__":
+    increment_version()
+"""
+
+    try:
+        with open(post_commit_hook, "w", newline="\n", encoding="utf-8") as f:
+            f.write(hook_content)
+
+        # Make the hook executable
+        if os.name != "nt":  # Unix-like systems
+            st = os.stat(post_commit_hook)
+            os.chmod(post_commit_hook, st.st_mode | stat.S_IEXEC)
+
+        print(f"Post-commit hook created: {post_commit_hook}")
+        return True
+
+    except Exception as e:
+        print(f"Error creating post-commit hook: {e}")
+        return False
+
+
 def setup_git_config():
     """Setup git configuration for better commit messages."""
 
@@ -282,7 +377,7 @@ def main():
     print()
 
     success_count = 0
-    total_steps = 3
+    total_steps = 4
 
     # Step 1: Create pre-commit hook
     print("1️⃣  Setting up pre-commit hook...")
@@ -296,8 +391,14 @@ def main():
         success_count += 1
     print()
 
-    # Step 3: Setup git configuration
-    print("3️⃣  Configuring git settings...")
+    # Step 3: Create post-commit hook
+    print("3️⃣  Setting up post-commit hook (version incrementing)...")
+    if create_post_commit_hook():
+        success_count += 1
+    print()
+
+    # Step 4: Setup git configuration
+    print("4️⃣  Configuring git settings...")
     if setup_git_config():
         success_count += 1
     print()
@@ -316,6 +417,7 @@ def main():
             "   - To run tests on commit, set PRECOMMIT_RUN_TESTS=1 in your environment"
         )
         print("   - Tests run automatically before every push (cancels if they fail)")
+        print("   - Version is automatically incremented after each commit")
         print("   - Use 'git commit --no-verify' to bypass pre-commit hooks")
         print(
             "   - Use 'git push --no-verify' to bypass pre-push hooks (not recommended)"
