@@ -286,7 +286,7 @@ def increment_version():
     # Write new version back to file
     try:
         with open(version_file, "w", encoding="utf-8") as f:
-            f.write(new_version + "\n")
+            f.write(new_version + "\\n")
     except (IOError, OSError):
         print("Could not write to VERSION file")
         return
