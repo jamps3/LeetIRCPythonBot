@@ -1775,7 +1775,7 @@ def solarwind_command(context: CommandContext, bot_functions):
 @command(
     "otiedote",
     description="Get accident reports (Onnettomuustiedotteet) from local JSON",
-    usage="!otiedote [N | #N | seuraava | filter #channel <organization> <field> | filter list]",
+    usage="!otiedote [N | #N | seuraava | set <number> | filter #channel <organization> <field> | filter list]",
     examples=[
         "!otiedote",
         "!otiedote 2",
@@ -1813,13 +1813,98 @@ def otiedote_command(context: CommandContext, bot_functions):
             # Fetch the next release manually
             release = bot_manager.otiedote_service.fetch_next_release()
             if release:
-                # Trigger the announcement by calling the callback
-                bot_manager._handle_otiedote_release(release)
-                return f"✅ Manually fetched and announced Otiedote #{release['id']}: {release['title']} (current was #{current_release})"
+                # Apply filtering for the current channel
+                target = context.get("target", "")
+                server_name = context.get("server_name", "")
+
+                # Load state for filters
+                state = bot_manager.data_manager.load_state()
+                filters = state.get("otiedote", {}).get("filters", {})
+
+                # Check if this channel has filters
+                channel_filters = filters.get(target, [])
+                should_show = True
+
+                if channel_filters:
+                    # Check if any filter matches
+                    should_show = False
+                    for filter_entry in channel_filters:
+                        if ":" in filter_entry:
+                            organization, field = filter_entry.split(":", 1)
+                        else:
+                            organization = filter_entry
+                            field = "organization"
+
+                        # Check if the field matches the filter
+                        if field == "organization":
+                            # Check if organization matches the organization field
+                            release_org = release.get("organization", "")
+                            if organization.lower() in release_org.lower():
+                                should_show = True
+                                break
+                        elif field == "*":
+                            # Match any field
+                            release_text = json.dumps(
+                                release, ensure_ascii=False
+                            ).lower()
+                            if organization.lower() in release_text:
+                                should_show = True
+                                break
+                        else:
+                            # Check specific field
+                            field_value = release.get(field, "")
+                            if isinstance(field_value, list):
+                                field_value = " ".join(field_value)
+                            if organization.lower() in str(field_value).lower():
+                                should_show = True
+                                break
+
+                if should_show:
+                    # Show the release in the current channel
+                    header_message = f"📢 {release['title']} | {release['url']}"
+                    bot_manager._send_response(
+                        context.get("server"), target, header_message
+                    )
+                    return f"✅ Manually fetched and showed Otiedote #{release['id']}: {release['title']} (current was #{current_release})"
+                else:
+                    return f"❌ Next release #{release['id']} is filtered out for this channel (organization: {release.get('organization', 'unknown')})"
             else:
                 return f"❌ No new releases found after #{current_release} (next release may not be published yet)"
         except Exception as e:
             return f"❌ Error fetching next release after #{current_release}: {e}"
+
+    # Handle "set" subcommand - manually set current release number
+    if context.args and context.args[0].lower() == "set":
+        if len(context.args) < 2:
+            return "❌ Usage: !otiedote set <number>"
+
+        try:
+            new_number = int(context.args[1])
+            if new_number < 0:
+                return "❌ Release number must be positive"
+
+            # Get the otiedote service
+            bot_manager = bot_functions.get("bot_manager")
+            if (
+                not bot_manager
+                or not hasattr(bot_manager, "otiedote_service")
+                or not bot_manager.otiedote_service
+            ):
+                return "❌ Otiedote service not available"
+
+            # Set the latest release number
+            old_number = bot_manager.otiedote_service.latest_release
+            bot_manager.otiedote_service.latest_release = new_number
+            bot_manager.otiedote_service._save_latest_release(new_number)
+
+            return (
+                f"✅ Otiedote latest release set to #{new_number} (was #{old_number})"
+            )
+
+        except ValueError:
+            return "❌ Invalid number format"
+        except Exception as e:
+            return f"❌ Error setting release number: {e}"
 
     # Handle filter subcommand
     if context.args and context.args[0].lower() == "filter":
