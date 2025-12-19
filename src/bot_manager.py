@@ -791,6 +791,33 @@ class BotManager:
         # Send drink word notifications as notices to the sender
         if drink_words_found and kraksdebug_config.get("nick_notices", False):
             server = context["server"]
+            server_name = context["server_name"]
+
+            # Get stats for drink words found
+            stats_messages = []
+            for drink_word, info in drink_words_found:
+                # Get drink word stats (total count for this word)
+                word_results = self.drink_tracker.search_drink_word(
+                    drink_word, server_filter=server_name
+                )
+                word_total = word_results.get("total_occurrences", 0)
+
+                # Get specific drink stats if info is provided
+                drink_total = 0
+                if info and info != "unspecified":
+                    drink_results = self.drink_tracker.search_specific_drink(
+                        info, server_filter=server_name
+                    )
+                    drink_total = drink_results.get("total_occurrences", 0)
+
+                # Build stats message
+                if drink_total > 0:
+                    stats_messages.append(
+                        f"{drink_word}: {word_total} total, {info}: {drink_total}"
+                    )
+                else:
+                    stats_messages.append(f"{drink_word}: {word_total} total")
+
             drink_words_formatted = []
             for drink_word, info in drink_words_found:
                 if info:
@@ -800,6 +827,11 @@ class BotManager:
             # Remove duplicates
             drink_words_formatted = list(set(drink_words_formatted))
             notification = f"🐧 Kraks: {', '.join(drink_words_formatted)}"
+
+            # Add stats to notification
+            if stats_messages:
+                notification += f" | Stats: {', '.join(set(stats_messages))}"
+
             # Log the notification
             self.logger.info(notification)
             # Send as notice to the sender
@@ -2269,16 +2301,26 @@ class BotManager:
     def _send_weather(self, irc, channel, location):
         """Send weather information."""
         if not self.weather_service:
-            response = (
+            error_msg = (
                 "Weather service not available. Please configure WEATHER_API_KEY."
             )
             self.logger.error("Weather service not available (no WEATHER_API_KEY)")
-        else:
-            try:
-                weather_data = self.weather_service.get_weather(location)
-                response = self.weather_service.format_weather_message(weather_data)
-            except Exception as e:
-                response = f"Error getting weather for {location}: {str(e)}"
+            # Log to console but don't send to IRC
+            self.logger.info(error_msg)
+            return
+
+        try:
+            weather_data = self.weather_service.get_weather(location)
+            if weather_data.get("error"):
+                # Log error to console but don't send to IRC
+                error_msg = self.weather_service.format_weather_message(weather_data)
+                self.logger.error(f"Weather error for {location}: {error_msg}")
+                return
+            response = self.weather_service.format_weather_message(weather_data)
+        except Exception as e:
+            error_msg = f"Error getting weather for {location}: {str(e)}"
+            self.logger.error(error_msg)
+            return
 
         # Send response via IRC if we have server context, otherwise print to console
         if irc and hasattr(irc, "send_message") and channel:

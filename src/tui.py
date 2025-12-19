@@ -1891,15 +1891,23 @@ class TUIManager:
         timestamp = self._get_timestamp_string()
         text = self.input_field.get_edit_text()
         if text.startswith("!"):
-            self.input_field.set_caption(f"{timestamp} > Bot command: ")
+            self.input_field.set_caption(f"{timestamp} > [CMD   ]: ")
         elif text.startswith("-"):
-            self.input_field.set_caption(f"{timestamp} > AI chat: ")
+            self.input_field.set_caption(f"{timestamp} > [AI    ]: ")
         elif text.lower().startswith("filter:"):
-            self.input_field.set_caption(f"{timestamp} > Filter logs: ")
+            self.input_field.set_caption(f"{timestamp} > [Filter]: ")
         elif text.lower().startswith("config:"):
-            self.input_field.set_caption(f"{timestamp} > Config command: ")
+            self.input_field.set_caption(f"{timestamp} > [Config]: ")
         else:
-            self.input_field.set_caption(f"{timestamp} > Channel message: ")
+            # Show active channel name instead of generic [MSG]
+            active_channel = "[No Channel]"
+            if (
+                self.bot_manager
+                and hasattr(self.bot_manager, "active_channel")
+                and self.bot_manager.active_channel
+            ):
+                active_channel = self.bot_manager.active_channel
+            self.input_field.set_caption(f"{timestamp} > [{active_channel}]: ")
 
     def _open_log_file(self, filename="tui.log"):
         """Open the log file for immediate writing."""
