@@ -791,10 +791,17 @@ class BotManager:
         # Send drink word notifications as notices to the sender
         if drink_words_found and kraksdebug_config.get("nick_notices", False):
             server = context["server"]
-            drink_words_list = list(
-                set(drink_word for drink_word, _ in drink_words_found)
-            )
-            notification = f"🐧 You said drink words: {', '.join(drink_words_list)}"
+            drink_words_formatted = []
+            for drink_word, info in drink_words_found:
+                if info:
+                    drink_words_formatted.append(f"{drink_word} ({info})")
+                else:
+                    drink_words_formatted.append(drink_word)
+            # Remove duplicates
+            drink_words_formatted = list(set(drink_words_formatted))
+            notification = f"🐧 Kraks: {', '.join(drink_words_formatted)}"
+            # Log the notification
+            self.logger.info(notification)
             # Send as notice to the sender
             try:
                 if self.use_notices:
