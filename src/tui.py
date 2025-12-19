@@ -1767,15 +1767,24 @@ class TUIManager:
 
                 # Check for TUI settings in state.json
                 tui_settings = data.get("tui", {})
-                if "wrap_mode" in tui_settings:
-                    WRAP_MODE = bool(tui_settings["wrap_mode"])
-                    self.add_log_entry(
-                        datetime.now(),
-                        "Console",
-                        "INFO",
-                        f"Loaded wrap mode from state.json: {'wrapped' if WRAP_MODE else 'clipped'}",
-                        "SYSTEM",
-                    )
+                default_wrap_mode = False
+                if "wrap_mode" not in tui_settings:
+                    # Set default if not present
+                    tui_settings["wrap_mode"] = default_wrap_mode
+                    data["tui"] = tui_settings
+                    # Update last_updated timestamp
+                    data["last_updated"] = datetime.now().isoformat()
+                    with open(state_file, "w", encoding="utf-8") as f:
+                        json.dump(data, f, ensure_ascii=False, indent=2)
+
+                WRAP_MODE = bool(tui_settings.get("wrap_mode", default_wrap_mode))
+                self.add_log_entry(
+                    datetime.now(),
+                    "Console",
+                    "INFO",
+                    f"Loaded wrap mode from state.json: {'wrapped' if WRAP_MODE else 'clipped'}",
+                    "SYSTEM",
+                )
         except Exception as e:
             # If loading fails, keep default and log warning
             self.add_log_entry(

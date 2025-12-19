@@ -1814,8 +1814,7 @@ def otiedote_command(context: CommandContext, bot_functions):
             release = bot_manager.otiedote_service.fetch_next_release()
             if release:
                 # Apply filtering for the current channel
-                target = context.get("target", "")
-                server_name = context.get("server_name", "")
+                target = context.target or ""
 
                 # Load state for filters
                 state = bot_manager.data_manager.load_state()
@@ -1862,9 +1861,8 @@ def otiedote_command(context: CommandContext, bot_functions):
                 if should_show:
                     # Show the release in the current channel
                     header_message = f"📢 {release['title']} | {release['url']}"
-                    bot_manager._send_response(
-                        context.get("server"), target, header_message
-                    )
+                    server = context.server
+                    bot_manager._send_response(server, target, header_message)
                     return f"✅ Manually fetched and showed Otiedote #{release['id']}: {release['title']} (current was #{current_release})"
                 else:
                     return f"❌ Next release #{release['id']} is filtered out for this channel (organization: {release.get('organization', 'unknown')})"
