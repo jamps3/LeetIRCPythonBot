@@ -43,9 +43,9 @@ class DrinkTracker:
 
         # Regex pattern for detecting drink words with specific drinks
         # Matches: "krak (Karhu 5,5%)" or "krak (karhu)" or just "krak"
-        # But not "kraksdebug" etc. - requires word boundary after match
+        # But only if the message begins with the drink word
         self.drink_pattern = re.compile(
-            r"\b(" + "|".join(self.drink_words) + r")\s*(?:\(\s*([^)]+)\s*\))?(?!\w)",
+            r"^(" + "|".join(self.drink_words) + r")\s*(?:\(([^)]+)\))?(?!\w)",
             re.IGNORECASE,
         )  # noqa: E501
 
