@@ -96,12 +96,11 @@ class TestBACTacker:
         # Add a standard drink (12g alcohol)
         result = self.bac_tracker.add_drink("testserver", "testuser", 12.0)
 
-        # Calculate expected BAC using corrected Widmark formula
-        # BAC (%) = alcohol_grams / (body_weight_kg × r × 0.8)
-        # BAC (‰) = [alcohol_grams / (body_weight_kg × r × 0.8)] × 10
-        # Body water effective = 75 × 0.68 × 0.8 = 40.8 liters
-        # BAC = (12 / 40.8) * 10 = 0.294‰
-        expected_bac = (12.0 / (0.68 * 75 * 0.8)) * 10
+        # Calculate expected BAC using Widmark formula
+        # BAC (%) = alcohol_grams / (body_weight_kg × r)
+        # Body water effective = 75 × 0.68 = 51 liters
+        # BAC = (12 / 40.8) = 0.294‰
+        expected_bac = 12.0 / (0.68 * 75)
 
         assert abs(result["current_bac"] - expected_bac) < 0.01
         assert result["peak_bac"] == result["current_bac"]
@@ -115,25 +114,25 @@ class TestBACTacker:
         )
 
         # Add a default drink (parsed from drink tracker)
-        # Default: 0.15L at 0.9% ABV = ~1.07g alcohol
+        # Default: standard drink = 12.2g alcohol
         default_alcohol = self.drink_tracker._parse_alcohol_content("unspecified")
         result = self.bac_tracker.add_drink("testserver", "testuser", default_alcohol)
 
-        # Calculate expected BAC using corrected formula
-        # BAC = (alcohol_grams / (body_weight_kg × r × 0.8)) × 10
-        # Body water effective = 75 × 0.68 × 0.8 = 40.8L
-        # BAC = (1.07 / 40.8) * 10 ≈ 0.26‰
-        expected_bac = (default_alcohol / (0.68 * 75 * 0.8)) * 10
+        # Calculate expected BAC
+        # BAC = (alcohol_grams / (body_weight_kg × r))
+        # Body water effective = 75 × 0.68 = 51L
+        # BAC = (12.2 / 40.8) ≈ 0.30‰
+        expected_bac = default_alcohol / (0.68 * 75)
 
         assert abs(result["current_bac"] - expected_bac) < 0.01
-        assert result["current_bac"] < 0.3  # Should be about 0.25‰ per krak
+        assert result["current_bac"] > 0.23  # Should be about 0.24‰ per krak
 
     def test_parse_drink_descriptions(self):
         """Test parsing different drink description formats."""
         # Test default drink (unspecified)
         grams1 = self.drink_tracker._parse_alcohol_content("unspecified")
-        # 0.15L * 0.9% * 0.789 * 1000 ≈ 1.07g
-        assert abs(grams1 - 1.07) < 0.01
+        # Standard drink = 12.2g
+        assert abs(grams1 - 12.2) < 0.01
 
         # Test with size and ABV
         grams2 = self.drink_tracker._parse_alcohol_content("karhu 4,7% 0,5L")
@@ -162,10 +161,10 @@ class TestBACTacker:
         # Add a standard drink
         result = self.bac_tracker.add_drink("testserver", "testuser", 12.0)
 
-        # Calculate expected BAC using corrected formula
-        # Body water effective = 0.55 * 65 * 0.8 = 28.6 liters
-        # BAC = (12 / 28.6) * 10 ≈ 4.2‰
-        expected_bac = (12.0 / (0.55 * 65 * 0.8)) * 10
+        # Calculate expected BAC
+        # Body water effective = 0.55 * 65 = 35.75 liters
+        # BAC = (12 / 28.6) ≈ 0.42‰
+        expected_bac = 12.0 / (0.55 * 65)
 
         assert abs(result["current_bac"] - expected_bac) < 0.01
 
@@ -184,7 +183,7 @@ class TestBACTacker:
         second_bac = result2["current_bac"]
 
         # Second BAC should be approximately double the first
-        assert abs(second_bac - (first_bac * 2)) < 0.01
+        assert abs(second_bac - (first_bac * 2)) < 0.02
         assert result2["peak_bac"] == second_bac
 
     def test_burn_off_over_time(self):

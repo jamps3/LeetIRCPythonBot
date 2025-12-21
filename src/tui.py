@@ -1279,6 +1279,9 @@ class TUIManager:
         self.log_file = None
         self._open_log_file()
 
+        # Track if wrap mode has been loaded to prevent duplicate logging
+        self._wrap_mode_loaded = False
+
         # UI components
         self.header = urwid.Text("")
         self.log_walker = urwid.SimpleListWalker([])
@@ -1778,13 +1781,17 @@ class TUIManager:
                         json.dump(data, f, ensure_ascii=False, indent=2)
 
                 WRAP_MODE = bool(tui_settings.get("wrap_mode", default_wrap_mode))
-                self.add_log_entry(
-                    datetime.now(),
-                    "Console",
-                    "INFO",
-                    f"Loaded wrap mode from state.json: {'wrapped' if WRAP_MODE else 'clipped'}",
-                    "SYSTEM",
-                )
+
+                # Only log once to prevent duplicate messages in tui.log
+                if not self._wrap_mode_loaded:
+                    self.add_log_entry(
+                        datetime.now(),
+                        "Console",
+                        "INFO",
+                        f"Loaded wrap mode from state.json: {'wrapped' if WRAP_MODE else 'clipped'}",
+                        "SYSTEM",
+                    )
+                    self._wrap_mode_loaded = True
         except Exception as e:
             # If loading fails, keep default and log warning
             self.add_log_entry(

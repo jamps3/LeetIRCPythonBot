@@ -783,70 +783,66 @@ class BotManager:
                     server_name in self.joined_channels
                     and channel in self.joined_channels[server_name]
                 ):
-                    drink_words_list = list(
-                        set(drink_word for drink_word, _, _ in drink_words_found)
+                    # Send combined BAC and drink word notification to channel (same format as nick message)
+                    bac_message = self.bac_tracker.format_bac_message(
+                        server_name, sender
                     )
-                    notification = (
-                        f"🐧 {sender} said drink words: {', '.join(drink_words_list)}"
-                    )
-                    self._send_response(server, channel, notification)
 
-        # Send drink word notifications as notices to the sender
-        if drink_words_found and kraksdebug_config.get("nick_notices", False):
-            server = context["server"]
-            server_name = context["server_name"]
+                    # Combine BAC message with drink word information
+                    combined_message = bac_message
 
-            # Get stats for drink words found
-            stats_messages = []
-            for drink_word, info, _ in drink_words_found:
-                # Get drink word stats (total count for this word)
-                word_results = self.drink_tracker.search_drink_word(
-                    drink_word, server_filter=server_name
-                )
-                word_total = word_results.get("total_occurrences", 0)
+                    if drink_words_found:
+                        # Add drink word information to the message
+                        drink_words_formatted = []
+                        stats_messages = []
+                        for drink_word, info, _ in drink_words_found:
+                            if info:
+                                drink_words_formatted.append(f"{drink_word} ({info})")
+                            else:
+                                drink_words_formatted.append(drink_word)
 
-                # Get specific drink stats if info is provided
-                drink_total = 0
-                if info and info != "unspecified":
-                    drink_results = self.drink_tracker.search_specific_drink(
-                        info, server_filter=server_name
-                    )
-                    drink_total = drink_results.get("total_occurrences", 0)
+                            # Get drink word stats
+                            word_results = self.drink_tracker.search_drink_word(
+                                drink_word, server_filter=server_name
+                            )
+                            word_total = word_results.get("total_occurrences", 0)
 
-                # Build stats message
-                if drink_total > 0:
-                    stats_messages.append(
-                        f"{drink_word}: {word_total} total, {info}: {drink_total}"
-                    )
-                else:
-                    stats_messages.append(f"{drink_word}: {word_total} total")
+                            # Get specific drink stats if info is provided
+                            drink_total = 0
+                            if info and info != "unspecified":
+                                drink_results = (
+                                    self.drink_tracker.search_specific_drink(
+                                        info, server_filter=server_name
+                                    )
+                                )
+                                drink_total = drink_results.get("total_occurrences", 0)
 
-            drink_words_formatted = []
-            for drink_word, info, _ in drink_words_found:
-                if info:
-                    drink_words_formatted.append(f"{drink_word} ({info})")
-                else:
-                    drink_words_formatted.append(drink_word)
-            # Remove duplicates
-            drink_words_formatted = list(set(drink_words_formatted))
-            notification = f"🐧 Kraks: {', '.join(drink_words_formatted)}"
+                            # Build stats message
+                            if drink_total > 0:
+                                stats_messages.append(
+                                    f"{drink_word}: {word_total} total, {info}: {drink_total}"
+                                )
+                            else:
+                                stats_messages.append(
+                                    f"{drink_word}: {word_total} total"
+                                )
 
-            # Add stats to notification
-            if stats_messages:
-                notification += f" | Stats: {', '.join(set(stats_messages))}"
+                        # Remove duplicates
+                        drink_words_formatted = list(set(drink_words_formatted))
+                        drink_part = f" | {' | '.join(drink_words_formatted)}"
+                        stats_part = f" | Stats: {', '.join(set(stats_messages))}"
+                        combined_message += drink_part + stats_part
 
-            # Log the notification
-            self.logger.info(notification)
-            # Send as notice to the sender
-            try:
-                if self.use_notices:
-                    server.send_notice(sender, notification)
-                else:
-                    server.send_message(sender, notification)
-            except Exception as e:
-                self.logger.warning(
-                    f"Failed to send drink word notice to {sender}: {e}"
-                )
+                    # Send combined message as notice to the channel
+                    try:
+                        if self.use_notices:
+                            server.send_notice(channel, combined_message)
+                        else:
+                            server.send_message(channel, combined_message)
+                    except Exception as e:
+                        self.logger.warning(
+                            f"Failed to send combined notice to {channel}: {e}"
+                        )
 
         # Update BAC tracking for drink words
         if drink_words_found:
@@ -855,18 +851,73 @@ class BotManager:
                 for drink_word, specific_drink, alcohol_grams in drink_words_found:
                     self.bac_tracker.add_drink(server_name, sender, alcohol_grams)
 
-                # Send BAC notification to user (only once, even for multiple drinks)
-                bac_message = self.bac_tracker.format_bac_message(server_name, sender)
-                server = context["server"]
+                # Send combined BAC and drink word notification to user (only when nick_notices is enabled and nick is whitelisted)
+                # Check if drink word detection notices to nicks is enabled
+                nicks_whitelist = kraksdebug_config.get("nicks", [])
+                if (
+                    kraksdebug_config.get("nick_notices", False)
+                    and sender in nicks_whitelist
+                ):
+                    bac_message = self.bac_tracker.format_bac_message(
+                        server_name, sender
+                    )
+                    server = context["server"]
 
-                # Send as notice to the sender
-                try:
-                    if self.use_notices:
-                        server.send_notice(sender, bac_message)
-                    else:
-                        server.send_message(sender, bac_message)
-                except Exception as e:
-                    self.logger.warning(f"Failed to send BAC notice to {sender}: {e}")
+                    # Combine BAC message with drink word information
+                    combined_message = bac_message
+
+                    if drink_words_found:
+                        # Add drink word information to the message
+                        drink_words_formatted = []
+                        stats_messages = []
+                        for drink_word, info, _ in drink_words_found:
+                            if info:
+                                drink_words_formatted.append(f"{drink_word} ({info})")
+                            else:
+                                drink_words_formatted.append(drink_word)
+
+                            # Get drink word stats
+                            word_results = self.drink_tracker.search_drink_word(
+                                drink_word, server_filter=server_name
+                            )
+                            word_total = word_results.get("total_occurrences", 0)
+
+                            # Get specific drink stats if info is provided
+                            drink_total = 0
+                            if info and info != "unspecified":
+                                drink_results = (
+                                    self.drink_tracker.search_specific_drink(
+                                        info, server_filter=server_name
+                                    )
+                                )
+                                drink_total = drink_results.get("total_occurrences", 0)
+
+                            # Build stats message
+                            if drink_total > 0:
+                                stats_messages.append(
+                                    f"{drink_word}: {word_total} total, {info}: {drink_total}"
+                                )
+                            else:
+                                stats_messages.append(
+                                    f"{drink_word}: {word_total} total"
+                                )
+
+                        # Remove duplicates
+                        drink_words_formatted = list(set(drink_words_formatted))
+                        drink_part = f" | {' | '.join(drink_words_formatted)}"
+                        stats_part = f" | Stats: {', '.join(set(stats_messages))}"
+                        combined_message += drink_part + stats_part
+
+                    # Send combined message as notice to the sender
+                    try:
+                        if self.use_notices:
+                            server.send_notice(sender, combined_message)
+                        else:
+                            server.send_message(sender, combined_message)
+                    except Exception as e:
+                        self.logger.warning(
+                            f"Failed to send combined notice to {sender}: {e}"
+                        )
             except Exception as e:
                 self.logger.error(f"Error updating BAC for {sender}: {e}")
 

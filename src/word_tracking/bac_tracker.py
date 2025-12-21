@@ -9,6 +9,8 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 
+import logger
+
 from .data_manager import DataManager
 
 
@@ -308,13 +310,16 @@ class BACTacker:
         current_bac = self._calculate_current_bac(server, nick, user_data)
 
         # Calculate BAC increase using corrected Widmark formula
-        # BAC (%) = alcohol_grams / (body_weight_kg × r × 0.8)
-        # BAC (‰) = [alcohol_grams / (body_weight_kg × r × 0.8)] × 10
+        # BAC (%) = alcohol_grams / (body_weight_kg × r × 0.8)  # 0.8 is for correction. Use without!
         profile = self.get_user_profile(server, nick)
         body_water = (
             self._get_body_water_constant(profile["sex"]) * profile["weight_kg"]
         )
-        added_bac = drink_grams / (body_water * 0.8)  # ‰
+        added_bac = drink_grams / (body_water)  # ‰
+
+        logger.debug(
+            f"[BAC DEBUG] drink_grams={drink_grams:.3f} body_water={body_water:.3f} added_bac={added_bac:.3f}"
+        )
 
         # Calculate peak BAC (current + new drink, assuming immediate absorption for peak)
         peak_bac = current_bac + added_bac

@@ -343,7 +343,7 @@ class DataManager:
     def load_kraksdebug_state(self) -> Dict[str, Any]:
         """Load kraksdebug state data from merged state.json."""
         state_data = self.load_json(self.state_file)
-        default_kraksdebug = {"channels": [], "nick_notices": True}
+        default_kraksdebug = {"channels": [], "nick_notices": True, "nicks": []}
         kraksdebug = state_data.get("kraksdebug", default_kraksdebug)
         if "kraksdebug" not in state_data:
             state_data["kraksdebug"] = kraksdebug

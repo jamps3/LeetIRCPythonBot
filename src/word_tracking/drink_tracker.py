@@ -48,9 +48,12 @@ class DrinkTracker:
             re.IGNORECASE,
         )  # noqa: E501
 
-        # Default values for drink parsing - adjusted for 0.25‰ per krak
-        self.DEFAULT_VOLUME_L = 0.15  # 15cl small drink
-        self.DEFAULT_ABV = 0.9  # ABV for ~0.25‰ BAC per krak
+        # Standard drink definition
+        self.STANDARD_DRINK_GRAMS = 12.2  # Standard krak = 12.2g pure alcohol
+
+        # Default values for drink parsing - adjusted for standard drink
+        self.DEFAULT_VOLUME_L = 0.33  # ~33cl standard drink
+        self.DEFAULT_ABV = 4.7  # ABV for standard drink
         self.ALCOHOL_DENSITY = 0.789  # g/ml density of pure ethanol
 
     def process_message(
@@ -181,19 +184,18 @@ class DrinkTracker:
             Grams of pure alcohol
         """
         if drink_description == "unspecified":
-            # Default drink
-            volume_l = self.DEFAULT_VOLUME_L
-            abv = self.DEFAULT_ABV
+            # Default drink - use standard drink grams
+            return self.STANDARD_DRINK_GRAMS
         else:
             # Parse volume and ABV from description
             volume_l = self._parse_volume(drink_description)
             abv = self._parse_abv(drink_description)
 
-        # Calculate grams of pure alcohol
-        # Formula: volume_L × (ABV/100) × alcohol_density_g/ml × 1000
-        alcohol_grams = volume_l * (abv / 100) * self.ALCOHOL_DENSITY * 1000
+            # Calculate grams of pure alcohol
+            # Formula: volume_L × (ABV/100) × alcohol_density_g/ml × 1000
+            alcohol_grams = volume_l * (abv / 100) * self.ALCOHOL_DENSITY * 1000
 
-        return round(alcohol_grams, 2)
+            return round(alcohol_grams, 2)
 
     def _parse_abv(self, text: str) -> float:
         """

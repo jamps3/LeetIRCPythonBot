@@ -2273,15 +2273,15 @@ def ksp_command(context: CommandContext, bot_functions):
 @command(
     "kraksdebug",
     description="Configure drink word detection debugging",
-    usage="!kraksdebug [#channel] or !kraksdebug (toggle nick notices)",
+    usage="!kraksdebug [#channel] or !kraksdebug (in private: toggle nick whitelist)",
     examples=["!kraksdebug #test", "!kraksdebug"],
     admin_only=False,
 )
 def kraksdebug_command(context: CommandContext, bot_functions):
     """Configure drink word detection debugging notifications.
 
-    With a channel parameter: toggles sending drink word detections to that channel.
-    Without parameters: toggles sending drink word detection as notices to the nick that sent them.
+    In a channel: toggles sending drink word detections to that channel.
+    In private message: adds/removes your nick from the whitelist for nick notices.
     """
     # Get the data manager
     data_manager = bot_functions.get("data_manager")
@@ -2292,7 +2292,7 @@ def kraksdebug_command(context: CommandContext, bot_functions):
     kraksdebug_config = data_manager.load_kraksdebug_state()
 
     if context.args:
-        # Channel parameter provided
+        # Channel parameter provided (channel usage)
         channel = context.args[0]
 
         # Ensure channel starts with #
@@ -2312,16 +2312,38 @@ def kraksdebug_command(context: CommandContext, bot_functions):
 
         return f"✅ Channel {channel} {action} drink word detection notifications"
     else:
-        # No parameter - toggle nick notices
-        kraksdebug_config["nick_notices"] = not kraksdebug_config.get(
-            "nick_notices", False
-        )
+        # No parameter - different behavior based on context
+        is_private = not context.target.startswith("#")
 
-        # Save state
-        data_manager.save_kraksdebug_state(kraksdebug_config)
+        if is_private:
+            # Private message: toggle nick in whitelist
+            nick = context.sender
+            nicks_list = kraksdebug_config.get("nicks", [])
 
-        status = "enabled" if kraksdebug_config["nick_notices"] else "disabled"
-        return f"✅ Drink word detection notices to nicks are now {status}"
+            if nick in nicks_list:
+                nicks_list.remove(nick)
+                action = "removed from"
+            else:
+                nicks_list.append(nick)
+                action = "added to"
+
+            kraksdebug_config["nicks"] = nicks_list
+            data_manager.save_kraksdebug_state(kraksdebug_config)
+
+            return (
+                f"✅ Your nick '{nick}' {action} drink word detection notice whitelist"
+            )
+        else:
+            # Channel message: toggle nick notices (legacy behavior)
+            kraksdebug_config["nick_notices"] = not kraksdebug_config.get(
+                "nick_notices", False
+            )
+
+            # Save state
+            data_manager.save_kraksdebug_state(kraksdebug_config)
+
+            status = "enabled" if kraksdebug_config["nick_notices"] else "disabled"
+            return f"✅ Drink word detection notices to nicks are now {status}"
 
 
 @command(
