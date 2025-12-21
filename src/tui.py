@@ -7,12 +7,17 @@ The default interface. Use --console for the simple interface.
 import json
 import os
 import time
+import warnings
 from collections import deque
 from datetime import datetime
 
 import urwid
 
 import logger
+
+# Suppress urwid deprecation warnings globally for this module
+warnings.filterwarnings("ignore", category=DeprecationWarning, module=".*urwid.*")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module=".*")
 
 # Try to import clipboard functionality
 try:

@@ -2954,9 +2954,9 @@ class BotManager:
         """Check if a URL is an X/Twitter URL."""
         import re
 
-        # Match x.com or twitter.com URLs with status and post ID
+        # Match x.com or twitter.com URLs (any path)
         x_patterns = [
-            r"(?:https?://)?(?:www\.)?(?:x\.com|twitter\.com)/(\w+)/status/(\d+)",
+            r"(?:https?://)?(?:www\.)?(?:x\.com|twitter\.com)",
         ]
 
         for pattern in x_patterns:

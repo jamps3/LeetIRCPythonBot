@@ -135,13 +135,14 @@ class TestOtiedoteServiceAsync:
         # This test is skipped due to missing pytest-asyncio dependency
         pass
 
-    @pytest.mark.asyncio
-    async def test_stop_without_start(self, mock_callback):
+    def test_stop_without_start(self, mock_callback):
         """Test stopping service that was never started."""
         service = OtiedoteService(mock_callback)
 
         # Should not raise exception
-        await service.stop()
+        import asyncio
+
+        asyncio.run(service.stop())
         assert service.running is False
 
 
