@@ -168,8 +168,7 @@ def test_filtering_logic():
     should_send = True
 
     if channel_filters:
-        print("Channel has filters, checking if any match...")
-        should_send = False
+        print("Channel has filters, checking if any match (whitelist)...")
 
         for filter_entry in channel_filters:
             print(f"  Checking filter: '{filter_entry}'")

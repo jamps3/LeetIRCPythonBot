@@ -370,6 +370,14 @@ class DataManager:
         # Save the full state file
         self.save_json(self.state_file, state_data)
 
+    def load_state(self) -> Dict[str, Any]:
+        """Load the full state file."""
+        return self.load_json(self.state_file)
+
+    def save_state(self, data: Dict[str, Any]):
+        """Save the full state file."""
+        self.save_json(self.state_file, data)
+
     def get_all_servers(self) -> List[str]:
         """
         Return a list of all server names present in general words data.

@@ -318,8 +318,8 @@ class OtiedoteService:
         # (in case the monitoring thread has updated it)
         self.latest_release = self._load_latest_release()
 
-        # Try up to 10 releases ahead in case there are gaps (some releases may be inaccessible)
-        max_attempts = 10
+        # Try up to 3 releases ahead in case there are gaps (some releases may be inaccessible)
+        max_attempts = 3
         for attempt in range(max_attempts):
             next_id = self.latest_release + 1 + attempt
             logger.info(

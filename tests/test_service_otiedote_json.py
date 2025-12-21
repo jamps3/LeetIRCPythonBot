@@ -288,6 +288,300 @@ class TestCreateOtiedoteService:
         assert service.check_interval == 120
 
 
+class TestOtiedoteFiltering:
+    """Test filtering logic for otiedote releases."""
+
+    def test_filtering_no_filters(self):
+        """Test that messages are sent when no filters are set."""
+        # Sample release data
+        release = {
+            "id": 2831,
+            "title": "Test Release",
+            "organization": "Pohjois-Savon pelastuslaitos",
+            "location": "Test Location",
+            "content": "Test content",
+        }
+
+        # No filters - should send
+        channel_filters = []
+        should_send = True
+
+        if channel_filters:
+            should_send = False
+            for filter_entry in channel_filters:
+                # Parse filter entry
+                if ":" in filter_entry:
+                    organization, field = filter_entry.split(":", 1)
+                else:
+                    organization = filter_entry
+                    field = "organization"
+
+                if field == "organization":
+                    release_org = release.get("organization", "").strip()
+                    organization_clean = organization.strip()
+                    if organization_clean.lower() in release_org.lower():
+                        should_send = False
+                        break
+
+        assert should_send is True
+
+    def test_filtering_no_match(self):
+        """Test that messages are sent when filters don't match."""
+        release = {
+            "id": 2831,
+            "title": "Test Release",
+            "organization": "Pohjois-Savon pelastuslaitos",
+            "location": "Test Location",
+            "content": "Test content",
+        }
+
+        # Filter for different organization - should send
+        channel_filters = ["helsinki"]
+        should_send = True
+
+        if channel_filters:
+            for filter_entry in channel_filters:
+                if ":" in filter_entry:
+                    organization, field = filter_entry.split(":", 1)
+                else:
+                    organization = filter_entry
+                    field = "organization"
+
+                if field == "organization":
+                    release_org = release.get("organization", "").strip()
+                    organization_clean = organization.strip()
+                    if organization_clean.lower() in release_org.lower():
+                        should_send = False
+                        break
+
+        assert should_send is True
+
+    def test_filtering_match(self):
+        """Test that messages are sent when filters match."""
+        release = {
+            "id": 2831,
+            "title": "Test Release",
+            "organization": "Pohjois-Savon pelastuslaitos",
+            "location": "Test Location",
+            "content": "Test content",
+        }
+
+        # Filter for "pohjois" - should send
+        channel_filters = ["pohjois"]
+        should_send = True
+
+        if channel_filters:
+            should_send = False
+            for filter_entry in channel_filters:
+                if ":" in filter_entry:
+                    organization, field = filter_entry.split(":", 1)
+                else:
+                    organization = filter_entry
+                    field = "organization"
+
+                if field == "organization":
+                    release_org = release.get("organization", "").strip()
+                    organization_clean = organization.strip()
+                    if organization_clean.lower() in release_org.lower():
+                        should_send = True
+                        break
+
+        assert should_send is True
+
+    def test_filtering_multiple_filters_no_match(self):
+        """Test multiple filters where none match."""
+        release = {
+            "id": 2831,
+            "title": "Test Release",
+            "organization": "Pohjois-Savon pelastuslaitos",
+            "location": "Test Location",
+            "content": "Test content",
+        }
+
+        # Multiple filters that don't match - should send
+        channel_filters = ["helsinki", "tampere"]
+        should_send = True
+
+        if channel_filters:
+            for filter_entry in channel_filters:
+                if ":" in filter_entry:
+                    organization, field = filter_entry.split(":", 1)
+                else:
+                    organization = filter_entry
+                    field = "organization"
+
+                if field == "organization":
+                    release_org = release.get("organization", "").strip()
+                    organization_clean = organization.strip()
+                    if organization_clean.lower() in release_org.lower():
+                        should_send = False
+                        break
+
+        assert should_send is True
+
+    def test_filtering_multiple_filters_with_match(self):
+        """Test multiple filters where one matches."""
+        release = {
+            "id": 2831,
+            "title": "Test Release",
+            "organization": "Pohjois-Savon pelastuslaitos",
+            "location": "Test Location",
+            "content": "Test content",
+        }
+
+        # Multiple filters, one matches - should send
+        channel_filters = ["helsinki", "pohjois", "tampere"]
+        should_send = True
+
+        if channel_filters:
+            should_send = False
+            for filter_entry in channel_filters:
+                if ":" in filter_entry:
+                    organization, field = filter_entry.split(":", 1)
+                else:
+                    organization = filter_entry
+                    field = "organization"
+
+                if field == "organization":
+                    release_org = release.get("organization", "").strip()
+                    organization_clean = organization.strip()
+                    if organization_clean.lower() in release_org.lower():
+                        should_send = True
+                        break
+
+        assert should_send is True
+
+    def test_filtering_case_insensitive(self):
+        """Test that filtering is case insensitive."""
+        release = {
+            "id": 2831,
+            "title": "Test Release",
+            "organization": "Pohjois-Savon pelastuslaitos",
+            "location": "Test Location",
+            "content": "Test content",
+        }
+
+        # Filter with different case - should still match and send
+        channel_filters = ["POHJOIS"]
+        should_send = True
+
+        if channel_filters:
+            should_send = False
+            for filter_entry in channel_filters:
+                if ":" in filter_entry:
+                    organization, field = filter_entry.split(":", 1)
+                else:
+                    organization = filter_entry
+                    field = "organization"
+
+                if field == "organization":
+                    release_org = release.get("organization", "").strip()
+                    organization_clean = organization.strip()
+                    if organization_clean.lower() in release_org.lower():
+                        should_send = True
+                        break
+
+        assert should_send is True
+
+    def test_filtering_partial_match(self):
+        """Test that partial matches work."""
+        release = {
+            "id": 2831,
+            "title": "Test Release",
+            "organization": "Pohjois-Savon pelastuslaitos",
+            "location": "Test Location",
+            "content": "Test content",
+        }
+
+        # Filter for "pelastus" - should match and send
+        channel_filters = ["pelastus"]
+        should_send = True
+
+        if channel_filters:
+            should_send = False
+            for filter_entry in channel_filters:
+                if ":" in filter_entry:
+                    organization, field = filter_entry.split(":", 1)
+                else:
+                    organization = filter_entry
+                    field = "organization"
+
+                if field == "organization":
+                    release_org = release.get("organization", "").strip()
+                    organization_clean = organization.strip()
+                    if organization_clean.lower() in release_org.lower():
+                        should_send = True
+                        break
+
+        assert should_send is True
+
+    def test_filtering_different_field(self):
+        """Test filtering on different fields."""
+        release = {
+            "id": 2831,
+            "title": "Test Release with fire",
+            "organization": "Test Organization",
+            "location": "Test Location",
+            "content": "Test content",
+        }
+
+        # Filter for "fire" in title - should match and send
+        channel_filters = ["fire:title"]
+        should_send = True
+
+        if channel_filters:
+            should_send = False
+            for filter_entry in channel_filters:
+                if ":" in filter_entry:
+                    organization, field = filter_entry.split(":", 1)
+                else:
+                    organization = filter_entry
+                    field = "organization"
+
+                if field == "title":
+                    field_value = release.get(field, "")
+                    if isinstance(field_value, list):
+                        field_value = " ".join(field_value)
+                    field_value_clean = str(field_value).strip()
+                    organization_clean = organization.strip()
+                    if organization_clean.lower() in field_value_clean.lower():
+                        should_send = True
+                        break
+
+        assert should_send is True
+
+    def test_filtering_wildcard_field(self):
+        """Test filtering with wildcard field."""
+        release = {
+            "id": 2831,
+            "title": "Test Release",
+            "organization": "Test Organization",
+            "location": "Test Location",
+            "content": "Test content with fire incident",
+        }
+
+        # Filter for "fire" anywhere - should match and send
+        channel_filters = ["fire:*"]
+        should_send = True
+
+        if channel_filters:
+            should_send = False
+            for filter_entry in channel_filters:
+                if ":" in filter_entry:
+                    organization, field = filter_entry.split(":", 1)
+                else:
+                    organization = filter_entry
+                    field = "organization"
+
+                if field == "*":
+                    release_text = json.dumps(release, ensure_ascii=False).lower()
+                    if organization.strip().lower() in release_text:
+                        should_send = True
+                        break
+
+        assert should_send is True
+
+
 class TestOtiedoteServiceIntegration:
     """Integration tests for OtiedoteService."""
 

@@ -22,6 +22,7 @@ from lemmatizer import Lemmatizer
 from server import Server
 from tamagotchi import TamagotchiBot
 from word_tracking import DataManager, DrinkTracker, GeneralWords
+from word_tracking.bac_tracker import BACTacker
 
 # Optional service imports - handle gracefully if dependencies are missing
 try:
@@ -205,6 +206,8 @@ class BotManager:
         self.data_manager = DataManager(state_file=config.state_file)
         self.logger.debug("Initializing drink tracker...")
         self.drink_tracker = DrinkTracker(self.data_manager)
+        self.logger.debug("Initializing BAC tracker...")
+        self.bac_tracker = BACTacker(self.data_manager)
         self.logger.debug("Initializing general words...")
         self.general_words = GeneralWords(self.data_manager)
         self.logger.debug("Initializing tamagotchi...")
@@ -781,7 +784,7 @@ class BotManager:
                     and channel in self.joined_channels[server_name]
                 ):
                     drink_words_list = list(
-                        set(drink_word for drink_word, _ in drink_words_found)
+                        set(drink_word for drink_word, _, _ in drink_words_found)
                     )
                     notification = (
                         f"🐧 {sender} said drink words: {', '.join(drink_words_list)}"
@@ -795,7 +798,7 @@ class BotManager:
 
             # Get stats for drink words found
             stats_messages = []
-            for drink_word, info in drink_words_found:
+            for drink_word, info, _ in drink_words_found:
                 # Get drink word stats (total count for this word)
                 word_results = self.drink_tracker.search_drink_word(
                     drink_word, server_filter=server_name
@@ -819,7 +822,7 @@ class BotManager:
                     stats_messages.append(f"{drink_word}: {word_total} total")
 
             drink_words_formatted = []
-            for drink_word, info in drink_words_found:
+            for drink_word, info, _ in drink_words_found:
                 if info:
                     drink_words_formatted.append(f"{drink_word} ({info})")
                 else:
@@ -844,6 +847,28 @@ class BotManager:
                 self.logger.warning(
                     f"Failed to send drink word notice to {sender}: {e}"
                 )
+
+        # Update BAC tracking for drink words
+        if drink_words_found:
+            try:
+                # Add each drink to BAC tracker with actual alcohol content
+                for drink_word, specific_drink, alcohol_grams in drink_words_found:
+                    self.bac_tracker.add_drink(server_name, sender, alcohol_grams)
+
+                # Send BAC notification to user (only once, even for multiple drinks)
+                bac_message = self.bac_tracker.format_bac_message(server_name, sender)
+                server = context["server"]
+
+                # Send as notice to the sender
+                try:
+                    if self.use_notices:
+                        server.send_notice(sender, bac_message)
+                    else:
+                        server.send_message(sender, bac_message)
+                except Exception as e:
+                    self.logger.warning(f"Failed to send BAC notice to {sender}: {e}")
+            except Exception as e:
+                self.logger.error(f"Error updating BAC for {sender}: {e}")
 
         # Update tamagotchi (only if enabled)
         if self.tamagotchi_enabled:
@@ -1244,7 +1269,7 @@ class BotManager:
                         f"Error sending FMI warning to {subscriber_nick} on {server_name}: {e}"
                     )
 
-    def _handle_otiedote_release(self, release: dict):
+    def _handle_otiedote_release(self, title_or_release, url=None, description=None):
         """Handle new Otiedote press release.
 
         Uses the subscriptions system to deliver messages only to explicit
@@ -1255,8 +1280,22 @@ class BotManager:
 
         Delays announcements until server is connected and channels defined in .env are joined.
         """
+        # Handle both callback formats: dict (manual fetch) or separate args (automatic)
+        if isinstance(title_or_release, dict):
+            release = title_or_release
+        else:
+            # Automatic callback with separate arguments
+            title = title_or_release
+            release = {
+                "title": title,
+                "url": url,
+                "description": description,
+                "organization": "Pohjois-Karjalan pelastuslaitos",  # Default for automatic service
+                "id": None,  # Not available in automatic mode
+            }
+
         self.logger.info(
-            f"_handle_otiedote_release: Processing release #{release.get('id')} - {release.get('title')}"
+            f"_handle_otiedote_release: Processing release - {release.get('title')}"
         )
 
         # Check if we're connected and have joined channels
@@ -1325,8 +1364,13 @@ class BotManager:
             state = self.data_manager.load_state()
             filters = state.get("otiedote", {}).get("filters", {})
             self.logger.info(f"_handle_otiedote_release: Loaded filters: {filters}")
+            self.logger.info(
+                f"_handle_otiedote_release: Release organization: '{release.get('organization', 'NO_ORG')}'"
+            )
         except Exception:
-            filters = {}
+            self.logger.warning(
+                "Could not load Otiedote filters, proceeding without filters"
+            )
 
         # Send to subscribed channels/users on their respective servers with filtering
         for subscriber_nick, server_name in subscribers:
@@ -1349,7 +1393,7 @@ class BotManager:
                 should_send = True
 
                 if channel_filters:
-                    # Check if any filter matches
+                    # Check if any filter matches (whitelist: only send if matches)
                     should_send = False
                     for filter_entry in channel_filters:
                         self.logger.info(
@@ -1364,19 +1408,24 @@ class BotManager:
                         # Check if the field matches the filter
                         if field == "organization":
                             # Check if organization matches the organization field
-                            release_org = release.get("organization", "")
-                            if organization.lower() in release_org.lower():
+                            release_org = release.get("organization", "").strip()
+                            organization_clean = organization.strip()
+                            if organization_clean.lower() in release_org.lower():
                                 should_send = True
                                 self.logger.info(
-                                    f"_handle_otiedote_release: Filter match found for organization '{organization}' in organization field"
+                                    f"_handle_otiedote_release: Filter match found for organization '{organization_clean}' in '{release_org}'"
                                 )
                                 break
+                            else:
+                                self.logger.debug(
+                                    f"_handle_otiedote_release: Filter '{organization_clean}' not found in '{release_org}'"
+                                )
                         elif field == "*":
                             # Match any field
                             release_text = json.dumps(
                                 release, ensure_ascii=False
                             ).lower()
-                            if organization.lower() in release_text:
+                            if organization.strip().lower() in release_text:
                                 should_send = True
                                 self.logger.info(
                                     f"_handle_otiedote_release: Filter match found for '{organization}' in any field"
@@ -1387,10 +1436,12 @@ class BotManager:
                             field_value = release.get(field, "")
                             if isinstance(field_value, list):
                                 field_value = " ".join(field_value)
-                            if organization.lower() in str(field_value).lower():
+                            field_value_clean = str(field_value).strip()
+                            organization_clean = organization.strip()
+                            if organization_clean.lower() in field_value_clean.lower():
                                 should_send = True
                                 self.logger.info(
-                                    f"_handle_otiedote_release: Filter match found for '{organization}' in field '{field}'"
+                                    f"_handle_otiedote_release: Filter match found for '{organization_clean}' in field '{field}': '{field_value_clean}'"
                                 )
                                 break
 

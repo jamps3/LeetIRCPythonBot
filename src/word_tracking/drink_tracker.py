@@ -46,11 +46,16 @@ class DrinkTracker:
         self.drink_pattern = re.compile(
             r"\b(" + "|".join(self.drink_words) + r")\s*(?:\(\s*([^)]+)\s*\))?",
             re.IGNORECASE,
-        )
+        )  # noqa: E501
+
+        # Default values for drink parsing - adjusted for 0.25‰ per krak
+        self.DEFAULT_VOLUME_L = 0.15  # 15cl small drink
+        self.DEFAULT_ABV = 0.9  # ABV for ~0.25‰ BAC per krak
+        self.ALCOHOL_DENSITY = 0.789  # g/ml density of pure ethanol
 
     def process_message(
         self, server: str, nick: str, text: str
-    ) -> List[Tuple[str, str]]:
+    ) -> List[Tuple[str, str, float]]:
         """
         Process a message for drink words.
 
@@ -60,7 +65,7 @@ class DrinkTracker:
             text: Message text
 
         Returns:
-            List of tuples (drink_word, specific_drink) found in the message
+            List of tuples (drink_word, specific_drink, alcohol_grams) found in the message
         """
         # Check if user has opted out
         if self.data_manager.is_user_opted_out(server, nick):
@@ -76,7 +81,10 @@ class DrinkTracker:
             if specific_drink != "unspecified":
                 specific_drink = specific_drink.strip()
 
-            matches.append((drink_word, specific_drink))
+            # Parse alcohol content from drink description
+            alcohol_grams = self._parse_alcohol_content(specific_drink)
+
+            matches.append((drink_word, specific_drink, alcohol_grams))
 
             # Record the drink word
             self._record_drink_word(server, nick, drink_word, specific_drink)
@@ -155,6 +163,101 @@ class DrinkTracker:
 
         # Save data
         self.data_manager.save_drink_data(data)
+
+    def _parse_alcohol_content(self, drink_description: str) -> float:
+        """
+        Parse alcohol content from drink description.
+
+        Supports formats like:
+        - "koti-maista neipa 5,0% 5,0L"
+        - "karhu 4,7%"
+        - "corona 4.5% 0.355L"
+        - "heineken 5% 12oz"
+
+        Args:
+            drink_description: The drink description string
+
+        Returns:
+            Grams of pure alcohol
+        """
+        if drink_description == "unspecified":
+            # Default drink
+            volume_l = self.DEFAULT_VOLUME_L
+            abv = self.DEFAULT_ABV
+        else:
+            # Parse volume and ABV from description
+            volume_l = self._parse_volume(drink_description)
+            abv = self._parse_abv(drink_description)
+
+        # Calculate grams of pure alcohol
+        # Formula: volume_L × (ABV/100) × alcohol_density_g/ml × 1000
+        alcohol_grams = volume_l * (abv / 100) * self.ALCOHOL_DENSITY * 1000
+
+        return round(alcohol_grams, 2)
+
+    def _parse_abv(self, text: str) -> float:
+        """
+        Parse alcohol by volume percentage from text.
+
+        Handles formats: 5,0%, 4.7%, 5%
+
+        Args:
+            text: Text to parse
+
+        Returns:
+            ABV as decimal (e.g., 4.7 for 4.7%)
+        """
+        # Regex to find percentage patterns
+        # Matches: 5,0% or 4.7% or 5%
+        abv_pattern = r"(\d+(?:[,.]\d+)?)\s*%"
+        match = re.search(abv_pattern, text)
+
+        if match:
+            abv_str = match.group(1)
+            # Replace comma with dot for decimal parsing
+            abv_str = abv_str.replace(",", ".")
+            try:
+                return float(abv_str)
+            except ValueError:
+                pass
+
+        # No percentage found, use default
+        return self.DEFAULT_ABV
+
+    def _parse_volume(self, text: str) -> float:
+        """
+        Parse volume from text.
+
+        Supports units: L, dL, oz
+        Handles formats: 5,0L, 0.33L, 5dL, 12oz
+
+        Args:
+            text: Text to parse
+
+        Returns:
+            Volume in liters
+        """
+        # Regex patterns for different volume formats
+        volume_patterns = [
+            (r"(\d+(?:[,.]\d+)?)\s*L\b", 1.0),  # Liters: 5,0L, 0.33L
+            (r"(\d+(?:[,.]\d+)?)\s*dL\b", 0.1),  # Deciliters: 5dL, 3,3dL
+            (r"(\d+(?:[,.]\d+)?)\s*oz\b", 0.0295735),  # Ounces: 12oz
+        ]
+
+        for pattern, multiplier in volume_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                volume_str = match.group(1)
+                # Replace comma with dot for decimal parsing
+                volume_str = volume_str.replace(",", ".")
+                try:
+                    volume = float(volume_str) * multiplier
+                    return volume
+                except ValueError:
+                    continue
+
+        # No volume found, use default
+        return self.DEFAULT_VOLUME_L
 
     def get_user_stats(self, server: str, nick: str) -> Dict[str, Any]:
         """
@@ -524,3 +627,31 @@ class DrinkTracker:
             # Opt user out
             self.data_manager.set_user_opt_out(server, nick, opt_out=True)
             return f"{nick}: Olet nyt poissa juomien seurannasta. Käytä !antikrak uudelleen palataksesi mukaan."
+
+    def reset_user_stats(self, server: str, nick: str) -> bool:
+        """
+        Reset all drink tracking statistics for a user.
+
+        Args:
+            server: Server name
+            nick: User nickname
+
+        Returns:
+            True if reset was successful, False otherwise
+        """
+        data = self.data_manager.load_drink_data()
+
+        try:
+            if server in data.get("servers", {}):
+                nicks = data["servers"][server].get("nicks", {})
+                if nick in nicks:
+                    del nicks[nick]
+                    # Clean up empty server entries
+                    if not nicks:
+                        del data["servers"][server]
+                    self.data_manager.save_drink_data(data)
+                    return True
+        except Exception as e:
+            self.logger.error(f"Error resetting drink stats for {nick}: {e}")
+
+        return False

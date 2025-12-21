@@ -310,7 +310,7 @@ def np_command(context: CommandContext, bot_functions):
         key_suffix = f"-{today.month:02d}-{today.day:02d}"
         key = next((k for k in data.keys() if k.endswith(key_suffix)), None)
         if key:
-            return "Nimipäivät tänään: " + format_entry(key, data[key])
+            return "Nimipäivät tänään " + format_entry(key, data[key])
         else:
             return (
                 f"Tälle päivälle ({today.day}.{today.month}.) ei löytynyt nimipäiviä."
@@ -1268,11 +1268,35 @@ def _get_statistics_start_date():
 @command(
     name="kraks",
     command_type=CommandType.PUBLIC,
-    description="Näytä krakit (juomasanat) ja niiden jakauma",
-    usage="!kraks",
+    description="Näytä krakit (juomasanat) ja niiden jakauma, tai resetoi BAC",
+    usage="!kraks [reset]",
     admin_only=False,
 )
 def command_kraks(context, bot_functions):
+    # Check for reset subcommand
+    if context.args and context.args[0].lower() == "reset":
+        # Get the BAC tracker
+        bot_manager = bot_functions.get("bot_manager")
+        if not bot_manager or not hasattr(bot_manager, "bac_tracker"):
+            return "❌ BAC tracker not available"
+
+        bac_tracker = bot_manager.bac_tracker
+
+        # Derive server name
+        server_name = (
+            bot_functions.get("server_name")
+            or getattr(context, "server_name", "console")
+            or "console"
+        )
+
+        nick = context.sender
+
+        # Reset the user's BAC
+        bac_tracker.reset_user_bac(server_name, nick)
+
+        return f"✅ BAC resetoitu käyttäjälle {nick}"
+
+    # Original kraks functionality
     # Use injected drink tracker to ensure shared persistence
     drink = bot_functions.get("drink_tracker") or _drink_tracker
     if not drink:
@@ -1290,9 +1314,7 @@ def command_kraks(context, bot_functions):
 
     if stats.get("total_drink_words", 0) <= 0:
         if start_date:
-            return (
-                f"Ei vielä krakkauksia tallennettuna. Tilastot aloitettu {start_date}."
-            )
+            return f"Ei vielä krakkauksia tallennettuna. Since {start_date}."
         else:
             return "Ei vielä krakkauksia tallennettuna."
 
@@ -1303,7 +1325,7 @@ def command_kraks(context, bot_functions):
         )
         response = f"Krakit yhteensä: {stats['total_drink_words']}, {details}"
         if start_date:
-            response += f" (tilastot aloitettu {start_date})"
+            response += f" (since {start_date})"
         return response
     else:
         top5 = ", ".join(
@@ -1311,7 +1333,7 @@ def command_kraks(context, bot_functions):
         )
         response = f"Krakit yhteensä: {stats['total_drink_words']}. Top 5: {top5}"
         if start_date:
-            response += f" (tilastot aloitettu {start_date})"
+            response += f" (since {start_date})"
         return response
 
 
@@ -2259,7 +2281,7 @@ def kraksdebug_command(context: CommandContext, bot_functions):
     """Configure drink word detection debugging notifications.
 
     With a channel parameter: toggles sending drink word detections to that channel.
-    Without parameters: toggles sending drink word detections as notices to the nick that sent them.
+    Without parameters: toggles sending drink word detection as notices to the nick that sent them.
     """
     # Get the data manager
     data_manager = bot_functions.get("data_manager")
@@ -2300,6 +2322,125 @@ def kraksdebug_command(context: CommandContext, bot_functions):
 
         status = "enabled" if kraksdebug_config["nick_notices"] else "disabled"
         return f"✅ Drink word detection notices to nicks are now {status}"
+
+
+@command(
+    "krak",
+    description="Set BAC calculation profile or view current BAC",
+    usage="!krak [weight_kg m/f | burn_rate] or !krak (view current BAC)",
+    examples=["!krak 75 m", "!krak 0.15", "!krak"],
+    admin_only=False,
+)
+def krak_command(context: CommandContext, bot_functions):
+    """Set BAC calculation profile parameters or view current BAC.
+
+    Usage:
+    - !krak weight_kg m/f : Set weight and sex for personalized BAC calculation
+    - !krak burn_rate : Set custom burn rate in ‰ per hour
+    - !krak : View current BAC information
+    """
+    # Get the BAC tracker
+    bot_manager = bot_functions.get("bot_manager")
+    if not bot_manager or not hasattr(bot_manager, "bac_tracker"):
+        return "❌ BAC tracker not available"
+
+    bac_tracker = bot_manager.bac_tracker
+
+    # Derive server name
+    server_name = (
+        bot_functions.get("server_name")
+        or getattr(context, "server_name", "console")
+        or "console"
+    )
+
+    nick = context.sender
+
+    if not context.args:
+        # No arguments - show current BAC
+        bac_info = bac_tracker.get_user_bac(server_name, nick)
+        profile = bac_tracker.get_user_profile(server_name, nick)
+
+        if bac_info["current_bac"] == 0.0 and not any(profile.values()):
+            return "🍺 No BAC data yet. Use !krak <weight_kg> <m/f> to set your profile for accurate calculations."
+
+        response_parts = []
+
+        # Show current BAC if any
+        if bac_info["current_bac"] > 0.0:
+            sober_time = bac_info.get("sober_time", "Unknown")
+            response_parts.append(f"🍺 Current BAC: {bac_info['current_bac']:.2f}‰")
+            if sober_time:
+                response_parts.append(f"Sober by: ~{sober_time}")
+
+        # Show profile info
+        profile_info = []
+        if (
+            profile.get("weight_kg")
+            and profile.get("weight_kg") != bac_tracker.DEFAULT_WEIGHT_KG
+        ):
+            profile_info.append(f"Weight: {profile['weight_kg']}kg")
+        if profile.get("sex"):
+            profile_info.append(f"Sex: {'Male' if profile['sex'] == 'm' else 'Female'}")
+        if profile.get("burn_rate") and profile.get(
+            "burn_rate"
+        ) != bac_tracker._get_default_burn_rate(profile.get("sex", "m")):
+            profile_info.append(f"Burn rate: {profile['burn_rate']}‰/h")
+
+        if profile_info:
+            response_parts.append(f"Profile: {', '.join(profile_info)}")
+        else:
+            response_parts.append(
+                "Using default profile (75kg, male, standard burn rate)"
+            )
+
+        return " | ".join(response_parts)
+
+    # Parse arguments
+    args = context.args
+
+    if len(args) == 2:
+        # Check if it's weight + sex format: number + m/f
+        try:
+            weight = float(args[0])
+            sex = args[1].lower()
+
+            if sex not in ["m", "f"]:
+                return "❌ Sex must be 'm' (male) or 'f' (female)"
+
+            if weight < 30 or weight > 300:
+                return "❌ Weight must be between 30-300 kg"
+
+            # Set weight and sex
+            bac_tracker.set_user_profile(server_name, nick, weight_kg=weight, sex=sex)
+
+            # Calculate default burn rate for the sex
+            default_burn_rate = bac_tracker._get_default_burn_rate(sex)
+
+            return f"✅ BAC profile set: {weight}kg, {sex.upper()} (burn rate: {default_burn_rate}‰/h)"
+
+        except ValueError:
+            return "❌ Invalid weight format. Use: !krak <weight_kg> <m/f>"
+
+    elif len(args) == 1:
+        # Check if it's a burn rate: just a number
+        try:
+            burn_rate = float(args[0])
+
+            if burn_rate < 0.05 or burn_rate > 1.0:
+                return "❌ Burn rate must be between 0.05-1.0 ‰ per hour"
+
+            # Set custom burn rate
+            bac_tracker.set_user_profile(server_name, nick, burn_rate=burn_rate)
+
+            return f"✅ BAC burn rate set to {burn_rate}‰/h"
+
+        except ValueError:
+            return (
+                "❌ Invalid number format. Use: !krak <burn_rate> for custom burn rate"
+            )
+
+    else:
+        return "❌ Usage: !krak [weight_kg m/f | burn_rate] or !krak (view current BAC)"
 
 
 # EOF

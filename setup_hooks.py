@@ -38,7 +38,7 @@ def create_pre_commit_hook():
 
 set -euo pipefail
 
-echo "Running pre-commit: isort, black, flake8, and quick tests..."
+echo "Running pre-commit: isort, black and flake8..."
 
 # Ensure we run in repo root
 REPO_ROOT="$(git rev-parse --show-toplevel)"

@@ -1899,8 +1899,8 @@ class TUIManager:
         elif text.lower().startswith("config:"):
             self.input_field.set_caption(f"{timestamp} > [Config]: ")
         else:
-            # Show active channel name instead of generic [MSG]
-            active_channel = "[No Channel]"
+            # Show active channel name or prompt to select/join
+            active_channel = "Select/join a channel with #channel"
             if (
                 self.bot_manager
                 and hasattr(self.bot_manager, "active_channel")

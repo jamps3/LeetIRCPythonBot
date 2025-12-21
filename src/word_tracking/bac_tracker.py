@@ -1,0 +1,424 @@
+"""
+BAC (Blood Alcohol Content) Tracker
+
+Tracks BAC levels per user with realistic Widmark formula calculations.
+Supports personalized profiles with weight, sex, and custom burn rates.
+"""
+
+import time
+from datetime import datetime, timedelta
+from typing import Dict, Optional
+
+from .data_manager import DataManager
+
+
+class BACTacker:
+    """Tracks Blood Alcohol Content for users with realistic Widmark formula calculations."""
+
+    def __init__(self, data_manager: DataManager):
+        """
+        Initialize the BAC tracker.
+
+        Args:
+            data_manager: DataManager instance for data persistence
+        """
+        self.data_manager = data_manager
+
+        # BAC calculation constants
+        self.ABSORPTION_TIME_MINUTES = 20  # Alcohol peaks in ~20 minutes
+        self.STANDARD_DRINK_GRAMS = 12.2  # Standard krak = 12.2g pure alcohol
+
+        # Default values for Widmark formula
+        self.DEFAULT_BODY_WATER_MALE = 0.68  # for men
+        self.DEFAULT_BODY_WATER_FEMALE = 0.55  # for women
+        self.DEFAULT_BURN_RATE_MALE = 0.15  # for men (‰/h)
+        self.DEFAULT_BURN_RATE_FEMALE = 0.13  # for women (‰/h)
+        self.DEFAULT_WEIGHT_KG = 75  # Default weight
+        self.DEFAULT_SEX = "m"  # Default to male
+
+    def _load_bac_data(self) -> Dict[str, Dict]:
+        """Load BAC data from state.json."""
+        state = self.data_manager.load_json(self.data_manager.state_file)
+        return state.get("bac_tracking", {})
+
+    def _save_bac_data(self, bac_data: Dict[str, Dict]):
+        """Save BAC data to state.json."""
+        state = self.data_manager.load_json(self.data_manager.state_file)
+        state["bac_tracking"] = bac_data
+        self.data_manager.save_json(self.data_manager.state_file, state)
+
+    def _load_user_profiles(self) -> Dict[str, Dict]:
+        """Load user profiles (weight, sex, burn rate) from state.json."""
+        state = self.data_manager.load_json(self.data_manager.state_file)
+        return state.get("bac_profiles", {})
+
+    def _save_user_profiles(self, profiles: Dict[str, Dict]):
+        """Save user profiles to state.json."""
+        state = self.data_manager.load_json(self.data_manager.state_file)
+        state["bac_profiles"] = profiles
+        self.data_manager.save_json(self.data_manager.state_file, state)
+
+    def set_user_profile(
+        self,
+        server: str,
+        nick: str,
+        weight_kg: Optional[float] = None,
+        sex: Optional[str] = None,
+        burn_rate: Optional[float] = None,
+    ):
+        """
+        Set user profile for personalized BAC calculations.
+
+        Args:
+            server: Server name
+            nick: User nickname
+            weight_kg: Weight in kilograms (30-300 kg)
+            sex: 'm' for male, 'f' for female
+            burn_rate: Custom burn rate in ‰ per hour (0.05-1.0)
+        """
+        profiles = self._load_user_profiles()
+        user_key = f"{server}:{nick}"
+
+        if user_key not in profiles:
+            profiles[user_key] = {}
+
+        # Validate and set weight
+        if weight_kg is not None:
+            if 30 <= weight_kg <= 300:
+                profiles[user_key]["weight_kg"] = weight_kg
+            # If invalid, don't set it (will use default)
+
+        # Validate and set sex
+        if sex is not None:
+            sex_lower = sex.lower()
+            if sex_lower in ["m", "f"]:
+                profiles[user_key]["sex"] = sex_lower
+            # If invalid, don't set it (will use default)
+
+        # Validate and set burn rate
+        if burn_rate is not None:
+            if 0.05 <= burn_rate <= 1.0:
+                profiles[user_key]["burn_rate"] = burn_rate
+            # If invalid, don't set it (will use default)
+
+        self._save_user_profiles(profiles)
+
+    def get_user_profile(self, server: str, nick: str) -> Dict[str, any]:
+        """
+        Get user's BAC calculation profile.
+
+        Args:
+            server: Server name
+            nick: User nickname
+
+        Returns:
+            Dictionary with weight_kg, sex, burn_rate
+        """
+        profiles = self._load_user_profiles()
+        user_key = f"{server}:{nick}"
+
+        profile = profiles.get(user_key, {})
+
+        return {
+            "weight_kg": profile.get("weight_kg", self.DEFAULT_WEIGHT_KG),
+            "sex": profile.get("sex", self.DEFAULT_SEX),
+            "burn_rate": profile.get(
+                "burn_rate",
+                self._get_default_burn_rate(profile.get("sex", self.DEFAULT_SEX)),
+            ),
+        }
+
+    def _get_body_water_constant(self, sex: str) -> float:
+        """Get body water constant based on sex."""
+        return (
+            self.DEFAULT_BODY_WATER_MALE
+            if sex.lower() == "m"
+            else self.DEFAULT_BODY_WATER_FEMALE
+        )
+
+    def _get_default_burn_rate(self, sex: str) -> float:
+        """Get default burn rate based on sex."""
+        return (
+            self.DEFAULT_BURN_RATE_MALE
+            if sex.lower() == "m"
+            else self.DEFAULT_BURN_RATE_FEMALE
+        )
+
+    def get_user_bac(self, server: str, nick: str) -> Dict[str, float]:
+        """
+        Get current BAC data for a user.
+
+        Args:
+            server: Server name
+            nick: User nickname
+
+        Returns:
+            Dictionary with current_bac, peak_bac, sober_time
+        """
+        bac_data = self._load_bac_data()
+        user_key = f"{server}:{nick}"
+
+        if user_key not in bac_data:
+            return {
+                "current_bac": 0.0,
+                "peak_bac": 0.0,
+                "sober_time": None,
+                "driving_time": None,
+                "last_drink": None,
+            }
+
+        user_data = bac_data[user_key]
+        current_bac = self._calculate_current_bac(server, nick, user_data)
+
+        # Update stored BAC if it has changed
+        if abs(current_bac - user_data.get("current_bac", 0.0)) > 0.001:
+            user_data["current_bac"] = current_bac
+            user_data["last_update_time"] = time.time()
+            self._save_bac_data(bac_data)
+
+        peak_bac = user_data.get("peak_bac", 0.0)
+        sober_time = self._calculate_sober_time(server, nick, current_bac)
+        driving_time = self._calculate_driving_time(server, nick, current_bac)
+
+        return {
+            "current_bac": round(current_bac, 2),
+            "peak_bac": round(peak_bac, 2),
+            "sober_time": sober_time,
+            "driving_time": driving_time,
+            "last_drink": user_data.get("last_drink"),
+        }
+
+    def _calculate_current_bac(self, server: str, nick: str, user_data: Dict) -> float:
+        """
+        Calculate current BAC based on last update time and burn rate.
+
+        Args:
+            server: Server name
+            nick: User nickname
+            user_data: User's BAC data
+
+        Returns:
+            Current BAC value
+        """
+        current_bac = user_data.get("current_bac", 0.0)
+        last_update = user_data.get("last_update_time", time.time())
+
+        # Calculate time elapsed since last update
+        time_elapsed_hours = (time.time() - last_update) / 3600.0
+
+        # Get user's burn rate from profile
+        profile = self.get_user_profile(server, nick)
+        burn_rate_per_mille = profile["burn_rate"]  # ‰/hour
+
+        # Apply burn-off rate
+        burned_alcohol = time_elapsed_hours * burn_rate_per_mille
+        current_bac = max(0.0, current_bac - burned_alcohol)
+
+        return current_bac
+
+    def _calculate_sober_time(
+        self, server: str, nick: str, current_bac: float
+    ) -> Optional[str]:
+        """
+        Calculate estimated time when BAC reaches 0.
+
+        Args:
+            server: Server name
+            nick: User nickname
+            current_bac: Current BAC value
+
+        Returns:
+            Formatted time string or None if already sober
+        """
+        if current_bac <= 0.0:
+            return None
+
+        # Get user's burn rate from profile
+        profile = self.get_user_profile(server, nick)
+        burn_rate_per_mille = profile["burn_rate"]  # ‰/hour
+
+        # Calculate hours until sober
+        hours_until_sober = current_bac / burn_rate_per_mille
+        sober_datetime = datetime.now() + timedelta(hours=hours_until_sober)
+
+        return sober_datetime.strftime("%H:%M")
+
+    def _calculate_driving_time(
+        self, server: str, nick: str, current_bac: float
+    ) -> Optional[str]:
+        """
+        Calculate estimated time when BAC reaches legal driving limit (0.5‰).
+
+        Args:
+            server: Server name
+            nick: User nickname
+            current_bac: Current BAC value
+
+        Returns:
+            Formatted time string or None if already below limit
+        """
+        legal_limit = 0.5  # ‰ - Finnish legal driving limit
+
+        if current_bac <= legal_limit:
+            return None
+
+        # Get user's burn rate from profile
+        profile = self.get_user_profile(server, nick)
+        burn_rate_per_mille = profile["burn_rate"]  # ‰/hour
+
+        # Calculate hours until legal limit
+        bac_above_limit = current_bac - legal_limit
+        hours_until_driving = bac_above_limit / burn_rate_per_mille
+        driving_datetime = datetime.now() + timedelta(hours=hours_until_driving)
+
+        return driving_datetime.strftime("%H:%M")
+
+    def add_drink(
+        self, server: str, nick: str, drink_grams: float = None
+    ) -> Dict[str, float]:
+        """
+        Add a drink to user's BAC calculation.
+
+        Args:
+            server: Server name
+            nick: User nickname
+            drink_grams: Grams of pure alcohol (default: standard drink)
+
+        Returns:
+            Updated BAC information
+        """
+        if drink_grams is None:
+            drink_grams = self.STANDARD_DRINK_GRAMS
+
+        bac_data = self._load_bac_data()
+        user_key = f"{server}:{nick}"
+
+        if user_key not in bac_data:
+            bac_data[user_key] = {
+                "current_bac": 0.0,
+                "peak_bac": 0.0,
+                "last_update_time": time.time(),
+                "last_drink": datetime.now().isoformat(),
+                "pending_alcohol": 0.0,
+            }
+
+        user_data = bac_data[user_key]
+
+        # Update current BAC (burn off any alcohol since last update)
+        current_bac = self._calculate_current_bac(server, nick, user_data)
+
+        # Calculate BAC increase using corrected Widmark formula
+        # BAC (%) = alcohol_grams / (body_weight_kg × r × 0.8)
+        # BAC (‰) = [alcohol_grams / (body_weight_kg × r × 0.8)] × 10
+        profile = self.get_user_profile(server, nick)
+        body_water = (
+            self._get_body_water_constant(profile["sex"]) * profile["weight_kg"]
+        )
+        added_bac = drink_grams / (body_water * 0.8)  # ‰
+
+        # Calculate peak BAC (current + new drink, assuming immediate absorption for peak)
+        peak_bac = current_bac + added_bac
+
+        # For more realism, we could implement absorption over time,
+        # but for simplicity, we'll assume drinks are consumed and absorbed immediately
+        current_bac = peak_bac
+        user_data["peak_bac"] = max(user_data.get("peak_bac", 0.0), peak_bac)
+
+        # Update timestamps
+        user_data["current_bac"] = current_bac
+        user_data["last_update_time"] = time.time()
+        user_data["last_drink"] = datetime.now().isoformat()
+
+        self._save_bac_data(bac_data)
+
+        return self.get_user_bac(server, nick)
+
+    def format_bac_message(self, server: str, nick: str) -> str:
+        """
+        Format BAC information for display to user.
+
+        Args:
+            server: Server name
+            nick: User nickname
+
+        Returns:
+            Formatted BAC message
+        """
+        bac_info = self.get_user_bac(server, nick)
+
+        current = bac_info["current_bac"]
+        peak = bac_info["peak_bac"]
+        sober_time = bac_info["sober_time"]
+        driving_time = bac_info["driving_time"]
+
+        if current <= 0.0:
+            return f"{nick}: 🍺 Promilles: 0.00‰ (sober)"
+
+        message = f"{nick}: 🍺 Promilles: {current:.2f}‰"
+
+        if peak > current:
+            message += f" | Peak: {peak:.2f}‰"
+
+        if sober_time:
+            message += f" | Sober: ~{sober_time}"
+
+        if driving_time:
+            message += f" | Driving: ~{driving_time}"
+
+        # Add warnings for high BAC
+        if current >= 1.0:
+            message += " ⚠️ Careful!"
+        elif current >= 0.5:
+            message += " 🍺 Feeling good!"
+
+        return message
+
+    def reset_user_bac(self, server: str, nick: str):
+        """
+        Reset user's BAC (for testing or manual override).
+
+        Args:
+            server: Server name
+            nick: User nickname
+        """
+        bac_data = self._load_bac_data()
+        user_key = f"{server}:{nick}"
+
+        if user_key in bac_data:
+            del bac_data[user_key]
+            self._save_bac_data(bac_data)
+
+    def get_bac_stats(self, server: str) -> Dict[str, any]:
+        """
+        Get BAC statistics for a server.
+
+        Args:
+            server: Server name
+
+        Returns:
+            Statistics about active BAC users
+        """
+        bac_data = self._load_bac_data()
+        server_prefix = f"{server}:"
+
+        active_users = []
+        for user_key, user_data in bac_data.items():
+            if user_key.startswith(server_prefix):
+                nick = user_key[len(server_prefix) :]  # noqa E203
+                current_bac = self._calculate_current_bac(server, nick, user_data)
+                if current_bac > 0.0:
+                    active_users.append(
+                        {
+                            "nick": nick,
+                            "bac": round(current_bac, 2),
+                            "peak": round(user_data.get("peak_bac", 0.0), 2),
+                        }
+                    )
+
+        # Sort by BAC descending
+        active_users.sort(key=lambda x: x["bac"], reverse=True)
+
+        return {
+            "active_users": active_users[:10],  # Top 10
+            "total_active": len(active_users),
+        }
