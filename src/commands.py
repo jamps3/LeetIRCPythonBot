@@ -2435,10 +2435,11 @@ def krak_command(context: CommandContext, bot_functions):
             # Set weight and sex
             bac_tracker.set_user_profile(server_name, nick, weight_kg=weight, sex=sex)
 
-            # Calculate default burn rate for the sex
-            default_burn_rate = bac_tracker._get_default_burn_rate(sex)
+            # Get the calculated burn rate (now weight-based)
+            profile = bac_tracker.get_user_profile(server_name, nick)
+            calculated_burn_rate = profile["burn_rate"]
 
-            return f"✅ BAC profile set: {weight}kg, {sex.upper()} (burn rate: {default_burn_rate}‰/h)"
+            return f"✅ BAC profile set: {weight}kg, {sex.upper()} (burn rate: {calculated_burn_rate}‰/h)"
 
         except ValueError:
             return "❌ Invalid weight format. Use: !krak <weight_kg> <m/f>"

@@ -121,12 +121,14 @@ class BACTacker:
 
         profile = profiles.get(user_key, {})
 
+        weight_kg = profile.get("weight_kg", self.DEFAULT_WEIGHT_KG)
+        sex = profile.get("sex", self.DEFAULT_SEX)
         return {
-            "weight_kg": profile.get("weight_kg", self.DEFAULT_WEIGHT_KG),
-            "sex": profile.get("sex", self.DEFAULT_SEX),
+            "weight_kg": weight_kg,
+            "sex": sex,
             "burn_rate": profile.get(
                 "burn_rate",
-                self._get_default_burn_rate(profile.get("sex", self.DEFAULT_SEX)),
+                self._get_default_burn_rate(sex, weight_kg),
             ),
         }
 
@@ -138,13 +140,31 @@ class BACTacker:
             else self.DEFAULT_BODY_WATER_FEMALE
         )
 
-    def _get_default_burn_rate(self, sex: str) -> float:
-        """Get default burn rate based on sex."""
-        return (
-            self.DEFAULT_BURN_RATE_MALE
-            if sex.lower() == "m"
-            else self.DEFAULT_BURN_RATE_FEMALE
-        )
+    def _get_default_burn_rate(self, sex: str, weight_kg: float = None) -> float:
+        """Get default burn rate based on sex and optionally weight."""
+        if weight_kg is None:
+            # Fallback to fixed rates for backward compatibility
+            return (
+                self.DEFAULT_BURN_RATE_MALE
+                if sex.lower() == "m"
+                else self.DEFAULT_BURN_RATE_FEMALE
+            )
+
+        # Calculate weight-based burn rate
+        # Base rates per kg of body weight (approximate values)
+        base_rate_per_kg_male = 0.0020  # ‰/h per kg for men
+        base_rate_per_kg_female = 0.0017  # ‰/h per kg for women
+
+        if sex.lower() == "m":
+            burn_rate = weight_kg * base_rate_per_kg_male
+        else:
+            burn_rate = weight_kg * base_rate_per_kg_female
+
+        # Clamp to reasonable ranges
+        min_rate = 0.08  # minimum 0.08‰/h
+        max_rate = 0.25  # maximum 0.25‰/h
+
+        return round(max(min_rate, min(max_rate, burn_rate)), 2)
 
     def get_user_bac(self, server: str, nick: str) -> Dict[str, float]:
         """
