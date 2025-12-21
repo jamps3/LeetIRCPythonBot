@@ -69,7 +69,9 @@ class TestBACTacker:
         profile = self.bac_tracker.get_user_profile("testserver", "testuser")
         assert profile["weight_kg"] == 80
         assert profile["sex"] == "f"
-        assert profile["burn_rate"] == 0.13  # Female burn rate
+        assert (
+            profile["burn_rate"] == 0.14
+        )  # Female burn rate: 0.0017 * 80kg = 0.136 → rounded to 0.14
 
     def test_set_user_profile_burn_rate(self):
         """Test setting custom burn rate."""
