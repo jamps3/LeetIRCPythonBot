@@ -67,6 +67,12 @@ except ImportError as e:
     logger.warning(f"YouTube service not available: {e}")
     create_youtube_service = None
 
+try:
+    from services.alko_service import create_alko_service
+except ImportError as e:
+    logger.warning(f"Alko service not available: {e}")
+    create_alko_service = None
+
 # Initialize X API client
 try:
     from xdk import Client as XClient
@@ -306,6 +312,19 @@ class BotManager:
             )
         else:
             self.crypto_service = None
+
+        # Initialize Alko service
+        if create_alko_service is not None:
+            self.alko_service = create_alko_service()
+            self.logger.info(
+                "🍺 Alko service initialized.",
+                fallback_text="Alko service initialized.",
+            )
+            # Pass Alko service to drink tracker for BAC calculations
+            if hasattr(self.drink_tracker, "set_alko_service"):
+                self.drink_tracker.set_alko_service(self.alko_service)
+        else:
+            self.alko_service = None
 
         # Initialize nanoleet detector
         self.leet_detector = create_leet_detector()
@@ -774,18 +793,31 @@ class BotManager:
         # Check kraksdebug configuration for notifications
         kraksdebug_config = self.data_manager.load_kraksdebug_state()
 
-        # Send drink word notifications to the channel where the message originated
-        if (
-            drink_words_found
-            and target.startswith("#")
-            and kraksdebug_config.get("channels")
-        ):
-            # Check if the current channel is configured for notifications
-            if target in kraksdebug_config["channels"]:
-                server = context["server"]
+        # Update BAC tracking for drink words FIRST
+        if drink_words_found:
+            try:
+                # Add each drink to BAC tracker with actual alcohol content
+                for drink_word, specific_drink, alcohol_grams in drink_words_found:
+                    self.bac_tracker.add_drink(server_name, sender, alcohol_grams)
+            except Exception as e:
+                self.logger.error(f"Error updating BAC for {sender}: {e}")
 
-                # Send combined BAC and drink word notification to the originating channel
-                bac_message = self.bac_tracker.format_bac_message(server_name, sender)
+        # Send drink word notifications to the channel where the message originated
+        try:
+            if (
+                drink_words_found
+                and target.startswith("#")
+                and kraksdebug_config.get("channels")
+            ):
+                # Check if the current channel is configured for notifications
+                if target in kraksdebug_config["channels"]:
+                    server = context["server"]
+
+                    # Send combined BAC and drink word notification to the originating channel
+                    # BAC message now shows BAC AFTER the drink has been consumed
+                    bac_message = self.bac_tracker.format_bac_message(
+                        server_name, sender
+                    )
 
                 # Combine BAC message with drink word information
                 combined_message = bac_message
@@ -838,13 +870,6 @@ class BotManager:
                     self.logger.warning(
                         f"Failed to send combined notice to {target}: {e}"
                     )
-
-        # Update BAC tracking for drink words
-        if drink_words_found:
-            try:
-                # Add each drink to BAC tracker with actual alcohol content
-                for drink_word, specific_drink, alcohol_grams in drink_words_found:
-                    self.bac_tracker.add_drink(server_name, sender, alcohol_grams)
 
                 # Send combined BAC and drink word notification to user (only when nick_notices is enabled and nick is whitelisted)
                 # Check if drink word detection notices to nicks is enabled
@@ -913,8 +938,8 @@ class BotManager:
                         self.logger.warning(
                             f"Failed to send combined notice to {sender}: {e}"
                         )
-            except Exception as e:
-                self.logger.error(f"Error updating BAC for {sender}: {e}")
+        except Exception as e:
+            self.logger.error(f"Error in drink word notification: {e}")
 
         # Update tamagotchi (only if enabled)
         if self.tamagotchi_enabled:
@@ -956,6 +981,7 @@ class BotManager:
             "send_crypto_price": self._send_crypto_price,
             "load_leet_winners": self._load_leet_winners,
             "save_leet_winners": self._save_leet_winners,
+            "get_alko_product": self._get_alko_product,
             "send_weather": self._send_weather,
             "send_scheduled_message": self._send_scheduled_message,
             "get_eurojackpot_numbers": self._get_eurojackpot_numbers,
@@ -1970,6 +1996,8 @@ class BotManager:
             "get_eurojackpot_results": self._get_eurojackpot_results,
             "search_youtube": self._search_youtube,
             "handle_ipfs_command": self._handle_ipfs_command,
+            "load_leet_winners": self._load_leet_winners,
+            "save_leet_winners": self._save_leet_winners,
             "chat_with_gpt": lambda msg, sender="Console": (
                 self.gpt_service.chat(msg, sender)
                 if self.gpt_service
@@ -2184,23 +2212,26 @@ class BotManager:
 
     def _load_leet_winners(self):
         """Load leet winners data."""
-        try:
-            import json
-
-            with open("leet_winners.json", "r") as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return {}
+        return self.data_manager.load_leet_winners_state()
 
     def _save_leet_winners(self, data):
         """Save leet winners data."""
-        try:
-            import json
+        self.data_manager.save_leet_winners_state(data)
 
-            with open("leet_winners.json", "w") as f:
-                json.dump(data, f, indent=2)
+    def _get_alko_product(self, query: str) -> str:
+        """Get Alko product information."""
+        if not self.alko_service:
+            return "🍺 Alko service not available"
+
+        try:
+            product = self.alko_service.get_product_info(query)
+            if product:
+                return self.alko_service.format_product_info(product)
+            else:
+                return f"🍺 Product '{query}' not found"
         except Exception as e:
-            self.logger.error(f"Error saving leet winners: {e}")
+            self.logger.error(f"Error getting Alko product: {e}")
+            return f"🍺 Error retrieving product information: {str(e)}"
 
     def _send_response(self, server, target: str, message: str):
         """Send a response using NOTICE or PRIVMSG based on USE_NOTICES setting."""

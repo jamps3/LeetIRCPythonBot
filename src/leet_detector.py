@@ -13,7 +13,7 @@ import time
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from logger import get_logger
+import logger
 
 
 class LeetDetector:
@@ -30,7 +30,7 @@ class LeetDetector:
 
     def __init__(self, leet_history_file: str = "data/leet_detections.json"):
         """Initialize the leet detector."""
-        self.logger = get_logger("LeetDetector")
+        self.logger = logger.get_logger("LeetDetector")
         self.leet_history_file = leet_history_file
 
         # Achievement levels and their criteria

@@ -10,20 +10,25 @@ from collections import Counter
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+import logger
+
 from .data_manager import DataManager
 
 
 class DrinkTracker:
     """Enhanced drink word tracking with specific drinks and timestamps."""
 
-    def __init__(self, data_manager: DataManager):
+    def __init__(self, data_manager: DataManager, alko_service=None):
         """
         Initialize the drink tracker.
 
         Args:
             data_manager: DataManager instance for data persistence
+            alko_service: Optional AlkoService instance for accurate alcohol calculations
         """
         self.data_manager = data_manager
+        self.alko_service = alko_service
+        self.logger = logger.get_logger("DrinkTracker")
 
         # Define drink words to track
         self.drink_words = {
@@ -56,6 +61,15 @@ class DrinkTracker:
         self.DEFAULT_VOLUME_L = 0.33  # ~33cl standard drink
         self.DEFAULT_ABV = 4.7  # ABV for standard drink
         self.ALCOHOL_DENSITY = 0.789  # g/ml density of pure ethanol
+
+    def set_alko_service(self, alko_service):
+        """
+        Set the Alko service for accurate alcohol calculations.
+
+        Args:
+            alko_service: AlkoService instance or None
+        """
+        self.alko_service = alko_service
 
     def process_message(
         self, server: str, nick: str, text: str
@@ -172,6 +186,9 @@ class DrinkTracker:
         """
         Parse alcohol content from drink description.
 
+        First tries to look up the drink in Alko database for accurate info,
+        falls back to parsing from description text.
+
         Supports formats like:
         - "koti-maista neipa 5,0% 5,0L"
         - "karhu 4,7%"
@@ -184,19 +201,56 @@ class DrinkTracker:
         Returns:
             Grams of pure alcohol
         """
+        self.logger.debug(f"Processing drink: '{drink_description}'")
+
         if drink_description == "unspecified":
             # Default drink - use standard drink grams
+            self.logger.debug(f"Using default drink: {self.STANDARD_DRINK_GRAMS}g")
             return self.STANDARD_DRINK_GRAMS
+
+        # Try to get accurate info from Alko service first
+        if self.alko_service:
+            try:
+                self.logger.debug(
+                    f"Alko service available, looking up '{drink_description}'..."
+                )
+                product = self.alko_service.get_product_info(drink_description)
+                if product and product.get("alcohol_grams"):
+                    alcohol_grams = float(product["alcohol_grams"])
+                    self.logger.debug(
+                        f"Found in Alko: {alcohol_grams}g - returning this value"
+                    )
+                    return alcohol_grams
+                else:
+                    self.logger.debug(f"Not found in Alko, product result: {product}")
+                    # Debug: check if service has any products at all
+                    try:
+                        stats = self.alko_service.get_stats()
+                        self.logger.debug(f"Alko service stats: {stats}")
+                    except Exception as stats_e:
+                        self.logger.warning(f"Error getting Alko stats: {stats_e}")
+            except Exception as e:
+                # Log error but continue with fallback parsing
+                self.logger.warning(f"Error looking up in Alko: {e}")
+                import traceback
+
+                self.logger.debug(f"Full traceback: {traceback.format_exc()}")
         else:
-            # Parse volume and ABV from description
-            volume_l = self._parse_volume(drink_description)
-            abv = self._parse_abv(drink_description)
+            self.logger.debug("Alko service NOT available")
 
-            # Calculate grams of pure alcohol
-            # Formula: volume_L × (ABV/100) × alcohol_density_g/ml × 1000
-            alcohol_grams = volume_l * (abv / 100) * self.ALCOHOL_DENSITY * 1000
+        # Fallback: Parse volume and ABV from description
+        self.logger.debug(f"Using fallback parsing for '{drink_description}'")
+        volume_l = self._parse_volume(drink_description)
+        abv = self._parse_abv(drink_description)
 
-            return round(alcohol_grams, 2)
+        # Calculate grams of pure alcohol
+        # Formula: volume_L × (ABV/100) × alcohol_density_g/ml × 1000
+        alcohol_grams = volume_l * (abv / 100) * self.ALCOHOL_DENSITY * 1000
+
+        self.logger.debug(
+            f"Fallback calculation: volume={volume_l}L, abv={abv}%, result={alcohol_grams:.1f}g"
+        )
+        return round(alcohol_grams, 2)
 
     def _parse_abv(self, text: str) -> float:
         """

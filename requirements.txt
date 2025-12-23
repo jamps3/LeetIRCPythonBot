@@ -6,6 +6,7 @@ google-api-python-client>=2.181.0
 isodate>=0.7.2
 openai>=1.107.3
 pandas>=2.3.2
+openpyxl>=3.1.2
 python-dotenv>=1.1.1
 pytz>=2025.2
 requests>=2.32.5

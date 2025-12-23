@@ -25,6 +25,7 @@ class BACTacker:
             data_manager: DataManager instance for data persistence
         """
         self.data_manager = data_manager
+        self.logger = logger.get_logger("BACTacker")
 
         # BAC calculation constants
         self.ABSORPTION_TIME_MINUTES = 20  # Alcohol peaks in ~20 minutes
@@ -321,6 +322,7 @@ class BACTacker:
                 "peak_bac": 0.0,
                 "last_update_time": time.time(),
                 "last_drink": datetime.now().isoformat(),
+                "last_drink_grams": drink_grams,
                 "pending_alcohol": 0.0,
             }
 
@@ -337,8 +339,8 @@ class BACTacker:
         )
         added_bac = drink_grams / (body_water)  # ‰
 
-        logger.debug(
-            f"[BAC DEBUG] drink_grams={drink_grams:.3f} body_water={body_water:.3f} added_bac={added_bac:.3f}"
+        self.logger.debug(
+            f"drink_grams={drink_grams:.3f} body_water={body_water:.3f} added_bac={added_bac:.3f} profile={profile}"
         )
 
         # Calculate peak BAC (current + new drink, assuming immediate absorption for peak)
@@ -349,14 +351,26 @@ class BACTacker:
         current_bac = peak_bac
         user_data["peak_bac"] = max(user_data.get("peak_bac", 0.0), peak_bac)
 
-        # Update timestamps
+        # Update timestamps and last drink info
         user_data["current_bac"] = current_bac
         user_data["last_update_time"] = time.time()
         user_data["last_drink"] = datetime.now().isoformat()
+        user_data["last_drink_grams"] = drink_grams
 
         self._save_bac_data(bac_data)
 
-        return self.get_user_bac(server, nick)
+        # Return the BAC data directly instead of calling get_user_bac again
+        # to avoid any timing issues with the burn-off calculation
+        sober_time = self._calculate_sober_time(server, nick, current_bac)
+        driving_time = self._calculate_driving_time(server, nick, current_bac)
+
+        return {
+            "current_bac": round(current_bac, 2),
+            "peak_bac": round(peak_bac, 2),
+            "sober_time": sober_time,
+            "driving_time": driving_time,
+            "last_drink": user_data.get("last_drink"),
+        }
 
     def format_bac_message(self, server: str, nick: str) -> str:
         """
@@ -369,6 +383,10 @@ class BACTacker:
         Returns:
             Formatted BAC message
         """
+        self.logger.debug(
+            f"Formatting BAC message for server='{server}', nick='{nick}'"
+        )
+
         bac_info = self.get_user_bac(server, nick)
 
         current = bac_info["current_bac"]
@@ -376,13 +394,36 @@ class BACTacker:
         sober_time = bac_info["sober_time"]
         driving_time = bac_info["driving_time"]
 
+        # Get last drink grams from stored data
+        bac_data = self._load_bac_data()
+        user_key = f"{server}:{nick}"
+        user_data = bac_data.get(user_key, {})
+        last_drink_grams = user_data.get("last_drink_grams")
+
+        self.logger.debug(
+            f"user_key='{user_key}', last_drink_grams={last_drink_grams}, bac_data_keys={list(bac_data.keys())}"
+        )
+
         if current <= 0.0:
-            return f"{nick}: 🍺 Promilles: 0.00‰ (sober)"
+            message = f"{nick}: 🍺 Promilles: 0.00‰ (sober)"
+            # Include last drink alcohol content even when sober
+            if last_drink_grams:
+                message += f" | Last: {last_drink_grams:.1f}g"
+                self.logger.debug(
+                    f"Added last drink grams to sober message: {last_drink_grams}"
+                )
+            else:
+                self.logger.debug("No last_drink_grams found for sober user")
+            return message
 
         message = f"{nick}: 🍺 Promilles: {current:.2f}‰"
 
         if peak > current:
             message += f" | Peak: {peak:.2f}‰"
+
+        # Include last drink alcohol content if available
+        if last_drink_grams:
+            message += f" | Last: {last_drink_grams:.1f}g"
 
         if sober_time:
             message += f" | Sober: ~{sober_time}"

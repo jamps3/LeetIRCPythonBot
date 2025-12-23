@@ -839,14 +839,17 @@ def url_command(context: CommandContext, bot_functions):
 @command(
     "leetwinners",
     description="Show top leet winners by category",
-    usage="!leetwinners",
-    examples=["!leetwinners"],
+    usage="!leetwinners [last]",
+    examples=["!leetwinners", "!leetwinners last"],
 )
 def leetwinners_command(context: CommandContext, bot_functions):
     """Show top-3 leet winners by category (first, last, multileet)."""
     load_leet_winners = bot_functions.get("load_leet_winners")
     if not load_leet_winners:
         return "Leet winners service not available"
+
+    # Check for "last" parameter
+    show_today = "last" in (context.args or [])
 
     # Expected structure: { winner: {category: count, ...}, ... }
     data = load_leet_winners() or {}
@@ -888,7 +891,10 @@ def leetwinners_command(context: CommandContext, bot_functions):
 
     # Build response with optional start date
     if winners_text:
-        response = f"𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼: {winners_text}"
+        if show_today:
+            response = f"Last 𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼: {winners_text}"
+        else:
+            response = f"𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼: {winners_text}"
         if start_date:
             response += f" (since {start_date})"
         return response
@@ -2347,6 +2353,38 @@ def kraksdebug_command(context: CommandContext, bot_functions):
 
 
 @command(
+    "alko",
+    description="Search Alko product information",
+    usage="!alko <drink name>",
+    examples=["!alko karhu", "!alko lapin kulta", "!alko koskenkorva"],
+    requires_args=True,
+)
+def alko_command(context: CommandContext, bot_functions):
+    """Search for drink information from Alko product database."""
+    if not context.args_text:
+        return "Usage: !alko <drink name>"
+
+    query = context.args_text.strip()
+    if not query:
+        return "Usage: !alko <drink name>"
+
+    # Get the Alko service from bot functions
+    get_alko_product = bot_functions.get("get_alko_product")
+    if not get_alko_product:
+        return "🍺 Alko service not available"
+
+    try:
+        # Search for the product
+        result = get_alko_product(query)
+        return result
+    except Exception as e:
+        logger = bot_functions.get("log")
+        if logger:
+            logger.error(f"Error in alko command: {e}")
+        return f"🍺 Error searching for product: {str(e)}"
+
+
+@command(
     "krak",
     description="Set BAC calculation profile or view current BAC",
     usage="!krak [weight_kg m/f | burn_rate] or !krak (view current BAC)",
@@ -2382,17 +2420,36 @@ def krak_command(context: CommandContext, bot_functions):
         bac_info = bac_tracker.get_user_bac(server_name, nick)
         profile = bac_tracker.get_user_profile(server_name, nick)
 
+        # Get last drink grams from stored data
+        bac_data = bac_tracker._load_bac_data()
+        user_key = f"{server_name}:{nick}"
+        user_data = bac_data.get(user_key, {})
+        last_drink_grams = user_data.get("last_drink_grams")
+
         if bac_info["current_bac"] == 0.0 and not any(profile.values()):
-            return "🍺 No BAC data yet. Use !krak <weight_kg> <m/f> to set your profile for accurate calculations."
+            response = "🍺 No BAC data yet. Use !krak <weight_kg> <m/f> to set your profile for accurate calculations."
+            # Include last drink alcohol content even when no profile
+            if last_drink_grams:
+                response += f" | Last: {last_drink_grams:.1f}g"
+            return response
 
         response_parts = []
 
         # Show current BAC if any
         if bac_info["current_bac"] > 0.0:
             sober_time = bac_info.get("sober_time", "Unknown")
+            driving_time = bac_info.get("driving_time")
             response_parts.append(f"🍺 Current BAC: {bac_info['current_bac']:.2f}‰")
+
+            # Include last drink alcohol content if available
+            if last_drink_grams:
+                response_parts.append(f"Last: {last_drink_grams:.1f}g")
+
             if sober_time:
                 response_parts.append(f"Sober by: ~{sober_time}")
+
+            if driving_time:
+                response_parts.append(f"Driving: ~{driving_time}")
 
         # Show profile info
         profile_info = []

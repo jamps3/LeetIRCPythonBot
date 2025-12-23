@@ -370,6 +370,31 @@ class DataManager:
         # Save the full state file
         self.save_json(self.state_file, state_data)
 
+    def load_leet_winners_state(self) -> Dict[str, Any]:
+        """Load leet winners state data from merged state.json."""
+        state_data = self.load_json(self.state_file)
+        return state_data.get("leet_winners", {})
+
+    def save_leet_winners_state(self, data: Dict[str, Any]):
+        """Save leet winners state data to merged state.json."""
+        # Load the full state file
+        state_data = self.load_json(self.state_file)
+        if not state_data:
+            # Initialize with default structure if file is empty or corrupted
+            state_data = {
+                "tamagotchi": {},
+                "subscriptions": {},
+                "fmi_warnings": {"seen_hashes": [], "seen_data": []},
+                "otiedote": {"latest_release": 0},
+                "drink_tracking_opt_out": {},
+            }
+
+        # Update the leet_winners section
+        state_data["leet_winners"] = data
+
+        # Save the full state file
+        self.save_json(self.state_file, state_data)
+
     def load_state(self) -> Dict[str, Any]:
         """Load the full state file."""
         return self.load_json(self.state_file)
