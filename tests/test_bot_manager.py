@@ -55,46 +55,20 @@ class DummyDetector:
 def manager(monkeypatch):
     # Patch logger
     monkeypatch.setattr(logger, "get_logger", lambda name: DummyLogger(), raising=True)
-    # Avoid external services
-    monkeypatch.setattr(bm, "get_api_key", lambda k: "", raising=True)
-    monkeypatch.setattr(bm, "WeatherService", None, raising=True)
-    monkeypatch.setattr(bm, "GPTService", None, raising=True)
-    monkeypatch.setattr(bm, "create_electricity_service", None, raising=True)
-    monkeypatch.setattr(bm, "create_youtube_service", None, raising=True)
-    monkeypatch.setattr(bm, "create_crypto_service", None, raising=True)
-    monkeypatch.setattr(bm, "create_fmi_warning_service", None, raising=True)
-    monkeypatch.setattr(bm, "create_otiedote_service", None, raising=True)
-    # Lightweight components
+
+    # Avoid external services by patching the service_manager
     monkeypatch.setattr(
-        bm,
-        "DataManager",
+        "service_manager.create_service_manager", lambda: Mock(), raising=True
+    )
+
+    # Lightweight components for word tracking
+    monkeypatch.setattr(
+        "word_tracking.DataManager",
         lambda *args, **kwargs: SimpleNamespace(migrate_from_pickle=lambda: True),
         raising=True,
     )
-    monkeypatch.setattr(
-        bm,
-        "DrinkTracker",
-        lambda dm: SimpleNamespace(process_message=lambda **k: None),
-        raising=True,
-    )
-    monkeypatch.setattr(
-        bm,
-        "GeneralWords",
-        lambda dm: SimpleNamespace(process_message=lambda **k: None),
-        raising=True,
-    )
-    monkeypatch.setattr(
-        bm,
-        "TamagotchiBot",
-        lambda dm: SimpleNamespace(process_message=lambda **k: (False, None)),
-        raising=True,
-    )
-    monkeypatch.setattr(bm, "Lemmatizer", lambda: object(), raising=True)
-    monkeypatch.setattr(
-        bm, "create_leet_detector", lambda: DummyDetector(), raising=True
-    )
 
-    # Construct
+    # Construct bot manager (this will initialize all managers)
     m = bm.BotManager("MyBot")
     return m
 
