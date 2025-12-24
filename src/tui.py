@@ -1270,6 +1270,15 @@ class TUIManager:
     def __init__(self, bot_manager=None):
         self.bot_manager = bot_manager
 
+    def set_bot_manager(self, bot_manager):
+        """Set the bot manager after initialization."""
+        self.bot_manager = bot_manager
+
+        # Set up logger hook immediately when bot_manager is set
+        if not hasattr(self, "_hook_set") or not self._hook_set:
+            logger.set_tui_hook(self.add_log_entry)
+            self._hook_set = True
+
         # Configuration
         self.log_buffer_size = int(os.getenv("LOG_BUFFER_SIZE", "1000"))
 

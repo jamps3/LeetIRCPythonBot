@@ -501,8 +501,12 @@ class AlkoService:
             elif "ml" in size_str:
                 return value / 1000  # Milliliters to liters
             else:
-                # Assume liters if no unit specified
-                return value
+                # Check if the value is obviously in milliliters (e.g., 330, 500, 750)
+                if value > 10:  # Values over 10 are likely in ml, not liters
+                    return value / 1000
+                else:
+                    # Assume liters if no unit specified and value <= 10
+                    return value
 
         except Exception as e:
             logger.warning(f"Failed to parse bottle size '{size_str}': {e}")

@@ -179,8 +179,29 @@ def main():
     )
     main_logger.log("-" * 60, "INFO")
 
-    # Create and start the bot manager
+    # Initialize TUI early for immediate visual feedback (before BotManager)
+    tui_manager = None
+    if not use_console:
+        main_logger.log("Starting TUI interface...", "INFO")
+        try:
+            from tui import TUIManager
+
+            # Create TUI manager early (will be updated with bot_manager after creation)
+            tui_manager = TUIManager()
+        except ImportError as e:
+            main_logger.error(f"TUI not available: {e}")
+            main_logger.log("Falling back to console interface...", "INFO")
+            use_console = True  # Force console mode
+
+    # Create and start the bot manager (this initializes console manager immediately)
     bot_manager = BotManager(bot_name, console_mode=use_console)
+
+    # Set bot manager in TUI and start TUI immediately (before bot startup)
+    if tui_manager:
+        tui_manager.set_bot_manager(bot_manager)
+        # Run the TUI immediately (blocking) - this will show TUI and capture all subsequent logs
+        tui_manager.run()
+        return 0
 
     try:
         # Decide whether to use TUI or console interface
@@ -203,46 +224,13 @@ def main():
             # Wait for shutdown
             bot_manager.wait_for_shutdown()
         else:
-            main_logger.log("Starting TUI interface...", "INFO")
-            main_logger.log(
-                "Starting TUI in 5 seconds... Press Ctrl+C to cancel.",
-                "INFO",
-            )
+            # Start the bot in the background
+            if not bot_manager.start():
+                main_logger.error("ERROR: Failed to start bot manager")
+                return 1
 
-            # Import TUI here to avoid import errors if urwid is not available
-            try:
-                from tui import TUIManager
-
-                # Create TUI manager with bot manager
-                tui_manager = TUIManager(bot_manager)
-
-                # Start the bot in the background
-                if not bot_manager.start():
-                    main_logger.error("ERROR: Failed to start bot manager")
-                    return 1
-
-                # Run the TUI (blocking)
-                tui_manager.run()
-
-            except ImportError as e:
-                main_logger.error(f"TUI not available: {e}")
-                main_logger.log("Falling back to console interface...", "INFO")
-
-                # Fallback to console
-                if not bot_manager.start():
-                    main_logger.error("ERROR: Failed to start bot manager")
-                    return 1
-
-                main_logger.log(
-                    "🚀 Bot started successfully! (Console mode)",
-                    "INFO",
-                    fallback_text="[START] Bot started successfully! (Console mode)",
-                )
-                main_logger.log("Press Ctrl+C to shutdown gracefully", "INFO")
-                main_logger.log("-" * 60, "INFO")
-
-                # Wait for shutdown
-                bot_manager.wait_for_shutdown()
+            # Run the TUI (blocking)
+            tui_manager.run()
 
     except KeyboardInterrupt:
         main_logger.log("" + "=" * 60, "INFO")

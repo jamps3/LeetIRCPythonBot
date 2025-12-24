@@ -485,11 +485,15 @@ def process_user_input(user_input: str, bot_manager, source: str = "Console") ->
 
             if command in ("exit", "quit"):
                 # Process exit commands synchronously for immediate effect
-                bot_functions = bot_manager._create_console_bot_functions()
+                bot_functions = (
+                    bot_manager.console_manager._create_console_bot_functions()
+                )
                 process_console_command(user_input, bot_functions)
                 return False  # Signal to exit
             else:  # Process all other commands asynchronously
-                bot_functions = bot_manager._create_console_bot_functions()
+                bot_functions = (
+                    bot_manager.console_manager._create_console_bot_functions()
+                )
 
                 def process_command_async():
                     try:
@@ -513,10 +517,12 @@ def process_user_input(user_input: str, bot_manager, source: str = "Console") ->
         try:
             channel_name = user_input[1:].strip()
             if channel_name:
-                result = bot_manager._console_join_or_part_channel(channel_name)
+                result = bot_manager.console_manager._console_join_or_part_channel(
+                    channel_name
+                )
                 logger.info(result)
             else:
-                result = bot_manager._get_channel_status()
+                result = bot_manager.console_manager._get_channel_status()
                 logger.info(result)
         except Exception as e:
             logger.error(f"{source} channel command error: {e}")
@@ -545,7 +551,7 @@ def process_user_input(user_input: str, bot_manager, source: str = "Console") ->
     # Handle regular channel messages
     else:
         try:
-            result = bot_manager._console_send_to_channel(user_input)
+            result = bot_manager.console_manager._console_send_to_channel(user_input)
             logger.info(result)
         except Exception as e:
             logger.error(f"{source} channel message error: {e}")
