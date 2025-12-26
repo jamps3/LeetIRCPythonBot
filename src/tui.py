@@ -1270,6 +1270,24 @@ class TUIManager:
     def __init__(self, bot_manager=None):
         self.bot_manager = bot_manager
 
+        # Always initialize basic attributes
+        self.log_buffer_size = int(os.getenv("LOG_BUFFER_SIZE", "1000"))
+        self.log_entries = deque(maxlen=self.log_buffer_size)
+        self.command_history = []
+        self.history_index = 0
+        self.current_filter = ""
+        self.current_view = "console"  # console, stats, config
+
+        # Initialize basic UI components for tests
+        self.header = urwid.Text("")
+        self.log_walker = urwid.SimpleListWalker([])
+        self.log_display = NonFocusableListBox(self.log_walker)
+        self.input_field = urwid.Edit("> Enter message (! for bot, - for AI): ")
+        self.log_file = None
+
+        if bot_manager:
+            self.set_bot_manager(bot_manager)
+
     def set_bot_manager(self, bot_manager):
         """Set the bot manager after initialization."""
         self.bot_manager = bot_manager
@@ -1278,16 +1296,6 @@ class TUIManager:
         if not hasattr(self, "_hook_set") or not self._hook_set:
             logger.set_tui_hook(self.add_log_entry)
             self._hook_set = True
-
-        # Configuration
-        self.log_buffer_size = int(os.getenv("LOG_BUFFER_SIZE", "1000"))
-
-        # State
-        self.log_entries = deque(maxlen=self.log_buffer_size)
-        self.command_history = []
-        self.history_index = 0
-        self.current_filter = ""
-        self.current_view = "console"  # console, stats, config
 
         # Initialize log file for immediate writing
         self.log_file = None

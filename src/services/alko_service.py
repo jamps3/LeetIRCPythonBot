@@ -493,15 +493,15 @@ class AlkoService:
 
             value = float(match.group(1))
 
-            # Determine unit
-            if "l" in size_str or "liter" in size_str:
-                return value  # Already in liters
+            # Determine unit - check for specific units first
+            if "ml" in size_str:
+                return value / 1000  # Milliliters to liters
             elif "cl" in size_str:
                 return value / 100  # Centiliters to liters
-            elif "ml" in size_str:
-                return value / 1000  # Milliliters to liters
+            elif "l" in size_str or "liter" in size_str:
+                return value  # Already in liters
             else:
-                # Check if the value is obviously in milliliters (e.g., 330, 500, 750)
+                # No unit specified - check if the value is obviously in milliliters (e.g., 330, 500, 750)
                 if value > 10:  # Values over 10 are likely in ml, not liters
                     return value / 1000
                 else:
@@ -517,10 +517,21 @@ class AlkoService:
         try:
             # Extract numeric value, handle formats like "4.7%", "4,7%", "4.7"
             alcohol_str = alcohol_str.strip()
+
             alcohol_str = alcohol_str.replace(
                 ",", "."
             )  # Handle European decimal separator
-            alcohol_str = alcohol_str.rstrip("%")  # Remove % sign
+            alcohol_str = alcohol_str.rstrip(
+                "%"
+            ).strip()  # Remove % sign and any trailing spaces
+
+            # Reject strings that end with "." or are invalid
+            if (
+                alcohol_str.endswith(".")
+                or not alcohol_str
+                or not alcohol_str.replace(".", "").replace(" ", "").isdigit()
+            ):
+                return None
 
             return float(alcohol_str)
         except Exception as e:
@@ -650,15 +661,19 @@ class AlkoService:
         """
         try:
             name = product.get("name", "Unknown")
-            bottle_size = product.get("bottle_size_raw", "Unknown")
+            bottle_size_raw = product.get("bottle_size_raw")
+            bottle_size = product.get("bottle_size")
             alcohol_percent = product.get("alcohol_percent")
             alcohol_grams = product.get("alcohol_grams")
             price = product.get("price")
 
             parts = [f"🍺 {name}"]
 
-            if bottle_size:
-                parts.append(f"Pullokoko: {bottle_size}")
+            # Use bottle_size_raw if available, otherwise format bottle_size
+            if bottle_size_raw:
+                parts.append(f"Pullokoko: {bottle_size_raw}")
+            elif bottle_size is not None:
+                parts.append(f"Pullokoko: {bottle_size} l")
 
             if alcohol_percent is not None:
                 parts.append(f"Alkoholi: {alcohol_percent}%")

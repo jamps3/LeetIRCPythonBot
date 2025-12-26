@@ -79,7 +79,10 @@ def test_tamagotchi_toggle_functionality():
                                     def mock_send_response(server, target, message):
                                         responses.append(message)
 
-                                    bot_manager._send_response = mock_send_response
+                                    # Mock the message handler's _send_response method
+                                    bot_manager.message_handler._send_response = (
+                                        mock_send_response
+                                    )
 
                                     # Test toggle command
                                     original_state = bot_manager.tamagotchi_enabled

@@ -605,12 +605,18 @@ def test_tilaa_command(temp_subscriptions_file):
 
 def test_otiedote_subscriptions(otiedote_setup):
     manager, fake_server, sent_messages = otiedote_setup
-    mock_subscriptions = Mock(
-        get_subscribers=lambda x: [
-            ("#general", "test_server"),
-            ("user1", "test_server"),
-        ]
-    )
+
+    # Create a proper mock that behaves like the subscriptions module
+    class MockSubscriptions:
+        def get_subscribers(self, topic):
+            if topic == "onnettomuustiedotteet":
+                return [
+                    ("#general", "test_server"),
+                    ("user1", "test_server"),
+                ]
+            return []
+
+    mock_subscriptions = MockSubscriptions()
 
     with patch.object(
         manager, "_get_subscriptions_module", return_value=mock_subscriptions

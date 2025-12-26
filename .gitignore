@@ -183,6 +183,10 @@ last_warning.json
 subscriptions.json
 otiedote.json
 
+# Alko service cache and data
+data/alko_cache.json
+data/alkon-hinnasto-tekstitiedostona.xlsx
+
 # Ignore backup files
 *backup
 *.backup

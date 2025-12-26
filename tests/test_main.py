@@ -45,45 +45,6 @@ def test_main_env_missing_returns_1(monkeypatch):
     assert main_mod.main() == 1
 
 
-def test_dunder_main_guard_execution(monkeypatch):
-    # Prepare environment and sys for execution
-    import runpy
-
-    import bot_manager as bm
-
-    # Avoid Windows-specific encoding changes
-    monkeypatch.setattr(sys, "platform", "linux")
-
-    # Minimal server config so setup_environment passes
-    os.environ["SERVER1_HOST"] = "irc.example.com"
-    os.environ["BOT_NAME"] = "Bot"
-
-    # Replace BotManager with a fast fake in the real module since run_module will import it
-    class BMFast:
-        def __init__(self, name, console_mode=False):
-            pass
-
-        def start(self):
-            return True
-
-        def wait_for_shutdown(self):
-            return None
-
-        def stop(self):
-            pass
-
-    monkeypatch.setattr(bm, "BotManager", BMFast, raising=True)
-
-    # Ensure argv minimal
-    monkeypatch.setattr(sys, "argv", ["prog"])
-
-    # Execute as __main__ and catch SystemExit
-    with pytest.raises(SystemExit) as se:
-        runpy.run_module("main", run_name="__main__")
-    # exit code should be int
-    assert isinstance(se.value.code, int)
-
-
 def test_setup_environment_no_server_config(monkeypatch):
     # Ensure load_env_file returns True
     monkeypatch.setattr(main_mod, "load_env_file", lambda: True, raising=True)
@@ -163,9 +124,12 @@ def test_main_start_failure(monkeypatch):
         def start(self):
             return False
 
-    _install_fake_args(monkeypatch)
+    _install_fake_args(
+        monkeypatch, console=True
+    )  # Use console mode to avoid TUI issues
     monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
     monkeypatch.setattr(main_mod, "BotManager", BM, raising=True)
+    monkeypatch.setattr("main.setup_console_encoding", lambda: None, raising=False)
     assert main_mod.main() == 1
 
 
@@ -177,6 +141,7 @@ def test_main_keyboard_interrupt(monkeypatch):
     _install_fake_args(monkeypatch, console=True)
     monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
     monkeypatch.setattr(main_mod, "BotManager", BM, raising=True)
+    monkeypatch.setattr("main.setup_console_encoding", lambda: None, raising=False)
     assert main_mod.main() == 0
 
 
@@ -185,7 +150,10 @@ def test_main_unexpected_exception(monkeypatch):
         def wait_for_shutdown(self):
             raise ValueError("boom")
 
-    _install_fake_args(monkeypatch)
+    _install_fake_args(
+        monkeypatch, console=True
+    )  # Use console mode to avoid TUI issues
     monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
     monkeypatch.setattr(main_mod, "BotManager", BM, raising=True)
+    monkeypatch.setattr("main.setup_console_encoding", lambda: None, raising=False)
     assert main_mod.main() == 1

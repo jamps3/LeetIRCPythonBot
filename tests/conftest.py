@@ -12,6 +12,15 @@ from types import ModuleType as _ModuleType
 
 import pytest as _pytest
 
+# Ensure warnings module is available for xdist workers (Python 3.14 compatibility)
+try:
+    import warnings
+
+    # Force the warnings module to be loaded and cached
+    _warnings.__name__
+except ImportError:
+    pass
+
 # Suppress specific deprecation warnings from TUI tests
 _warnings.filterwarnings(
     "ignore", "unittest.mock.Mock is not subclass of Widget", DeprecationWarning
