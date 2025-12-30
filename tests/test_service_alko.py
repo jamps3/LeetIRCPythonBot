@@ -667,6 +667,51 @@ class TestAlkoService:
         result = service.get_product_info("123456")
         assert result is None  # Should return None for non-existent product number
 
+    def test_search_products_with_bottle_size(self):
+        """Test search_products with bottle size filtering."""
+        service = AlkoService(data_dir=self.data_dir)
+
+        # Mock cached products with different bottle sizes
+        mock_products = [
+            {
+                "name": "Gambina",
+                "bottle_size": 0.75,
+                "alcohol_percent": 21.0,
+                "price": 12.48,
+            },
+            {
+                "name": "Gambina",
+                "bottle_size": 0.33,
+                "alcohol_percent": 21.0,
+                "price": 6.99,
+            },
+            {
+                "name": "Karhu",
+                "bottle_size": 0.33,
+                "alcohol_percent": 4.6,
+                "price": 2.49,
+            },
+        ]
+        service.products_cache = mock_products
+
+        # Test search with bottle size
+        result = service.search_products("gambina 0.75", limit=5)
+        assert len(result) == 1
+        assert result[0] == mock_products[0]  # Should match the 0.75L Gambina
+
+        # Test search with different bottle size
+        result = service.search_products("gambina 0.33", limit=5)
+        assert len(result) == 1
+        assert result[0] == mock_products[1]  # Should match the 0.33L Gambina
+
+        # Test search with bottle size that doesn't exist
+        result = service.search_products("gambina 1.0", limit=5)
+        assert len(result) == 0  # No Gambina with 1.0L size
+
+        # Test search name without size (should match all Gambina products)
+        result = service.search_products("gambina", limit=5)
+        assert len(result) == 2  # Both Gambina products
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

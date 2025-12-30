@@ -778,8 +778,8 @@ def command_eurojackpot(context, bot_functions):
 @command(
     "alko",
     description="Search Alko product information",
-    usage="!alko <drink name or product number>",
-    examples=["!alko karhu", "!alko lapin kulta", "!alko 319027"],
+    usage="!alko <drink name> [bottle size] or <product number>",
+    examples=["!alko karhu", "!alko lapin kulta", "!alko gambina 0.75", "!alko 319027"],
     requires_args=True,
 )
 def alko_command(context: CommandContext, bot_functions):

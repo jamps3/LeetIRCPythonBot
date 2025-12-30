@@ -605,10 +605,10 @@ class AlkoService:
 
     def search_products(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """
-        Search for products by name.
+        Search for products by name and/or bottle size.
 
         Args:
-            query: Search query (case-insensitive partial match)
+            query: Search query (case-insensitive partial match). Can include bottle size (e.g., "gambina 0.75")
             limit: Maximum number of results to return
 
         Returns:
@@ -631,14 +631,54 @@ class AlkoService:
 
         try:
             query_lower = query.lower().strip()
-            query_words = query_lower.split()
+
+            # Check if query contains a potential bottle size (numeric value)
+            import re
+
+            size_match = re.search(r"(\d+(?:\.\d+)?)", query_lower)
+
+            bottle_size_filter = None
+            name_query = query_lower
+
+            if size_match:
+                # Extract potential bottle size
+                potential_size = float(size_match.group(1))
+
+                # Check if this looks like a bottle size (reasonable values: 0.1 to 5.0 liters)
+                if 0.1 <= potential_size <= 5.0:
+                    bottle_size_filter = potential_size
+                    # Remove the size from the name query
+                    name_query = re.sub(
+                        r"\s*" + re.escape(size_match.group(0)) + r"\s*",
+                        " ",
+                        query_lower,
+                    ).strip()
+
+            # Split name query into words for matching
+            query_words = name_query.split() if name_query else []
+
             matches = []
 
             for product in self.products_cache:
                 name = product.get("name", "").lower()
 
-                # Check if all query words appear in the product name
-                if all(word in name for word in query_words):
+                # Check name match
+                name_matches = not query_words or all(
+                    word in name for word in query_words
+                )
+
+                # Check bottle size match if filter is specified
+                size_matches = True
+                if bottle_size_filter is not None:
+                    product_size = product.get("bottle_size")
+                    if product_size is not None:
+                        # Allow small tolerance for floating point comparison (0.01 liters)
+                        size_matches = abs(product_size - bottle_size_filter) < 0.01
+                    else:
+                        size_matches = False
+
+                # Product matches if both name and size criteria are met
+                if name_matches and size_matches:
                     matches.append(product)
                     if len(matches) >= limit:
                         break
