@@ -778,18 +778,18 @@ def command_eurojackpot(context, bot_functions):
 @command(
     "alko",
     description="Search Alko product information",
-    usage="!alko <drink name>",
-    examples=["!alko karhu", "!alko lapin kulta", "!alko koskenkorva"],
+    usage="!alko <drink name or product number>",
+    examples=["!alko karhu", "!alko lapin kulta", "!alko 319027"],
     requires_args=True,
 )
 def alko_command(context: CommandContext, bot_functions):
     """Search for drink information from Alko product database."""
     if not context.args_text:
-        return "Usage: !alko <drink name>"
+        return "Usage: !alko <drink name or product number>"
 
     query = context.args_text.strip()
     if not query:
-        return "Usage: !alko <drink name>"
+        return "Usage: !alko <drink name or product number>"
 
     # Get the Alko service from bot functions
     get_alko_product = bot_functions.get("get_alko_product")

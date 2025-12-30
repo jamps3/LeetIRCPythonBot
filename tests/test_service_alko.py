@@ -596,6 +596,77 @@ class TestAlkoService:
         except Exception as e:
             pytest.fail(f"Unexpected exception in _parse_alcohol_percent: {e}")
 
+    def test_get_product_by_number(self):
+        """Test searching for products by product number."""
+        service = AlkoService(data_dir=self.data_dir)
+
+        # Mock cached products with product numbers
+        mock_products = [
+            {
+                "name": "Test Beer 1",
+                "number": "123456",
+                "bottle_size": 0.33,
+                "alcohol_percent": 4.7,
+            },
+            {
+                "name": "Test Beer 2",
+                "number": "319027",
+                "bottle_size": 0.33,
+                "alcohol_percent": 4.7,
+            },
+            {
+                "name": "Test Wine",
+                "number": "789012",
+                "bottle_size": 0.75,
+                "alcohol_percent": 12.0,
+            },
+        ]
+        service.products_cache = mock_products
+
+        # Test exact product number match
+        result = service.get_product_by_number("319027")
+        assert result == mock_products[1]  # Second product
+
+        # Test another product number
+        result = service.get_product_by_number("789012")
+        assert result == mock_products[2]  # Third product
+
+        # Test non-existent product number
+        result = service.get_product_by_number("999999")
+        assert result is None
+
+        # Test with no cache
+        service.products_cache = None
+        result = service.get_product_by_number("319027")
+        assert result is None
+
+    def test_get_product_info_with_product_number(self):
+        """Test get_product_info detects and handles product number queries."""
+        service = AlkoService(data_dir=self.data_dir)
+
+        # Mock cached products
+        mock_products = [
+            {
+                "name": "Test Beer",
+                "number": "319027",
+                "bottle_size": 0.33,
+                "alcohol_percent": 4.7,
+            },
+        ]
+        service.products_cache = mock_products
+
+        # Test product number query (should use get_product_by_number)
+        result = service.get_product_info("319027")
+        assert result == mock_products[0]
+
+        # Test name query (should use search_products)
+        result = service.get_product_info("Test Beer")
+        assert result == mock_products[0]
+
+        # Test non-numeric query that looks like a number but isn't in cache
+        result = service.get_product_info("123456")
+        assert result is None  # Should return None for non-existent product number
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

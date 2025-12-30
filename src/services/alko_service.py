@@ -674,8 +674,39 @@ class AlkoService:
             logger.warning("No product data available")
             return None
 
+        # Check if query is a product number (numeric)
+        if query.strip().isdigit():
+            return self.get_product_by_number(query.strip())
+
         matches = self.search_products(query, limit=1)
         return matches[0] if matches else None
+
+    def get_product_by_number(self, product_number: str) -> Optional[Dict[str, Any]]:
+        """
+        Get product information by product number.
+
+        Args:
+            product_number: Product number as string
+
+        Returns:
+            Product information dictionary or None if not found
+        """
+        if not self.products_cache:
+            logger.warning("No product data available")
+            return None
+
+        try:
+            # Search for exact product number match
+            for product in self.products_cache:
+                if product.get("number") == product_number:
+                    return product
+
+            logger.info(f"Product number {product_number} not found")
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to search by product number: {e}")
+            return None
 
     def format_product_info(self, product: Dict[str, Any]) -> str:
         """
