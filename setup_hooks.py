@@ -15,6 +15,7 @@ import os
 import stat
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 
@@ -31,9 +32,10 @@ def create_pre_commit_hook():
 
     pre_commit_hook = hooks_dir / "pre-commit"
 
-    hook_content = """#!/bin/bash
+    hook_content = textwrap.dedent(
+        """#!/bin/bash
 # LeetIRCPythonBot Pre-commit Hook
-# Formats code with isort and black, lints with flake8, then runs quick tests.
+# Formats code with isort and black, lints with flake8, then runs quick tests if PRECOMMIT_RUN_TESTS enabled.
 # If any step fails, the commit is aborted.
 
 set -euo pipefail
@@ -108,9 +110,53 @@ if [ "${PRECOMMIT_RUN_TESTS:-0}" != "0" ]; then
   fi
 fi
 
+# Increment version number before commit
+echo "Incrementing version number..."
+$PYTHON_CMD << 'EOF'
+import os
+import re
+
+version_file = 'VERSION'
+
+# Only proceed if VERSION file exists
+if os.path.exists(version_file):
+    # Read current version
+    try:
+        with open(version_file, 'r', encoding='utf-8') as f:
+            current_version = f.read().strip()
+    except (IOError, OSError):
+        print('Could not read VERSION file')
+        exit(0)
+
+    # Parse version components (major.minor.patch)
+    version_match = re.match(r"([0-9]+)[.]([0-9]+)[.]([0-9]+)$", current_version)
+    if version_match:
+        major, minor, patch = version_match.groups()
+
+        # Increment patch version
+        new_patch = int(patch) + 1
+        new_version = '{}.{}.{}'.format(major, minor, new_patch)
+
+        # Write new version back to file
+        try:
+            with open(version_file, 'w', encoding='utf-8') as f:
+                f.write(new_version + '\\n')
+                print('Version incremented to {}'.format(new_version))
+        except (IOError, OSError):
+            print('Could not write to VERSION file')
+    else:
+        print(f'Invalid version format: {current_version}')
+else:
+    print('VERSION file not found, skipping version increment')
+EOF
+
+# Stage the version change
+git add VERSION
+
 echo "All checks passed! Proceeding with commit."
 exit 0
 """
+    )
 
     try:
         with open(pre_commit_hook, "w", newline="\n", encoding="utf-8") as f:
@@ -243,7 +289,7 @@ def create_post_commit_hook():
 
     post_commit_hook = hooks_dir / "post-commit"
 
-    hook_content = """#!/usr/bin/env python
+    hook_content = r"""#!/usr/bin/env python
 #
 # Git post-commit hook to automatically increment version number
 # Works on both Unix-like systems and Windows
@@ -272,7 +318,7 @@ def increment_version():
         return
 
     # Parse version components (major.minor.patch)
-    version_match = re.match(r'^(\\d+)\\.(\\d+)\\.(\\d+)$', current_version)
+    version_match = re.match(r"([0-9]+)[.]([0-9]+)[.]([0-9]+)$", current_version)
     if not version_match:
         print(f"Invalid version format: {current_version}")
         return
@@ -286,7 +332,7 @@ def increment_version():
     # Write new version back to file
     try:
         with open(version_file, "w", encoding="utf-8") as f:
-            f.write(new_version + "\\n")
+            f.write(new_version + "\n")
     except (IOError, OSError):
         print("Could not write to VERSION file")
         return

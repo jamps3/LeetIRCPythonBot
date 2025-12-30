@@ -9,7 +9,7 @@ python -c "import warnings; print('warnings module loaded:', hasattr(warnings, '
 
 REM Add -n 8 if pytest-xdist is available
 python -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('xdist') else 1)"
-if %ERRORLEVEL% EQU 0 set "EXTRA_ARGS=%EXTRA_ARGS% -q -n 12"
+if %ERRORLEVEL% EQU 0 set "EXTRA_ARGS=%EXTRA_ARGS% -q -n 8"
 
 REM Add coverage flags if pytest-cov is available
 python -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('pytest_cov') else 1)"
