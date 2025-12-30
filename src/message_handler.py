@@ -5,18 +5,15 @@ Handles all IRC message processing, command routing, URL title fetching,
 and related functionality extracted from bot_manager.py.
 """
 
-import datetime
-import json
 import os
 import re
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import requests
 
 import logger
-from config import get_config
 from lemmatizer import Lemmatizer
 from server import Server
 from tamagotchi import TamagotchiBot
@@ -213,7 +210,6 @@ class MessageHandler:
     def _process_leet_winner_summary(self, context: Dict[str, Any]):
         """Process leet winner summary lines."""
         text = context.get("text", "")
-        sender = context.get("sender", "")
 
         # Load existing winners
         winners = self._load_leet_winners()
@@ -548,47 +544,45 @@ class MessageHandler:
         # Check kraksdebug configuration for notifications
         kraksdebug_config = self.data_manager.load_kraksdebug_state()
 
-        # Update BAC tracking for drink words FIRST
+        # Handle drink word notifications BEFORE adding to BAC tracker
         if drink_words_found:
             try:
-                # Add each drink to BAC tracker with actual alcohol content
+                # Send drink word notifications to the channel where the message originated
+                if (
+                    drink_words_found
+                    and target.startswith("#")
+                    and kraksdebug_config.get("channels")
+                ):
+                    server = context["server"]
+
+                    # Check if the current channel is configured for notifications
+                    if target in kraksdebug_config["channels"]:
+                        self._send_drink_word_notifications(
+                            server,
+                            target,
+                            sender,
+                            server_name,
+                            drink_words_found,
+                            kraksdebug_config,
+                        )
+
+                    # Send combined BAC and drink word notification to user (only when nick_notices is enabled and nick is whitelisted)
+                    if kraksdebug_config.get(
+                        "nick_notices", False
+                    ) and sender in kraksdebug_config.get("nicks", []):
+                        self._send_drink_word_notifications_to_user(
+                            server,
+                            sender,
+                            server_name,
+                            drink_words_found,
+                            kraksdebug_config,
+                        )
+
+                # NOW add each drink to BAC tracker with actual alcohol content
                 for drink_word, specific_drink, alcohol_grams in drink_words_found:
                     self.bac_tracker.add_drink(server_name, sender, alcohol_grams)
             except Exception as e:
                 logger.error(f"Error updating BAC for {sender}: {e}")
-
-        # Send drink word notifications to the channel where the message originated
-        try:
-            if (
-                drink_words_found
-                and target.startswith("#")
-                and kraksdebug_config.get("channels")
-            ):
-                # Check if the current channel is configured for notifications
-                if target in kraksdebug_config["channels"]:
-                    server = context["server"]
-                    self._send_drink_word_notifications(
-                        server,
-                        target,
-                        sender,
-                        server_name,
-                        drink_words_found,
-                        kraksdebug_config,
-                    )
-
-                # Send combined BAC and drink word notification to user (only when nick_notices is enabled and nick is whitelisted)
-                if kraksdebug_config.get(
-                    "nick_notices", False
-                ) and sender in kraksdebug_config.get("nicks", []):
-                    self._send_drink_word_notifications_to_user(
-                        server,
-                        sender,
-                        server_name,
-                        drink_words_found,
-                        kraksdebug_config,
-                    )
-        except Exception as e:
-            logger.error(f"Error in drink word notification: {e}")
 
         # Update tamagotchi (only if enabled)
         if self.tamagotchi_enabled:
@@ -605,7 +599,45 @@ class MessageHandler:
         self, server, target, sender, server_name, drink_words_found, kraksdebug_config
     ):
         """Send drink word notifications to channel."""
-        bac_message = self.bac_tracker.format_bac_message(server_name, sender)
+        # Calculate current BAC (before this drink)
+        current_bac_info = self.bac_tracker.get_user_bac(server_name, sender)
+        current_bac = current_bac_info["current_bac"]
+
+        # Calculate projected BAC after this drink
+        total_grams = sum(alcohol_grams for _, _, alcohol_grams in drink_words_found)
+        projected_bac = current_bac + self._calculate_bac_increase(
+            server_name, sender, total_grams
+        )
+
+        # Calculate sober time based on projected BAC
+        projected_sober_time = self.bac_tracker._calculate_sober_time(
+            server_name, sender, projected_bac
+        )
+        projected_driving_time = self.bac_tracker._calculate_driving_time(
+            server_name, sender, projected_bac
+        )
+
+        # Get last drink grams (from this drink)
+        last_drink_grams = total_grams
+
+        # Format the message
+        if projected_bac <= 0.0:
+            bac_message = f"{sender}: 🍺 Promilles: {current_bac:.2f}‰ | After: {projected_bac:.2f}‰ (sober)"
+        else:
+            bac_message = f"{sender}: 🍺 Promilles: {current_bac:.2f}‰ | After: {projected_bac:.2f}‰"
+
+        # Add last drink grams
+        if last_drink_grams:
+            bac_message += f" | Last: {last_drink_grams:.1f}g"
+
+        # Add sober time (based on projected BAC)
+        if projected_sober_time:
+            bac_message += f" | Sober: ~{projected_sober_time}"
+
+        # Add driving time (based on projected BAC)
+        if projected_driving_time:
+            bac_message += f" | Driving: ~{projected_driving_time}"
+
         combined_message = bac_message
 
         if drink_words_found:
@@ -654,6 +686,29 @@ class MessageHandler:
                 server.send_message(target, combined_message)
         except Exception as e:
             logger.warning(f"Failed to send combined notice to {target}: {e}")
+
+    def _calculate_bac_increase(
+        self, server_name: str, nick: str, alcohol_grams: float
+    ) -> float:
+        """
+        Calculate BAC increase for given alcohol amount.
+
+        Args:
+            server_name: Server name
+            nick: User nickname
+            alcohol_grams: Grams of pure alcohol
+
+        Returns:
+            BAC increase value
+        """
+        # Use the same Widmark formula calculation as in BACTacker.add_drink
+        profile = self.bac_tracker.get_user_profile(server_name, nick)
+        body_water = (
+            self.bac_tracker._get_body_water_constant(profile["sex"])
+            * profile["weight_kg"]
+        )
+        added_bac = alcohol_grams / body_water  # ‰
+        return added_bac
 
     def _send_drink_word_notifications_to_user(
         self, server, sender, server_name, drink_words_found, kraksdebug_config
@@ -800,6 +855,7 @@ class MessageHandler:
         return {
             "data_manager": self.data_manager,
             "drink_tracker": self.drink_tracker,
+            "bac_tracker": self.bac_tracker,
             "general_words": self.general_words,
             "tamagotchi_bot": self.tamagotchi,
             "lemmat": self.lemmatizer,
@@ -842,7 +898,7 @@ class MessageHandler:
             "stop_event": None,  # Will be set by bot manager
             "set_quit_message": None,  # Will be set by bot manager
             "set_openai_model": None,  # Will be set by bot manager
-            "bot_manager": None,  # Will be set by bot manager
+            "bot_manager": getattr(self, "bot_manager", None),
         }
 
     def _send_response(self, server, target: str, message: str):

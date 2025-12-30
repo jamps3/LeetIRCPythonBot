@@ -6,7 +6,10 @@ These commands provide direct IRC functionality like joining channels, changing
 nicks, sending messages, etc.
 """
 
-from command_registry import CommandContext, command
+from command_registry import CommandContext, CommandScope, command
+
+# Import admin password verification
+from commands_admin import verify_admin_password
 
 
 def get_irc_connection(context: CommandContext, bot_functions):
@@ -33,6 +36,7 @@ def get_irc_connection(context: CommandContext, bot_functions):
     usage="/join <#channel> [key]",
     examples=["/join #general", "/join #private secretkey"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_join_command(context: CommandContext, bot_functions):
     """Join an IRC channel."""
@@ -80,6 +84,7 @@ def irc_join_command(context: CommandContext, bot_functions):
     usage="/part <#channel> [message]",
     examples=["/part #general", "/part #random Goodbye!"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_part_command(context: CommandContext, bot_functions):
     """Leave an IRC channel."""
@@ -127,6 +132,7 @@ def irc_part_command(context: CommandContext, bot_functions):
     description="Disconnect from IRC server",
     usage="/quit [message]",
     examples=["/quit", "/quit Goodbye everyone!"],
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_quit_command(context: CommandContext, bot_functions):
     """Disconnect from IRC server."""
@@ -169,6 +175,7 @@ def irc_quit_command(context: CommandContext, bot_functions):
     usage="/nick <new_nickname>",
     examples=["/nick NewNick"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_nick_command(context: CommandContext, bot_functions):
     """Change your nickname."""
@@ -204,6 +211,7 @@ def irc_nick_command(context: CommandContext, bot_functions):
     usage="/msg <nick> <message>",
     examples=["/msg Alice Hello there!"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_msg_command(context: CommandContext, bot_functions):
     """Send a private message to a user."""
@@ -237,6 +245,7 @@ def irc_msg_command(context: CommandContext, bot_functions):
     usage="/notice <nick> <message>",
     examples=["/notice Bob Important info here"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_notice_command(context: CommandContext, bot_functions):
     """Send a notice to a user."""
@@ -305,6 +314,7 @@ def irc_away_command(context: CommandContext, bot_functions):
     usage="/whois <nick>",
     examples=["/whois Alice"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_whois_command(context: CommandContext, bot_functions):
     """Get information about a user."""
@@ -335,6 +345,7 @@ def irc_whois_command(context: CommandContext, bot_functions):
     usage="/whowas <nick>",
     examples=["/whowas Alice"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_whowas_command(context: CommandContext, bot_functions):
     """Get information about a user who was recently online."""
@@ -364,6 +375,7 @@ def irc_whowas_command(context: CommandContext, bot_functions):
     description="List available channels",
     usage="/list [#channel]",
     examples=["/list", "/list #general"],
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_list_command(context: CommandContext, bot_functions):
     """List available channels."""
@@ -400,6 +412,7 @@ def irc_list_command(context: CommandContext, bot_functions):
     usage="/invite <nick> <#channel>",
     examples=["/invite Alice #general"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_invite_command(context: CommandContext, bot_functions):
     """Invite a user to a channel."""
@@ -435,6 +448,7 @@ def irc_invite_command(context: CommandContext, bot_functions):
     usage="/kick <nick> [reason]",
     examples=["/kick BadUser", "/kick BadUser Spam"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_kick_command(context: CommandContext, bot_functions):
     """Kick a user from a channel."""
@@ -477,6 +491,7 @@ def irc_kick_command(context: CommandContext, bot_functions):
     usage="/topic <#channel> <new_topic>",
     examples=["/topic #general Welcome to our channel!"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_topic_command(context: CommandContext, bot_functions):
     """Set the channel topic."""
@@ -512,6 +527,7 @@ def irc_topic_command(context: CommandContext, bot_functions):
     usage="/mode <target> <modes>",
     examples=["/mode #channel +t", "/mode Alice +v"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_mode_command(context: CommandContext, bot_functions):
     """Change user or channel modes."""
@@ -543,6 +559,7 @@ def irc_mode_command(context: CommandContext, bot_functions):
     usage="/names <#channel>",
     examples=["/names #general"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_names_command(context: CommandContext, bot_functions):
     """List users in a channel."""
@@ -577,6 +594,7 @@ def irc_names_command(context: CommandContext, bot_functions):
     usage="/ircping <server>",
     examples=["/ircping irc.example.com"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_ping_command(context: CommandContext, bot_functions):
     """Check server response."""
@@ -606,6 +624,7 @@ def irc_ping_command(context: CommandContext, bot_functions):
     description="Get server time",
     usage="/irctime",
     examples=["/irctime"],
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_time_command(context: CommandContext, bot_functions):
     """Get server time."""
@@ -630,6 +649,7 @@ def irc_time_command(context: CommandContext, bot_functions):
     description="Get server software version",
     usage="/ircversion",
     examples=["/ircversion"],
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_version_command(context: CommandContext, bot_functions):
     """Get server software version."""
@@ -654,6 +674,7 @@ def irc_version_command(context: CommandContext, bot_functions):
     description="Get server administrator info",
     usage="/ircadmin [server]",
     examples=["/ircadmin", "/ircadmin irc.example.com"],
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_admin_command(context: CommandContext, bot_functions):
     """Get server administrator info."""
@@ -686,6 +707,7 @@ def irc_admin_command(context: CommandContext, bot_functions):
     description="Show the Message of the Day",
     usage="/motd",
     examples=["/motd"],
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_motd_command(context: CommandContext, bot_functions):
     """Show the Message of the Day."""
@@ -711,14 +733,31 @@ def irc_motd_command(context: CommandContext, bot_functions):
     usage="/raw <command>",
     examples=["/raw MODE #channel +t"],
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def irc_raw_command(context: CommandContext, bot_functions):
     """Send raw IRC command."""
-    raw_command = " ".join(context.args)
-
+    # Check connection first
     irc = get_irc_connection(context, bot_functions)
     if not irc:
         return "❌ No IRC connection available"
+
+    # Determine how to handle password based on context
+    args = list(context.args or [])
+    if context.is_console:
+        # Console: allow optional password. If the first arg matches the password, strip it
+        if verify_admin_password(args):
+            args = args[1:]
+    else:
+        # IRC: require password as first argument
+        if not verify_admin_password(args):
+            return "❌ Invalid admin password"
+        args = args[1:]
+
+    if not args:
+        return "Usage: /raw <command>"
+
+    raw_command = " ".join(args)
 
     try:
         if hasattr(irc, "send_raw"):

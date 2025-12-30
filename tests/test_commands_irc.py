@@ -5,7 +5,7 @@ Pytest tests for commands_irc module.
 Tests IRC-specific commands that use / prefix instead of !.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -567,9 +567,21 @@ class TestIRCCommands:
         assert "✅ MOTD request sent" in result
         mock_irc.send_raw.assert_called_with("MOTD")
 
-    def test_irc_raw_command_success(self, mock_context, mock_irc, mock_bot_functions):
+    def test_irc_raw_command_success(
+        self, mock_context, mock_irc, mock_bot_functions, monkeypatch
+    ):
         """Test successful IRC raw command."""
-        mock_context.args = ["MODE", "#channel", "+t"]
+        # Mock admin password verification to accept "password"
+        from unittest.mock import patch
+
+        def mock_verify_admin_password(args):
+            return args and args[0] == "password"
+
+        monkeypatch.setattr(
+            "commands_irc.verify_admin_password", mock_verify_admin_password
+        )
+
+        mock_context.args = ["password", "MODE", "#channel", "+t"]
         mock_bot_functions["irc"] = mock_irc
 
         result = irc_raw_command(mock_context, mock_bot_functions)
@@ -577,9 +589,20 @@ class TestIRCCommands:
         assert "✅ Raw command sent: MODE #channel +t" in result
         mock_irc.send_raw.assert_called_with("MODE #channel +t")
 
-    def test_irc_raw_command_fallback(self, mock_context, mock_irc, mock_bot_functions):
+    def test_irc_raw_command_fallback(
+        self, mock_context, mock_irc, mock_bot_functions, monkeypatch
+    ):
         """Test IRC raw command fallback when send_raw not available."""
-        mock_context.args = ["PING", "server"]
+
+        # Mock admin password verification to accept "password"
+        def mock_verify_admin_password(args):
+            return args and args[0] == "password"
+
+        monkeypatch.setattr(
+            "commands_irc.verify_admin_password", mock_verify_admin_password
+        )
+
+        mock_context.args = ["password", "PING", "server"]
         mock_bot_functions["irc"] = mock_irc
         del mock_irc.send_raw  # Remove send_raw to test fallback
 

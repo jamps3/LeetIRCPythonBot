@@ -8,7 +8,7 @@ extracted from bot_manager.py.
 import os
 import threading
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import logger
 
@@ -560,6 +560,11 @@ class ConsoleManager:
             "join_channel": self._console_join_or_part_channel,
             "send_to_channel": self._console_send_to_channel,
             "bot_manager": None,  # Will be set by main bot manager
+            "bac_tracker": self.message_handler.bac_tracker,
+            "drink_tracker": self.message_handler.drink_tracker,
+            "general_words": self.message_handler.general_words,
+            "tamagotchi": self.message_handler.tamagotchi,
+            "data_manager": self.message_handler.data_manager,
             "subscriptions": self.message_handler._get_subscriptions_module(),
         }
 

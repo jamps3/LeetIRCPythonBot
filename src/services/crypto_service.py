@@ -5,7 +5,7 @@ Provides cryptocurrency price information using CoinGecko API.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import requests
 

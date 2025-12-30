@@ -846,32 +846,6 @@ def test_trains_command_variants_and_error(monkeypatch):
     assert "Digitraffic" in trains_command(ctx, {})
 
 
-def test_url_command_calls_fetch_title_and_missing_service():
-    """Test url command with and without fetch_title service."""
-    from command_loader import process_console_command
-
-    called = {"url": None}
-
-    def fetch_title(_irc, _target, url):
-        called["url"] = url
-
-    bot_functions = {
-        "notice_message": lambda *a, **k: None,
-        "fetch_title": fetch_title,
-        "log": lambda *a, **k: None,
-    }
-
-    process_console_command("!url https://example.com", bot_functions)
-    assert called["url"] == "https://example.com"
-
-    # Missing service path
-    bot_functions2 = {
-        "notice_message": lambda *a, **k: None,
-        "log": lambda *a, **k: None,
-    }
-    process_console_command("!url https://example.com", bot_functions2)
-
-
 def test_leetwinners_command_empty_and_with_data():
     from command_loader import process_console_command
 

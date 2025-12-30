@@ -193,15 +193,12 @@ def main():
             main_logger.log("Falling back to console interface...", "INFO")
             use_console = True  # Force console mode
 
-    # Create and start the bot manager (this initializes console manager immediately)
+    # Create the bot manager (this initializes console manager immediately)
     bot_manager = BotManager(bot_name, console_mode=use_console)
 
-    # Set bot manager in TUI and start TUI immediately (before bot startup)
+    # Set bot manager in TUI
     if tui_manager:
         tui_manager.set_bot_manager(bot_manager)
-        # Run the TUI immediately (blocking) - this will show TUI and capture all subsequent logs
-        tui_manager.run()
-        return 0
 
     try:
         # Decide whether to use TUI or console interface

@@ -359,11 +359,9 @@ def command_kraks(context, bot_functions):
     # Check for reset subcommand
     if context.args and context.args[0].lower() == "reset":
         # Get the BAC tracker
-        bot_manager = bot_functions.get("bot_manager")
-        if not bot_manager or not hasattr(bot_manager, "bac_tracker"):
+        bac_tracker = bot_functions.get("bac_tracker")
+        if not bac_tracker:
             return "❌ BAC tracker not available"
-
-        bac_tracker = bot_manager.bac_tracker
 
         # Derive server name
         server_name = (
@@ -914,11 +912,9 @@ def krak_command(context, bot_functions):
     - !krak : View current BAC information
     """
     # Get the BAC tracker
-    bot_manager = bot_functions.get("bot_manager")
-    if not bot_manager or not hasattr(bot_manager, "bac_tracker"):
+    bac_tracker = bot_functions.get("bac_tracker")
+    if not bac_tracker:
         return "❌ BAC tracker not available"
-
-    bac_tracker = bot_manager.bac_tracker
 
     # Derive server name
     server_name = (

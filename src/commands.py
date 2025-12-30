@@ -132,16 +132,6 @@ def help_command(context: CommandContext, bot_functions):
             return CommandResponse.success_msg(help_text)
 
 
-@command("aika", aliases=["time"], description="Show current time", usage="!aika")
-def time_command(context: CommandContext, bot_functions):
-    """Show current time with nanosecond precision."""
-    now_ns = time.time_ns()
-    dt = datetime.fromtimestamp(now_ns // 1_000_000_000)
-    nanoseconds = now_ns % 1_000_000_000
-    formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S") + f".{nanoseconds:09d}"
-    return f"Nykyinen aika: {formatted_time}"
-
-
 @command(
     "kaiku",
     aliases=["echo"],
@@ -189,7 +179,11 @@ def version_command(context: CommandContext, bot_functions):
 @command("ping", description="Check if bot is responsive", usage="!ping")
 def ping_command(context: CommandContext, bot_functions):
     """Simple ping command to check bot responsiveness."""
-    return "Pong! 🏓"
+    now_ns = time.time_ns()
+    dt = datetime.fromtimestamp(now_ns // 1_000_000_000)
+    nanoseconds = now_ns % 1_000_000_000
+    formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S") + f".{nanoseconds:09d}"
+    return f"Pong! 🏓 | Nykyinen aika: {formatted_time}"
 
 
 @command(
@@ -476,6 +470,7 @@ def quote_command(context: CommandContext, bot_functions):
     description="Connect to IRC servers",
     usage="!connect [server_name host [port] [channels] [tls]]",
     examples=["!connect", "!connect myserver irc.example.com 6667 #general,#random"],
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def connect_command(context: CommandContext, bot_functions):
     """Connect to IRC servers."""
@@ -503,6 +498,7 @@ def connect_command(context: CommandContext, bot_functions):
     description="Disconnect from IRC servers",
     usage="!disconnect [server_names...]",
     examples=["!disconnect", "!disconnect server1 server2"],
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def disconnect_command(context: CommandContext, bot_functions):
     """Disconnect from IRC servers."""
@@ -523,6 +519,7 @@ def disconnect_command(context: CommandContext, bot_functions):
     description="Show server connection status",
     usage="!status",
     examples=["!status"],
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def status_command(context: CommandContext, bot_functions):
     """Show server connection status."""
@@ -543,6 +540,7 @@ def status_command(context: CommandContext, bot_functions):
     description="Show channel status and list",
     usage="!channels",
     examples=["!channels"],
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def channels_command(context: CommandContext, bot_functions):
     """Show channel status and list."""
@@ -807,33 +805,14 @@ def crypto_command(context: CommandContext, bot_functions):
         coin = context.args[0].lower()
         currency = context.args[1] if len(context.args) > 1 else "eur"
         price = get_crypto_price(coin, currency)
-        return f"💸 {coin.capitalize()}: {price} {currency.upper()}"
+        return f"💸 {coin.capitalize()}: {price}"
     else:
         # Show top 3 coins by default
         top_coins = ["bitcoin", "ethereum", "tether"]
         prices = {coin: get_crypto_price(coin, "eur") for coin in top_coins}
         return " | ".join(
-            [f"{coin.capitalize()}: {prices[coin]} €" for coin in top_coins]
+            [f"{coin.capitalize()}: {prices[coin]}" for coin in top_coins]
         )
-
-
-@command(
-    "url",
-    description="Fetch and display title from URL",
-    usage="!url <url>",
-    examples=["!url https://example.com"],
-    requires_args=True,
-)
-def url_command(context: CommandContext, bot_functions):
-    """Fetch title from a URL."""
-    fetch_title = bot_functions.get("fetch_title")
-    if fetch_title:
-        # Extract URL from arguments
-        url = context.args_text.strip()
-        fetch_title(None, context.target, url)
-        return CommandResponse.no_response()  # Service handles the output
-    else:
-        return "URL title fetching service not available"
 
 
 @command(
@@ -908,9 +887,26 @@ def leetwinners_command(context: CommandContext, bot_functions):
 @command("about", description="Show information about the bot", usage="!about")
 def about_command(context: CommandContext, bot_functions):
     """Show information about the bot."""
-    config_obj = get_config()
+    # Read version directly from VERSION file to ensure it's current
+    version_file = "VERSION"
+    try:
+        with open(version_file, "r", encoding="utf-8") as f:
+            current_version = f.read().strip()
+            # Validate version format (basic check)
+            import re
+
+            if current_version and re.match(r"^\d+\.\d+\.\d+$", current_version):
+                version = current_version
+            else:
+                # Fallback to config if VERSION file is invalid
+                config_obj = get_config()
+                version = config_obj.version
+    except (FileNotFoundError, IOError):
+        # Fallback to "1.0" if VERSION file doesn't exist
+        version = "1.0"
+
     return (
-        f"LeetIRCPythonBot v{config_obj.version} - A Leet IRC bot with word tracking, "
+        f"LeetIRCPythonBot v{version} - A Leet IRC bot with word tracking, "
         f"weather, drink statistics, and more! Type !help for commands."
     )
 
@@ -1282,11 +1278,9 @@ def command_kraks(context, bot_functions):
     # Check for reset subcommand
     if context.args and context.args[0].lower() == "reset":
         # Get the BAC tracker
-        bot_manager = bot_functions.get("bot_manager")
-        if not bot_manager or not hasattr(bot_manager, "bac_tracker"):
+        bac_tracker = bot_functions.get("bac_tracker")
+        if not bac_tracker:
             return "❌ BAC tracker not available"
-
-        bac_tracker = bot_manager.bac_tracker
 
         # Derive server name
         server_name = (
@@ -2400,11 +2394,9 @@ def krak_command(context: CommandContext, bot_functions):
     - !krak : View current BAC information
     """
     # Get the BAC tracker
-    bot_manager = bot_functions.get("bot_manager")
-    if not bot_manager or not hasattr(bot_manager, "bac_tracker"):
+    bac_tracker = bot_functions.get("bac_tracker")
+    if not bac_tracker:
         return "❌ BAC tracker not available"
-
-    bac_tracker = bot_manager.bac_tracker
 
     # Derive server name
     server_name = (

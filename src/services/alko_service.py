@@ -36,6 +36,7 @@ class AlkoService:
         self.local_excel_path = self.data_dir / "alkon-hinnasto-tekstitiedostona.xlsx"
         self.cache_file = self.data_dir / "alko_cache.json"
         self.products_cache: Optional[List[Dict[str, Any]]] = None
+        self.cache_last_updated: Optional[str] = None
         self.last_update_check = None
 
         # Ensure data directory exists
@@ -44,9 +45,11 @@ class AlkoService:
         # Load cached data if available
         self._load_cache()
 
-        # Force re-parse of Excel file to update calculations
-        if self.local_excel_path.exists():
-            logger.info("Re-parsing Excel file to update alcohol calculations...")
+        # Check if we need to re-parse the Excel file
+        if self.local_excel_path.exists() and not self._is_cache_up_to_date():
+            logger.info(
+                "Excel file has been updated, re-parsing to update alcohol calculations..."
+            )
             products = self._parse_excel_file()
             if products:
                 self.products_cache = products
@@ -99,27 +102,52 @@ class AlkoService:
                 with open(self.cache_file, "r", encoding="utf-8") as f:
                     cache_data = json.load(f)
                     self.products_cache = cache_data.get("products", [])
+                    self.cache_last_updated = cache_data.get("last_updated")
                     logger.info(
                         f"Loaded {len(self.products_cache)} products from cache"
                     )
         except Exception as e:
             logger.warning(f"Failed to load cache: {e}")
             self.products_cache = None
+            self.cache_last_updated = None
 
     def _save_cache(self):
         """Save product data to cache."""
         try:
             import json
 
+            self.cache_last_updated = datetime.now().isoformat()
             cache_data = {
                 "products": self.products_cache,
-                "last_updated": datetime.now().isoformat(),
+                "last_updated": self.cache_last_updated,
             }
             with open(self.cache_file, "w", encoding="utf-8") as f:
                 json.dump(cache_data, f, ensure_ascii=False, indent=2)
             logger.info(f"Saved {len(self.products_cache)} products to cache")
         except Exception as e:
             logger.warning(f"Failed to save cache: {e}")
+
+    def _is_cache_up_to_date(self) -> bool:
+        """Check if the cache is up to date with the Excel file."""
+        if not self.products_cache or not self.cache_last_updated:
+            return False
+
+        if not self.local_excel_path.exists():
+            return True  # Cache exists but no Excel file, consider cache valid
+
+        try:
+            # Get Excel file modification time
+            excel_mtime = self.local_excel_path.stat().st_mtime
+            excel_modified = datetime.fromtimestamp(excel_mtime)
+
+            # Parse cache last updated time
+            cache_updated = datetime.fromisoformat(self.cache_last_updated)
+
+            # Cache is up to date if Excel file was modified before cache was last updated
+            return excel_modified <= cache_updated
+        except Exception as e:
+            logger.warning(f"Failed to check cache up-to-date status: {e}")
+            return False
 
     def _get_remote_file_info(self) -> Optional[Dict[str, Any]]:
         """Get information about the remote Excel file."""

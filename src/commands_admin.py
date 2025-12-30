@@ -4,7 +4,7 @@ Admin Commands for LeetIRCPythonBot
 This module contains administrative commands that require password authentication.
 """
 
-from command_registry import CommandContext, command
+from command_registry import CommandContext, CommandScope, command
 from config import get_config
 
 
@@ -24,6 +24,7 @@ def verify_admin_password(args):
     examples=["!admin_quit mypass", "!admin_quit mypass Goodbye everyone!"],
     admin_only=True,
     requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
 )
 def admin_quit_command(context: CommandContext, bot_functions):
     """Quit IRC with an optional message and shutdown the bot."""

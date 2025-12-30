@@ -200,7 +200,6 @@ class Server:
                             else self.config.host
                         ),
                     )
-                    self.log.info(f"Connecting to {self.config.host} with TLS..")
 
                 except Exception as e:
                     self.log.error(f"Failed to create SSL context: {e}")
