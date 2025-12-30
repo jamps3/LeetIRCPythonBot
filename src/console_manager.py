@@ -549,9 +549,16 @@ class ConsoleManager:
             "BOT_VERSION": self._get_current_version(),
             "server_name": "console",
             "stop_event": self.stop_event,
-            "set_quit_message": lambda msg: setattr(
-                self.server_manager, "quit_message", msg
-            ),
+            "set_quit_message": lambda msg: (
+                setattr(self.server_manager, "quit_message", msg)
+                or
+                # Also set on individual servers for consistency
+                [
+                    setattr(server, "quit_message", msg)
+                    for server in self.server_manager.get_all_servers().values()
+                ]
+            )
+            and None,
             "set_openai_model": self._set_openai_model,
             "connect": self._console_connect,
             "disconnect": self._console_disconnect,
