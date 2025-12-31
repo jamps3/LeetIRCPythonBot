@@ -112,7 +112,7 @@ fi
 
 # Increment version number as part of the commit
 echo "Incrementing version number..."
-$PYTHON_CMD << 'EOF'
+$PYTHON_CMD -c "
 import os
 import re
 
@@ -129,7 +129,7 @@ if os.path.exists(version_file):
         exit(0)
 
     # Parse version components (major.minor.patch)
-    version_match = re.match(r"([0-9]+)[.]([0-9]+)[.]([0-9]+)$", current_version)
+    version_match = re.match(r'([0-9]+)[.]([0-9]+)[.]([0-9]+)$', current_version)
     if version_match:
         major, minor, patch = version_match.groups()
 
@@ -140,7 +140,7 @@ if os.path.exists(version_file):
         # Write new version back to file
         try:
             with open(version_file, 'w', encoding='utf-8') as f:
-                f.write(new_version + '\n')
+                f.write(new_version + '\\n')
                 print('Version incremented to {}'.format(new_version))
         except (IOError, OSError):
             print('Could not write to VERSION file')
@@ -148,7 +148,7 @@ if os.path.exists(version_file):
         print(f'Invalid version format: {current_version}')
 else:
     print('VERSION file not found, skipping version increment')
-EOF
+"
 
 # Stage the version change
 git add VERSION
