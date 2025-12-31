@@ -2431,14 +2431,14 @@ def krak_command(context: CommandContext, bot_functions):
         if bac_info["current_bac"] > 0.0:
             sober_time = bac_info.get("sober_time", "Unknown")
             driving_time = bac_info.get("driving_time")
-            response_parts.append(f"🍺 Current BAC: {bac_info['current_bac']:.2f}‰")
+            response_parts.append(f"🍺 Promilles: {bac_info['current_bac']:.2f}‰")
 
             # Include last drink alcohol content if available
             if last_drink_grams:
                 response_parts.append(f"Last: {last_drink_grams:.1f}g")
 
             if sober_time:
-                response_parts.append(f"Sober by: ~{sober_time}")
+                response_parts.append(f"Sober: ~{sober_time}")
 
             if driving_time:
                 response_parts.append(f"Driving: ~{driving_time}")
@@ -2457,12 +2457,7 @@ def krak_command(context: CommandContext, bot_functions):
         ) != bac_tracker._get_default_burn_rate(profile.get("sex", "m")):
             profile_info.append(f"Burn rate: {profile['burn_rate']}‰/h")
 
-        if profile_info:
-            response_parts.append(f"Profile: {', '.join(profile_info)}")
-        else:
-            response_parts.append(
-                "Using default profile (75kg, male, standard burn rate)"
-            )
+        response_parts.append(f"Burn rate: {profile['burn_rate']}‰/h")
 
         return " | ".join(response_parts)
 

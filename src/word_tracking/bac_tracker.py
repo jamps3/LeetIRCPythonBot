@@ -487,7 +487,7 @@ class BACTacker:
             message += f" | Last: {last_drink_grams:.1f}g"
 
         if sober_time:
-            message += f" | Sober by: ~{sober_time}"
+            message += f" | Sober: ~{sober_time}"
 
         if driving_time:
             message += f" | Driving: ~{driving_time}"

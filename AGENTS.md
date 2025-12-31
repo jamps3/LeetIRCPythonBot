@@ -2,7 +2,7 @@
 
 This file provides guidance to WARP (warp.dev) and other agents when working with code in this repository.
 
-Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, and a modern command system)
+Project: LeetIRCPythonBot v2.3.17 (Python IRC bot with multi-server support, services, and a modern command system)
 
 - Shell: pwsh (Windows). Adapt Linux/macOS variants where noted.
 
@@ -110,7 +110,7 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
     1. Leetwinners detection, updates leet_winners.json
   - command_loader:
     - process_irc_message/process_console_command bridge messages/inputs to the command registry
-    - load_all_commands() imports command modules (e.g., commands_admin, commands_basic, commands_extended) which self-register with the registry
+    - load_all_commands() currently imports the unified commands module (commands.py) which self-registers all commands
   - command_registry:
     - Provides CommandContext/CommandResponse types, registry, and process_command_message()
     - Centralizes parsing, routing, and response shaping (including splitting long responses when needed)
@@ -123,11 +123,12 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
 
 - Services (services/\*):
 
+  - alko_service.py: Search Alko product information
   - crypto_service.py: Crypto price fetch (CoinGecko)
   - digitraffic_service.py: Departing and arriving trains
   - electricity_service.py: Spot electricity price lookups, stats, daily summaries
   - eurojackpot_service.py: Eurojackpot draws, numbers and statistics
-  - fmi_warning_service.py, FMI Warnings, background monitor invoking BotManager callbacks
+  - fmi_warning_service.py: FMI Warnings, background monitor invoking BotManager callbacks
   - gpt_service.py: OpenAI-backed chat with history persistence and limits
   - ipfs_service.py: admin-gated IPFS commands
   - otiedote_service.py: Otiedote releases (Onnettomuustiedotteet), background monitor
@@ -163,7 +164,7 @@ Project: LeetIRCPythonBot (Python IRC bot with multi-server support, services, a
 
 3. Focus files when modifying behavior
 
-- Adding/modifying commands: command modules (command_loader.py, commands_admin.py, command_registry.py, commands.py)
+- Adding/modifying commands: command modules (command_loader.py, command_registry.py, commands.py, commands_admin.py, commands_basic.py, commands_irc.py, commands_services.py)
 - Message handling behavior: bot_manager.BotManager.\_handle_message and subsequent helpers
 - Services: services/<service>\_service.py and the corresponding wiring in BotManager.
 - Server/IRC protocol details: server.py, irc_client.py, irc_processor.py
