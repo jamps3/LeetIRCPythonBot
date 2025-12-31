@@ -201,3 +201,5 @@ commits.csv
 quotes.txt
 tui.log
 test_state.json
+test_state.json.backup
+.pytest_import_diag.log
