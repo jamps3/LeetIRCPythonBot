@@ -20,6 +20,7 @@ def cleanup_test_files():
         "test_state.json.backup",
         "data/state.json.backup",
         "state.json.backup",
+        ".pytest_import_diag.log",
     ]
 
     for file_path in test_files:
