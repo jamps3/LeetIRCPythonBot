@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 
 
 def fetch_pet_namedays(date_str):
-    base_url = "https://info.paivyri.fi/nimipaivat/"
+    base_url = "https://url"
     result = {"dogs": [], "cats": []}
 
     for animal in ["dog", "cat"]:

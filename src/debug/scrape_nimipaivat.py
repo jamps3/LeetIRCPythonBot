@@ -15,7 +15,7 @@ def scrape_namedays(year):
     while current <= end:
         day = current.day
         month = current.month
-        url = f"https://nimipaivat.fi/{day}.{month}."
+        url = f"https://url/{day}.{month}."
         response = requests.get(url)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")

@@ -3,9 +3,9 @@
 Setup Git Hooks for LeetIRCPythonBot
 
 This script sets up comprehensive git hooks for the LeetIRCPythonBot project:
-- Pre-commit hook: runs code formatting (isort, black), linting (flake8), and optional tests
+- Pre-commit hook: runs code formatting (isort, black), linting (flake8), optional tests, and version incrementing
 - Pre-push hook: runs tests before allowing pushes to prevent broken code from being pushed
-- Post-commit hook: automatically increments version numbers after each commit
+- Post-commit hook: placeholder for future enhancements
 - Git configuration: sets up commit message templates and helpful reminders
 
 Run this script to initialize a complete development environment with automated quality checks.
@@ -109,6 +109,49 @@ if [ "${PRECOMMIT_RUN_TESTS:-0}" != "0" ]; then
     exit 1
   fi
 fi
+
+# Increment version number as part of the commit
+echo "Incrementing version number..."
+$PYTHON_CMD << 'EOF'
+import os
+import re
+
+version_file = 'VERSION'
+
+# Only proceed if VERSION file exists
+if os.path.exists(version_file):
+    # Read current version
+    try:
+        with open(version_file, 'r', encoding='utf-8') as f:
+            current_version = f.read().strip()
+    except (IOError, OSError):
+        print('Could not read VERSION file')
+        exit(0)
+
+    # Parse version components (major.minor.patch)
+    version_match = re.match(r"([0-9]+)[.]([0-9]+)[.]([0-9]+)$", current_version)
+    if version_match:
+        major, minor, patch = version_match.groups()
+
+        # Increment patch version
+        new_patch = int(patch) + 1
+        new_version = '{}.{}.{}'.format(major, minor, new_patch)
+
+        # Write new version back to file
+        try:
+            with open(version_file, 'w', encoding='utf-8') as f:
+                f.write(new_version + '\n')
+                print('Version incremented to {}'.format(new_version))
+        except (IOError, OSError):
+            print('Could not write to VERSION file')
+    else:
+        print(f'Invalid version format: {current_version}')
+else:
+    print('VERSION file not found, skipping version increment')
+EOF
+
+# Stage the version change
+git add VERSION
 
 echo "All checks passed! Proceeding with commit."
 exit 0
@@ -237,7 +280,7 @@ fi
 
 
 def create_post_commit_hook():
-    """Create a post-commit hook that increments the version number."""
+    """Create a post-commit hook placeholder."""
 
     hooks_dir = Path(".git/hooks")
     if not hooks_dir.exists():
@@ -248,64 +291,16 @@ def create_post_commit_hook():
 
     hook_content = r"""#!/usr/bin/env python
 #
-# Git post-commit hook to automatically increment version number
-# Works on both Unix-like systems and Windows
+# Git post-commit hook - placeholder for future enhancements
+# Version incrementing is now handled in pre-commit hook
 #
 
-import os
-import re
-import subprocess
-
-
-def increment_version():
-    '''Increment the patch version in VERSION file.'''
-
-    version_file = "VERSION"
-
-    # Only proceed if VERSION file exists
-    if not os.path.exists(version_file):
-        return
-
-    # Read current version
-    try:
-        with open(version_file, "r", encoding="utf-8") as f:
-            current_version = f.read().strip()
-    except (IOError, OSError):
-        print("Could not read VERSION file")
-        return
-
-    # Parse version components (major.minor.patch)
-    version_match = re.match(r"([0-9]+)[.]([0-9]+)[.]([0-9]+)$", current_version)
-    if not version_match:
-        print(f"Invalid version format: {current_version}")
-        return
-
-    major, minor, patch = version_match.groups()
-
-    # Increment patch version
-    new_patch = int(patch) + 1
-    new_version = f"{major}.{minor}.{new_patch}"
-
-    # Write new version back to file
-    try:
-        with open(version_file, "w", encoding="utf-8") as f:
-            f.write(new_version + "\n")
-    except (IOError, OSError):
-        print("Could not write to VERSION file")
-        return
-
-    # Add the VERSION file to git for the next commit
-    try:
-        subprocess.run(["git", "add", "VERSION"], check=True, capture_output=True)
-    except subprocess.CalledProcessError:
-        print("Could not add VERSION file to git")
-        return
-
-    print(f"Version incremented to {new_version} (staged for next commit)")
-
+# This hook can be used for future post-commit operations
+# Currently, version incrementing happens in pre-commit to avoid
+# having VERSION changes staged separately
 
 if __name__ == "__main__":
-    increment_version()
+    pass  # No operation currently needed
 """
 
     try:
