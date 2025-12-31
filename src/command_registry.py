@@ -6,11 +6,10 @@ Commands can be registered with metadata, and the system handles dispatch and he
 """
 
 import inspect
-import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 
 import logger
 
@@ -123,7 +122,6 @@ class CommandHandler(ABC):
         self, context: CommandContext, bot_functions: Dict[str, Any]
     ) -> CommandResponse:
         """Execute the command with the given context."""
-        pass
 
     def can_execute(self, context: CommandContext) -> tuple[bool, Optional[str]]:
         """Check if the command can be executed in the given context."""
