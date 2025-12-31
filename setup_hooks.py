@@ -110,49 +110,6 @@ if [ "${PRECOMMIT_RUN_TESTS:-0}" != "0" ]; then
   fi
 fi
 
-# Increment version number before commit
-echo "Incrementing version number..."
-$PYTHON_CMD << 'EOF'
-import os
-import re
-
-version_file = 'VERSION'
-
-# Only proceed if VERSION file exists
-if os.path.exists(version_file):
-    # Read current version
-    try:
-        with open(version_file, 'r', encoding='utf-8') as f:
-            current_version = f.read().strip()
-    except (IOError, OSError):
-        print('Could not read VERSION file')
-        exit(0)
-
-    # Parse version components (major.minor.patch)
-    version_match = re.match(r"([0-9]+)[.]([0-9]+)[.]([0-9]+)$", current_version)
-    if version_match:
-        major, minor, patch = version_match.groups()
-
-        # Increment patch version
-        new_patch = int(patch) + 1
-        new_version = '{}.{}.{}'.format(major, minor, new_patch)
-
-        # Write new version back to file
-        try:
-            with open(version_file, 'w', encoding='utf-8') as f:
-                f.write(new_version + '\\n')
-                print('Version incremented to {}'.format(new_version))
-        except (IOError, OSError):
-            print('Could not write to VERSION file')
-    else:
-        print(f'Invalid version format: {current_version}')
-else:
-    print('VERSION file not found, skipping version increment')
-EOF
-
-# Stage the version change
-git add VERSION
-
 echo "All checks passed! Proceeding with commit."
 exit 0
 """
