@@ -6,7 +6,7 @@ Tests solar wind data fetching from NOAA SWPC API, data formatting,
 and error handling.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -227,13 +227,41 @@ class TestSolarWindServiceGlobal:
 class TestSolarWindServiceIntegration:
     """Integration tests for SolarWindService."""
 
-    @pytest.mark.skip(
-        reason="Complex pandas integration test requires significant refactoring"
-    )
-    def test_full_data_flow(self, solarwind_service, mock_requests, mock_pandas):
+    def test_full_data_flow(self, solarwind_service, mock_requests):
         """Test full data flow from API to formatted output."""
-        # This test is skipped due to complex pandas DataFrame integration requirements
-        pass
+        # Mock API responses with realistic data
+        plasma_response = [
+            ["time_tag", "density", "speed", "temperature"],
+            ["2024-01-15T12:00:00Z", "5.0", "450.0", "150000.0"],
+        ]
+        mag_response = [
+            ["time_tag", "bx", "by", "bz", "bt"],
+            ["2024-01-15T12:00:00Z", "1.0", "2.0", "3.0", "7.5"],
+        ]
+
+        mock_requests.get.side_effect = [
+            MagicMock(json=MagicMock(return_value=plasma_response)),
+            MagicMock(json=MagicMock(return_value=mag_response)),
+        ]
+
+        # Run the test - pandas operations will work normally since pandas is available
+        data = solarwind_service.get_solar_wind_data()
+        formatted = solarwind_service.format_solar_wind_data(data)
+
+        # Verify the data structure
+        assert data["error"] is False
+        assert "timestamp" in data
+        assert data["density"] == "5.0"
+        assert data["speed"] == "450.0"
+        assert data["temperature"] == "150000.0"
+        assert data["magnetic_field"] == "7.5"
+
+        # Verify formatting contains expected elements
+        assert "🌌 Solar Wind" in formatted
+        assert "5.0/cm³" in formatted
+        assert "450.0 km/s" in formatted
+        assert "150000.0 K" in formatted
+        assert "7.5 nT" in formatted
 
     def test_error_handling_flow(self, solarwind_service, mock_requests):
         """Test error handling flow."""
