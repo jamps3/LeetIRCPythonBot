@@ -46,11 +46,13 @@ class DrinkTracker:
             "tsirp",
         }
 
-        # Regex pattern for detecting drink words with specific drinks
-        # Matches: "krak (Karhu 5,5%)" or "krak (karhu)" or just "krak"
+        # Regex pattern for detecting drink words with specific drinks and optional opening time
+        # Matches: "krak (Karhu 5,5%)" or "krak (karhu)" or "krak (5,0% 0.5L) @ 02:15" or just "krak"
         # But only if the message begins with the drink word
         self.drink_pattern = re.compile(
-            r"^(" + "|".join(self.drink_words) + r")\s*(?:\(([^)]+)\))?(?!\w)",
+            r"^("
+            + "|".join(self.drink_words)
+            + r")\s*(?:\(([^)]+)\))?\s*(?:@\s*(\d{1,2}:\d{2}))?(?!\w)",
             re.IGNORECASE,
         )  # noqa: E501
 
@@ -73,7 +75,7 @@ class DrinkTracker:
 
     def process_message(
         self, server: str, nick: str, text: str
-    ) -> List[Tuple[str, str, float]]:
+    ) -> List[Tuple[str, str, float, Optional[str]]]:
         """
         Process a message for drink words.
 
@@ -83,7 +85,7 @@ class DrinkTracker:
             text: Message text
 
         Returns:
-            List of tuples (drink_word, specific_drink, alcohol_grams) found in the message
+            List of tuples (drink_word, specific_drink, alcohol_grams, opened_time) found in the message
         """
         # Check if user has opted out
         if self.data_manager.is_user_opted_out(server, nick):
@@ -94,6 +96,7 @@ class DrinkTracker:
         for match in self.drink_pattern.finditer(text):
             drink_word = match.group(1).lower()
             specific_drink = match.group(2) if match.group(2) else "unspecified"
+            opened_time = match.group(3) if match.group(3) else None
 
             # Clean up specific drink name
             if specific_drink != "unspecified":
@@ -102,7 +105,7 @@ class DrinkTracker:
             # Parse alcohol content from drink description
             alcohol_grams = self._parse_alcohol_content(specific_drink)
 
-            matches.append((drink_word, specific_drink, alcohol_grams))
+            matches.append((drink_word, specific_drink, alcohol_grams, opened_time))
 
             # Record the drink word
             self._record_drink_word(server, nick, drink_word, specific_drink)
@@ -315,6 +318,29 @@ class DrinkTracker:
 
         # No volume found, use default
         return self.DEFAULT_VOLUME_L
+
+    def _parse_opened_time(self, time_str: str) -> Optional[datetime]:
+        """
+        Parse opened time string in HH:MM format.
+
+        Args:
+            time_str: Time string in HH:MM format
+
+        Returns:
+            datetime object for today with the specified time, or None if invalid
+        """
+        if not time_str:
+            return None
+
+        try:
+            # Parse HH:MM format
+            time_obj = datetime.strptime(time_str, "%H:%M").time()
+            # Combine with today's date
+            today = datetime.now().date()
+            return datetime.combine(today, time_obj)
+        except ValueError:
+            self.logger.warning(f"Invalid time format: {time_str}")
+            return None
 
     def get_user_stats(self, server: str, nick: str) -> Dict[str, Any]:
         """

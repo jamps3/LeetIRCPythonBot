@@ -70,15 +70,15 @@ def service(tmp_path, monkeypatch):
 
 def _get_mock_responses():
     """Get mock API responses for testing."""
-    mock_next_draw_response = {"error": 0, "next_draw": "2025-06-27"}
+    mock_next_draw_response = {"error": 0, "next_draw": "2025-06-27"}  # noqa: F841
 
-    mock_jackpot_response = {
+    mock_jackpot_response = {  # noqa: F841
         "error": 0,
         "jackpot": "15000000",
         "currency": "EUR",
     }
 
-    mock_last_results_response = {
+    mock_last_results_response = {  # noqa: F841
         "error": 0,
         "draw": "2025-06-20",
         "results": "06,12,18,37,46,07,09",
@@ -86,7 +86,7 @@ def _get_mock_responses():
         "currency": "EUR",
     }
 
-    mock_draw_by_date_response = {
+    mock_draw_by_date_response = {  # noqa: F841
         "error": 0,
         "draw": "2025-06-13",
         "results": "01,15,23,34,45,02,11",
@@ -94,7 +94,7 @@ def _get_mock_responses():
         "currency": "EUR",
     }
 
-    mock_no_draw_response = {"error": 1, "message": "No draw found"}
+    mock_no_draw_response = {"error": 1, "message": "No draw found"}  # noqa: F841
 
 
 def test_get_week_number(service):
@@ -556,12 +556,13 @@ def test_scrape_all_draws_all_saved_message(service, monkeypatch):
         d += timedelta(days=1)
 
     # Choose two missing at end
-    missing = [dt.strftime("%Y-%m-%d") for dt in all_tf[-2:]]
+    missing = [dt.strftime("%Y-%m-%d") for dt in all_tf[-2:]]  # noqa: F841
     existing = [dt.strftime("%Y-%m-%d") for dt in all_tf[:-2]]
 
-    # Seed DB with existing
+    # Seed DB with existing (batch save for optimization)
+    draws_to_save = []
     for di in existing:
-        service._save_draw_to_database(
+        draws_to_save.append(
             {
                 "date_iso": di,
                 "date": _dt.strptime(di, "%Y-%m-%d").strftime("%d.%m.%Y"),
@@ -575,6 +576,12 @@ def test_scrape_all_draws_all_saved_message(service, monkeypatch):
                 "saved_at": _dt.now().isoformat(),
             }
         )
+
+    # Batch save to database
+    db = service._load_database()
+    db["draws"] = draws_to_save
+    db["last_updated"] = _dt.now().isoformat()
+    service._save_database(db)
 
     # Make API always succeed
     def fake_make_request(url, params, timeout=10):

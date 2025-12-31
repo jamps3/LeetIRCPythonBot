@@ -420,10 +420,17 @@ class AlkoService:
                         product["price"] = float(price_value)
                     break
 
-            # Only return product if we have at least name and alcohol info
-            if product.get("name") and (product.get("alcohol_percent") is not None):
-                # Calculate alcohol content in grams
-                if product.get("bottle_size") and product.get("alcohol_percent"):
+            # Only return product if we have at least a name
+            if product.get("name"):
+                # Set default values for missing alcohol info (non-alcoholic products)
+                if product.get("alcohol_percent") is None:
+                    product["alcohol_percent"] = 0.0
+
+                # Calculate alcohol content in grams (will be 0 for non-alcoholic products)
+                if (
+                    product.get("bottle_size")
+                    and product.get("alcohol_percent") is not None
+                ):
                     bottle_size_liters = product["bottle_size"]
                     alcohol_percent = product["alcohol_percent"]
                     # Alcohol content in grams = volume (liters) * 1000 * density (0.789 g/ml) * alcohol % / 100
@@ -433,6 +440,8 @@ class AlkoService:
                         bottle_size_liters * 1000 * 0.789 * (alcohol_percent / 100)
                     )
                     product["alcohol_grams"] = round(alcohol_grams, 1)
+                else:
+                    product["alcohol_grams"] = 0.0
 
                 return product
 
@@ -726,7 +735,7 @@ class AlkoService:
         Get product information by product number.
 
         Args:
-            product_number: Product number as string
+            product_number: Product number as string (leading zeros are ignored)
 
         Returns:
             Product information dictionary or None if not found
@@ -736,10 +745,17 @@ class AlkoService:
             return None
 
         try:
-            # Search for exact product number match
+            # Normalize the search number by removing leading zeros
+            normalized_search = product_number.lstrip("0") or "0"
+
+            # Search for product number match (ignoring leading zeros)
             for product in self.products_cache:
-                if product.get("number") == product_number:
-                    return product
+                stored_number = product.get("number", "")
+                if stored_number:
+                    # Normalize stored number by removing leading zeros
+                    normalized_stored = stored_number.lstrip("0") or "0"
+                    if normalized_stored == normalized_search:
+                        return product
 
             logger.info(f"Product number {product_number} not found")
             return None
@@ -774,11 +790,13 @@ class AlkoService:
             elif bottle_size is not None:
                 parts.append(f"Pullokoko: {bottle_size} l")
 
-            if alcohol_percent is not None:
+            # Only show alcohol info if the product has alcohol
+            if alcohol_percent is not None and alcohol_percent > 0:
                 parts.append(f"Alkoholi: {alcohol_percent}%")
 
-            if alcohol_grams is not None:
-                parts.append(f"Alkoholia: {alcohol_grams}g")
+                # Also show alcohol grams for alcoholic products
+                if alcohol_grams is not None:
+                    parts.append(f"Alkoholia: {alcohol_grams}g")
 
             if price is not None:
                 parts.append(f"Hinta: {price:.2f}€")

@@ -579,8 +579,15 @@ class MessageHandler:
                         )
 
                 # NOW add each drink to BAC tracker with actual alcohol content
-                for drink_word, specific_drink, alcohol_grams in drink_words_found:
-                    self.bac_tracker.add_drink(server_name, sender, alcohol_grams)
+                for (
+                    drink_word,
+                    specific_drink,
+                    alcohol_grams,
+                    opened_time,
+                ) in drink_words_found:
+                    self.bac_tracker.add_drink(
+                        server_name, sender, alcohol_grams, opened_time
+                    )
             except Exception as e:
                 logger.error(f"Error updating BAC for {sender}: {e}")
 
@@ -604,7 +611,7 @@ class MessageHandler:
         current_bac = current_bac_info["current_bac"]
 
         # Calculate projected BAC after this drink
-        total_grams = sum(alcohol_grams for _, _, alcohol_grams in drink_words_found)
+        total_grams = sum(alcohol_grams for _, _, alcohol_grams, _ in drink_words_found)
         projected_bac = current_bac + self._calculate_bac_increase(
             server_name, sender, total_grams
         )
@@ -644,7 +651,7 @@ class MessageHandler:
             # Add drink word information to the message
             drink_words_formatted = []
             stats_messages = []
-            for drink_word, info, _ in drink_words_found:
+            for drink_word, info, _, _ in drink_words_found:
                 if info:
                     drink_words_formatted.append(f"{drink_word} ({info})")
                 else:
@@ -675,7 +682,7 @@ class MessageHandler:
             # Remove duplicates
             drink_words_formatted = list(set(drink_words_formatted))
             drink_part = f" | {' | '.join(drink_words_formatted)}"
-            stats_part = f" | Stats: {', '.join(set(stats_messages))}"
+            stats_part = f" | {', '.join(set(stats_messages))}"
             combined_message += drink_part + stats_part
 
         # Send combined message as notice to the originating channel only
@@ -721,7 +728,7 @@ class MessageHandler:
             # Add drink word information to the message
             drink_words_formatted = []
             stats_messages = []
-            for drink_word, info, _ in drink_words_found:
+            for drink_word, info, _, _ in drink_words_found:
                 if info:
                     drink_words_formatted.append(f"{drink_word} ({info})")
                 else:
@@ -752,7 +759,7 @@ class MessageHandler:
             # Remove duplicates
             drink_words_formatted = list(set(drink_words_formatted))
             drink_part = f" | {' | '.join(drink_words_formatted)}"
-            stats_part = f" | Stats: {', '.join(set(stats_messages))}"
+            stats_part = f" | {', '.join(set(stats_messages))}"
             combined_message += drink_part + stats_part
 
         # Send combined message as notice to the sender

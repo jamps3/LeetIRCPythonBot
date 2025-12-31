@@ -116,57 +116,44 @@ def manager(monkeypatch):
     return m
 
 
-def test_bot_manager_initialization_with_services():
+def test_bot_manager_initialization_with_services(manager):
     """Test that BotManager initializes properly with all services."""
-    # Mock all dependencies but ensure they return proper values
-    with patch("word_tracking.DataManager") as mock_dm:
-        # Mock data manager
-        mock_dm_instance = Mock()
-        mock_dm.return_value = mock_dm_instance
-        mock_dm_instance.load_tamagotchi_state.return_value = {"servers": {}}
-        mock_dm_instance.save_tamagotchi_state.return_value = None
-        mock_dm_instance.load_general_words_data.return_value = {"servers": {}}
-        mock_dm_instance.save_general_words_data.return_value = None
-        mock_dm_instance.load_drink_data.return_value = {"servers": {}}
-        mock_dm_instance.save_drink_data.return_value = None
+    # The manager fixture already initializes BotManager with mocked services
+    bot_manager = manager
 
-        from bot_manager import BotManager
+    # Check that essential attributes exist
+    required_attrs = [
+        "bot_name",
+        "servers",
+        "stop_event",
+        "data_manager",
+        "drink_tracker",
+        "general_words",
+        "tamagotchi",
+        "crypto_service",
+        "leet_detector",
+    ]
 
-        bot_manager = BotManager("TestBot")
+    for attr in required_attrs:
+        assert hasattr(bot_manager, attr), f"Missing required attribute: {attr}"
 
-        # Check that essential attributes exist
-        required_attrs = [
-            "bot_name",
-            "servers",
-            "stop_event",
-            "data_manager",
-            "drink_tracker",
-            "general_words",
-            "tamagotchi",
-            "crypto_service",
-            "leet_detector",
-        ]
+    # Check that essential methods exist
+    required_methods = [
+        "_handle_message",
+        "_track_words",
+        "_process_commands",
+        "start",
+        "stop",
+        "wait_for_shutdown",
+        "_listen_for_console_commands",
+        "_create_console_bot_functions",
+    ]
 
-        for attr in required_attrs:
-            assert hasattr(bot_manager, attr), f"Missing required attribute: {attr}"
-
-        # Check that essential methods exist
-        required_methods = [
-            "_handle_message",
-            "_track_words",
-            "_process_commands",
-            "start",
-            "stop",
-            "wait_for_shutdown",
-            "_listen_for_console_commands",
-            "_create_console_bot_functions",
-        ]
-
-        for method in required_methods:
-            assert hasattr(bot_manager, method), f"Missing required method: {method}"
-            assert callable(
-                getattr(bot_manager, method)
-            ), f"Attribute {method} is not callable"
+    for method in required_methods:
+        assert hasattr(bot_manager, method), f"Missing required method: {method}"
+        assert callable(
+            getattr(bot_manager, method)
+        ), f"Attribute {method} is not callable"
 
 
 def test_url_blacklist_functionality(manager):
@@ -366,7 +353,7 @@ def test_send_response_use_notice_and_message(manager):
 
 
 def test_process_leet_winner_summary(monkeypatch, manager):
-    winners = {}
+    winners = {}  # noqa: F841
     monkeypatch.setattr(
         manager.message_handler, "_load_leet_winners", lambda: saved, raising=True
     )
@@ -379,7 +366,11 @@ def test_process_leet_winner_summary(monkeypatch, manager):
         manager.message_handler, "_save_leet_winners", save, raising=True
     )
 
-    text = "Ensimmäinen leettaaja oli Alice kello 13.37.00,218154740 (”leet”), viimeinen oli Bob kello 13.37.56,267236192 (”leet”). Lähimpänä multileettiä oli Carol kello 13.37.13,242345678 (”leet”)."
+    text = (
+        "Ensimmäinen leettaaja oli Alice kello 13.37.00,218154740 (”leet”), "
+        "viimeinen oli Bob kello 13.37.56,267236192 (”leet”). "
+        "Lähimpänä multileettiä oli Carol kello 13.37.13,242345678 (”leet”)."
+    )
     context = {"text": text, "sender": "Beici"}
     manager.message_handler._process_leet_winner_summary(context)
     assert saved.get("Alice", {}).get("first") == 1
@@ -1311,7 +1302,9 @@ def test_nanoleet_achievement_send(monkeypatch, manager):
 
 
 def test_process_commands_paths(monkeypatch, manager):
-    server = SimpleNamespace(config=SimpleNamespace(name="srv"), bot_name="MyBot")
+    server = SimpleNamespace(
+        config=SimpleNamespace(name="srv"), bot_name="MyBot"
+    )  # noqa: F841
     # !otiedote is now handled through command registry, not direct call
     # Mock the get_otiedote_info function that the command uses
     called = {"n": 0}

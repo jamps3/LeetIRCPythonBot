@@ -269,6 +269,7 @@ class TestBACTacker:
         assert "Promilles:" in message
         assert "testuser:" in message
         assert "🍺" in message
+        assert "Burn rate:" in message
 
     def test_format_bac_message_high_bac(self):
         """Test BAC message with warnings for high BAC."""

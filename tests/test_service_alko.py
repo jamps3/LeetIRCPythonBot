@@ -359,6 +359,27 @@ class TestAlkoService:
 
     @patch.object(AlkoService, "_download_excel_file", return_value=True)
     @patch.object(AlkoService, "_parse_excel_file", return_value=[])
+    def test_format_product_info_non_alcoholic(self, mock_parse, mock_download):
+        """Test format_product_info with non-alcoholic product."""
+        service = AlkoService(data_dir=self.data_dir)
+
+        product = {
+            "name": "Non-Alcoholic Beer",
+            "bottle_size": 0.33,
+            "alcohol_percent": 0.0,
+            "price": 2.50,
+        }
+
+        result = service.format_product_info(product)
+
+        # Should not show alcohol info for non-alcoholic products
+        assert "🍺 Non-Alcoholic Beer" in result
+        assert "Pullokoko: 0.33 l" in result
+        assert "Hinta: 2.50€" in result
+        assert "Alkoholi:" not in result  # Should not show alcohol info
+
+    @patch.object(AlkoService, "_download_excel_file", return_value=True)
+    @patch.object(AlkoService, "_parse_excel_file", return_value=[])
     def test_update_data_forces_download(self, mock_parse, mock_download):
         """Test that update_data forces download when cache is empty."""
         service = AlkoService(data_dir=self.data_dir)
@@ -615,10 +636,10 @@ class TestAlkoService:
                 "alcohol_percent": 4.7,
             },
             {
-                "name": "Test Wine",
-                "number": "789012",
+                "name": "Paperikassi",
+                "number": "82",
                 "bottle_size": 0.75,
-                "alcohol_percent": 12.0,
+                "alcohol_percent": 21.0,
             },
         ]
         service.products_cache = mock_products
@@ -628,8 +649,36 @@ class TestAlkoService:
         assert result == mock_products[1]  # Second product
 
         # Test another product number
-        result = service.get_product_by_number("789012")
-        assert result == mock_products[2]  # Third product
+        result = service.get_product_by_number("82")
+        assert result == mock_products[2]  # Third product (Paperikassi)
+
+        # Test product number with leading zeros (should match)
+        result = service.get_product_by_number("000082")
+        assert result == mock_products[2]  # Should match Paperikassi
+
+        # Test product number with different leading zeros
+        result = service.get_product_by_number("00000082")
+        assert result == mock_products[2]  # Should still match Paperikassi
+
+        # Test stored number with leading zeros matching query without
+        # Create a product with leading zeros in the stored number
+        mock_products_with_zeros = mock_products.copy()
+        mock_products_with_zeros[2] = {
+            "name": "Paperikassi",
+            "number": "000082",  # Stored with leading zeros
+            "bottle_size": 0.75,
+            "alcohol_percent": 21.0,
+        }
+        service.products_cache = mock_products_with_zeros
+
+        result = service.get_product_by_number("82")  # Query without zeros
+        assert result == mock_products_with_zeros[2]  # Should match
+
+        result = service.get_product_by_number("000082")  # Query with zeros
+        assert result == mock_products_with_zeros[2]  # Should match
+
+        # Reset cache
+        service.products_cache = mock_products
 
         # Test non-existent product number
         result = service.get_product_by_number("999999")

@@ -297,7 +297,7 @@ class BACTacker:
         return driving_datetime.strftime("%H:%M")
 
     def add_drink(
-        self, server: str, nick: str, drink_grams: float = None
+        self, server: str, nick: str, drink_grams: float = None, opened_time: str = None
     ) -> Dict[str, float]:
         """
         Add a drink to user's BAC calculation.
@@ -306,6 +306,7 @@ class BACTacker:
             server: Server name
             nick: User nickname
             drink_grams: Grams of pure alcohol (default: standard drink)
+            opened_time: Time when drink was opened in HH:MM format (optional)
 
         Returns:
             Updated BAC information
@@ -331,16 +332,71 @@ class BACTacker:
         # Update current BAC (burn off any alcohol since last update)
         current_bac = self._calculate_current_bac(server, nick, user_data)
 
-        # Calculate BAC increase using corrected Widmark formula
-        # BAC (%) = alcohol_grams / (body_weight_kg × r × 0.8)  # 0.8 is for correction. Use without!
+        # If opened_time is provided, calculate how much alcohol has already burned
+        effective_drink_grams = drink_grams
+        if opened_time:
+            try:
+                # Parse the opened time
+                opened_datetime = datetime.strptime(opened_time, "%H:%M")
+                # Assume it's today
+                opened_datetime = opened_datetime.replace(
+                    year=datetime.now().year,
+                    month=datetime.now().month,
+                    day=datetime.now().day,
+                )
+
+                # Calculate time elapsed since opening
+                now = datetime.now()
+                if opened_datetime > now:
+                    # If opened time is in the future, assume it's yesterday
+                    opened_datetime = opened_datetime.replace(
+                        day=opened_datetime.day - 1
+                    )
+
+                time_elapsed_hours = (now - opened_datetime).total_seconds() / 3600.0
+
+                # Get user's burn rate
+                profile = self.get_user_profile(server, nick)
+                burn_rate_per_mille = profile["burn_rate"]  # ‰/hour
+
+                # Calculate how much BAC would have been burned
+                # First calculate what the BAC increase would have been initially
+                body_water = (
+                    self._get_body_water_constant(profile["sex"]) * profile["weight_kg"]
+                )
+                initial_bac_increase = drink_grams / body_water  # ‰
+
+                # Calculate burned BAC during elapsed time
+                burned_bac = min(
+                    initial_bac_increase, time_elapsed_hours * burn_rate_per_mille
+                )
+
+                # Effective remaining alcohol
+                remaining_bac = initial_bac_increase - burned_bac
+                effective_drink_grams = remaining_bac * body_water
+
+                self.logger.debug(
+                    f"Drink opened at {opened_time}, elapsed {time_elapsed_hours:.1f}h, "
+                    f"burned BAC {burned_bac:.3f}‰, effective grams {effective_drink_grams:.1f}g "
+                    f"(was {drink_grams:.1f}g)"
+                )
+
+                # Ensure effective_drink_grams doesn't go negative
+                effective_drink_grams = max(0.0, effective_drink_grams)
+
+            except ValueError as e:
+                self.logger.warning(f"Invalid opened_time format '{opened_time}': {e}")
+                # Fall back to full drink_grams
+
+        # Calculate BAC increase using effective alcohol content
         profile = self.get_user_profile(server, nick)
         body_water = (
             self._get_body_water_constant(profile["sex"]) * profile["weight_kg"]
         )
-        added_bac = drink_grams / (body_water)  # ‰
+        added_bac = effective_drink_grams / (body_water)  # ‰
 
         self.logger.debug(
-            f"drink_grams={drink_grams:.3f} body_water={body_water:.3f} added_bac={added_bac:.3f} profile={profile}"
+            f"effective_drink_grams={effective_drink_grams:.3f} body_water={body_water:.3f} added_bac={added_bac:.3f} profile={profile}"
         )
 
         # Calculate peak BAC (current + new drink, assuming immediate absorption for peak)
@@ -355,7 +411,7 @@ class BACTacker:
         user_data["current_bac"] = current_bac
         user_data["last_update_time"] = time.time()
         user_data["last_drink"] = datetime.now().isoformat()
-        user_data["last_drink_grams"] = drink_grams
+        user_data["last_drink_grams"] = drink_grams  # Store original grams
 
         self._save_bac_data(bac_data)
 
@@ -418,6 +474,11 @@ class BACTacker:
 
         message = f"{nick}: 🍺 Promilles: {current:.2f}‰"
 
+        # Get burn rate from profile
+        profile = self.get_user_profile(server, nick)
+        burn_rate = profile["burn_rate"]
+        message += f" | Burn rate: {burn_rate:.2f}‰/h"
+
         if peak > current:
             message += f" | Peak: {peak:.2f}‰"
 
@@ -426,7 +487,7 @@ class BACTacker:
             message += f" | Last: {last_drink_grams:.1f}g"
 
         if sober_time:
-            message += f" | Sober: ~{sober_time}"
+            message += f" | Sober by: ~{sober_time}"
 
         if driving_time:
             message += f" | Driving: ~{driving_time}"
