@@ -34,10 +34,10 @@ requests = requests
 time = time
 
 # Imports for test mocking compatibility
-from message_handler import MessageHandler, create_message_handler
-from server_manager import create_server_manager
-from service_manager import create_service_manager
-from word_tracking import DataManager
+from message_handler import MessageHandler, create_message_handler  # noqa: E402
+from server_manager import create_server_manager  # noqa: E402
+from service_manager import create_service_manager  # noqa: E402
+from word_tracking import DataManager  # noqa: E402
 
 
 class BotManager:
