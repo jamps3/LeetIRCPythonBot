@@ -131,9 +131,7 @@ Project: LeetIRCPythonBot v2.3.17 (Python IRC bot with multi-server support, ser
   - fmi_warning_service.py: FMI Warnings, background monitor invoking BotManager callbacks
   - gpt_service.py: OpenAI-backed chat with history persistence and limits
   - ipfs_service.py: admin-gated IPFS commands
-  - otiedote_service.py: Otiedote releases (Onnettomuustiedotteet), background monitor
-  - otiedote_playwright_service.py: Otiedote releases (Onnettomuustiedotteet), background monitor new, light version
-  - otiedote_json_service.py: Otiedote releases (Onnettomuustiedotteet), new ultralight version
+  - otiedote_json_service.py: Otiedote releases (Onnettomuustiedotteet), ultralight version
   - scheduled_message_service.py: Scheduled messages
   - solarwind_service.py: Solarwind status
   - weather_forecast_service.py: Weather forecast
