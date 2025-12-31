@@ -13,12 +13,25 @@ This is now a lightweight orchestrator that uses the new modular managers:
 
 import os
 import threading
+import time
 from types import SimpleNamespace
 from typing import Optional
 from unittest.mock import Mock
 
+import requests
+
 import logger
-from config import get_config
+from config import get_api_key, get_config
+
+# Expose Lemmatizer at module level for tests that patch bot_manager.Lemmatizer
+from lemmatizer import Lemmatizer
+from server import Server
+
+# Expose imports at module level for tests that patch bot_manager attributes
+get_api_key = get_api_key
+Server = Server
+requests = requests
+time = time
 
 # Imports for test mocking compatibility
 from message_handler import MessageHandler, create_message_handler

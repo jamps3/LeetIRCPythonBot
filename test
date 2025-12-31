@@ -1,26 +1,70 @@
-#!/usr/bin/env sh
-set -euo pipefail
+#!/usr/bin/env python
+"""
+Test runner script for LeetIRCPythonBot
 
-# Build optional args based on installed pytest plugins
-EXTRA_ARGS=""
+This script runs pytest with appropriate plugins and cleans up test state files.
+"""
 
-# Add -n 8 if pytest-xdist is available
-if python - <<'PY'
-import importlib.util, sys
-sys.exit(0 if importlib.util.find_spec('xdist') else 1)
-PY
-then
-  EXTRA_ARGS="$EXTRA_ARGS -n 8"
-fi
+import os
+import shutil
+import subprocess
+import sys
 
-# Add coverage flags if pytest-cov is available
-if python - <<'PY'
-import importlib.util, sys
-sys.exit(0 if importlib.util.find_spec('pytest_cov') else 1)
-PY
-then
-  EXTRA_ARGS="$EXTRA_ARGS --cov --cov-config=.coveragerc"
-fi
 
-# Run pytest and forward all args, always disable warnings
-python -m pytest -p no:warnings $EXTRA_ARGS "$@"
+def cleanup_test_files():
+    """Remove test state files that may have been left behind."""
+    test_files = [
+        "data/test_state.json",
+        "data/test_state.json.backup",
+        "test_state.json",
+        "test_state.json.backup",
+        "data/state.json.backup",
+        "state.json.backup",
+    ]
+
+    for file_path in test_files:
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except (OSError, IOError):
+            # Ignore errors when cleaning up
+            pass
+
+
+def check_pytest_plugin(plugin_name):
+    """Check if a pytest plugin is available."""
+    try:
+        import importlib.util
+        return importlib.util.find_spec(plugin_name) is not None
+    except ImportError:
+        return False
+
+
+def main():
+    # Build optional args based on installed pytest plugins
+    extra_args = []
+
+    # Add -n 8 if pytest-xdist is available
+    if check_pytest_plugin('xdist'):
+        extra_args.extend(['-n', '8'])
+
+    # Add coverage flags if pytest-cov is available
+    if check_pytest_plugin('pytest_cov'):
+        extra_args.extend(['--cov', '--cov-config=.coveragerc'])
+
+    # Clean up test files before starting
+    cleanup_test_files()
+
+    # Run pytest and forward all args, always disable warnings
+    cmd = [sys.executable, '-m', 'pytest', '-p', 'no:warnings'] + extra_args + sys.argv[1:]
+
+    try:
+        result = subprocess.run(cmd, check=True)
+        return result.returncode
+    finally:
+        # Clean up test files after tests finish (regardless of exit status)
+        cleanup_test_files()
+
+
+if __name__ == "__main__":
+    sys.exit(main())
