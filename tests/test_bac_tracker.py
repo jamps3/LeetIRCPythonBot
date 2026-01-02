@@ -6,12 +6,12 @@ import os
 import tempfile
 import time
 
-from src.word_tracking.bac_tracker import BACTacker
+from src.word_tracking.bac_tracker import BACTracker
 from src.word_tracking.data_manager import DataManager
 from src.word_tracking.drink_tracker import DrinkTracker
 
 
-class TestBACTacker:
+class TestBACTracker:
     """Test cases for BAC tracker functionality."""
 
     def setup_method(self):
@@ -24,7 +24,7 @@ class TestBACTacker:
         self.data_manager = DataManager(data_dir=self.temp_dir, state_file=state_file)
 
         # Create trackers
-        self.bac_tracker = BACTacker(self.data_manager)
+        self.bac_tracker = BACTracker(self.data_manager)
         self.drink_tracker = DrinkTracker(self.data_manager)
 
     def teardown_method(self):
@@ -373,13 +373,13 @@ class TestBACTacker:
     def test_persistence(self):
         """Test that BAC data persists across tracker instances."""
         # Create first tracker instance
-        tracker1 = BACTacker(self.data_manager)
+        tracker1 = BACTracker(self.data_manager)
         tracker1.set_user_profile("testserver", "persistuser", weight_kg=70, sex="m")
         tracker1.add_drink("testserver", "persistuser", 12.0)
         bac1 = tracker1.get_user_bac("testserver", "persistuser")
 
         # Create second tracker instance
-        tracker2 = BACTacker(self.data_manager)
+        tracker2 = BACTracker(self.data_manager)
         bac2 = tracker2.get_user_bac("testserver", "persistuser")
         profile2 = tracker2.get_user_profile("testserver", "persistuser")
 

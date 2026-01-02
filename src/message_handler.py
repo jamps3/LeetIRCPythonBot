@@ -18,7 +18,7 @@ from lemmatizer import Lemmatizer
 from server import Server
 from tamagotchi import TamagotchiBot
 from word_tracking import DataManager, DrinkTracker, GeneralWords
-from word_tracking.bac_tracker import BACTacker
+from word_tracking.bac_tracker import BACTracker
 
 logger = logger.get_logger("MessageHandler")
 
@@ -49,7 +49,7 @@ class MessageHandler:
 
         # Initialize word tracking components
         self.drink_tracker = DrinkTracker(data_manager)
-        self.bac_tracker = BACTacker(data_manager)
+        self.bac_tracker = BACTracker(data_manager)
         self.general_words = GeneralWords(data_manager)
         self.tamagotchi = TamagotchiBot(data_manager)
 

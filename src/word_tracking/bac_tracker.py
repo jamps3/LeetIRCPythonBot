@@ -14,7 +14,7 @@ import logger
 from .data_manager import DataManager
 
 
-class BACTacker:
+class BACTracker:
     """Tracks Blood Alcohol Content for users with realistic Widmark formula calculations."""
 
     def __init__(self, data_manager: DataManager):
@@ -25,7 +25,7 @@ class BACTacker:
             data_manager: DataManager instance for data persistence
         """
         self.data_manager = data_manager
-        self.logger = logger.get_logger("BACTacker")
+        self.logger = logger.get_logger("BACTracker")
 
         # BAC calculation constants
         self.ABSORPTION_TIME_MINUTES = 20  # Alcohol peaks in ~20 minutes
