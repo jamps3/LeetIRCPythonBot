@@ -1262,6 +1262,10 @@ def test_start_flow(monkeypatch, manager):
         def start(self):
             pass
 
+        def is_alive(self):
+            # Mock thread is always "alive" for testing
+            return True
+
     monkeypatch.setattr(bm.threading, "Thread", T)
     ok = manager.start()
     assert ok is True

@@ -117,7 +117,7 @@ class BotManager:
         """Start all managers and begin bot operation."""
         self.logger.info("🚀 Starting bot managers...")
 
-        # Start servers
+        # Start servers (this handles auto-connecting if enabled)
         if not self.server_manager.start_servers():
             return False
 

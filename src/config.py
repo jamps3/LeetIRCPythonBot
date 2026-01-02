@@ -362,7 +362,10 @@ def load_env_file() -> bool:
     Returns:
         bool: True if .env file was loaded successfully, False otherwise
     """
-    return load_dotenv()
+    # Load .env file from project root
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    env_file = os.path.join(project_root, ".env")
+    return load_dotenv(env_file)
 
 
 def parse_comma_separated_values(value: str) -> List[str]:
