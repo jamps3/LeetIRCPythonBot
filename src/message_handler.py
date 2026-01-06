@@ -523,13 +523,12 @@ class MessageHandler:
         text = context["text"]
         target = context["target"]
 
-        # Only track in channels, not private messages
-        if not target.startswith("#"):
-            return
-
         # Skip tracking if this is a command (starts with !)
         if text.strip().startswith("!"):
             return
+
+        # Only track general words in channels, but allow drink tracking in private messages too
+        is_private_message = not target.startswith("#")
 
         # Track drink words and get any drink word detections
         drink_words_found = self.drink_tracker.process_message(
