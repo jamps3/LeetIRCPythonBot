@@ -133,8 +133,14 @@ class MessageHandler:
             if sender.lower() != server.bot_name.lower():
                 self._check_nanoleet_achievement(context)
 
-            # Track words if not from the bot itself
-            if sender.lower() != server.bot_name.lower():
+            # Process commands FIRST (before AI chat) to ensure commands are handled properly
+            await self._process_commands(context)
+
+            # Track words if not from the bot itself (but skip if this was a command)
+            if (
+                sender.lower() != server.bot_name.lower()
+                and not text.strip().startswith("!")
+            ):
                 self._track_words(context)
 
             # Check for YouTube URLs and display video info
@@ -144,7 +150,7 @@ class MessageHandler:
             ):
                 self._handle_youtube_urls(context)
 
-            # Minimal AI chat for IRC: respond to private messages or mentions
+            # Minimal AI chat for IRC: respond to private messages or mentions (but NOT commands)
             try:
                 await self._handle_ai_chat(text, sender, target, server)
             except Exception as e:
@@ -160,9 +166,6 @@ class MessageHandler:
                     self._fetch_title(context["server"], target, text)
                 except Exception as e:
                     logger.warning(f"Error in URL title fetcher: {e}")
-
-            # Process commands
-            await self._process_commands(context)
 
         except Exception as e:
             logger.error(f"Error handling message from {server.config.name}: {e}")
