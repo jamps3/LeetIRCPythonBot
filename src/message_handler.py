@@ -549,36 +549,43 @@ class MessageHandler:
         # Handle drink word notifications BEFORE adding to BAC tracker
         if drink_words_found:
             try:
-                # Send drink word notifications to the channel where the message originated
+                server = context["server"]
+
+                # Send drink word notifications to the channel where the message originated (if configured)
                 if (
-                    drink_words_found
-                    and target.startswith("#")
+                    target.startswith("#")
                     and kraksdebug_config.get("channels")
+                    and target in kraksdebug_config["channels"]
                 ):
-                    server = context["server"]
+                    self._send_drink_word_notifications(
+                        server,
+                        target,
+                        sender,
+                        server_name,
+                        drink_words_found,
+                        kraksdebug_config,
+                    )
 
-                    # Check if the current channel is configured for notifications
-                    if target in kraksdebug_config["channels"]:
-                        self._send_drink_word_notifications(
-                            server,
-                            target,
-                            sender,
-                            server_name,
-                            drink_words_found,
-                            kraksdebug_config,
-                        )
-
-                    # Send combined BAC and drink word notification to user (only when nick_notices is enabled and nick is whitelisted)
-                    if kraksdebug_config.get(
-                        "nick_notices", False
-                    ) and sender in kraksdebug_config.get("nicks", []):
-                        self._send_drink_word_notifications_to_user(
-                            server,
-                            sender,
-                            server_name,
-                            drink_words_found,
-                            kraksdebug_config,
-                        )
+                # Send combined BAC and drink word notification to user in private messages
+                # or when nick_notices is enabled and nick is whitelisted
+                if not target.startswith("#"):  # Always send in private messages
+                    self._send_drink_word_notifications_to_user(
+                        server,
+                        sender,
+                        server_name,
+                        drink_words_found,
+                        kraksdebug_config,
+                    )
+                elif kraksdebug_config.get(
+                    "nick_notices", False
+                ) and sender in kraksdebug_config.get("nicks", []):
+                    self._send_drink_word_notifications_to_user(
+                        server,
+                        sender,
+                        server_name,
+                        drink_words_found,
+                        kraksdebug_config,
+                    )
 
                 # NOW add each drink to BAC tracker with actual alcohol content
                 for (
@@ -723,7 +730,59 @@ class MessageHandler:
         self, server, sender, server_name, drink_words_found, kraksdebug_config
     ):
         """Send drink word notifications to user."""
-        bac_message = self.bac_tracker.format_bac_message(server_name, sender)
+        # Calculate current BAC (before this drink)
+        current_bac_info = self.bac_tracker.get_user_bac(server_name, sender)
+        current_bac = current_bac_info["current_bac"]
+
+        # Calculate projected BAC after this drink
+        total_grams = sum(alcohol_grams for _, _, alcohol_grams, _ in drink_words_found)
+        projected_bac = current_bac + self._calculate_bac_increase(
+            server_name, sender, total_grams
+        )
+
+        # Calculate sober time based on projected BAC
+        projected_sober_time = self.bac_tracker._calculate_sober_time(
+            server_name, sender, projected_bac
+        )
+        projected_driving_time = self.bac_tracker._calculate_driving_time(
+            server_name, sender, projected_bac
+        )
+
+        # Get burn rate and peak
+        burn_rate = self.bac_tracker.get_user_profile(server_name, sender).get(
+            "burn_rate", 0.15
+        )
+        peak_bac = max(current_bac, projected_bac)
+
+        # Get last drink grams (from this drink)
+        last_drink_grams = total_grams
+
+        # Format the message
+        if projected_bac <= 0.0:
+            bac_message = f"{sender}: 🍺 Promilles: {current_bac:.2f}‰ | After: {projected_bac:.2f}‰ (sober)"
+        else:
+            bac_message = f"{sender}: 🍺 Promilles: {current_bac:.2f}‰ | After: {projected_bac:.2f}‰"
+
+        # Add burn rate
+        bac_message += f" | Burn rate: {burn_rate:.2f}‰/h"
+
+        # Add peak BAC
+        bac_message += f" | Peak: {peak_bac:.2f}‰"
+
+        # Add last drink grams
+        if last_drink_grams:
+            bac_message += f" | Last: {last_drink_grams:.1f}g"
+
+        # Add sober time (based on projected BAC)
+        if projected_sober_time:
+            bac_message += f" | Sober: ~{projected_sober_time}"
+
+        # Add driving time (based on projected BAC)
+        if projected_driving_time:
+            bac_message += f" | Driving: ~{projected_driving_time}"
+            if projected_bac > 0.5:  # Add warning for high BAC
+                bac_message += " ⚠️ Careful!"
+
         combined_message = bac_message
 
         if drink_words_found:
@@ -809,7 +868,19 @@ class MessageHandler:
             f"{bot_lower},"
         )
 
-        if (is_private or is_mention) and not text.startswith("!"):
+        # Check if message contains drink words (should be handled by drink tracking instead)
+        contains_drink_words = False
+        if self.drink_tracker:
+            drink_words_found = self.drink_tracker.process_message(
+                server=server.config.name, nick=sender, text=text
+            )
+            contains_drink_words = bool(drink_words_found)
+
+        if (
+            (is_private or is_mention)
+            and not text.startswith("!")
+            and not contains_drink_words
+        ):
             ai_response = self._chat_with_gpt(text, sender)
             if ai_response:
                 reply_target = sender if is_private else target

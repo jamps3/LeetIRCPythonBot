@@ -1385,7 +1385,7 @@ class TUIManager:
             f"LeetIRCBot TUI | {current_time} | {server_status} | {service_status} | "
             f"{view_indicator} | Logs: {len(self.log_entries)}"
         )
-        status_line2 = "F1=Help F2=Console F3=Stats F4=Config"
+        status_line2 = "F1=Help F2=Console F3=Stats F4=Config F5=RawLogs"
 
         status_text = f"{status_line1}\n{status_line2}"
         self.header.set_text(status_text)
@@ -1705,6 +1705,10 @@ class TUIManager:
             # Switch to config view
             self.switch_view("config")
 
+        elif key in ("f5", "ctrl f5"):
+            # Toggle console-style logging view
+            self.toggle_console_logging()
+
         elif key == "page up":
             # Scroll log display up by one page
             self.log_display.scroll_up_page()
@@ -1753,6 +1757,18 @@ class TUIManager:
                     "Console",
                     "INFO",
                     "Switched to configuration editor view",
+                    "SYSTEM",
+                )
+
+            elif view_name == "console_raw":
+                # Show raw console-style logs
+                self.show_raw_console_logs()
+
+                self.add_log_entry(
+                    datetime.now(),
+                    "Console",
+                    "INFO",
+                    "Switched to raw console logging view",
                     "SYSTEM",
                 )
 
@@ -1855,6 +1871,65 @@ class TUIManager:
                 f"Failed to save wrap mode to state.json: {e}",
                 "SYSTEM",
             )
+
+    def toggle_console_logging(self):
+        """Toggle between formatted TUI logs and raw console-style logs."""
+        if self.current_view == "console_raw":
+            # Switch back to normal console view
+            self.switch_view("console")
+        else:
+            # Switch to raw console-style logging view
+            self.switch_view("console_raw")
+
+    def show_raw_console_logs(self):
+        """Show raw console-style logs instead of formatted TUI logs."""
+        # Clear current display
+        self.log_walker.clear()
+
+        # Display raw console-style logs
+        for entry in self.log_entries:
+            if entry.matches_filter(self.current_filter):
+                # Create raw console-style text (like what would appear in console mode)
+                timestamp_str = entry.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+                raw_text = f"[{timestamp_str}] [{entry.level}] {entry.message}"
+                text_widget = urwid.Text(raw_text)
+                self.log_walker.append(text_widget)
+
+        # Scroll to bottom
+        self.log_display.scroll_to_bottom()
+
+    def toggle_console_mode(self):
+        """Toggle between TUI and console mode by exiting TUI and signaling restart in console mode."""
+        self.add_log_entry(
+            datetime.now(),
+            "Console",
+            "INFO",
+            "🔄 Switching to console mode - TUI will exit and bot will restart in console interface",
+            "SYSTEM",
+        )
+        self.add_log_entry(
+            datetime.now(),
+            "Console",
+            "INFO",
+            "💡 Tip: Use --console flag when starting the bot to begin in console mode",
+            "SYSTEM",
+        )
+
+        # Create a mode switch signal file
+        try:
+            with open(".mode_switch", "w") as f:
+                f.write("console")
+        except Exception as e:
+            self.add_log_entry(
+                datetime.now(),
+                "Console",
+                "WARNING",
+                f"Could not create mode switch signal: {e}",
+                "SYSTEM",
+            )
+
+        # Exit the TUI main loop gracefully
+        raise urwid.ExitMainLoop()
 
     def toggle_wrap(self):
         """Toggle text wrapping mode and rebuild the display."""
@@ -2041,6 +2116,7 @@ Views:
   F2 / console     - Console view (logs and messages)
   F3 / stats       - Statistics view (bot performance)
   F4 / config      - Configuration editor
+  F5 / rawlogs     - Raw console-style logs
 
 Commands:
   !command        - Send bot command (e.g., !help, !connect, !exit)
