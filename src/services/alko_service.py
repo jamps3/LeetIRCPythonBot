@@ -748,7 +748,7 @@ class AlkoService:
             # Normalize the search number by removing leading zeros
             normalized_search = product_number.lstrip("0") or "0"
 
-            # Search for product number match (ignoring leading zeros)
+            # Search for exact product number match (ignoring leading zeros)
             for product in self.products_cache:
                 stored_number = product.get("number", "")
                 if stored_number:
@@ -756,6 +756,24 @@ class AlkoService:
                     normalized_stored = stored_number.lstrip("0") or "0"
                     if normalized_stored == normalized_search:
                         return product
+
+            # If no exact match found, try to find products that end with the search number
+            # This handles cases where users search for partial product numbers (e.g., "83" for "5183")
+            if (
+                len(normalized_search) <= 4
+            ):  # Only do partial matching for short search strings
+                matches = []
+                for product in self.products_cache:
+                    stored_number = product.get("number", "")
+                    if stored_number and stored_number.endswith(normalized_search):
+                        matches.append(product)
+
+                if matches:
+                    # Return the first match (could be enhanced with better ranking in the future)
+                    logger.info(
+                        f"Found partial match for product number {product_number}: {matches[0]['number']}"
+                    )
+                    return matches[0]
 
             logger.info(f"Product number {product_number} not found")
             return None
