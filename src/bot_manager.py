@@ -102,6 +102,7 @@ class BotManager:
         self.crypto_service = self.service_manager.get_service("crypto")
         self.youtube_service = self.service_manager.get_service("youtube")
         self.weather_service = self.service_manager.get_service("weather")
+        self.electricity_service = self.service_manager.get_service("electricity")
         self.leet_detector = self.service_manager.get_service("leet_detector")
         self.fmi_warning_service = self.service_manager.get_service("fmi_warning")
         self.otiedote_service = self.service_manager.get_service("otiedote")
