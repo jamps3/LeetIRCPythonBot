@@ -8,6 +8,8 @@ including the fix for the product #83 search issue.
 import sys
 
 sys.path.insert(0, "src")
+import argparse
+
 from services.alko_service import AlkoService
 
 
@@ -101,18 +103,211 @@ def test_cache_stats():
                 print(f"  {p['number']}: {p['name']}")
 
 
+def search_products(query: str, show_all: bool = False):
+    """Search for products by name and show results."""
+    print(f"🔍 Searching for products matching: '{query}'")
+    print("-" * 60)
+
+    service = AlkoService()
+
+    if not service.products_cache:
+        print("❌ No product data available")
+        return
+
+    # Search with a high limit to get all matches
+    limit = 1000 if show_all else 10
+    matches = service.search_products(query, limit=limit)
+
+    if not matches:
+        print(f"❌ No products found matching '{query}'")
+        return
+
+    print(
+        f"✅ Found {len(matches)} matching product{'s' if len(matches) != 1 else ''}:"
+    )
+
+    for i, product in enumerate(matches, 1):
+        number = product.get("number", "N/A")
+        name = product.get("name", "Unknown")
+        bottle_size = product.get("bottle_size_raw", "N/A")
+        alcohol_percent = product.get("alcohol_percent", "N/A")
+        price = product.get("price", "N/A")
+
+        print(f"{i:2d}. {number}: {name}")
+        print(
+            f"    Size: {bottle_size} | Alcohol: {alcohol_percent}% | Price: {price}€"
+        )
+        print()
+
+    if not show_all and len(matches) >= limit:
+        print(f"💡 Showing first {limit} results. Use --all to show all matches.")
+
+
+def check_excel_file():
+    """Check Excel file contents and search for specific products."""
+    import pandas as pd
+
+    print("📊 Checking Excel file contents...")
+    print("-" * 50)
+
+    excel_path = "data/alkon-hinnasto-tekstitiedostona.xlsx"
+
+    try:
+        # Read the first sheet
+        df = pd.read_excel(excel_path, header=None, engine="openpyxl")
+
+        print(f"Total rows: {len(df)}")
+
+        # Check the header row (first few rows)
+        print("First 10 rows (potential headers):")
+        for i in range(min(10, len(df))):
+            row = df.iloc[i]
+            row_str = " | ".join(str(val) for val in row if pd.notna(val))
+            print(f"Row {i+1}: {row_str}")
+
+        # Find header row by looking for "Nimi" or "Numero"
+        header_row = None
+        for i in range(min(20, len(df))):
+            row = df.iloc[i]
+            row_values = [str(val).strip() for val in row.values if pd.notna(val)]
+            if any("Nimi" in val or "Numero" in val for val in row_values):
+                header_row = i
+                break
+
+        print(
+            f"\nDetected header row: {header_row + 1 if header_row is not None else 'None'}"
+        )
+
+        # Search for rows containing 'paperikassi'
+        paperikassi_rows = []
+        for idx, row in df.iterrows():
+            row_str = " ".join(str(val) for val in row if pd.notna(val)).lower()
+            if "paperikassi" in row_str:
+                paperikassi_rows.append(idx + 1)  # 1-indexed
+
+        print(f"\nRows containing 'paperikassi': {paperikassi_rows}")
+
+        # Search for '000083'
+        num_000083_rows = []
+        for idx, row in df.iterrows():
+            row_str = " ".join(str(val) for val in row if pd.notna(val))
+            if "000083" in row_str:
+                num_000083_rows.append(idx + 1)  # 1-indexed
+
+        print(f"Rows containing '000083': {num_000083_rows}")
+
+    except Exception as e:
+        print(f"❌ Error checking Excel file: {e}")
+
+
+def check_cache_products():
+    """Check cache for products containing specific keywords."""
+    print("🔍 Checking cache for products...")
+    print("-" * 50)
+
+    try:
+        import json
+
+        with open("data/alko_cache.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        products = data["products"]
+
+        # Search for "paperikassi"
+        matches = [p for p in products if "paperikassi" in p.get("name", "").lower()]
+
+        print(f'Found {len(matches)} products containing "paperikassi":')
+        for p in matches[:10]:  # Show first 10
+            print(f'  {p.get("number", "N/A")}: {p.get("name", "Unknown")}')
+
+        if len(matches) > 10:
+            print(f"  ... and {len(matches) - 10} more")
+
+        # Also check for partial matches
+        partial_matches = [
+            p
+            for p in products
+            if any(word in p.get("name", "").lower() for word in ["paperi", "kassi"])
+        ]
+        print(
+            f'\nFound {len(partial_matches)} products containing "paperi" or "kassi":'
+        )
+        for p in partial_matches[:10]:
+            print(f'  {p.get("number", "N/A")}: {p.get("name", "Unknown")}')
+
+    except Exception as e:
+        print(f"❌ Error checking cache: {e}")
+
+
+def force_update_alko():
+    """Force update of Alko data."""
+    print("🔄 Forcing update of Alko data...")
+    print("-" * 50)
+
+    service = AlkoService()
+    success = service.update_data(force=True)
+    print(f"Update success: {success}")
+
+    if success:
+        print(f"New cache has {len(service.products_cache)} products")
+
+        # Check if 000083 is now in cache
+        product = service.get_product_by_number("000083")
+        if product:
+            print(f"✅ Found product 000083: {product['name']}")
+        else:
+            print("❌ Still not found")
+    else:
+        print("❌ Update failed")
+
+
 def main():
-    """Run all debug tests."""
-    print("🔍 Alko Service Debug Script")
-    print("=" * 50)
+    """Run debug tests or search functionality based on command line arguments."""
+    parser = argparse.ArgumentParser(description="Alko Service Debug Script")
+    parser.add_argument("query", nargs="?", help="Search query for products")
+    parser.add_argument(
+        "--all", "-a", action="store_true", help="Show all search results (not limited)"
+    )
+    parser.add_argument("--test", "-t", action="store_true", help="Run all debug tests")
+    parser.add_argument(
+        "--excel", "-e", action="store_true", help="Check Excel file contents"
+    )
+    parser.add_argument(
+        "--cache", "-c", action="store_true", help="Check cache for products"
+    )
+    parser.add_argument(
+        "--update", "-u", action="store_true", help="Force update Alko data"
+    )
 
-    test_product_83_issue()
-    test_partial_matching()
-    test_exact_matching()
-    test_edge_cases()
-    test_cache_stats()
+    args = parser.parse_args()
 
-    print("\n🎉 Debug script completed!")
+    if args.test:
+        # Test mode
+        print("🔍 Alko Service Debug Script - Test Mode")
+        print("=" * 50)
+
+        test_product_83_issue()
+        test_partial_matching()
+        test_exact_matching()
+        test_edge_cases()
+        test_cache_stats()
+
+        print("\n🎉 Debug script completed!")
+    elif args.excel:
+        # Check Excel file
+        check_excel_file()
+    elif args.cache:
+        # Check cache
+        check_cache_products()
+    elif args.update:
+        # Force update
+        force_update_alko()
+    elif args.query:
+        # Search mode
+        search_products(args.query, show_all=args.all)
+    else:
+        # Default: show help
+        parser.print_help()
 
 
 if __name__ == "__main__":

@@ -332,13 +332,49 @@ class AlkoService:
             products = []
 
             # Process each row
-            for _, row in df.iterrows():
+            for idx, row in df.iterrows():
                 try:
                     product = self._parse_product_row(row)
                     if product:
                         products.append(product)
+                        if (
+                            idx == 8453
+                        ):  # Debug for original row 8457 (df index 8453 = original 8457 - 4)
+                            logger.info(
+                                f"Row {idx+1} (original 8457) parsed successfully"
+                            )
+                            logger.info(f"Parsed product: {product}")
+                    elif (
+                        idx == 8453
+                    ):  # Debug for original row 8457 (df index 8453 = original 8457 - 4)
+                        logger.info(
+                            f"Row {idx+1} (original 8457) parsed but no product returned"
+                        )
+                        logger.info(f"Row data: {row.to_dict()}")
+                    elif (
+                        idx == 8474
+                    ):  # Debug for original row 8478 (df index 8474 = original 8478 - 4)
+                        if product:
+                            logger.info(
+                                f"Row {idx+1} (original 8478) parsed successfully"
+                            )
+                            logger.info(f"Parsed product: {product}")
+                        else:
+                            logger.info(
+                                f"Row {idx+1} (original 8478) parsed but no product returned"
+                            )
+                            logger.info(f"Row data: {row.to_dict()}")
+                    elif (
+                        not product and idx == 8477
+                    ):  # Debug for original row 8481 (df index 8477 = original 8481 - 4)
+                        logger.info(
+                            f"Row {idx+1} (original 8481) parsed but no product returned"
+                        )
+                        logger.info(f"Row data: {row.to_dict()}")
                 except Exception as e:
-                    logger.warning(f"Failed to parse row: {e}")
+                    logger.warning(f"Failed to parse row {idx+1}: {e}")
+                    if idx == 8456:
+                        logger.info(f"Row {idx+1} data: {row.to_dict()}")
                     continue
 
             logger.info(f"Parsed {len(products)} products from Excel file")

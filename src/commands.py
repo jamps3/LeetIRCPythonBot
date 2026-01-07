@@ -2381,8 +2381,8 @@ def alko_command(context: CommandContext, bot_functions):
 @command(
     "krak",
     description="Set BAC calculation profile or view current BAC",
-    usage="!krak [weight_kg m/f | burn_rate] or !krak (view current BAC)",
-    examples=["!krak 75 m", "!krak 0.15", "!krak"],
+    usage="!krak [weight_kg m/f | burn_rate | nickname] or !krak (view current BAC)",
+    examples=["!krak 75 m", "!krak 0.15", "!krak", "!krak otheruser"],
     admin_only=False,
 )
 def krak_command(context: CommandContext, bot_functions):
@@ -2391,6 +2391,7 @@ def krak_command(context: CommandContext, bot_functions):
     Usage:
     - !krak weight_kg m/f : Set weight and sex for personalized BAC calculation
     - !krak burn_rate : Set custom burn rate in ‰ per hour
+    - !krak nickname : View another user's BAC information
     - !krak : View current BAC information
     """
     # Get the BAC tracker
@@ -2405,109 +2406,77 @@ def krak_command(context: CommandContext, bot_functions):
         or "console"
     )
 
-    nick = context.sender
+    # Determine the target user (default to sender)
+    target_nick = context.sender
 
-    if not context.args:
-        # No arguments - show current BAC
-        bac_info = bac_tracker.get_user_bac(server_name, nick)
-        profile = bac_tracker.get_user_profile(server_name, nick)
+    # Check if this looks like a nickname request (single non-numeric argument)
+    if context.args and len(context.args) == 1:
+        potential_nick = context.args[0]
+        # Check if it's not a number (would be burn rate) and not a sex indicator
+        try:
+            float(potential_nick)
+            # It's a number, so it's burn rate - don't treat as nickname
+        except ValueError:
+            if potential_nick.lower() not in ["m", "f"]:
+                # Not a number and not sex, so treat as nickname
+                target_nick = potential_nick
 
-        # Get last drink grams from stored data
-        bac_data = bac_tracker._load_bac_data()
-        user_key = f"{server_name}:{nick}"
-        user_data = bac_data.get(user_key, {})
-        last_drink_grams = user_data.get("last_drink_grams")
+    # Show BAC information
+    bac_info = bac_tracker.get_user_bac(server_name, target_nick)
+    profile = bac_tracker.get_user_profile(server_name, target_nick)
 
-        if bac_info["current_bac"] == 0.0 and not any(profile.values()):
-            response = "🍺 No BAC data yet. Use !krak <weight_kg> <m/f> to set your profile for accurate calculations."
-            # Include last drink alcohol content even when no profile
-            if last_drink_grams:
-                response += f" | Last: {last_drink_grams:.1f}g"
-            return response
+    # Get last drink grams from stored data
+    bac_data = bac_tracker._load_bac_data()
+    user_key = f"{server_name}:{target_nick}"
+    user_data = bac_data.get(user_key, {})
+    last_drink_grams = user_data.get("last_drink_grams")
 
-        response_parts = []
+    # Show whose BAC we're displaying if it's not the sender
+    display_name = f"{target_nick}'s" if target_nick != context.sender else ""
 
-        # Show current BAC if any
-        if bac_info["current_bac"] > 0.0:
-            sober_time = bac_info.get("sober_time", "Unknown")
-            driving_time = bac_info.get("driving_time")
-            response_parts.append(f"🍺 Promilles: {bac_info['current_bac']:.2f}‰")
+    if bac_info["current_bac"] == 0.0 and not any(profile.values()):
+        response = f"🍺 {display_name} No BAC data yet."
+        # Include last drink alcohol content even when no profile
+        if last_drink_grams:
+            response += f" | Last: {last_drink_grams:.1f}g"
+        return response
 
-            # Include last drink alcohol content if available
-            if last_drink_grams:
-                response_parts.append(f"Last: {last_drink_grams:.1f}g")
+    response_parts = []
 
-            if sober_time:
-                response_parts.append(f"Sober: ~{sober_time}")
+    # Show current BAC if any
+    if bac_info["current_bac"] > 0.0:
+        sober_time = bac_info.get("sober_time", "Unknown")
+        driving_time = bac_info.get("driving_time")
+        response_parts.append(
+            f"🍺 {display_name} Promilles: {bac_info['current_bac']:.2f}‰"
+        )
 
-            if driving_time:
-                response_parts.append(f"Driving: ~{driving_time}")
+        # Include last drink alcohol content if available
+        if last_drink_grams:
+            response_parts.append(f"Last: {last_drink_grams:.1f}g")
 
-        # Show profile info
-        profile_info = []
-        if (
-            profile.get("weight_kg")
-            and profile.get("weight_kg") != bac_tracker.DEFAULT_WEIGHT_KG
-        ):
-            profile_info.append(f"Weight: {profile['weight_kg']}kg")
-        if profile.get("sex"):
-            profile_info.append(f"Sex: {'Male' if profile['sex'] == 'm' else 'Female'}")
-        if profile.get("burn_rate") and profile.get(
-            "burn_rate"
-        ) != bac_tracker._get_default_burn_rate(profile.get("sex", "m")):
-            profile_info.append(f"Burn rate: {profile['burn_rate']}‰/h")
+        if sober_time:
+            response_parts.append(f"Sober: ~{sober_time}")
 
+        if driving_time:
+            response_parts.append(f"Driving: ~{driving_time}")
+
+    # Show profile info
+    if (
+        profile.get("weight_kg")
+        and profile.get("weight_kg") != bac_tracker.DEFAULT_WEIGHT_KG
+    ):
+        response_parts.append(f"Weight: {profile['weight_kg']}kg")
+    if profile.get("sex"):
+        response_parts.append(f"Sex: {'Male' if profile['sex'] == 'm' else 'Female'}")
+    if profile.get("burn_rate") and profile.get(
+        "burn_rate"
+    ) != bac_tracker._get_default_burn_rate(profile.get("sex", "m")):
+        response_parts.append(f"Burn rate: {profile['burn_rate']}‰/h")
+    else:
         response_parts.append(f"Burn rate: {profile['burn_rate']}‰/h")
 
-        return " | ".join(response_parts)
-
-    # Parse arguments
-    args = context.args
-
-    if len(args) == 2:
-        # Check if it's weight + sex format: number + m/f
-        try:
-            weight = float(args[0])
-            sex = args[1].lower()
-
-            if sex not in ["m", "f"]:
-                return "❌ Sex must be 'm' (male) or 'f' (female)"
-
-            if weight < 30 or weight > 300:
-                return "❌ Weight must be between 30-300 kg"
-
-            # Set weight and sex
-            bac_tracker.set_user_profile(server_name, nick, weight_kg=weight, sex=sex)
-
-            # Get the calculated burn rate (now weight-based)
-            profile = bac_tracker.get_user_profile(server_name, nick)
-            calculated_burn_rate = profile["burn_rate"]
-
-            return f"✅ BAC profile set: {weight}kg, {sex.upper()} (burn rate: {calculated_burn_rate}‰/h)"
-
-        except ValueError:
-            return "❌ Invalid weight format. Use: !krak <weight_kg> <m/f>"
-
-    elif len(args) == 1:
-        # Check if it's a burn rate: just a number
-        try:
-            burn_rate = float(args[0])
-
-            if burn_rate < 0.05 or burn_rate > 1.0:
-                return "❌ Burn rate must be between 0.05-1.0 ‰ per hour"
-
-            # Set custom burn rate
-            bac_tracker.set_user_profile(server_name, nick, burn_rate=burn_rate)
-
-            return f"✅ BAC burn rate set to {burn_rate}‰/h"
-
-        except ValueError:
-            return (
-                "❌ Invalid number format. Use: !krak <burn_rate> for custom burn rate"
-            )
-
-    else:
-        return "❌ Usage: !krak [weight_kg m/f | burn_rate] or !krak (view current BAC)"
+    return " | ".join(response_parts)
 
 
 # EOF
