@@ -187,6 +187,68 @@ def ping_command(context: CommandContext, bot_functions):
 
 
 @command(
+    "kolikko",
+    description="Flip a coin",
+    usage="!kolikko [kruuna|klaava]",
+    examples=["!kolikko", "!kolikko kruuna"],
+)
+def kolikko_command(context: CommandContext, bot_functions):
+    """Flip a coin and optionally check if user guessed correctly."""
+    result = random.choice(["Kruuna", "Klaava"])
+
+    if context.args:
+        guess = context.args[0].lower()
+        if guess in ["kruuna", "klaava"]:
+            # Capitalize first letter for comparison
+            normalized_result = result.lower()
+            if guess == normalized_result:
+                return f"{result}. Voitit!"
+            else:
+                return f"{result}. Hävisit."
+        else:
+            return "Virheellinen valinta. Käytä: kruuna tai klaava"
+    else:
+        return result
+
+
+@command(
+    "noppa",
+    description="Roll dice",
+    usage="!noppa <NdS>",
+    examples=["!noppa 2d6", "!noppa 1d20"],
+    requires_args=True,
+)
+def noppa_command(context: CommandContext, bot_functions):
+    """Roll dice in NdS format (e.g., 2d6 for two six-sided dice)."""
+    if not context.args:
+        return "Käyttö: !noppa <NdS> (esim. 2d6)"
+
+    dice_spec = context.args[0].lower()
+    import re
+
+    match = re.match(r"^(\d+)d(\d+)$", dice_spec)
+    if not match:
+        return "Virheellinen noppaformaatti. Käytä: NdS (esim. 2d6)"
+
+    num_dice = int(match.group(1))
+    sides = int(match.group(2))
+
+    if num_dice < 1 or num_dice > 20:
+        return "Noppien määrä pitää olla 1-20 välillä."
+    if sides < 2 or sides > 100:
+        return "Sivujen määrä pitää olla 2-100 välillä."
+
+    rolls = [random.randint(1, sides) for _ in range(num_dice)]
+    total = sum(rolls)
+
+    if num_dice == 1:
+        return f"{context.sender} heitti: {rolls[0]}"
+    else:
+        roll_str = " + ".join(str(r) for r in rolls)
+        return f"{context.sender} heitti: {roll_str} = {total}"
+
+
+@command(
     "matka", description="Show travel time and distance", usage="!matka <from> | <to>"
 )
 def driving_distance_osrm(context: CommandContext, bot_functions):
