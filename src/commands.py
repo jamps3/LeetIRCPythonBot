@@ -3042,9 +3042,12 @@ def blackjack_command(context: CommandContext, bot_functions):
             hand_cards = [str(c) for c in player_hand.cards]
             hand_display = f"[{', '.join(hand_cards)}]"
 
+            hand_value = player_hand.value
+            hand_with_count = f"{hand_display} ({hand_value})"
+
             if game.players[context.sender].is_bust:
                 send_private(
-                    f"You drew: {card} Hand: {hand_display}\n💥 You went bust!"
+                    f"You drew: {card} Hand: {hand_with_count}\n💥 You went bust!"
                 )
                 # Check if game should end
                 active_players = [
@@ -3058,7 +3061,7 @@ def blackjack_command(context: CommandContext, bot_functions):
                         )
                         send_channel(f"Blackjack results: {result_str}")
             else:
-                send_private(f"You drew: {card} Hand: {hand_display}")
+                send_private(f"You drew: {card} Hand: {hand_with_count}")
 
             return CommandResponse.no_response()
         else:
