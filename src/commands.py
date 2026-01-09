@@ -2872,24 +2872,32 @@ class BlackjackGame:
         while self.dealer_hand.value < 17:
             self.dealer_hand.add_card(self.deck.draw())
 
-        # Calculate results
+        # Calculate results with hand information
         results = {}
         dealer_value = self.dealer_hand.value
         dealer_bust = self.dealer_hand.is_bust
 
+        # Format dealer hand
+        dealer_cards = [str(card) for card in self.dealer_hand.cards]
+        dealer_hand_str = f"[{', '.join(dealer_cards)}] ({dealer_value})"
+
         for nick, hand in self.players.items():
+            # Format player hand
+            player_cards = [str(card) for card in hand.cards]
+            player_hand_str = f"[{', '.join(player_cards)}] ({hand.value})"
+
             if hand.is_bust:
-                results[nick] = "BUST"
+                results[nick] = f"BUST {player_hand_str} vs {dealer_hand_str}"
             elif hand.is_blackjack and not self.dealer_hand.is_blackjack:
-                results[nick] = "BLACKJACK"
+                results[nick] = f"BLACKJACK {player_hand_str} vs {dealer_hand_str}"
             elif dealer_bust:
-                results[nick] = "VOITTO"
+                results[nick] = f"VOITTO {player_hand_str} vs {dealer_hand_str}"
             elif hand.value > dealer_value:
-                results[nick] = "VOITTO"
+                results[nick] = f"VOITTO {player_hand_str} vs {dealer_hand_str}"
             elif hand.value < dealer_value:
-                results[nick] = "HÄVIÖ"
+                results[nick] = f"HÄVIÖ {player_hand_str} vs {dealer_hand_str}"
             else:
-                results[nick] = "TASAPELI"
+                results[nick] = f"TASAPELI {player_hand_str} vs {dealer_hand_str}"
 
         self._cleanup()
         return results
