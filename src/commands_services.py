@@ -809,6 +809,39 @@ def alko_command(context: CommandContext, bot_functions):
 
 
 @command(
+    "drugs",
+    description="Check drug interactions and information",
+    usage="!drugs <drug1> <drug2> ...",
+    examples=["!drugs cannabis alcohol", "!drugs mdma caffeine nicotine"],
+    requires_args=True,
+)
+def drugs_command(context: CommandContext, bot_functions):
+    """Check drug interactions using TripSit data."""
+    if not context.args_text:
+        return "💊 Usage: !drugs <drug1> <drug2> ... (e.g., !drugs cannabis alcohol)"
+
+    drug_names = context.args_text.strip()
+    if not drug_names:
+        return "💊 Usage: !drugs <drug1> <drug2> ... (e.g., !drugs cannabis alcohol)"
+
+    # Get the drug interaction function from bot functions
+    check_drug_interactions = bot_functions.get("check_drug_interactions")
+    if not check_drug_interactions:
+        return "💊 Drug service not available. Run src/debug/debug_drugs.py to scrape drug data first."
+
+    try:
+        # Check drug interactions
+        result = check_drug_interactions(drug_names)
+        return result
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in drugs command: {e}")
+        return f"💊 Error checking drug interactions: {str(e)}"
+
+
+@command(
     "wrap",
     description="Toggle text wrapping mode in TUI",
     usage="!wrap",

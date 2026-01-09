@@ -997,6 +997,7 @@ class MessageHandler:
             "load_leet_winners": self._load_leet_winners,
             "save_leet_winners": self._save_leet_winners,
             "get_alko_product": self._get_alko_product,
+            "check_drug_interactions": self._check_drug_interactions,
             "send_weather": self._send_weather,
             "send_scheduled_message": self._send_scheduled_message,
             "get_eurojackpot_numbers": self._get_eurojackpot_numbers,
@@ -1742,6 +1743,56 @@ class MessageHandler:
             except Exception as e:
                 logger.error(f"Error getting Alko product: {e}")
         return "🍺 Alko service not available"
+
+    def _check_drug_interactions(self, drug_names: str) -> str:
+        """Check drug interactions for given drug names."""
+        drug_service = self.service_manager.get_service("drug")
+        if not drug_service:
+            return "💊 Drug service not available. Run src/debug/debug_drugs.py to scrape drug data first."
+
+        try:
+            # Split drug names and clean them
+            drugs = [d.strip() for d in drug_names.split() if d.strip()]
+            if not drugs:
+                return "💊 Usage: !drugs <drug1> <drug2> ... (e.g., !drugs cannabis alcohol)"
+
+            # Check interactions
+            result = drug_service.check_interactions(drugs)
+
+            # Format response
+            messages = []
+
+            # Add warnings first
+            if result["warnings"]:
+                messages.extend(result["warnings"])
+
+            # Add unknown drugs
+            if result["unknown_drugs"]:
+                unknown_list = ", ".join(result["unknown_drugs"])
+                messages.append(f"💊 Unknown drugs: {unknown_list}")
+
+            # If no interactions or warnings, show basic info
+            if (
+                not result["interactions"]
+                and not result["warnings"]
+                and not result["unknown_drugs"]
+            ):
+                # Show info for first drug
+                first_drug = drugs[0]
+                drug_info = drug_service.get_drug_info(first_drug)
+                if drug_info:
+                    messages.append(drug_service.format_drug_info(drug_info))
+                else:
+                    messages.append(f"💊 No information found for '{first_drug}'")
+
+            if messages:
+                return " | ".join(messages)
+            else:
+                return "💊 No interactions found between the specified drugs."
+
+        except Exception as e:
+            logger.error(f"Error checking drug interactions: {e}")
+            return f"💊 Error checking drug interactions: {str(e)}"
 
     def _send_weather(self, irc, channel, location):
         """Send weather information."""

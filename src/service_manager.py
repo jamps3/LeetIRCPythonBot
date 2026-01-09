@@ -36,6 +36,7 @@ class ServiceManager:
         self._initialize_youtube_service()
         self._initialize_crypto_service()
         self._initialize_alko_service()
+        self._initialize_drug_service()
         self._initialize_leet_detector()
         self._initialize_fmi_warning_service()
         self._initialize_otiedote_service()
@@ -144,6 +145,17 @@ class ServiceManager:
         except ImportError as e:
             logger.warning(f"Alko service not available: {e}")
             self.services["alko"] = None
+
+    def _initialize_drug_service(self):
+        """Initialize drug service."""
+        try:
+            from services.drug_service import create_drug_service
+
+            self.services["drug"] = create_drug_service()
+            logger.info("💊 Drug service initialized.")
+        except ImportError as e:
+            logger.warning(f"Drug service not available: {e}")
+            self.services["drug"] = None
 
     def _initialize_leet_detector(self):
         """Initialize leet detector."""
