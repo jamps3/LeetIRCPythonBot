@@ -395,6 +395,31 @@ class DataManager:
         # Save the full state file
         self.save_json(self.state_file, state_data)
 
+    def load_sanaketju_state(self) -> Dict[str, Any]:
+        """Load sanaketju game state data from merged state.json."""
+        state_data = self.load_json(self.state_file)
+        return state_data.get("sanaketju", {})
+
+    def save_sanaketju_state(self, data: Dict[str, Any]):
+        """Save sanaketju game state data to merged state.json."""
+        # Load the full state file
+        state_data = self.load_json(self.state_file)
+        if not state_data:
+            # Initialize with default structure if file is empty or corrupted
+            state_data = {
+                "tamagotchi": {},
+                "subscriptions": {},
+                "fmi_warnings": {"seen_hashes": [], "seen_data": []},
+                "otiedote": {"latest_release": 0},
+                "drink_tracking_opt_out": {},
+            }
+
+        # Update the sanaketju section
+        state_data["sanaketju"] = data
+
+        # Save the full state file
+        self.save_json(self.state_file, state_data)
+
     def load_state(self) -> Dict[str, Any]:
         """Load the full state file."""
         return self.load_json(self.state_file)

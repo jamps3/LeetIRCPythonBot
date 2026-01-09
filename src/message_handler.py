@@ -600,6 +600,44 @@ class MessageHandler:
             except Exception as e:
                 logger.error(f"Error updating BAC for {sender}: {e}")
 
+        # Check for sanaketju word continuations
+        try:
+            from commands import get_sanaketju_game
+
+            sanaketju_game = get_sanaketju_game()
+            sanaketju_game._load_state(self.data_manager)
+
+            if sanaketju_game.active and target.startswith("#"):
+                # Process words for potential chain continuation
+                words = re.findall(r"\b\w+\b", text.lower())
+                for word in words:
+                    result = sanaketju_game.process_word(
+                        word, sender, self.data_manager
+                    )
+                    if result:
+                        # Valid word found! Send notice to participants (except blacklisted)
+                        notice_msg = f"✅ {sender}: {word} (+{result['score']} pistettä, yhteensä {result['total_score']})"
+
+                        # Send notices to all participants except blacklisted ones
+                        for participant in sanaketju_game.participants.keys():
+                            if (
+                                participant.lower()
+                                not in sanaketju_game.notice_blacklist
+                            ):
+                                try:
+                                    if self.use_notices:
+                                        server.send_notice(participant, notice_msg)
+                                    else:
+                                        server.send_message(participant, notice_msg)
+                                except Exception as e:
+                                    logger.warning(
+                                        f"Failed to send sanaketju notice to {participant}: {e}"
+                                    )
+
+                        break  # Only process the first valid word in the message
+        except Exception as e:
+            logger.warning(f"Error processing sanaketju: {e}")
+
         # Update tamagotchi (only if enabled)
         if self.tamagotchi_enabled:
             should_respond, response = self.tamagotchi.process_message(

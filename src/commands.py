@@ -14,9 +14,10 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import bot_manager
+import logger
 from command_registry import (
     CommandContext,
     CommandResponse,
@@ -2939,6 +2940,250 @@ def get_blackjack_game() -> BlackjackGame:
 
 
 # =====================
+# Sanaketju game classes
+# =====================
+
+
+@dataclass
+class SanaketjuGame:
+    """A sanaketju (word chain) game instance."""
+
+    active: bool = False
+    channel: str = ""
+    current_word: str = ""
+    chain_length: int = 0
+    participants: Dict[str, int] = field(default_factory=dict)  # nick -> total_score
+    used_words: set = field(default_factory=set)
+    start_time: Optional[datetime] = None
+    notice_blacklist: set = field(default_factory=set)  # nicks who don't want notices
+
+    def start_game(self, channel: str, data_manager: DataManager) -> Optional[str]:
+        """Start a new game. Returns starting word or None if failed."""
+        if self.active:
+            return None
+
+        # Get random starting word from collected words
+        starting_word = self._get_random_starting_word(data_manager)
+        if not starting_word:
+            return None
+
+        self.active = True
+        self.channel = channel
+        self.current_word = starting_word
+        self.chain_length = 1
+        self.participants = {}
+        self.used_words = {starting_word.lower()}
+        self.start_time = datetime.now()
+        self.notice_blacklist = set()
+
+        # Save state
+        self._save_state(data_manager)
+        return starting_word
+
+    def _get_random_starting_word(self, data_manager: DataManager) -> Optional[str]:
+        """Get a random word from collected words for starting the game."""
+        try:
+            # Get all words from general words data
+            general_data = data_manager.load_general_words_data()
+            all_words = set()
+
+            for server_data in general_data.get("servers", {}).values():
+                for nick_data in server_data.get("nicks", {}).values():
+                    all_words.update(nick_data.get("general_words", {}).keys())
+
+            # Filter words: no special characters, max 30 chars
+            valid_words = [
+                word
+                for word in all_words
+                if len(word) <= 30 and word.isalpha() and len(word) >= 3
+            ]
+
+            if not valid_words:
+                return None
+
+            return random.choice(valid_words)
+
+        except Exception as e:
+            logger.error(f"Error getting random starting word: {e}")
+            return None
+
+    def process_word(
+        self, word: str, nick: str, data_manager: DataManager
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Process a potential word continuation.
+        Returns dict with 'valid', 'score', 'total_score' if valid, None if invalid.
+        """
+        if not self.active:
+            return None
+
+        word = word.lower().strip()
+        if not word or len(word) > 30 or not word.isalpha():
+            return None
+
+        # Check if word starts with last letter of current word
+        if not self.current_word or word[0] != self.current_word[-1].lower():
+            return None
+
+        # Check if word has been used
+        if word in self.used_words:
+            return None
+
+        # Valid word! Update game state
+        self.current_word = word
+        self.chain_length += 1
+        self.used_words.add(word)
+
+        # Update participant score
+        score = len(word)
+        if nick not in self.participants:
+            self.participants[nick] = 0
+        self.participants[nick] += score
+
+        # Save state
+        self._save_state(data_manager)
+
+        return {
+            "valid": True,
+            "word": word,
+            "score": score,
+            "total_score": self.participants[nick],
+            "chain_length": self.chain_length,
+        }
+
+    def toggle_ignore(self, nick: str, target_nick: Optional[str] = None) -> bool:
+        """
+        Toggle notice blacklist for a user.
+        Returns True if now ignored, False if now receiving notices.
+        """
+        if target_nick:
+            # Admin toggling another user
+            nick_to_toggle = target_nick.lower()
+        else:
+            # User toggling themselves
+            nick_to_toggle = nick.lower()
+
+        if nick_to_toggle in self.notice_blacklist:
+            self.notice_blacklist.remove(nick_to_toggle)
+            return False  # Now receiving notices
+        else:
+            self.notice_blacklist.add(nick_to_toggle)
+            return True  # Now ignored
+
+    def get_status(self) -> str:
+        """Get current game status."""
+        if not self.active:
+            return "Ei aktiivista sanaketjua."
+
+        participants_str = (
+            ", ".join(
+                f"{nick}: {score} pistettä"
+                for nick, score in sorted(
+                    self.participants.items(), key=lambda x: x[1], reverse=True
+                )
+            )
+            or "Ei osallistujia vielä"
+        )
+
+        start_time_str = (
+            self.start_time.strftime("%d.%m.%Y %H:%M")
+            if self.start_time
+            else "Tuntematon"
+        )
+
+        return (
+            f"Sanaketju aktiivinen! "
+            f"Nykyinen sana: {self.current_word} | "
+            f"Ketjun pituus: {self.chain_length} | "
+            f"Aloitusaika: {start_time_str} | "
+            f"Osallistujat: {participants_str}"
+        )
+
+    def end_game(self, data_manager: DataManager) -> Optional[str]:
+        """End the current game. Returns final results or None if no active game."""
+        if not self.active:
+            return None
+
+        # Calculate results
+        if not self.participants:
+            result = "Sanaketju päättyi. Ei osallistujia."
+        else:
+            winner = max(self.participants.items(), key=lambda x: x[1])
+            end_time = datetime.now()
+            duration = end_time - (self.start_time or end_time)
+
+            participants_str = ", ".join(
+                f"{nick}: {score}"
+                for nick, score in sorted(
+                    self.participants.items(), key=lambda x: x[1], reverse=True
+                )
+            )
+
+            result = (
+                f"Sanaketju päättyi! "
+                f"Voittanut: {winner[0]} ({winner[1]} pistettä) | "
+                f"Ketjun pituus: {self.chain_length} | "
+                f"Kesto: {str(duration).split('.')[0]} | "
+                f"Osallistujat: {participants_str}"
+            )
+
+        # Reset game
+        self.active = False
+        self.channel = ""
+        self.current_word = ""
+        self.chain_length = 0
+        self.participants = {}
+        self.used_words = set()
+        self.start_time = None
+        self.notice_blacklist = set()
+
+        # Save state
+        self._save_state(data_manager)
+        return result
+
+    def _save_state(self, data_manager: DataManager):
+        """Save current game state."""
+        state = {
+            "active": self.active,
+            "channel": self.channel,
+            "current_word": self.current_word,
+            "chain_length": self.chain_length,
+            "participants": self.participants,
+            "used_words": list(self.used_words),
+            "start_time": self.start_time.isoformat() if self.start_time else None,
+            "notice_blacklist": list(self.notice_blacklist),
+        }
+        data_manager.save_sanaketju_state(state)
+
+    def _load_state(self, data_manager: DataManager):
+        """Load game state from data manager."""
+        state = data_manager.load_sanaketju_state()
+        if state:
+            self.active = state.get("active", False)
+            self.channel = state.get("channel", "")
+            self.current_word = state.get("current_word", "")
+            self.chain_length = state.get("chain_length", 0)
+            self.participants = state.get("participants", {})
+            self.used_words = set(state.get("used_words", []))
+            start_time_str = state.get("start_time")
+            if start_time_str:
+                try:
+                    self.start_time = datetime.fromisoformat(start_time_str)
+                except Exception:
+                    self.start_time = None
+            self.notice_blacklist = set(state.get("notice_blacklist", []))
+
+
+# Global sanaketju game instance
+_sanaketju_game = SanaketjuGame()
+
+
+def get_sanaketju_game() -> SanaketjuGame:
+    """Get the global sanaketju game instance."""
+    return _sanaketju_game
+
+
+# =====================
 # Blackjack command
 # =====================
 
@@ -3106,6 +3351,76 @@ def blackjack_command(context: CommandContext, bot_functions):
 
     else:
         return f"Unknown subcommand: {subcommand}. Use: start, join, leave, deal, hit, stand, status"
+
+
+# =====================
+# Sanaketju command
+# =====================
+
+
+@command(
+    "sanaketju",
+    description="Play sanaketju word chain game (start, status, stop, ignore)",
+    usage="!sanaketju [start|stop|ignore [nick]]",
+    examples=[
+        "!sanaketju",
+        "!sanaketju start",
+        "!sanaketju stop",
+        "!sanaketju ignore",
+        "!sanaketju ignore othernick",
+    ],
+)
+def sanaketju_command(context: CommandContext, bot_functions):
+    """Main sanaketju command with subcommands."""
+    data_manager = bot_functions.get("data_manager")
+    if not data_manager:
+        return "❌ Data manager not available"
+
+    game = get_sanaketju_game()
+    game._load_state(data_manager)  # Load latest state
+
+    if not context.args:
+        # Show current status
+        return game.get_status()
+
+    subcommand = context.args[0].lower()
+
+    if subcommand == "start":
+        if game.active:
+            return "Sanaketju on jo käynnissä!"
+
+        starting_word = game.start_game(context.target, data_manager)
+        if starting_word:
+            return f"🎯 Sanaketju aloitettu! Aloitussana: {starting_word}"
+        else:
+            return "❌ Ei voitu aloittaa sanaketjua - ei sanoja saatavilla."
+
+    elif subcommand == "stop":
+        result = game.end_game(data_manager)
+        if result:
+            return result
+        else:
+            return "Ei aktiivista sanaketjua lopetettavaksi."
+
+    elif subcommand == "ignore":
+        target_nick = context.args[1] if len(context.args) > 1 else None
+
+        # Check if user has permission to ignore others (simple check: if they specify a nick)
+        if target_nick and target_nick != context.sender:
+            # For now, allow anyone to toggle anyone's ignore status
+            # Could add admin check here if needed
+            pass
+
+        ignored = game.toggle_ignore(context.sender, target_nick)
+        nick_display = target_nick or context.sender
+
+        if ignored:
+            return f"✅ {nick_display} ei enää saa sanaketju-ilmoituksia."
+        else:
+            return f"✅ {nick_display} saa taas sanaketju-ilmoituksia."
+
+    else:
+        return "Tuntematon komento. Käytä: start, stop, ignore [nick] tai ilman parametreja tilan näyttämiseen."
 
 
 # EOF
