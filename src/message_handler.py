@@ -626,9 +626,13 @@ class MessageHandler:
                             ):
                                 try:
                                     if self.use_notices:
-                                        server.send_notice(participant, notice_msg)
+                                        context["server"].send_notice(
+                                            participant, notice_msg
+                                        )
                                     else:
-                                        server.send_message(participant, notice_msg)
+                                        context["server"].send_message(
+                                            participant, notice_msg
+                                        )
                                 except Exception as e:
                                     logger.warning(
                                         f"Failed to send sanaketju notice to {participant}: {e}"
