@@ -105,12 +105,12 @@ def test_sanaketju_stop_command(mock_bot_functions, mock_data_manager):
         assert response == "Game ended"
 
 
-def test_sanaketju_ignore_command(mock_bot_functions):
-    """Test ignoring sanaketju notices."""
+def test_sanaketju_add_command(mock_bot_functions):
+    """Test adding to sanaketju participants."""
     context = CommandContext(
         command="sanaketju",
-        args=["ignore"],
-        raw_message="!sanaketju ignore",
+        args=["add"],
+        raw_message="!sanaketju add",
         sender="testuser",
         target="#testchannel",
         is_private=False,
@@ -120,21 +120,21 @@ def test_sanaketju_ignore_command(mock_bot_functions):
 
     with patch("commands.get_sanaketju_game") as mock_get_game:
         mock_game = Mock()
-        mock_game.toggle_ignore.return_value = True  # Now ignored
+        mock_game.toggle_add.return_value = True  # Now added
         mock_get_game.return_value = mock_game
 
         response = sanaketju_command(context, mock_bot_functions)
 
-        mock_game.toggle_ignore.assert_called_once_with("testuser", None)
-        assert "ei enää saa sanaketju-ilmoituksia" in response
+        mock_game.toggle_add.assert_called_once_with("testuser", None)
+        assert "lisätty sanaketjuun" in response
 
 
-def test_sanaketju_ignore_other_command(mock_bot_functions):
-    """Test ignoring another user from sanaketju notices."""
+def test_sanaketju_add_other_command(mock_bot_functions):
+    """Test adding another user to sanaketju participants."""
     context = CommandContext(
         command="sanaketju",
-        args=["ignore", "otheruser"],
-        raw_message="!sanaketju ignore otheruser",
+        args=["add", "otheruser"],
+        raw_message="!sanaketju add otheruser",
         sender="testuser",
         target="#testchannel",
         is_private=False,
@@ -144,13 +144,13 @@ def test_sanaketju_ignore_other_command(mock_bot_functions):
 
     with patch("commands.get_sanaketju_game") as mock_get_game:
         mock_game = Mock()
-        mock_game.toggle_ignore.return_value = True  # Now ignored
+        mock_game.toggle_add.return_value = True  # Now added
         mock_get_game.return_value = mock_game
 
         response = sanaketju_command(context, mock_bot_functions)
 
-        mock_game.toggle_ignore.assert_called_once_with("testuser", "otheruser")
-        assert "ei enää saa sanaketju-ilmoituksia" in response
+        mock_game.toggle_add.assert_called_once_with("testuser", "otheruser")
+        assert "lisätty sanaketjuun" in response
 
 
 def test_sanaketju_invalid_command(mock_bot_functions):

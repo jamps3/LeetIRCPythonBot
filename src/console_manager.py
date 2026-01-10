@@ -531,9 +531,7 @@ class ConsoleManager:
             "send_weather": lambda irc, channel, location: self._console_weather(
                 location
             ),
-            "send_electricity_price": lambda irc, channel, args: self._console_electricity(
-                args
-            ),
+            "send_electricity_price": self._send_electricity_price,
             "get_crypto_price": self.message_handler._get_crypto_price,
             "send_scheduled_message": self.message_handler._send_scheduled_message,
             "get_eurojackpot_numbers": self.message_handler._get_eurojackpot_numbers,
@@ -641,6 +639,62 @@ class ConsoleManager:
             logger.info(f"Electricity: {response}")
         except Exception as e:
             logger.error(f"Electricity error: {e}")
+
+    def _send_electricity_price(self, server, channel, text_or_parts):
+        """Handle the !sähkö command for hourly or 15-minute prices."""
+        electricity_service = self.service_manager.get_service("electricity")
+        if not electricity_service:
+            response = "⚡ Electricity service not available. Please configure ELECTRICITY_API_KEY."
+            logger.msg(response)
+            return
+
+        try:
+            if isinstance(text_or_parts, list):
+                args = text_or_parts
+                text = " ".join(args) if args else ""
+            else:
+                text = text_or_parts or ""
+                args = text.split() if text else []
+
+            parsed_args = electricity_service.parse_command_args(args)
+
+            if parsed_args.get("error"):
+                logger.error(f"Electricity command parse error: {parsed_args['error']}")
+                logger.msg(f"⚡ {parsed_args['error']}")
+                return
+
+            if parsed_args.get("show_stats"):
+                stats_data = electricity_service.get_price_statistics(
+                    parsed_args["date"]
+                )
+                response = electricity_service.format_statistics_message(stats_data)
+            elif parsed_args.get("show_all_hours"):
+                all_prices = []
+                for h in range(24):
+                    price_data = electricity_service.get_electricity_price(
+                        hour=h, date=parsed_args["date"]
+                    )
+                    if price_data.get("error"):
+                        all_prices.append({"hour": h, "error": price_data["message"]})
+                    else:
+                        all_prices.append(price_data)
+                response = electricity_service.format_daily_prices_message(
+                    all_prices, is_tomorrow=parsed_args["is_tomorrow"]
+                )
+            else:
+                price_data = electricity_service.get_electricity_price(
+                    hour=parsed_args.get("hour"),
+                    quarter=parsed_args.get("quarter"),
+                    date=parsed_args["date"],
+                )
+                response = electricity_service.format_price_message(price_data)
+
+            logger.msg(response)
+
+        except Exception as e:
+            error_msg = f"⚡ Error getting electricity price: {str(e)}"
+            logger.error(f"Electricity price error: {e}")
+            logger.msg(error_msg)
 
     def _update_env_file(self, key: str, value: str) -> bool:
         """Update a key-value pair in the .env file. Creates the file if it doesn't exist."""

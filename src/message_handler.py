@@ -608,22 +608,24 @@ class MessageHandler:
             sanaketju_game._load_state(self.data_manager)
 
             if sanaketju_game.active and target.startswith("#"):
-                # Process words for potential chain continuation
-                words = re.findall(r"\b\w+\b", text.lower())
-                for word in words:
-                    result = sanaketju_game.process_word(
-                        word, sender, self.data_manager
-                    )
-                    if result:
-                        # Valid word found! Send notice to participants (except blacklisted)
-                        notice_msg = f"✅ {sender}: {word} (+{result['score']} pistettä, yhteensä {result['total_score']})"
+                # Only process words from whitelisted users
+                sender_lower = sender.lower()
+                if sender_lower not in sanaketju_game.notice_whitelist:
+                    # User is not whitelisted, skip processing
+                    pass
+                else:
+                    # Process words for potential chain continuation
+                    words = re.findall(r"\b\w+\b", text.lower())
+                    for word in words:
+                        result = sanaketju_game.process_word(
+                            word, sender, self.data_manager
+                        )
+                        if result:
+                            # Valid word found! Send notice to all whitelisted participants
+                            notice_msg = f"✅ {sender}: {word} (+{result['score']} pistettä, yhteensä {result['total_score']})"
 
-                        # Send notices to all participants except blacklisted ones
-                        for participant in sanaketju_game.participants.keys():
-                            if (
-                                participant.lower()
-                                not in sanaketju_game.notice_blacklist
-                            ):
+                            # Send notice to all whitelisted participants (so the game can be played)
+                            for participant in sanaketju_game.notice_whitelist:
                                 try:
                                     if self.use_notices:
                                         context["server"].send_notice(
@@ -638,7 +640,7 @@ class MessageHandler:
                                         f"Failed to send sanaketju notice to {participant}: {e}"
                                     )
 
-                        break  # Only process the first valid word in the message
+                            break  # Only process the first valid word in the message
         except Exception as e:
             logger.warning(f"Error processing sanaketju: {e}")
 
@@ -1695,7 +1697,9 @@ class MessageHandler:
                     quarter=parsed_args.get("quarter"),
                     date=parsed_args["date"],
                 )
-                response = electricity_service.format_price_message(price_data)
+                response = electricity_service.format_price_message(
+                    price_data, is_tomorrow_request=parsed_args["is_tomorrow"]
+                )
 
             self._send_response(irc, channel, response)
 

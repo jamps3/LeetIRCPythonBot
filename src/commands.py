@@ -2244,7 +2244,9 @@ class SanaketjuGame:
     participants: Dict[str, int] = field(default_factory=dict)  # nick -> total_score
     used_words: set = field(default_factory=set)
     start_time: Optional[datetime] = None
-    notice_blacklist: set = field(default_factory=set)  # nicks who don't want notices
+    notice_whitelist: set = field(
+        default_factory=set
+    )  # nicks who want to participate and receive notices
 
     def start_game(self, channel: str, data_manager: DataManager) -> Optional[str]:
         """Start a new game. Returns starting word or None if failed."""
@@ -2263,7 +2265,6 @@ class SanaketjuGame:
         self.participants = {}
         self.used_words = {starting_word.lower()}
         self.start_time = datetime.now()
-        self.notice_blacklist = set()
 
         # Save state
         self._save_state(data_manager)
@@ -2340,10 +2341,10 @@ class SanaketjuGame:
             "chain_length": self.chain_length,
         }
 
-    def toggle_ignore(self, nick: str, target_nick: Optional[str] = None) -> bool:
+    def toggle_add(self, nick: str, target_nick: Optional[str] = None) -> bool:
         """
-        Toggle notice blacklist for a user.
-        Returns True if now ignored, False if now receiving notices.
+        Toggle notice whitelist for a user.
+        Returns True if now added, False if now removed.
         """
         if target_nick:
             # Admin toggling another user
@@ -2352,12 +2353,12 @@ class SanaketjuGame:
             # User toggling themselves
             nick_to_toggle = nick.lower()
 
-        if nick_to_toggle in self.notice_blacklist:
-            self.notice_blacklist.remove(nick_to_toggle)
-            return False  # Now receiving notices
+        if nick_to_toggle in self.notice_whitelist:
+            self.notice_whitelist.remove(nick_to_toggle)
+            return False  # Now removed
         else:
-            self.notice_blacklist.add(nick_to_toggle)
-            return True  # Now ignored
+            self.notice_whitelist.add(nick_to_toggle)
+            return True  # Now added
 
     def get_status(self) -> str:
         """Get current game status."""
@@ -2424,7 +2425,6 @@ class SanaketjuGame:
         self.participants = {}
         self.used_words = set()
         self.start_time = None
-        self.notice_blacklist = set()
 
         # Save state
         self._save_state(data_manager)
@@ -2440,7 +2440,7 @@ class SanaketjuGame:
             "participants": self.participants,
             "used_words": list(self.used_words),
             "start_time": self.start_time.isoformat() if self.start_time else None,
-            "notice_blacklist": list(self.notice_blacklist),
+            "notice_whitelist": list(self.notice_whitelist),
         }
         data_manager.save_sanaketju_state(state)
 
@@ -2460,7 +2460,7 @@ class SanaketjuGame:
                     self.start_time = datetime.fromisoformat(start_time_str)
                 except Exception:
                     self.start_time = None
-            self.notice_blacklist = set(state.get("notice_blacklist", []))
+            self.notice_whitelist = set(state.get("notice_whitelist", []))
 
 
 # Global sanaketju game instance
@@ -2649,14 +2649,14 @@ def blackjack_command(context: CommandContext, bot_functions):
 
 @command(
     "sanaketju",
-    description="Play sanaketju word chain game (start, status, stop, ignore)",
-    usage="!sanaketju [start|stop|ignore [nick]]",
+    description="Play sanaketju word chain game (start, status, stop, add)",
+    usage="!sanaketju [start|stop|add [nick]]",
     examples=[
         "!sanaketju",
         "!sanaketju start",
         "!sanaketju stop",
-        "!sanaketju ignore",
-        "!sanaketju ignore othernick",
+        "!sanaketju add",
+        "!sanaketju add othernick",
     ],
 )
 def sanaketju_command(context: CommandContext, bot_functions):
@@ -2691,25 +2691,25 @@ def sanaketju_command(context: CommandContext, bot_functions):
         else:
             return "Ei aktiivista sanaketjua lopetettavaksi."
 
-    elif subcommand == "ignore":
+    elif subcommand == "add":
         target_nick = context.args[1] if len(context.args) > 1 else None
 
-        # Check if user has permission to ignore others (simple check: if they specify a nick)
+        # Check if user has permission to add others (simple check: if they specify a nick)
         if target_nick and target_nick != context.sender:
-            # For now, allow anyone to toggle anyone's ignore status
+            # For now, allow anyone to toggle anyone's add status
             # Could add admin check here if needed
             pass
 
-        ignored = game.toggle_ignore(context.sender, target_nick)
+        added = game.toggle_add(context.sender, target_nick)
         nick_display = target_nick or context.sender
 
-        if ignored:
-            return f"✅ {nick_display} ei enää saa sanaketju-ilmoituksia."
+        if added:
+            return f"✅ {nick_display} lisätty sanaketjuun."
         else:
-            return f"✅ {nick_display} saa taas sanaketju-ilmoituksia."
+            return f"✅ {nick_display} poistettu sanaketjusta."
 
     else:
-        return "Tuntematon komento. Käytä: start, stop, ignore [nick] tai ilman parametreja tilan näyttämiseen."
+        return "Tuntematon komento. Käytä: start, stop, add [nick] tai ilman parametreja tilan näyttämiseen."
 
 
 # EOF

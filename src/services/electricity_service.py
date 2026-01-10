@@ -824,10 +824,16 @@ class ElectricityService:
 
         return message
 
-    def format_price_message(self, price_data: Dict[str, Any]) -> str:
+    def format_price_message(
+        self, price_data: Dict[str, Any], is_tomorrow_request: bool = False
+    ) -> str:
         """
         Format electricity price data into a readable message with 15-minute interval support.
         Safely handles missing quarter data.
+
+        Args:
+            price_data: Price data dictionary
+            is_tomorrow_request: Whether this is a request for tomorrow's prices
         """
         if price_data.get("error"):
             return f" Sähkön hintatietojen haku epäonnistui: {price_data.get('message', 'Tuntematon virhe')}"
@@ -856,21 +862,46 @@ class ElectricityService:
 
         message_parts = []
 
-        # Today's price
-        if today_price:
-            message_parts.append(
-                f" Tänään {date_str} {format_single(today_price, hour, quarter)}"
-            )
+        # Determine if the requested date is today or tomorrow relative to now
+        now = datetime.now(self.timezone)
+        requested_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        is_today = requested_date == now.date()
+        is_tomorrow = requested_date == (now.date() + timedelta(days=1))
 
-        # Tomorrow's price
-        if tomorrow_price and tomorrow_available:
-            tomorrow_date = (
-                datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=1)
-            ).strftime("%Y-%m-%d")
-            message_parts.append(
-                f" Huomenna {tomorrow_date} {format_single(tomorrow_price, hour, quarter)}"
-            )
-        elif price_data.get("include_tomorrow", True) and not tomorrow_available:
+        if is_tomorrow_request or is_tomorrow:
+            # This is a request for tomorrow's prices
+            if tomorrow_price and tomorrow_available:
+                message_parts.append(
+                    f" Huomenna {date_str} {format_single(tomorrow_price, hour, quarter)}"
+                )
+            else:
+                # No tomorrow data available
+                message_parts.append(
+                    f" Huomenna {date_str} - hintatietoja ei vielä saatavilla"
+                )
+        elif is_today:
+            # This is a request for today's prices
+            if today_price:
+                message_parts.append(
+                    f" Tänään {date_str} {format_single(today_price, hour, quarter)}"
+                )
+            # Don't show "tomorrow not available" for today requests
+        else:
+            # This is a request for a specific past/future date
+            if today_price:
+                message_parts.append(
+                    f" {date_str} {format_single(today_price, hour, quarter)}"
+                )
+
+        # For tomorrow requests, don't add the "tomorrow not available" message since we handle it above
+        if (
+            not is_tomorrow_request
+            and not is_tomorrow
+            and price_data.get("include_tomorrow", True)
+            and not tomorrow_available
+            and today_price
+        ):
+            # Only add this for today requests where tomorrow data is also requested
             message_parts.append(" Huomisen hintaa ei vielä saatavilla")
 
         if not message_parts:

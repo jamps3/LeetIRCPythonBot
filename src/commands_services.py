@@ -405,50 +405,61 @@ def otiedote_command(context: CommandContext, bot_functions):
 )
 def electricity_command(context: CommandContext, bot_functions):
     """Get electricity price information."""
-    # Get electricity service from service manager
-    electricity_service = bot_functions.get("electricity_service")
-    if not electricity_service:
+    # Get electricity price function from bot functions
+    send_electricity_price = bot_functions.get("send_electricity_price")
+    if not send_electricity_price:
         return (
             "Electricity service not available. Please configure ELECTRICITY_API_KEY."
         )
 
     try:
-        # Default to current hour if no specific hour given
-        current_hour = datetime.now().hour
+        # Parse arguments and call the electricity price function
+        args = context.args_text if context.args_text else ""
 
-        # Parse arguments
-        subcommand = context.args[0] if context.args else None
-        specific_hour = None
+        # For console mode, we need to handle the response differently
+        if context.is_console:
+            # Import and call the service directly for console
+            from config import get_api_key
+            from services.electricity_service import create_electricity_service
 
-        if subcommand in ["tänään", "huomenna"]:
-            # Today or tomorrow with optional hour
-            day_offset = 0 if subcommand == "tänään" else 1
-            if len(context.args) > 1 and context.args[1].isdigit():
-                specific_hour = int(context.args[1])
-            price_data = electricity_service.get_electricity_price(
-                hour=specific_hour, day_offset=day_offset
-            )
-        elif subcommand == "longbar":
-            # Long bar chart
-            price_data = electricity_service.get_electricity_price(
-                hour=current_hour, format_type="longbar"
-            )
-        elif subcommand in ["tilastot", "stats"]:
-            # Statistics
-            price_data = electricity_service.get_electricity_price(
-                hour=current_hour, format_type="stats"
-            )
+            api_key = get_api_key("ELECTRICITY_API_KEY")
+            if not api_key:
+                return "Electricity service not available. Please configure ELECTRICITY_API_KEY."
+
+            service = create_electricity_service(api_key)
+            parsed_args = service.parse_command_args(args.split() if args else [])
+
+            if parsed_args.get("error"):
+                return f"⚡ {parsed_args['error']}"
+
+            if parsed_args.get("show_stats"):
+                stats_data = service.get_price_statistics(parsed_args["date"])
+                return service.format_statistics_message(stats_data)
+            elif parsed_args.get("show_all_hours"):
+                all_prices = []
+                for h in range(24):
+                    price_data = service.get_electricity_price(
+                        hour=h, date=parsed_args["date"]
+                    )
+                    if price_data.get("error"):
+                        all_prices.append({"hour": h, "error": price_data["message"]})
+                    else:
+                        all_prices.append(price_data)
+                return service.format_daily_prices_message(
+                    all_prices, is_tomorrow=parsed_args["is_tomorrow"]
+                )
+            else:
+                price_data = service.get_electricity_price(
+                    hour=parsed_args.get("hour"),
+                    quarter=parsed_args.get("quarter"),
+                    date=parsed_args["date"],
+                )
+                return service.format_price_message(price_data)
         else:
-            # Default: current hour
-            if context.args and context.args[0].isdigit():
-                specific_hour = int(context.args[0])
-            price_data = electricity_service.get_electricity_price(
-                hour=specific_hour or current_hour
-            )
-
-        response = electricity_service.format_price_message(price_data)
-        return response
-
+            # For IRC, use the message handler function
+            server = bot_functions.get("server")
+            send_electricity_price(server, context.target, args)
+            return CommandResponse.no_response()  # Service handles the output
     except Exception as e:
         return f"⚡ Error getting electricity price: {str(e)}"
 

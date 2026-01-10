@@ -27,6 +27,11 @@ class ServiceManager:
 
     def __init__(self):
         """Initialize the service manager."""
+        # Make sure config is loaded first (which loads .env)
+        from config import get_config
+
+        _ = get_config()  # This will load the .env file via ConfigManager
+
         self.services: Dict[str, Any] = {}
 
         # Initialize all services
@@ -92,19 +97,54 @@ class ServiceManager:
             from services.electricity_service import create_electricity_service
 
             electricity_api_key = get_api_key("ELECTRICITY_API_KEY")
+            logger.info(
+                f"DEBUG: ELECTRICITY_API_KEY from get_api_key: '{electricity_api_key}' (length: {len(electricity_api_key) if electricity_api_key else 0})"
+            )
+            logger.info(
+                f"DEBUG: os.environ.get('ELECTRICITY_API_KEY'): '{os.environ.get('ELECTRICITY_API_KEY', 'NOT_SET')}'"
+            )
+
             if electricity_api_key:
-                self.services["electricity"] = create_electricity_service(
-                    electricity_api_key
-                )
-                logger.info("⚡ Electricity price service initialized.")
+                logger.info("DEBUG: API key found, attempting to create service...")
+                try:
+                    service = create_electricity_service(electricity_api_key)
+                    logger.info(f"DEBUG: Service created: {type(service)}")
+                    self.services["electricity"] = service
+                    logger.info(
+                        "⚡ Electricity price service initialized successfully."
+                    )
+                except Exception as service_error:
+                    logger.error(
+                        f"Failed to create electricity service: {service_error}"
+                    )
+                    import traceback
+
+                    logger.error(
+                        f"Service creation traceback: {traceback.format_exc()}"
+                    )
+                    self.services["electricity"] = None
             else:
                 logger.warning(
                     "⚠️  No electricity API key found. Electricity price commands will not work."
                 )
                 self.services["electricity"] = None
+                logger.info(
+                    f"DEBUG: services dict after setting to None: {list(self.services.keys())}"
+                )
         except ImportError as e:
             logger.warning(f"Electricity service not available: {e}")
             self.services["electricity"] = None
+        except Exception as e:
+            logger.error(f"Unexpected error initializing electricity service: {e}")
+            import traceback
+
+            logger.error(f"Initialization traceback: {traceback.format_exc()}")
+            self.services["electricity"] = None
+
+        logger.info(f"DEBUG: Final services dict: {list(self.services.keys())}")
+        logger.info(
+            f"DEBUG: electricity service value: {self.services.get('electricity')}"
+        )
 
     def _initialize_youtube_service(self):
         """Initialize YouTube service if API key is available."""
