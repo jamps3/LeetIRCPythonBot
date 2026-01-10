@@ -838,9 +838,12 @@ def drugs_command(context: CommandContext, bot_functions):
                 # Format response
                 messages = []
 
-                # Add warnings first
+                # Add warnings first with emoji and definition
                 if result["warnings"]:
-                    messages.extend(result["warnings"])
+                    for warning in result["warnings"]:
+                        # Extract the status from the warning (it's in the format: "EMOJI interaction: drug1 + drug2 (status)")
+                        # For now, we'll need to parse this differently since the warnings are pre-formatted
+                        messages.extend(result["warnings"])
 
                 # Add unknown drugs
                 if result["unknown_drugs"]:

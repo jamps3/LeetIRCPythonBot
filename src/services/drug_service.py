@@ -236,24 +236,47 @@ class DrugService:
                             )
                             break
 
-        # Generate warnings based on risk levels
-        risk_warnings = {
-            "dangerous": "🚨 DANGEROUS interaction",
-            "unsafe": "⚠️ UNSAFE interaction",
-            "caution": "⚠️ Use with CAUTION",
-            "low risk": "ℹ️ Low risk interaction",
+        # Generate warnings based on risk levels with emojis and definitions
+        INTERACTION_STATUSES = {
+            "Dangerous": {
+                "emoji": "☠️",
+                "definition": "These combinations are considered extremely harmful and should always be avoided. Reactions to these drugs taken in combination are highly unpredictable and have a potential to cause death.",
+            },
+            "Unsafe": {
+                "emoji": "🛑",
+                "definition": "There is considerable risk of physical harm when taking these combinations, they should be avoided where possible.",
+            },
+            "Caution": {
+                "emoji": "⚠️",
+                "definition": "These combinations are not usually physically harmful, but may produce undesirable effects, such as physical discomfort or overstimulation. Extreme use may cause physical health issues. Synergistic effects may be unpredictable. Care should be taken when choosing to use this combination.",
+            },
+            "Low Risk & Decrease": {
+                "emoji": "↘",
+                "definition": "Effects are subtractive. The combination is unlikely to cause any adverse or undesirable reaction beyond those that might ordinarily be expected from these drugs.",
+            },
+            "Low Risk & No Synergy": {
+                "emoji": "➡",
+                "definition": "Effects are additive. The combination is unlikely to cause any adverse or undesirable reaction beyond those that might ordinarily be expected from these drugs.",
+            },
+            "Low Risk & Synergy": {
+                "emoji": "↗",
+                "definition": "These drugs work together to cause an effect greater than the sum of its parts, and they aren't likely to cause an adverse or undesirable reaction when used carefully. Additional research should always be done before combining drugs.",
+            },
+            "Unknown": {"emoji": "❓", "definition": "Effects are unknown."},
         }
 
         for drug1, drug2, risk in result["interactions"]:
-            risk_lower = risk.lower()
-            warning = None
-
-            for risk_key, warning_msg in risk_warnings.items():
-                if risk_key in risk_lower:
-                    warning = f"{warning_msg}: {drug1} + {drug2} ({risk})"
+            # Find matching status (case-insensitive)
+            status_info = None
+            for status_name, status_data in INTERACTION_STATUSES.items():
+                if status_name.lower() in risk.lower():
+                    status_info = status_data
                     break
 
-            if warning:
+            if status_info:
+                emoji = status_info["emoji"]
+                definition = status_info["definition"]
+                warning = f"{emoji} {drug1} + {drug2}: {definition}"
                 result["warnings"].append(warning)
 
         return result
