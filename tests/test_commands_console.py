@@ -48,9 +48,15 @@ def ensure_command_registry():
         import commands
         import commands_admin
         import commands_irc
+        import commands_services
 
         # Force reload so decorators execute again after registry reset
         # Ignore duplicate registration errors
+        try:
+            importlib.reload(commands_services)
+        except ValueError as e:
+            if "already registered" not in str(e):
+                raise
         try:
             importlib.reload(commands)
         except ValueError as e:

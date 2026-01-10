@@ -474,7 +474,7 @@ class BACTracker:
 
         message = f"{nick}: 🍺 Promilles: {current:.2f}‰"
 
-        # Get burn rate from profile
+        # Get burn rate from profile (only show burn rate, not sex/weight)
         profile = self.get_user_profile(server, nick)
         burn_rate = profile["burn_rate"]
         message += f" | Burn rate: {burn_rate:.2f}‰/h"

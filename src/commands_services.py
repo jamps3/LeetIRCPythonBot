@@ -405,16 +405,58 @@ def otiedote_command(context: CommandContext, bot_functions):
 )
 def electricity_command(context: CommandContext, bot_functions):
     """Get electricity price information."""
-    # Get electricity service directly for better control in TUI mode
-    send_electricity_price = bot_functions.get("send_electricity_price")
-    if not send_electricity_price:
-        return "Electricity price service not available. Please configure ELECTRICITY_API_KEY."
+    # Try to get electricity service directly
+    electricity_service = None
+    try:
+        from services.electricity_service import get_electricity_service
+
+        electricity_service = get_electricity_service()
+    except ImportError:
+        return (
+            "Electricity service not available. Please configure ELECTRICITY_API_KEY."
+        )
+
+    if not electricity_service:
+        return (
+            "Electricity service not available. Please configure ELECTRICITY_API_KEY."
+        )
 
     try:
-        # Parse arguments using the service
-        # For now, pass the raw args and let the handler deal with it
-        send_electricity_price(None, context.target, context.args)
-        return CommandResponse.no_response()  # Service handles the output
+        # Default to current hour if no specific hour given
+        current_hour = datetime.now().hour
+
+        # Parse arguments
+        subcommand = context.args[0] if context.args else None
+        specific_hour = None
+
+        if subcommand in ["tänään", "huomenna"]:
+            # Today or tomorrow with optional hour
+            day_offset = 0 if subcommand == "tänään" else 1
+            if len(context.args) > 1 and context.args[1].isdigit():
+                specific_hour = int(context.args[1])
+            price_data = electricity_service.get_electricity_price(
+                hour=specific_hour, day_offset=day_offset
+            )
+        elif subcommand == "longbar":
+            # Long bar chart
+            price_data = electricity_service.get_electricity_price(
+                hour=current_hour, format_type="longbar"
+            )
+        elif subcommand in ["tilastot", "stats"]:
+            # Statistics
+            price_data = electricity_service.get_electricity_price(
+                hour=current_hour, format_type="stats"
+            )
+        else:
+            # Default: current hour
+            if context.args and context.args[0].isdigit():
+                specific_hour = int(context.args[0])
+            price_data = electricity_service.get_electricity_price(
+                hour=specific_hour or current_hour
+            )
+
+        response = electricity_service.format_price_message(price_data)
+        return response
 
     except Exception as e:
         return f"⚡ Error getting electricity price: {str(e)}"
@@ -542,23 +584,34 @@ def youtube_command(context: CommandContext, bot_functions):
 )
 def crypto_command(context: CommandContext, bot_functions):
     """Get cryptocurrency price information."""
-    send_crypto_price = bot_functions.get("send_crypto_price")
-    if not send_crypto_price:
+    get_crypto_price = bot_functions.get("get_crypto_price")
+    if not get_crypto_price:
         return "Crypto price service not available"
 
     if len(context.args) >= 1:
-        args = [context.args[0]]
-        if len(context.args) > 1:
-            args.append(context.args[1])
-        send_crypto_price(None, context.target, args)
-        return CommandResponse.no_response()  # Service handles the output
+        coin = context.args[0].lower()
+        currency = (context.args[1] if len(context.args) > 1 else "eur").lower()
+        try:
+            price = get_crypto_price(coin, currency)
+            currency_upper = currency.upper()
+            coin_upper = coin.capitalize()
+            return f"💸 {coin_upper}: {price} {currency_upper}"
+        except Exception as e:
+            return f"Error getting {coin} price: {str(e)}"
     else:
         # Show top 3 coins by default
         top_coins = ["bitcoin", "ethereum", "tether"]
         response_parts = []
         for coin in top_coins:
-            send_crypto_price(None, context.target, [coin, "eur"])
-        return CommandResponse.no_response()  # Service handles the output
+            try:
+                price = get_crypto_price(coin, "eur")
+                coin_upper = coin.capitalize()
+                response_parts.append(
+                    f"The current price of {coin_upper} is {price} €."
+                )
+            except Exception as e:
+                response_parts.append(f"Error getting {coin} price.")
+        return " ".join(response_parts)
 
 
 @command(
