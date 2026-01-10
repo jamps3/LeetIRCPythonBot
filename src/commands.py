@@ -17,6 +17,9 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 import bot_manager
+
+# Import service commands module
+import commands_services  # noqa: F401
 import logger
 from command_registry import (
     CommandContext,

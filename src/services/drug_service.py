@@ -27,10 +27,13 @@ class DrugService:
         """
         self.data_dir = Path(data_dir)
         self.drugs_file = self.data_dir / "drugs.json"
+        self.interactions_file = self.data_dir / "interactions.json"
         self.drugs_data: Dict[str, Dict] = {}
+        self.interactions_data: Dict[str, Dict] = {}
 
         # Load drug data
         self._load_drugs_data()
+        self._load_interactions_data()
 
     def _load_drugs_data(self):
         """Load drug data from JSON file."""
@@ -47,6 +50,26 @@ class DrugService:
         except Exception as e:
             logger.error(f"Error loading drugs data: {e}")
             self.drugs_data = {}
+
+    def _load_interactions_data(self):
+        """Load interactions data from JSON file."""
+        try:
+            if self.interactions_file.exists():
+                with open(self.interactions_file, "r", encoding="utf-8") as f:
+                    self.interactions_data = json.load(f)
+                logger.info(
+                    f"Loaded {len(self.interactions_data)} interaction entries from {self.interactions_file}"
+                )
+            else:
+                logger.warning(
+                    f"Interactions data file not found: {self.interactions_file}"
+                )
+                logger.warning(
+                    "Run src/debug/scrape_interactions.py to scrape interaction data"
+                )
+        except Exception as e:
+            logger.error(f"Error loading interactions data: {e}")
+            self.interactions_data = {}
 
     def get_drug_info(self, drug_name: str) -> Optional[Dict]:
         """
@@ -138,51 +161,80 @@ class DrugService:
         valid_drugs = []
         for drug_name in drug_names:
             drug_info = self.get_drug_info(drug_name)
-            if drug_info:
+            drug_name_lower = drug_name.lower()
+
+            # Accept drug if it exists in drugs.json OR interactions.json
+            if drug_info or drug_name_lower in self.interactions_data:
                 valid_drugs.append((drug_name, drug_info))
             else:
                 result["unknown_drugs"].append(drug_name)
 
-        # Check all pairs for interactions
+        # Check all pairs for interactions using interactions.json data first
         for i, (name1, info1) in enumerate(valid_drugs):
-            interactions1 = info1.get("interactions", {})
-
             for j, (name2, info2) in enumerate(valid_drugs):
                 if i >= j:  # Avoid duplicate checks
                     continue
 
-                # Check drug1 -> drug2 interaction
-                risk1 = interactions1.get(name2)
-                if risk1:
-                    result["interactions"].append((name1, name2, risk1))
-                    continue
+                interaction_found = False
 
-                # Check drug2 -> drug1 interaction
-                interactions2 = info2.get("interactions", {})
-                risk2 = interactions2.get(name1)
-                if risk2:
-                    result["interactions"].append((name1, name2, risk2))
-                    continue
+                # Try to find interaction in interactions.json data
+                if self.interactions_data:
+                    # Check drug1 -> drug2 in interactions.json
+                    drug1_interactions = self.interactions_data.get(name1.lower(), {})
+                    interaction_data = drug1_interactions.get(name2.lower())
+                    if interaction_data and isinstance(interaction_data, dict):
+                        risk = interaction_data.get("status")
+                        if risk:
+                            result["interactions"].append((name1, name2, risk))
+                            interaction_found = True
+                            continue
 
-                # Check aliases
-                aliases1 = info1.get("aliases", [])
-                aliases2 = info2.get("aliases", [])
+                    # Check drug2 -> drug1 in interactions.json
+                    drug2_interactions = self.interactions_data.get(name2.lower(), {})
+                    interaction_data = drug2_interactions.get(name1.lower())
+                    if interaction_data and isinstance(interaction_data, dict):
+                        risk = interaction_data.get("status")
+                        if risk:
+                            result["interactions"].append((name1, name2, risk))
+                            interaction_found = True
+                            continue
 
-                # Check if drug2 name matches any alias of drug1
-                for alias in aliases1:
-                    if interactions1.get(alias):
-                        result["interactions"].append(
-                            (name1, name2, interactions1[alias])
-                        )
-                        break
+                # If not found in interactions.json, fall back to individual drug interactions
+                if not interaction_found:
+                    interactions1 = info1.get("interactions", {})
 
-                # Check if drug1 name matches any alias of drug2
-                for alias in aliases2:
-                    if interactions2.get(alias):
-                        result["interactions"].append(
-                            (name1, name2, interactions2[alias])
-                        )
-                        break
+                    # Check drug1 -> drug2 interaction
+                    risk1 = interactions1.get(name2)
+                    if risk1:
+                        result["interactions"].append((name1, name2, risk1))
+                        continue
+
+                    # Check drug2 -> drug1 interaction
+                    interactions2 = info2.get("interactions", {})
+                    risk2 = interactions2.get(name1)
+                    if risk2:
+                        result["interactions"].append((name1, name2, risk2))
+                        continue
+
+                    # Check aliases
+                    aliases1 = info1.get("aliases", [])
+                    aliases2 = info2.get("aliases", [])
+
+                    # Check if drug2 name matches any alias of drug1
+                    for alias in aliases1:
+                        if interactions1.get(alias):
+                            result["interactions"].append(
+                                (name1, name2, interactions1[alias])
+                            )
+                            break
+
+                    # Check if drug1 name matches any alias of drug2
+                    for alias in aliases2:
+                        if interactions2.get(alias):
+                            result["interactions"].append(
+                                (name1, name2, interactions2[alias])
+                            )
+                            break
 
         # Generate warnings based on risk levels
         risk_warnings = {

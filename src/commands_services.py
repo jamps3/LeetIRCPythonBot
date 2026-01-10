@@ -824,13 +824,59 @@ def drugs_command(context: CommandContext, bot_functions):
     if not drug_names:
         return "💊 Usage: !drugs <drug1> <drug2> ... (e.g., !drugs cannabis alcohol)"
 
-    # Get the drug interaction function from bot functions
+    # Try to get the drug interaction function from bot functions first
     check_drug_interactions = bot_functions.get("check_drug_interactions")
+
+    # If not available, try to create drug service directly
     if not check_drug_interactions:
-        return "💊 Drug service not available. Run src/debug/debug_drugs.py to scrape drug data first."
+        try:
+            from services.drug_service import create_drug_service
+
+            drug_service = create_drug_service()
+            if drug_service:
+                result = drug_service.check_interactions(drug_names.split())
+                # Format response
+                messages = []
+
+                # Add warnings first
+                if result["warnings"]:
+                    messages.extend(result["warnings"])
+
+                # Add unknown drugs
+                if result["unknown_drugs"]:
+                    unknown_list = ", ".join(result["unknown_drugs"])
+                    messages.append(f"💊 Unknown drugs: {unknown_list}")
+
+                # If no interactions or warnings, show basic info for all drugs
+                if (
+                    not result["interactions"]
+                    and not result["warnings"]
+                    and not result["unknown_drugs"]
+                ):
+                    # Show info for all drugs
+                    drug_list = drug_names.split()
+                    for drug_name in drug_list:
+                        drug_info = drug_service.get_drug_info(drug_name)
+                        if drug_info:
+                            messages.append(drug_service.format_drug_info(drug_info))
+                        else:
+                            messages.append(
+                                f"💊 No information found for '{drug_name}'"
+                            )
+
+                if messages:
+                    return " | ".join(messages)
+                else:
+                    return "💊 No interactions found between the specified drugs."
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error creating drug service directly: {e}")
+            return "💊 Drug service not available. Run src/debug/debug_drugs.py to scrape drug data first."
 
     try:
-        # Check drug interactions
+        # Check drug interactions using the bot functions method
         result = check_drug_interactions(drug_names)
         return result
     except Exception as e:

@@ -153,8 +153,8 @@ class ServiceManager:
 
             self.services["drug"] = create_drug_service()
             logger.info("💊 Drug service initialized.")
-        except ImportError as e:
-            logger.warning(f"Drug service not available: {e}")
+        except Exception as e:
+            logger.warning(f"Drug service initialization failed: {e}")
             self.services["drug"] = None
 
     def _initialize_leet_detector(self):

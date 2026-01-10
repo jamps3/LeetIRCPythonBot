@@ -175,13 +175,13 @@ conversation_history.json
 leet_winners.json
 ekavika.json
 *_words.json
-voikko*
 eurojackpot.json
 drink_tracking.json
 leet_detections.json
 last_warning.json
 subscriptions.json
-otiedote.json
+drugs.json
+interactions.json
 
 # Alko service cache and data
 data/alko_cache.json
