@@ -252,6 +252,13 @@ class CommandRegistry:
         if command_name in self._aliases:
             command_name = self._aliases[command_name]
 
+        # Special handling for countdown command with attached time (e.g., "k-1s")
+        if command_name.startswith("k-"):
+            # Extract the base command "k"
+            base_command = "k"
+            if base_command in self._commands:
+                return self._commands[base_command]
+
         return self._commands.get(command_name)
 
     def get_command_names(

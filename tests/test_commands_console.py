@@ -1854,7 +1854,7 @@ def test_short_forecast_import_errors(monkeypatch):
     import builtins
 
     from command_registry import CommandContext
-    from commands import short_forecast_command, short_forecast_list_command
+    from commands_services import short_forecast_command, short_forecast_list_command
 
     # Patch import to raise for the specific module
     real_import = builtins.__import__
@@ -2601,10 +2601,12 @@ def test_leets_limit_parse_exception(monkeypatch):
 def test_weather_unavailable_and_forecast_direct_paths(monkeypatch):
     from command_registry import CommandContext
     from commands import (
+        weather_command,
+    )
+    from commands_services import (
         short_forecast_command,
         short_forecast_list_command,
         solarwind_command,
-        weather_command,
     )
 
     # weather unavailable direct

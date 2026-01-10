@@ -405,17 +405,8 @@ def otiedote_command(context: CommandContext, bot_functions):
 )
 def electricity_command(context: CommandContext, bot_functions):
     """Get electricity price information."""
-    # Try to get electricity service directly
-    electricity_service = None
-    try:
-        from services.electricity_service import get_electricity_service
-
-        electricity_service = get_electricity_service()
-    except ImportError:
-        return (
-            "Electricity service not available. Please configure ELECTRICITY_API_KEY."
-        )
-
+    # Get electricity service from service manager
+    electricity_service = bot_functions.get("electricity_service")
     if not electricity_service:
         return (
             "Electricity service not available. Please configure ELECTRICITY_API_KEY."
