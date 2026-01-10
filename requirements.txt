@@ -10,9 +10,10 @@ openpyxl>=3.1.2
 python-dotenv>=1.1.1
 pytz>=2025.2
 requests>=2.32.5
-#selenium>=4.35.0
+playwright>=1.40.0
 # Playwright removed - legacy otiedote service no longer needed
-# To install Playwright browser eg. fierox, run: python -m playwright install firefox
+# To install Playwright browser eg. firefox, run: python -m playwright install firefox
+#selenium>=4.35.0
 tzdata>=2025.2
 urwid>=3.0.3
 psutil>=6.1.0
