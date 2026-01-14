@@ -182,6 +182,7 @@ last_warning.json
 subscriptions.json
 drugs.json
 interactions.json
+data/urls.json
 
 # Alko service cache and data
 data/alko_cache.json

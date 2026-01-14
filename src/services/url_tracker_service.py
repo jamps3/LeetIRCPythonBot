@@ -63,7 +63,7 @@ class URLTrackerService:
         self, url: str, nick: str, server_name: str, timestamp: Optional[str] = None
     ) -> Tuple[bool, Optional[str]]:
         """
-        Track a URL and return whether it was seen before.
+        Track a URL and return whether it was seen before (case insensitive, trailing slash ignored).
 
         Args:
             url: The URL to track
@@ -73,17 +73,17 @@ class URLTrackerService:
 
         Returns:
             Tuple of (is_duplicate, first_seen_timestamp)
-            is_duplicate: True if URL was seen before
+            is_duplicate: True if URL was seen before (case insensitive, trailing slash ignored)
             first_seen_timestamp: ISO timestamp of first sighting, None if new
         """
         if not timestamp:
             timestamp = datetime.now().isoformat()
 
-        # Normalize URL (remove trailing slashes, etc.)
-        normalized_url = self._normalize_url(url)
+        # Normalize URL: strip whitespace, trailing slashes, and convert to lowercase for comparison
+        normalized_url = re.sub(r"/$", "", url.strip()).lower()
 
         if normalized_url in self.urls_data:
-            # URL already exists, add this poster to the list
+            # URL already exists (normalized match), add this poster to the list if not already there
             url_entry = self.urls_data[normalized_url]
 
             # Check if this nick already posted this URL
@@ -104,7 +104,7 @@ class URLTrackerService:
             first_poster = url_entry["posters"][0]
             return True, first_poster["timestamp"]
         else:
-            # New URL, create entry
+            # New URL, create entry with normalized URL as key
             self.urls_data[normalized_url] = {
                 "count": 1,
                 "posters": [
@@ -124,8 +124,8 @@ class URLTrackerService:
         return url
 
     def get_url_info(self, url: str) -> Optional[Dict]:
-        """Get information about a tracked URL."""
-        normalized_url = self._normalize_url(url)
+        """Get information about a tracked URL (case insensitive, trailing slash ignored)."""
+        normalized_url = re.sub(r"/$", "", url.strip()).lower()
         return self.urls_data.get(normalized_url)
 
     def search_urls(self, query: str, limit: int = 5) -> List[Tuple[str, Dict]]:
@@ -153,7 +153,7 @@ class URLTrackerService:
 
     def find_closest_match(self, partial_url: str) -> Optional[Tuple[str, Dict]]:
         """
-        Find the closest matching URL for a partial URL.
+        Find the closest matching URL for a partial URL (case insensitive, trailing slash ignored).
 
         Args:
             partial_url: Partial URL to search for
@@ -161,21 +161,22 @@ class URLTrackerService:
         Returns:
             Tuple of (full_url, info) or None if no match found
         """
-        partial_lower = partial_url.lower()
+        # Normalize the search URL (ignore trailing slash, case insensitive)
+        normalized_search = re.sub(r"/$", "", partial_url.strip()).lower()
+
+        # First try exact normalized match
+        if normalized_search in self.urls_data:
+            return (normalized_search, self.urls_data[normalized_search])
+
+        # Since all keys are already lowercase, just check for substring match
         best_match = None
         best_score = 0
 
         for url, info in self.urls_data.items():
-            url_lower = url.lower()
-
-            # Exact match gets highest score
-            if url_lower == partial_lower:
-                return (url, info)
-
-            # Substring match
-            if partial_lower in url_lower:
-                score = len(partial_lower) / len(
-                    url_lower
+            # Substring match (all URLs are stored in lowercase)
+            if normalized_search in url:
+                score = len(normalized_search) / len(
+                    url
                 )  # Ratio of match length to URL length
                 if score > best_score:
                     best_score = score
