@@ -60,6 +60,9 @@ class MessageHandler:
         self.use_notices = self._load_use_notices_setting()
         self.tamagotchi_enabled = self._load_tamagotchi_enabled_setting()
 
+        # Cache sanaketju game instance to prevent duplicate command imports
+        self._sanaketju_game = None
+
         # Initialize X API queue for rate limiting
         self.x_api_queue = []
         self.x_api_queue_lock = threading.Lock()
@@ -543,6 +546,10 @@ class MessageHandler:
             server=server_name, nick=sender, text=text, target=target
         )
 
+        # Track URLs in channels (not private messages)
+        if target.startswith("#"):
+            self._track_urls(context)
+
         # Check kraksdebug configuration for notifications
         kraksdebug_config = self.data_manager.load_kraksdebug_state()
 
@@ -600,24 +607,26 @@ class MessageHandler:
             except Exception as e:
                 logger.error(f"Error updating BAC for {sender}: {e}")
 
-        # Check for sanaketju word continuations
+        # Check for sanaketju word continuations (lazy load to prevent duplicate command imports)
         try:
-            from commands import get_sanaketju_game
+            if self._sanaketju_game is None:
+                from commands import get_sanaketju_game
 
-            sanaketju_game = get_sanaketju_game()
-            sanaketju_game._load_state(self.data_manager)
+                self._sanaketju_game = get_sanaketju_game()
 
-            if sanaketju_game.active and target.startswith("#"):
+            self._sanaketju_game._load_state(self.data_manager)
+
+            if self._sanaketju_game.active and target.startswith("#"):
                 # Only process words from whitelisted users
                 sender_lower = sender.lower()
-                if sender_lower not in sanaketju_game.notice_whitelist:
+                if sender_lower not in self._sanaketju_game.notice_whitelist:
                     # User is not whitelisted, skip processing
                     pass
                 else:
                     # Process words for potential chain continuation
                     words = re.findall(r"\b\w+\b", text.lower())
                     for word in words:
-                        result = sanaketju_game.process_word(
+                        result = self._sanaketju_game.process_word(
                             word, sender, self.data_manager
                         )
                         if result:
@@ -625,7 +634,7 @@ class MessageHandler:
                             notice_msg = f"✅ {sender}: {word} (+{result['score']} pistettä, yhteensä {result['total_score']})"
 
                             # Send notice to all whitelisted participants (so the game can be played)
-                            for participant in sanaketju_game.notice_whitelist:
+                            for participant in self._sanaketju_game.notice_whitelist:
                                 try:
                                     if self.use_notices:
                                         context["server"].send_notice(
@@ -1974,6 +1983,63 @@ class MessageHandler:
         if isinstance(data, dict):
             return ", ".join(f"{k}: {v}" for k, v in data.items())
         return str(data)
+
+    def _track_urls(self, context: Dict[str, Any]):
+        """Track URLs posted in messages and send duplicate notifications."""
+        server = context["server"]
+        sender = context["sender"]
+        server_name = context["server_name"]
+        target = context["target"]
+        text = context["text"]
+
+        try:
+            from services.url_tracker_service import create_url_tracker_service
+
+            url_tracker = create_url_tracker_service()
+
+            # Find URLs in the text (both http/https and www. prefixed)
+            urls = []
+
+            # Find http/https URLs
+            http_urls = re.findall(
+                r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
+                text,
+            )
+            urls.extend(http_urls)
+
+            # Find www. URLs (without http/https prefix)
+            www_urls = re.findall(
+                r"\bwww\.(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
+                text,
+            )
+            # Normalize www. URLs by adding https:// prefix
+            for www_url in www_urls:
+                urls.append(f"https://{www_url}")
+
+            for url in urls:
+                # Skip blacklisted URLs (YouTube, Twitter, etc.)
+                if self._is_url_blacklisted(url):
+                    continue
+
+                # Track the URL
+                is_duplicate, first_timestamp = url_tracker.track_url(
+                    url, sender, server_name
+                )
+
+                if is_duplicate and first_timestamp:
+                    # Send "Wanha!" message
+                    duplicate_message = url_tracker.format_duplicate_message(
+                        url,
+                        first_timestamp,
+                        url_tracker.urls_data[url_tracker._normalize_url(url)][
+                            "posters"
+                        ][0]["nick"],
+                    )
+                    self._send_response(server, target, duplicate_message)
+                    logger.debug(f"Sent duplicate URL notification for: {url}")
+
+        except Exception as e:
+            logger.error(f"Error tracking URLs: {e}")
 
     def toggle_tamagotchi(self, server, target, sender):
         """Toggle tamagotchi responses on/off with .env file persistence."""

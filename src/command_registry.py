@@ -214,15 +214,37 @@ class CommandRegistry:
         """Register a command handler."""
         info = handler.info
 
-        # Register primary name
+        # Register primary name - allow re-registration if identical
         if info.name in self._commands:
-            raise ValueError(f"Command '{info.name}' is already registered")
+            existing_handler = self._commands[info.name]
+            # If the command is already registered with the same definition, allow it (idempotent)
+            if (
+                existing_handler.info.name == info.name
+                and existing_handler.info.aliases == info.aliases
+                and existing_handler.info.description == info.description
+            ):
+                logger.debug(
+                    f"Command '{info.name}' already registered with identical definition, skipping"
+                )
+                return
+            else:
+                raise ValueError(
+                    f"Command '{info.name}' is already registered with different definition"
+                )
 
         self._commands[info.name] = handler
 
         # Register aliases
         for alias in info.aliases:
             if alias in self._aliases or alias in self._commands:
+                # If alias conflicts with existing command/alias, check if it's the same command
+                if (
+                    alias in self._commands
+                    and self._commands[alias].info.name == info.name
+                ):
+                    continue  # Alias already registered for this command
+                if alias in self._aliases and self._aliases[alias] == info.name:
+                    continue  # Alias already registered for this command
                 raise ValueError(f"Alias '{alias}' conflicts with existing command")
             self._aliases[alias] = info.name
 

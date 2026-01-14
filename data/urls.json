@@ -1,0 +1,37 @@
+{
+  "https://example.com": {
+    "count": 2,
+    "posters": [
+      {
+        "nick": "TestUser",
+        "timestamp": "2026-01-14T19:25:23.822279",
+        "server": "testserver"
+      },
+      {
+        "nick": "TestUser2",
+        "timestamp": "2026-01-14T19:25:30.805621",
+        "server": "testserver"
+      }
+    ]
+  },
+  "https://www.tiede.fi": {
+    "count": 1,
+    "posters": [
+      {
+        "nick": "jamps",
+        "timestamp": "2026-01-14T19:26:59.792672",
+        "server": "irc.atw-inter.net"
+      }
+    ]
+  },
+  "https://www.imdb.com": {
+    "count": 1,
+    "posters": [
+      {
+        "nick": "jamps",
+        "timestamp": "2026-01-14T20:24:01.482571",
+        "server": "irc.atw-inter.net"
+      }
+    ]
+  }
+}

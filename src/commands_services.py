@@ -642,25 +642,6 @@ def crypto_command(context: CommandContext, bot_functions):
 
 
 @command(
-    "url",
-    description="Fetch and display title from URL",
-    usage="!url <url>",
-    examples=["!url https://example.com"],
-    requires_args=True,
-)
-def url_command(context: CommandContext, bot_functions):
-    """Fetch title from a URL."""
-    fetch_title = bot_functions.get("fetch_title")
-    if fetch_title:
-        # Extract URL from arguments
-        url = context.args_text.strip()
-        fetch_title(None, context.target, url)
-        return CommandResponse.no_response()  # Service handles the output
-    else:
-        return "URL title fetching service not available"
-
-
-@command(
     "leetwinners",
     description="Show top leet winners by category",
     usage="!leetwinners [last]",
@@ -999,6 +980,80 @@ def drugs_command(context: CommandContext, bot_functions):
         logger = logging.getLogger(__name__)
         logger.error(f"Error in drugs command: {e}")
         return f"💊 Error checking drug interactions: {str(e)}"
+
+
+@command(
+    "url",
+    description="URL tracking and search commands",
+    usage="!url [stats|<url>|search <query>]",
+    examples=[
+        "!url",
+        "!url stats",
+        "!url https://example.com",
+        "!url search example.com",
+    ],
+)
+def url_command(context: CommandContext, bot_functions):
+    """Handle URL tracking commands."""
+    try:
+        from services.url_tracker_service import create_url_tracker_service
+
+        url_tracker = create_url_tracker_service()
+
+        if not context.args_text:
+            # Show general stats
+            stats = url_tracker.get_stats()
+            return f"🔗 URL tracking: {stats['total_urls']} URLs, {stats['total_posts']} posts total"
+
+        args = context.args_text.strip().split()
+        command = args[0].lower()
+
+        if command == "stats":
+            # Show detailed statistics
+            stats = url_tracker.get_stats()
+            if stats["total_urls"] == 0:
+                return "🔗 No URLs tracked yet"
+
+            oldest_time = datetime.fromisoformat(
+                stats["oldest_timestamp"].replace("Z", "+00:00")
+            )
+            formatted_oldest = oldest_time.strftime("%d.%m.%y")
+
+            return (
+                f"🔗 URL Stats: {stats['total_urls']} URLs, {stats['total_posts']} posts | "
+                f"Most popular: {stats['most_popular_url']} ({stats['most_popular_count']} posts) | "
+                f"Oldest: {stats['oldest_url']} (since {formatted_oldest})"
+            )
+
+        elif command == "search":
+            if len(args) < 2:
+                return "Usage: !url search <partial_url>"
+
+            query = " ".join(args[1:])
+            match = url_tracker.find_closest_match(query)
+
+            if match:
+                url, info = match
+                return url_tracker.format_search_result(url, info)
+            else:
+                return f"🔗 No URLs found matching '{query}'"
+
+        else:
+            # Assume it's a full URL to look up
+            url = context.args_text.strip()
+            info = url_tracker.get_url_info(url)
+
+            if info:
+                return url_tracker.format_url_info(url, info)
+            else:
+                return f"🔗 URL not found in tracking database: {url}"
+
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in url command: {e}")
+        return f"🔗 Error: {str(e)}"
 
 
 @command(
