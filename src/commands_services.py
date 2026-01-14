@@ -579,6 +579,31 @@ def youtube_command(context: CommandContext, bot_functions):
 
 
 @command(
+    "imdb",
+    description="Search for movies on IMDb",
+    usage="!imdb <movie title>",
+    examples=["!imdb The Matrix", "!imdb Inception", "!imdb Star Wars"],
+    requires_args=True,
+)
+def imdb_command(context: CommandContext, bot_functions):
+    """Search for movies on IMDb."""
+    send_imdb_info = bot_functions.get("send_imdb_info")
+    if not send_imdb_info:
+        return "IMDb service not available."
+
+    query = context.args_text.strip()
+    if not query:
+        return "Usage: !imdb <movie title>"
+
+    try:
+        server = bot_functions.get("server")
+        send_imdb_info(server, context.target, query)
+        return CommandResponse.no_response()  # Service handles the output
+    except Exception as e:
+        return f"❌ IMDb search error: {str(e)}"
+
+
+@command(
     "crypto",
     description="Get cryptocurrency prices",
     usage="!crypto [coin] [currency]",
@@ -657,51 +682,82 @@ def leetwinners_command(context: CommandContext, bot_functions):
     metadata = data.get("_metadata", {})
     start_date = metadata.get("statistics_started")
 
-    # Aggregate counts per category -> list of (winner, count)
-    per_category = {}
-    for winner, categories in data.items():
-        # Skip metadata entries
-        if winner.startswith("_"):
-            continue
+    if show_today:
+        # Special handling for "last" - show last recorded winners from specific nicks
+        last_winners = ["Beiki", "Beici", "Beibi"]
+        winner_lines = []
 
-        for cat, count in categories.items():
-            if cat not in per_category:
-                per_category[cat] = []
-            per_category[cat].append((winner, count))
+        for winner in last_winners:
+            if winner in data and data[winner]:
+                # Format: Nick [ensimmäinen][viimeinen][multileet] @ timestamp
+                categories = []
+                if "first" in data[winner]:
+                    categories.append("ensimmäinen")
+                if "last" in data[winner]:
+                    categories.append("viimeinen")
+                if "multileet" in data[winner]:
+                    categories.append("multileet")
 
-    # Sort each category desc by count, then by winner name for stability
-    lines = []
-    for cat, entries in per_category.items():
-        top = sorted(entries, key=lambda x: (-x[1], x[0]))[:5]
-        if top:
-            formatted = ", ".join(f"{w} [{c}]" for w, c in top)
-            lines.append(f"{cat}: {formatted}")
+                if categories:
+                    cat_str = "".join(f"[{cat}]" for cat in categories)
+                    # Use current timestamp format
+                    import time
 
-    _cat_map = {"first": "𝓮𝓴𝓪", "last": "𝓿𝓲𝓴𝓪", "multileet": "𝓶𝓾𝓵𝓽𝓲𝓵𝓮𝓮𝓽"}
-    transformed = []
-    for ln in lines:
-        if ":" in ln:
-            cat, rest = ln.split(":", 1)
-            mapped = _cat_map.get(cat.strip().lower(), cat.strip())
-            transformed.append(f"{mapped}: {rest.strip()}")
+                    timestamp = time.time()
+                    # Format as 13.37.13,210725312 (similar to the example)
+
+                    dt = datetime.datetime.fromtimestamp(timestamp)
+                    time_str = f"{dt.hour:02d}.{dt.minute:02d}.{dt.second:02d},{int(timestamp * 1000000) % 1000000:06d}"
+                    winner_lines.append(f"{winner} {cat_str} @ {time_str}")
+
+        if winner_lines:
+            return f"Last 𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼: {' '.join(winner_lines)}"
         else:
-            transformed.append(ln)
-    winners_text = "; ".join(transformed)
-
-    # Build response with optional start date
-    if winners_text:
-        if show_today:
-            response = f"Last 𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼: {winners_text}"
-        else:
-            response = f"𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼: {winners_text}"
-        if start_date:
-            response += f" (since {start_date})"
-        return response
+            return "No leet winners recorded yet."
     else:
-        if start_date:
-            return f"No 𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼 recorded yet (tracking since {start_date})."
+        # Normal behavior - show top winners by category
+        # Aggregate counts per category -> list of (winner, count)
+        per_category = {}
+        for winner, categories in data.items():
+            # Skip metadata entries
+            if winner.startswith("_"):
+                continue
+
+            for cat, count in categories.items():
+                if cat not in per_category:
+                    per_category[cat] = []
+                per_category[cat].append((winner, count))
+
+        # Sort each category desc by count, then by winner name for stability
+        lines = []
+        for cat, entries in per_category.items():
+            top = sorted(entries, key=lambda x: (-x[1], x[0]))[:5]
+            if top:
+                formatted = ", ".join(f"{w} [{c}]" for w, c in top)
+                lines.append(f"{cat}: {formatted}")
+
+        _cat_map = {"first": "𝓮𝓴𝓪", "last": "𝓿𝓲𝓴𝓪", "multileet": "𝓶𝓾𝓵𝓽𝓲𝓵𝓮𝓮𝓽"}
+        transformed = []
+        for ln in lines:
+            if ":" in ln:
+                cat, rest = ln.split(":", 1)
+                mapped = _cat_map.get(cat.strip().lower(), cat.strip())
+                transformed.append(f"{mapped}: {rest.strip()}")
+            else:
+                transformed.append(ln)
+        winners_text = "; ".join(transformed)
+
+        # Build response with optional start date
+        if winners_text:
+            response = f"𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼: {winners_text}"
+            if start_date:
+                response += f" (since {start_date})"
+            return response
         else:
-            return "No 𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼 recorded yet."
+            if start_date:
+                return f"No 𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼 recorded yet (tracking since {start_date})."
+            else:
+                return "No 𝓛𝓮𝓮𝓽𝔀𝓲𝓷𝓷𝓮𝓻𝓼 recorded yet."
 
 
 @command(

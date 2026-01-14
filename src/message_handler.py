@@ -995,6 +995,7 @@ class MessageHandler:
             "measure_latency": self._measure_latency,
             "get_crypto_price": self._get_crypto_price,
             "send_youtube_info": self._send_youtube_info,
+            "send_imdb_info": self._send_imdb_info,
             "send_crypto_price": self._send_crypto_price,
             "load_leet_winners": self._load_leet_winners,
             "save_leet_winners": self._save_leet_winners,
@@ -1893,6 +1894,22 @@ class MessageHandler:
         except Exception as e:
             error_msg = f"🎥 Error with YouTube request: {str(e)}"
             logger.error(f"YouTube error: {e}")
+            self._send_response(irc, channel, error_msg)
+
+    def _send_imdb_info(self, irc, channel, query):
+        """Send IMDb movie search results."""
+        try:
+            from services.imdb_service import create_imdb_service
+
+            imdb_service = create_imdb_service()
+            movie_data = imdb_service.search_movie(query)
+            response = imdb_service.format_movie_info(movie_data)
+
+            self._send_response(irc, channel, response)
+
+        except Exception as e:
+            error_msg = f"🎬 Error with IMDb search: {str(e)}"
+            logger.error(f"IMDb error: {e}")
             self._send_response(irc, channel, error_msg)
 
     def _send_crypto_price(self, irc, channel, text_or_parts):

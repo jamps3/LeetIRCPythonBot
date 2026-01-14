@@ -331,6 +331,9 @@ class BotManager:
     def _send_youtube_info(self, *args, **kwargs):
         return self.message_handler._send_youtube_info(*args, **kwargs)
 
+    def _send_imdb_info(self, *args, **kwargs):
+        return self.message_handler._send_imdb_info(*args, **kwargs)
+
     def _search_youtube(self, *args, **kwargs):
         return self.message_handler._search_youtube(*args, **kwargs)
 
