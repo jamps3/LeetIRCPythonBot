@@ -167,8 +167,8 @@ class URLTrackerService:
         normalized_url = re.sub(r"/$", "", url.strip()).lower()
         info = self.urls_data.get(normalized_url)
         if info:
-            # For backward compatibility, populate posters from all channels
-            if "posters" not in info or not info["posters"]:
+            # Populate posters from all channels
+            if "posters" not in info:
                 all_posters = []
                 for channel_data in info.get("channels", {}).values():
                     all_posters.extend(channel_data.get("posters", []))
@@ -226,7 +226,16 @@ class URLTrackerService:
 
         # First try exact normalized match
         if normalized_search in self.urls_data:
-            return (normalized_search, self.urls_data[normalized_search])
+            info = self.urls_data[normalized_search]
+            # Populate posters from channel data
+            if "posters" not in info:
+                all_posters = []
+                for channel_data in info.get("channels", {}).values():
+                    all_posters.extend(channel_data.get("posters", []))
+                # Sort by timestamp
+                all_posters.sort(key=lambda x: x["timestamp"])
+                info["posters"] = all_posters
+            return (normalized_search, info)
 
         # Since all keys are already lowercase, just check for substring match
         best_match = None
@@ -240,7 +249,16 @@ class URLTrackerService:
                 )  # Ratio of match length to URL length
                 if score > best_score:
                     best_score = score
-                    best_match = (url, info)
+                    # Create a copy and populate posters
+                    info_copy = info.copy()
+                    if "posters" not in info_copy:
+                        all_posters = []
+                        for channel_data in info_copy.get("channels", {}).values():
+                            all_posters.extend(channel_data.get("posters", []))
+                        # Sort by timestamp
+                        all_posters.sort(key=lambda x: x["timestamp"])
+                        info_copy["posters"] = all_posters
+                    best_match = (url, info_copy)
 
         return best_match
 
