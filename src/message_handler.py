@@ -2017,26 +2017,22 @@ class MessageHandler:
                 urls.add(f"https://{www_url}")
 
             for url in urls:
-                # Skip blacklisted URLs
-                if self._is_url_blacklisted(url):
-                    continue
-
-                # Track the URL
+                # Track the URL (no blacklist for tracking - we track all URLs)
                 is_duplicate, first_timestamp = url_tracker.track_url(
                     url, sender, server_name, target
                 )
 
                 if is_duplicate and first_timestamp:
                     # Send "Wanha!" message
-                    duplicate_message = url_tracker.format_duplicate_message(
-                        url,
-                        first_timestamp,
-                        url_tracker.urls_data[url_tracker._normalize_url(url)][
-                            "posters"
-                        ][0]["nick"],
-                    )
-                    self._send_response(server, target, duplicate_message)
-                    logger.debug(f"Sent duplicate URL notification for: {url}")
+                    # Get the URL info to populate posters dynamically
+                    url_info = url_tracker.get_url_info(url)
+                    if url_info and url_info["posters"]:
+                        first_nick = url_info["posters"][0]["nick"]
+                        duplicate_message = url_tracker.format_duplicate_message(
+                            url, first_timestamp, first_nick
+                        )
+                        self._send_response(server, target, duplicate_message)
+                        logger.debug(f"Sent duplicate URL notification for: {url}")
 
         except Exception as e:
             logger.error(f"Error tracking URLs: {e}")
