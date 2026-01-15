@@ -169,19 +169,18 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
 # Saved data
-state.json
-conversation_history.json
-leet_winners.json
-ekavika.json
-*_words.json
-eurojackpot.json
-drink_tracking.json
-leet_detections.json
-last_warning.json
-subscriptions.json
-drugs.json
-interactions.json
+data/state.json
+data/conversation_history.json
+data/leet_winners.json
+data/ekavika.json
+data/*_words.json
+data/eurojackpot.json
+data/drink_tracking.json
+data/leet_detections.json
+data/drugs.json
+data/interactions.json
 data/urls.json
 
 # Alko service cache and data

@@ -1998,14 +1998,14 @@ class MessageHandler:
             url_tracker = create_url_tracker_service()
 
             # Find URLs in the text (both http/https and www. prefixed)
-            urls = []
+            urls = set()  # Use set to avoid duplicates
 
             # Find http/https URLs
             http_urls = re.findall(
                 r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
                 text,
             )
-            urls.extend(http_urls)
+            urls.update(http_urls)
 
             # Find www. URLs (without http/https prefix)
             www_urls = re.findall(
@@ -2014,10 +2014,10 @@ class MessageHandler:
             )
             # Normalize www. URLs by adding https:// prefix
             for www_url in www_urls:
-                urls.append(f"https://{www_url}")
+                urls.add(f"https://{www_url}")
 
             for url in urls:
-                # Skip blacklisted URLs (YouTube, Twitter, etc.)
+                # Skip blacklisted URLs
                 if self._is_url_blacklisted(url):
                     continue
 

@@ -1039,14 +1039,20 @@ def url_command(context: CommandContext, bot_functions):
                 return f"🔗 No URLs found matching '{query}'"
 
         else:
-            # Assume it's a full URL to look up
+            # Assume it's a URL to look up (full or partial)
             url = context.args_text.strip()
             info = url_tracker.get_url_info(url)
 
             if info:
                 return url_tracker.format_url_info(url, info)
             else:
-                return f"🔗 URL not found in tracking database: {url}"
+                # Try to find closest match for partial URLs
+                match = url_tracker.find_closest_match(url)
+                if match:
+                    matched_url, matched_info = match
+                    return url_tracker.format_url_info(matched_url, matched_info)
+                else:
+                    return f"🔗 URL not found in tracking database: {url}"
 
     except Exception as e:
         import logging
