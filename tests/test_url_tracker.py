@@ -27,9 +27,25 @@ def url_tracker_service(tmp_path):
 
 
 @pytest.fixture
-def mock_bot_functions():
+def mock_bot_functions(url_tracker_service):
     """Mock bot functions for command testing."""
-    return Mock()
+    from unittest.mock import patch
+
+    mock = Mock()
+    mock.url_tracker = url_tracker_service
+
+    # Mock the datetime operations used in format_url_info
+    with patch("services.url_tracker_service.datetime") as mock_datetime:
+        mock_dt = Mock()
+        mock_dt.fromisoformat.return_value = Mock()
+        mock_dt.fromisoformat.return_value.strftime.return_value = "15.01.26 10:13:59"
+        mock_datetime.fromisoformat = mock_dt.fromisoformat
+        mock_datetime.strftime = mock_dt.strftime
+
+        # Configure the URL tracker to use mocked datetime
+        url_tracker_service.datetime = mock_datetime
+
+    return mock
 
 
 @pytest.fixture
@@ -37,13 +53,13 @@ def sample_urls(url_tracker_service):
     """Set up sample URLs for testing."""
     # Track some sample URLs
     url_tracker_service.track_url(
-        "https://www.tiede.fi", "testuser1", "testserver", "2026-01-14T19:26:59.792672"
+        "https://www.tiede.fi", "testuser1", "testserver", "#testchannel"
     )
     url_tracker_service.track_url(
-        "https://yle.fi", "testuser2", "testserver", "2026-01-14T21:04:48.150752"
+        "https://yle.fi", "testuser2", "testserver", "#testchannel"
     )
     url_tracker_service.track_url(
-        "https://example.com", "testuser3", "testserver", "2026-01-14T19:25:23.822279"
+        "https://example.com", "testuser3", "testserver", "#testchannel"
     )
     return url_tracker_service
 
@@ -74,25 +90,39 @@ def test_url_tracking_basic(url_tracker_service):
     """Test basic URL tracking functionality."""
     # Track a new URL
     is_duplicate, timestamp = url_tracker_service.track_url(
-        "https://example.com", "testuser", "testserver"
+        "https://example.com", "testuser", "testserver", "#testchannel"
     )
 
     assert is_duplicate is False, "Should not be duplicate for new URL"
     assert timestamp is None, "Should not have first seen timestamp for new URL"
 
-    # Track the same URL again
+    # Track the same URL again in the same channel
     is_duplicate2, timestamp2 = url_tracker_service.track_url(
-        "https://example.com", "testuser2", "testserver"
+        "https://example.com", "testuser2", "testserver", "#testchannel"
     )
 
-    assert is_duplicate2 is True, "Should be duplicate for existing URL"
+    assert is_duplicate2 is True, "Should be duplicate for existing URL in same channel"
     assert timestamp2 is not None, "Should have first seen timestamp for duplicate"
+
+    # Track the same URL in a different channel (should not be duplicate)
+    is_duplicate3, timestamp3 = url_tracker_service.track_url(
+        "https://example.com", "testuser3", "testserver", "#differentchannel"
+    )
+
+    assert (
+        is_duplicate3 is False
+    ), "Should not be duplicate for URL in different channel"
+    assert (
+        timestamp3 is None
+    ), "Should not have timestamp for new URL in different channel"
 
 
 def test_url_normalization(url_tracker_service):
     """Test URL normalization for tracking."""
     # Track URL with trailing slash
-    url_tracker_service.track_url("https://test.com/", "user1", "server")
+    url_tracker_service.track_url(
+        "https://test.com/", "user1", "server", "#testchannel"
+    )
 
     # Should find it without trailing slash
     info = url_tracker_service.get_url_info("https://test.com")
@@ -102,8 +132,16 @@ def test_url_normalization(url_tracker_service):
     info2 = url_tracker_service.get_url_info("https://test.com/")
     assert info2 is not None, "Should find URL with trailing slash"
 
-    # Should be the same entry
-    assert info["count"] == info2["count"], "Should be the same URL entry"
+    # Should be the same entry (compare total counts)
+    total_count1 = sum(
+        channel_data.get("count", 0)
+        for channel_data in info.get("channels", {}).values()
+    )
+    total_count2 = sum(
+        channel_data.get("count", 0)
+        for channel_data in info2.get("channels", {}).values()
+    )
+    assert total_count1 == total_count2, "Should be the same URL entry"
 
 
 def test_get_url_info(url_tracker_service, sample_urls):
@@ -111,7 +149,12 @@ def test_get_url_info(url_tracker_service, sample_urls):
     # Test existing URL
     info = sample_urls.get_url_info("https://www.tiede.fi")
     assert info is not None, "Should find existing URL"
-    assert info["count"] == 1, "Should have correct count"
+    # Calculate total count from channels
+    total_count = sum(
+        channel_data.get("count", 0)
+        for channel_data in info.get("channels", {}).values()
+    )
+    assert total_count == 1, "Should have correct count"
     assert len(info["posters"]) == 1, "Should have one poster"
     assert info["posters"][0]["nick"] == "testuser1", "Should have correct poster"
 
@@ -127,7 +170,12 @@ def test_find_closest_match(sample_urls):
     assert match is not None, "Should find exact match"
     url, info = match
     assert url == "https://www.tiede.fi", "Should return correct URL"
-    assert info["count"] == 1, "Should have correct info"
+    # Calculate total count
+    total_count = sum(
+        channel_data.get("count", 0)
+        for channel_data in info.get("channels", {}).values()
+    )
+    assert total_count == 1, "Should have correct info"
 
     # Test partial match
     match2 = sample_urls.find_closest_match("tiede.fi")
@@ -230,10 +278,15 @@ def test_url_command_stats(url_tracker_service, mock_bot_functions):
     assert "🔗 URL Stats:" in result, "Should show detailed stats"
 
 
-def test_url_command_exact_match(sample_urls, mock_bot_functions):
+def test_url_command_exact_match(url_tracker_service, mock_bot_functions):
     """Test URL command with exact URL match."""
     from command_registry import CommandContext
     from commands_services import url_command
+
+    # Create a URL in the tracker
+    url_tracker_service.track_url(
+        "https://www.tiede.fi", "testuser1", "testserver", "#testchannel"
+    )
 
     context = CommandContext(
         command="url",
@@ -250,10 +303,15 @@ def test_url_command_exact_match(sample_urls, mock_bot_functions):
     assert "First:" in result, "Should include timing info"
 
 
-def test_url_command_partial_match(sample_urls, mock_bot_functions):
+def test_url_command_partial_match(url_tracker_service, mock_bot_functions):
     """Test URL command with partial URL match."""
     from command_registry import CommandContext
     from commands_services import url_command
+
+    # Create a URL in the tracker
+    url_tracker_service.track_url(
+        "https://www.tiede.fi", "testuser1", "testserver", "#testchannel"
+    )
 
     context = CommandContext(
         command="url",
@@ -348,7 +406,7 @@ def test_duplicate_message_formatting(sample_urls):
 def test_url_tracker_case_insensitive(sample_urls):
     """Test that URL tracking is case insensitive."""
     # Track URL with different case
-    sample_urls.track_url("https://EXAMPLE.COM", "user4", "server")
+    sample_urls.track_url("https://EXAMPLE.COM", "user4", "server", "#testchannel")
 
     # Should find it regardless of case
     info1 = sample_urls.get_url_info("https://example.com")
@@ -356,23 +414,69 @@ def test_url_tracker_case_insensitive(sample_urls):
 
     assert info1 is not None, "Should find URL with original case"
     assert info2 is not None, "Should find URL with different case"
-    assert info1["count"] == info2["count"], "Should be the same entry"
+    # Calculate total count for comparison
+    total_count1 = sum(
+        channel_data.get("count", 0)
+        for channel_data in info1.get("channels", {}).values()
+    )
+    total_count2 = sum(
+        channel_data.get("count", 0)
+        for channel_data in info2.get("channels", {}).values()
+    )
+    assert total_count1 == total_count2, "Should be the same entry"
 
 
 def test_multiple_posters_same_url(sample_urls):
     """Test tracking multiple posters for the same URL."""
     # Track the same URL multiple times with different users
-    sample_urls.track_url(
-        "https://example.com", "user4", "server", "2026-01-15T10:00:00"
-    )
-    sample_urls.track_url(
-        "https://example.com", "user5", "server", "2026-01-15T11:00:00"
-    )
+    sample_urls.track_url("https://example.com", "user4", "server", "#testchannel")
+    sample_urls.track_url("https://example.com", "user5", "server", "#testchannel")
 
     info = sample_urls.get_url_info("https://example.com")
-    assert info["count"] == 3, "Should have 3 total posts"
+    # Calculate total count from channels
+    total_count = sum(
+        channel_data.get("count", 0)
+        for channel_data in info.get("channels", {}).values()
+    )
+    assert total_count == 3, "Should have 3 total posts"
     assert len(info["posters"]) == 3, "Should have 3 posters"
 
     # Check posters are sorted by timestamp
     nicks = [p["nick"] for p in info["posters"]]
     assert nicks == ["testuser3", "user4", "user5"], "Should be sorted by timestamp"
+
+
+def test_channel_specific_tracking(url_tracker_service):
+    """Test that URL tracking is channel-specific."""
+    # Track URL in channel1
+    is_duplicate1, _ = url_tracker_service.track_url(
+        "https://test.com", "user1", "server1", "#channel1"
+    )
+    assert is_duplicate1 is False, "Should not be duplicate in channel1"
+
+    # Track same URL in channel2
+    is_duplicate2, _ = url_tracker_service.track_url(
+        "https://test.com", "user2", "server1", "#channel2"
+    )
+    assert (
+        is_duplicate2 is False
+    ), "Should not be duplicate in channel2 (different channel)"
+
+    # Track same URL again in channel1
+    is_duplicate3, _ = url_tracker_service.track_url(
+        "https://test.com", "user3", "server1", "#channel1"
+    )
+    assert is_duplicate3 is True, "Should be duplicate in channel1"
+
+    # Check data structure
+    info = url_tracker_service.get_url_info("https://test.com")
+    assert info is not None, "Should have URL info"
+    assert "channels" in info, "Should have channels data"
+    assert "server1:#channel1" in info["channels"], "Should have channel1 data"
+    assert "server1:#channel2" in info["channels"], "Should have channel2 data"
+
+    channel1_data = info["channels"]["server1:#channel1"]
+    channel2_data = info["channels"]["server1:#channel2"]
+
+    assert channel1_data["count"] == 2, "Channel1 should have 2 posts"
+    assert channel2_data["count"] == 1, "Channel2 should have 1 post"

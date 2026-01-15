@@ -996,9 +996,12 @@ def drugs_command(context: CommandContext, bot_functions):
 def url_command(context: CommandContext, bot_functions):
     """Handle URL tracking commands."""
     try:
-        from services.url_tracker_service import create_url_tracker_service
+        # Check if a URL tracker is provided in bot_functions (for testing)
+        url_tracker = bot_functions.get("url_tracker")
+        if not url_tracker:
+            from services.url_tracker_service import create_url_tracker_service
 
-        url_tracker = create_url_tracker_service()
+            url_tracker = create_url_tracker_service()
 
         if not context.args_text:
             # Show general stats

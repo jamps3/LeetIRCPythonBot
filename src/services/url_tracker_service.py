@@ -60,21 +60,27 @@ class URLTrackerService:
             logger.error(f"Error saving URL data: {e}")
 
     def track_url(
-        self, url: str, nick: str, server_name: str, timestamp: Optional[str] = None
+        self,
+        url: str,
+        nick: str,
+        server_name: str,
+        channel: str = "",
+        timestamp: Optional[str] = None,
     ) -> Tuple[bool, Optional[str]]:
         """
-        Track a URL and return whether it was seen before (case insensitive, trailing slash ignored).
+        Track a URL and return whether it was seen before in the same channel (case insensitive, trailing slash ignored).
 
         Args:
             url: The URL to track
             nick: Nickname of the user who posted it
             server_name: Server name
+            channel: Channel where the URL was posted (empty for private messages)
             timestamp: ISO timestamp string, uses current time if None
 
         Returns:
-            Tuple of (is_duplicate, first_seen_timestamp)
-            is_duplicate: True if URL was seen before (case insensitive, trailing slash ignored)
-            first_seen_timestamp: ISO timestamp of first sighting, None if new
+            Tuple of (is_duplicate_in_channel, first_seen_timestamp_in_channel)
+            is_duplicate_in_channel: True if URL was seen before in this channel
+            first_seen_timestamp_in_channel: ISO timestamp of first sighting in this channel, None if new
         """
         if not timestamp:
             timestamp = datetime.now().isoformat()
@@ -82,34 +88,67 @@ class URLTrackerService:
         # Normalize URL: strip whitespace, trailing slashes, and convert to lowercase for comparison
         normalized_url = re.sub(r"/$", "", url.strip()).lower()
 
+        # Create a channel-specific key
+        channel_key = (
+            f"{server_name}:{channel}" if channel else f"{server_name}:private"
+        )
+
         if normalized_url in self.urls_data:
-            # URL already exists (normalized match), add this poster to the list if not already there
+            # URL already exists globally, check channel-specific tracking
             url_entry = self.urls_data[normalized_url]
 
-            # Check if this nick already posted this URL
-            existing_posters = [p["nick"] for p in url_entry["posters"]]
-            if nick not in existing_posters:
-                # Add new poster
-                url_entry["posters"].append(
-                    {"nick": nick, "timestamp": timestamp, "server": server_name}
-                )
-                url_entry["count"] += 1
+            # Initialize channels tracking if not exists
+            if "channels" not in url_entry:
+                url_entry["channels"] = {}
 
-                # Keep posters sorted by timestamp
-                url_entry["posters"].sort(key=lambda x: x["timestamp"])
+            # Check if URL was seen in this channel before
+            if channel_key in url_entry["channels"]:
+                # URL seen in this channel before
+                channel_entry = url_entry["channels"][channel_key]
 
+                # Check if this nick already posted this URL in this channel
+                existing_posters = [p["nick"] for p in channel_entry["posters"]]
+                if nick not in existing_posters:
+                    # Add new poster to this channel
+                    channel_entry["posters"].append(
+                        {"nick": nick, "timestamp": timestamp, "server": server_name}
+                    )
+                    channel_entry["count"] += 1
+
+                    # Keep posters sorted by timestamp
+                    channel_entry["posters"].sort(key=lambda x: x["timestamp"])
+
+                    self._save_urls()
+
+                # Return that it's a duplicate in this channel
+                first_channel_poster = channel_entry["posters"][0]
+                return True, first_channel_poster["timestamp"]
+            else:
+                # URL not seen in this channel before, but exists globally
+                # Add this channel to the tracking
+                url_entry["channels"][channel_key] = {
+                    "count": 1,
+                    "posters": [
+                        {"nick": nick, "timestamp": timestamp, "server": server_name}
+                    ],
+                }
                 self._save_urls()
-
-            # Return that it's a duplicate with first seen time
-            first_poster = url_entry["posters"][0]
-            return True, first_poster["timestamp"]
+                return False, None
         else:
-            # New URL, create entry with normalized URL as key
+            # New URL globally, create entry
             self.urls_data[normalized_url] = {
-                "count": 1,
-                "posters": [
-                    {"nick": nick, "timestamp": timestamp, "server": server_name}
-                ],
+                "channels": {
+                    channel_key: {
+                        "count": 1,
+                        "posters": [
+                            {
+                                "nick": nick,
+                                "timestamp": timestamp,
+                                "server": server_name,
+                            }
+                        ],
+                    }
+                },
             }
             self._save_urls()
             return False, None
@@ -126,7 +165,17 @@ class URLTrackerService:
     def get_url_info(self, url: str) -> Optional[Dict]:
         """Get information about a tracked URL (case insensitive, trailing slash ignored)."""
         normalized_url = re.sub(r"/$", "", url.strip()).lower()
-        return self.urls_data.get(normalized_url)
+        info = self.urls_data.get(normalized_url)
+        if info:
+            # For backward compatibility, populate posters from all channels
+            if "posters" not in info or not info["posters"]:
+                all_posters = []
+                for channel_data in info.get("channels", {}).values():
+                    all_posters.extend(channel_data.get("posters", []))
+                # Sort by timestamp
+                all_posters.sort(key=lambda x: x["timestamp"])
+                info["posters"] = all_posters
+        return info
 
     def search_urls(self, query: str, limit: int = 5) -> List[Tuple[str, Dict]]:
         """
@@ -144,10 +193,21 @@ class URLTrackerService:
 
         for url, info in self.urls_data.items():
             if query_lower in url.lower():
+                # Ensure posters are populated for backward compatibility
+                if "posters" not in info or not info["posters"]:
+                    all_posters = []
+                    for channel_data in info.get("channels", {}).values():
+                        all_posters.extend(channel_data.get("posters", []))
+                    # Sort by timestamp
+                    all_posters.sort(key=lambda x: x["timestamp"])
+                    info["posters"] = all_posters
                 matches.append((url, info))
 
         # Sort by most recent first seen time
-        matches.sort(key=lambda x: x[1]["posters"][-1]["timestamp"], reverse=True)
+        matches.sort(
+            key=lambda x: x[1]["posters"][-1]["timestamp"] if x[1]["posters"] else "",
+            reverse=True,
+        )
 
         return matches[:limit]
 
@@ -187,34 +247,49 @@ class URLTrackerService:
     def get_stats(self) -> Dict:
         """Get statistics about URL tracking."""
         total_urls = len(self.urls_data)
-        total_posts = sum(info["count"] for info in self.urls_data.values())
+        total_posts = 0
+        most_popular_url = None
+        most_popular_count = 0
 
-        if self.urls_data:
-            # Find most popular URL
-            most_popular = max(self.urls_data.items(), key=lambda x: x[1]["count"])
+        oldest_url = None
+        oldest_timestamp = None
 
-            # Find oldest URL
-            oldest = min(
-                self.urls_data.items(), key=lambda x: x[1]["posters"][0]["timestamp"]
+        for url, info in self.urls_data.items():
+            # Calculate global count for this URL
+            url_total_count = sum(
+                channel_data.get("count", 0)
+                for channel_data in info.get("channels", {}).values()
             )
+            total_posts += url_total_count
 
-            return {
-                "total_urls": total_urls,
-                "total_posts": total_posts,
-                "most_popular_url": most_popular[0],
-                "most_popular_count": most_popular[1]["count"],
-                "oldest_url": oldest[0],
-                "oldest_timestamp": oldest[1]["posters"][0]["timestamp"],
-            }
-        else:
-            return {
-                "total_urls": 0,
-                "total_posts": 0,
-                "most_popular_url": None,
-                "most_popular_count": 0,
-                "oldest_url": None,
-                "oldest_timestamp": None,
-            }
+            # Check if this is the most popular
+            if url_total_count > most_popular_count:
+                most_popular_count = url_total_count
+                most_popular_url = url
+
+            # Find oldest URL - need to populate posters first
+            if "posters" not in info or not info["posters"]:
+                all_posters = []
+                for channel_data in info.get("channels", {}).values():
+                    all_posters.extend(channel_data.get("posters", []))
+                # Sort by timestamp
+                all_posters.sort(key=lambda x: x["timestamp"])
+                info["posters"] = all_posters
+
+            if info["posters"]:
+                first_timestamp = info["posters"][0]["timestamp"]
+                if oldest_timestamp is None or first_timestamp < oldest_timestamp:
+                    oldest_timestamp = first_timestamp
+                    oldest_url = url
+
+        return {
+            "total_urls": total_urls,
+            "total_posts": total_posts,
+            "most_popular_url": most_popular_url,
+            "most_popular_count": most_popular_count,
+            "oldest_url": oldest_url,
+            "oldest_timestamp": oldest_timestamp,
+        }
 
     def format_duplicate_message(
         self, url: str, first_timestamp: str, first_nick: str
@@ -237,6 +312,12 @@ class URLTrackerService:
         first_poster = info["posters"][0]
         last_poster = info["posters"][-1]
 
+        # Calculate total count from all channels
+        total_count = sum(
+            channel_data.get("count", 0)
+            for channel_data in info.get("channels", {}).values()
+        )
+
         first_time = datetime.fromisoformat(
             first_poster["timestamp"].replace("Z", "+00:00")
         )
@@ -257,7 +338,7 @@ class URLTrackerService:
         if len(info["posters"]) > 5:
             posters_list += f" ... and {len(info['posters']) - 5} more"
 
-        return f"🔗 {url} | First: {formatted_first} by {first_poster['nick']} | Last: {formatted_last} by {last_poster['nick']} | Total: {info['count']} posts | Posters: {posters_list}"
+        return f"🔗 {url} | First: {formatted_first} by {first_poster['nick']} | Last: {formatted_last} by {last_poster['nick']} | Total: {total_count} posts | Posters: {posters_list}"
 
     def format_search_result(self, url: str, info: Dict) -> str:
         """Format search result showing URL and first seen time."""

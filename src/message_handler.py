@@ -2023,7 +2023,7 @@ class MessageHandler:
 
                 # Track the URL
                 is_duplicate, first_timestamp = url_tracker.track_url(
-                    url, sender, server_name
+                    url, sender, server_name, target
                 )
 
                 if is_duplicate and first_timestamp:
