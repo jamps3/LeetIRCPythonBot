@@ -360,6 +360,18 @@ class URLTrackerService:
 
     def format_search_result(self, url: str, info: Dict) -> str:
         """Format search result showing URL and first seen time."""
+        # Ensure posters are populated
+        if "posters" not in info:
+            all_posters = []
+            for channel_data in info.get("channels", {}).values():
+                all_posters.extend(channel_data.get("posters", []))
+            # Sort by timestamp
+            all_posters.sort(key=lambda x: x["timestamp"])
+            info["posters"] = all_posters
+
+        if not info["posters"]:
+            return f"🔗 {url} (no posting data available)"
+
         first_poster = info["posters"][0]
         first_time = datetime.fromisoformat(
             first_poster["timestamp"].replace("Z", "+00:00")

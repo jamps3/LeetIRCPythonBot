@@ -1037,7 +1037,22 @@ def url_command(context: CommandContext, bot_functions):
 
             if match:
                 url, info = match
-                return url_tracker.format_search_result(url, info)
+                # Filter posters to only show those from current channel
+                channel_key = f"{context.server_name}:{context.target}"
+                channel_posters = []
+
+                if "channels" in info and channel_key in info["channels"]:
+                    channel_posters = info["channels"][channel_key]["posters"][:]
+
+                if channel_posters:
+                    # Create filtered info with only current channel posters
+                    filtered_info = info.copy()
+                    filtered_info["posters"] = sorted(
+                        channel_posters, key=lambda x: x["timestamp"]
+                    )
+                    return url_tracker.format_search_result(url, filtered_info)
+                else:
+                    return f"🔗 URL found but not posted in this channel: {url}"
             else:
                 return f"🔗 No URLs found matching '{query}'"
 

@@ -2000,16 +2000,16 @@ class MessageHandler:
             # Find URLs in the text (both http/https and www. prefixed)
             urls = set()  # Use set to avoid duplicates
 
-            # Find http/https URLs
+            # Find http/https URLs - capture full URL including parameters and fragments
             http_urls = re.findall(
-                r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
+                r"https?://[^\s]+",
                 text,
             )
             urls.update(http_urls)
 
             # Find www. URLs (without http/https prefix)
             www_urls = re.findall(
-                r"\bwww\.(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
+                r"\bwww\.[^\s]+",
                 text,
             )
             # Normalize www. URLs by adding https:// prefix

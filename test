@@ -47,7 +47,7 @@ def main():
 
     # Add -n 8 if pytest-xdist is available
     if check_pytest_plugin('xdist'):
-        extra_args.extend(['-n', '8'])
+        extra_args.extend(['-n', '12'])
 
     # Add coverage flags if pytest-cov is available
     if check_pytest_plugin('pytest_cov'):
