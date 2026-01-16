@@ -36,6 +36,8 @@ def test_extract_video_id_variants(svc):
         "https://youtu.be/ABCDEFGHIJK",
         "https://www.youtube.com/embed/ABCDEFGHIJK",
         "https://www.youtube.com/v/ABCDEFGHIJK",
+        "https://www.youtube.com/shorts/ABCDEFGHIJK",
+        "https://youtube.com/shorts/ABCDEFGHIJK",
     ]
     for u in urls:
         assert svc.extract_video_id(u) == "ABCDEFGHIJK"

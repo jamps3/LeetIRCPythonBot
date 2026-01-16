@@ -33,6 +33,7 @@ class YouTubeService:
             r"(?:https?://)?(?:www\.)?youtu\.be/([a-zA-Z0-9_-]{11})",
             r"(?:https?://)?(?:www\.)?youtube\.com/embed/([a-zA-Z0-9_-]{11})",
             r"(?:https?://)?(?:www\.)?youtube\.com/v/([a-zA-Z0-9_-]{11})",
+            r"(?:https?://)?(?:www\.)?youtube\.com/shorts/([a-zA-Z0-9_-]{11})",
         ]
 
     def extract_video_id(self, text: str) -> Optional[str]:
