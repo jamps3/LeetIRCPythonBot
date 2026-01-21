@@ -40,6 +40,7 @@ from commands_services import (
     weather_command,
 )
 from config import get_config
+from server import Server
 
 # Word tracking system (extended features)
 from tamagotchi import TamagotchiBot
@@ -1965,7 +1966,8 @@ class GameState(Enum):
 class BlackjackGame:
     """A blackjack game instance."""
 
-    channel: str = ""  # Channel where game was started
+    channel: str = ""
+    server: Optional[Server] = None
     state: GameState = GameState.IDLE
     players: OrderedDict[str, Hand] = field(default_factory=OrderedDict)
     dealer_hand: Hand = field(default_factory=Hand)
@@ -1975,9 +1977,10 @@ class BlackjackGame:
     last_action_at: Optional[datetime] = None
     join_timer: Optional[threading.Timer] = None
 
-    def start_game(self, starter: str, channel: str):
+    def start_game(self, starter: str, channel: str, server: Server = None):
         """Start a new game in joining state."""
         self.channel = channel
+        self.server = server
         self.state = GameState.JOINING
         self.players = OrderedDict()
         self.dealer_hand = Hand()
@@ -2509,18 +2512,19 @@ def blackjack_command(context: CommandContext, bot_functions):
 
     def send_channel(msg: str):
         """Send a message to the game channel."""
-        if game.channel:
-            send_message = bot_functions.get("send_message")
-            if send_message:
-                # send_message lambda expects (irc, target, msg)
-                send_message(bot_functions.get("server"), game.channel, msg)
+        if game.channel and game.server:
+            game.server.send_message(game.channel, msg)
 
     # Handle subcommands
     if subcommand == "start":
         if game.state != GameState.IDLE:
             return "A blackjack game is already active."
 
-        game.start_game(context.sender, context.target or context.sender)
+        game.start_game(
+            context.sender,
+            context.target or context.sender,
+            bot_functions.get("server"),
+        )
 
         # Announce in channel
         send_channel(
@@ -2635,8 +2639,11 @@ def blackjack_command(context: CommandContext, bot_functions):
 
     elif subcommand == "status":
         status = game.get_status(context.sender)
-        send_private(status)
-        return CommandResponse.no_response()
+        if context.is_console:
+            return status
+        else:
+            send_private(status)
+            return CommandResponse.no_response()
 
     else:
         return f"Unknown subcommand: {subcommand}. Use: start, join, leave, deal, hit, stand, status"
