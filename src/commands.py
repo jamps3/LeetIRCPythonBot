@@ -284,6 +284,299 @@ def kolikko_command(context: CommandContext, bot_functions):
         return result
 
 
+def _find_first_syllable(word):
+    """Find the first syllable of a Finnish word."""
+    vowels = "aeiouyäöåAEIOUYÄÖÅ"
+
+    if not word:
+        return "", ""
+
+    if word[0] in vowels:
+        # For vowel-starting words, the first syllable is the first vowel
+        return word[0], word[1:]
+
+    # For consonant-starting words
+    for i, char in enumerate(word):
+        if char in vowels:
+            prefix = word[0] + word[i]
+            if i + 1 < len(word) and word[i + 1] == char:
+                prefix += char
+            rest = word[len(prefix) :]  # noqa: E203
+            return prefix, rest
+
+    # No vowel found, return whole word as prefix
+    return word, ""
+
+
+def transform_phrase(input_text):
+    """Apply transformation logic to input text."""
+    from lemmatizer import analyze_word
+
+    words = input_text.split()
+
+    if len(words) == 1:
+        # Single word: try to split into two Finnish words and transform
+        word = words[0]
+        if len(word) < 5:  # Need at least 5 chars for two words
+            return word
+
+        # Try to split into two valid Finnish words
+        for i in range(2, len(word) - 2):
+            part1 = word[:i]
+            part2 = word[i:]
+            if analyze_word(part1) and analyze_word(part2):
+                # Found valid split, transform as phrase
+                print(f"DEBUG: Single word '{word}' split into '{part1}' and '{part2}'")
+                first_prefix, first_rest = _find_first_syllable(part1)
+                last_prefix, last_rest = _find_first_syllable(part2)
+                new_first = last_prefix + first_rest
+                new_last = first_prefix + last_rest
+                return new_first + new_last  # Combine without space
+
+        # No valid split found
+        return word
+
+    elif len(words) >= 2:
+        # Multiple words: apply the sananmuunnos transformation
+        if len(words) == 2:
+            # Swap between first and last words
+            first_word = words[0]
+            last_word = words[1]
+
+            first_prefix, first_rest = _find_first_syllable(first_word)
+            last_prefix, last_rest = _find_first_syllable(last_word)
+
+            # Handle double vowels
+            had_double = (
+                first_prefix
+                and len(first_prefix) > 1
+                and first_prefix[-1] == first_prefix[-2]
+            )
+            had_double_last = (
+                last_prefix
+                and len(last_prefix) > 1
+                and last_prefix[-1] == last_prefix[-2]
+            )
+
+            if had_double:
+                first_prefix = first_prefix[:-1]
+                if last_prefix and len(last_prefix) > 1 and not had_double_last:
+                    last_prefix += last_prefix[-1]
+
+            if had_double_last and not had_double:
+                if (
+                    first_prefix
+                    and len(first_prefix) > 1
+                    and not (first_prefix[-1] == first_prefix[-2])
+                ):
+                    first_prefix += first_prefix[-1]
+
+            if had_double_last:
+                last_prefix = last_prefix[:-1]
+
+            new_first = last_prefix + first_rest
+            new_last = first_prefix + last_rest
+
+            new_words = [new_first, new_last]
+        elif len(words) == 3:
+            first_word = words[0]
+            second_word = words[1]
+            third_word = words[2]
+
+            # Special case: if middle word is 'ja', swap first and third syllables
+            if second_word.lower() == "ja":
+                first_prefix, first_rest = _find_first_syllable(first_word)
+                third_prefix, third_rest = _find_first_syllable(third_word)
+
+                # Reduce first prefix if it ends with double vowel
+                if (
+                    first_prefix
+                    and len(first_prefix) > 1
+                    and first_prefix[-1] == first_prefix[-2]
+                ):
+                    first_prefix = first_prefix[:-1]
+
+                new_first = third_prefix + first_rest
+                new_third = first_prefix + third_rest
+
+                new_words = [new_first, words[1], new_third]
+            # Check if first and second words share the same beginning
+            elif (
+                len(first_word) >= 2
+                and len(second_word) >= 2
+                and first_word[:2] == second_word[:2]
+            ):
+                # Swap first and third words
+                first_prefix, first_rest = _find_first_syllable(first_word)
+                third_prefix, third_rest = _find_first_syllable(third_word)
+
+                # Reduce first prefix if it ends with double vowel
+                if (
+                    first_prefix
+                    and len(first_prefix) > 1
+                    and first_prefix[-1] == first_prefix[-2]
+                ):
+                    first_prefix = first_prefix[:-1]
+
+                new_first = third_prefix + first_rest
+                new_third = first_prefix + third_rest
+
+                new_words = [new_first, words[1], new_third]
+            else:
+                # Swap between first and second words only
+                first_prefix, first_rest = _find_first_syllable(first_word)
+                second_prefix, second_rest = _find_first_syllable(second_word)
+
+                # Reduce first prefix if it ends with double vowel
+                if (
+                    first_prefix
+                    and len(first_prefix) > 1
+                    and first_prefix[-1] == first_prefix[-2]
+                ):
+                    first_prefix = first_prefix[:-1]
+
+                new_first = second_prefix + first_rest
+                new_second = first_prefix + second_rest
+
+                new_words = [new_first, new_second, words[2]]
+        else:
+            # For more than 3 words, swap between first and last (original behavior)
+            first_word = words[0]
+            last_word = words[-1]
+
+            first_prefix, first_rest = _find_first_syllable(first_word)
+            last_prefix, last_rest = _find_first_syllable(last_word)
+
+            # Reduce first prefix if it ends with double vowel
+            if (
+                first_prefix
+                and len(first_prefix) > 1
+                and first_prefix[-1] == first_prefix[-2]
+            ):
+                first_prefix = first_prefix[:-1]
+
+            new_first = last_prefix + first_rest
+            new_last = first_prefix + last_rest
+
+            new_words = words[:]
+            new_words[0] = new_first
+            new_words[-1] = new_last
+
+        result_phrase = " ".join(new_words)
+        return result_phrase
+
+    # Fallback: return original
+    return input_text
+
+
+@command(
+    "muunnos",
+    description="Finnish word transformation (sananmuunnos)",
+    usage="!muunnos [phrase] - returns random transformation if no args",
+    examples=[
+        "!muunnos",
+        "!muunnos hillittömästi mätti",
+        '!muunnos add "lokki kivellä" "kikki lovella"',
+    ],
+)
+def muunnos_command(context: CommandContext, bot_functions):
+    """Finnish word transformation using lookup table and algorithmic fallback."""
+    import json
+    import os
+    import random
+
+    # Load the transformation data
+    data_file = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "data", "sananmuunnokset.json"
+    )
+    try:
+        with open(data_file, "r", encoding="utf-8") as f:
+            transformations = json.load(f)
+    except (FileNotFoundError, IOError) as e:
+        return f"Virhe ladattaessa sananmuunnoksia: {e}"
+
+    # Check for 'add' command
+    if context.args and context.args[0].lower() == "add":
+        if len(context.args) < 3:
+            return 'Usage: !muunnos add "original phrase" "transformed phrase"'
+
+        # Parse quoted strings
+        args_text = context.args_text
+        if args_text.startswith('add "') and args_text.count('"') >= 4:
+            # Extract the two quoted strings
+            parts = args_text.split('"')
+            if len(parts) >= 5:
+                original = parts[1].strip()
+                transformed = parts[3].strip()
+
+                if original and transformed:
+                    transformations[original] = transformed
+                    # Save back to file
+                    try:
+                        with open(data_file, "w", encoding="utf-8") as f:
+                            json.dump(transformations, f, ensure_ascii=False, indent=4)
+                        return (
+                            f'✅ Added transformation: "{original}" → "{transformed}"'
+                        )
+                    except Exception as e:
+                        return f"Virhe tallennettaessa: {e}"
+                else:
+                    return "Both original and transformed phrases must be non-empty."
+        return 'Usage: !muunnos add "original phrase" "transformed phrase"'
+
+    # If no arguments, return a random transformation
+    if not context.args_text.strip():
+        if not transformations:
+            return "Ei sananmuunnoksia saatavilla."
+
+        original = random.choice(list(transformations.keys()))
+        transformed = transformations[original]
+        return f"{original} - {transformed}"
+
+    # If arguments provided, try to find exact match first
+    input_text = context.args_text.strip()
+    if input_text in transformations:
+        transformed = transformations[input_text]
+        return f"{input_text} - {transformed}"
+
+    # Try algorithmic transformation for unknown inputs
+    words = input_text.split()
+    if len(words) == 1:
+        # Single word: split into parts and try to transform
+        word = words[0]
+        if len(word) < 3:
+            return "Liian lyhyt sana muunnokseen."
+
+        # Split word into two parts (roughly half)
+        mid = len(word) // 2
+        part1 = word[:mid]
+        part2 = word[mid:]
+
+        # Try to find transformations for each part
+        transformed_part1 = transformations.get(part1, part1)
+        transformed_part2 = transformations.get(part2, part2)
+
+        # Combine without space for single word transformation
+        result = transformed_part1 + transformed_part2
+        return f"{word} - {result}"
+
+    elif len(words) >= 2:
+        # Use the algorithmic transformation
+        result = transform_phrase(input_text)
+        if result != input_text:
+            return f"{input_text} - {result}"
+
+    # Fallback: try random transformations until one works
+    max_attempts = 10
+    for _ in range(max_attempts):
+        random_original = random.choice(list(transformations.keys()))
+        random_transformed = transformations[random_original]
+        # Try to apply this transformation somehow - for now just return it
+        return f"{random_original} - {random_transformed}"
+
+    return f"Ei löydy muunnosta: {input_text}"
+
+
 @command(
     "noppa",
     description="Roll dice",

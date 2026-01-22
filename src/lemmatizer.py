@@ -163,3 +163,35 @@ class Lemmatizer:
         """Returns top N most used base words across all sources."""
         total = self.get_total_counts(server_name)
         return list(total.items())[:top_n]
+
+
+# Global Voikko instance
+_voikko_instance = None
+
+
+def _get_voikko():
+    global _voikko_instance
+    if _voikko_instance is None and VOIKKO_AVAILABLE:
+        try:
+            _voikko_instance = libvoikko.Voikko("fi")
+        except Exception as e:
+            logger.error(f"Failed to initialize Voikko: {e}")
+            _voikko_instance = None
+    return _voikko_instance
+
+
+def analyze_word(word):
+    """Analyze a word using Voikko and return the analyses."""
+    v = _get_voikko()
+    if v:
+        try:
+            analyses = v.analyze(word)
+            return analyses
+        except Exception as e:
+            logger.error(f"Error analyzing word {word}: {e}")
+            return []
+    else:
+        # Fallback: simple check if word looks Finnish (alphabetic, len > 2)
+        if word.isalpha() and len(word) > 2:
+            return [{"BASEFORM": word.lower()}]  # Mock analysis
+        return []
