@@ -386,6 +386,15 @@ class ElectricityService:
         snt = (eur / Decimal("10")) * Decimal(str(self.vat_rate))
         return float(snt.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
+    def _get_palette(self, palette_num: int) -> List[str]:
+        """Get bar symbols for the specified palette number."""
+        palettes = {
+            1: ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"],  # Unicode block elements
+            2: ["🟦", "🟩", "🟨", "🟧", "🟥", "⬛"],  # Colored squares
+            3: ["░", "▒", "▓", "█"],  # ASCII shaded blocks
+        }
+        return palettes.get(palette_num, palettes[1])  # Default to palette 1
+
     def parse_command_args(self, args: List[str]) -> Dict[str, Any]:
         """Parse !sahko commands (tänään/huomenna/hour.quarter/stats/longbar)."""
         now = datetime.now(self.timezone)
@@ -397,6 +406,7 @@ class ElectricityService:
             "show_stats": False,
             "show_all_hours": False,
             "show_longbar": False,
+            "palette": 1,  # Default palette
             "error": None,
         }  # Return date object
 
@@ -408,26 +418,94 @@ class ElectricityService:
             if len(args) >= 1:
                 arg = args[0].lower()
 
-                # Handle stats command with optional date specifier
+                # Handle stats command with optional date specifier and palette
                 if arg in ["tilastot", "stats"]:
                     result["show_stats"] = True
-                    # Check if there's a second argument for date (e.g., "huomenna")
-                    if len(args) >= 2:
-                        date_arg = args[1].lower()
-                        if date_arg in ["huomenna", "tomorrow"]:
+
+                    # Parse remaining arguments: can be date, palette, or both
+                    remaining_args = args[1:]
+                    date_specified = False
+                    palette_specified = False
+
+                    for arg_item in remaining_args:
+                        arg_lower = arg_item.lower()
+                        if arg_lower in ["huomenna", "tomorrow"]:
+                            if date_specified:
+                                result["error"] = "Vain yksi päivämäärä sallittu"
+                                return result
                             result["is_tomorrow"] = True
                             result["date"] = (now + timedelta(days=1)).date()
-                        elif date_arg in ["tänään", "tanaan", "today"]:
+                            date_specified = True
+                        elif arg_lower in ["tänään", "tanaan", "today"]:
+                            if date_specified:
+                                result["error"] = "Vain yksi päivämäärä sallittu"
+                                return result
                             result["is_tomorrow"] = False
                             result["date"] = now.date()
+                            date_specified = True
+                        elif arg_item.isdigit():
+                            # Check if it's a valid palette number (1-3)
+                            palette_num = int(arg_item)
+                            if palette_num < 1 or palette_num > 3:
+                                result["error"] = (
+                                    f"Virheellinen paletti numero '{arg_item}'. Käytä 1-3"
+                                )
+                                return result
+                            if palette_specified:
+                                result["error"] = "Vain yksi paletti numero sallittu"
+                                return result
+                            result["palette"] = palette_num
+                            palette_specified = True
                         else:
                             result["error"] = (
-                                f"Virheellinen päivämäärä argumentti '{args[1]}'. Käytä: huomenna, tänään"
+                                f"Virheellinen argumentti '{arg_item}'. Käytä päivämäärää tai paletti numeroa (1-3)"
                             )
+                            return result
+
                     return result
 
                 elif arg in ["longbar"]:
                     result["show_longbar"] = True
+                    # Parse remaining arguments: can be date or palette
+                    remaining_args = args[1:]
+                    date_specified = False
+                    palette_specified = False
+
+                    for arg_item in remaining_args:
+                        arg_lower = arg_item.lower()
+                        if arg_lower in ["huomenna", "tomorrow"]:
+                            if date_specified:
+                                result["error"] = "Vain yksi päivämäärä sallittu"
+                                return result
+                            result["is_tomorrow"] = True
+                            result["date"] = (now + timedelta(days=1)).date()
+                            date_specified = True
+                        elif arg_lower in ["tänään", "tanaan", "today"]:
+                            if date_specified:
+                                result["error"] = "Vain yksi päivämäärä sallittu"
+                                return result
+                            result["is_tomorrow"] = False
+                            result["date"] = now.date()
+                            date_specified = True
+                        elif arg_item.isdigit():
+                            # Check if it's a valid palette number (1-3)
+                            palette_num = int(arg_item)
+                            if palette_num < 1 or palette_num > 3:
+                                result["error"] = (
+                                    f"Virheellinen paletti numero '{arg_item}'. Käytä 1-3"
+                                )
+                                return result
+                            if palette_specified:
+                                result["error"] = "Vain yksi paletti numero sallittu"
+                                return result
+                            result["palette"] = palette_num
+                            palette_specified = True
+                        else:
+                            result["error"] = (
+                                f"Virheellinen argumentti '{arg_item}'. Käytä päivämäärää tai paletti numeroa (1-3)"
+                            )
+                            return result
+
                     return result
                 elif arg in ["tänään", "tanaan", "today"]:
                     # Show all hours for today (accept multiple variations)
@@ -580,7 +658,10 @@ class ElectricityService:
             }
 
     def _create_price_bar_graph(
-        self, interval_prices: Dict[Tuple[int, int], float], avg_price_snt: float
+        self,
+        interval_prices: Dict[Tuple[int, int], float],
+        avg_price_snt: float,
+        palette: int = 1,
     ) -> str:
         """
         Create a colorful bar graph showing 15-minute interval prices relative to average.
@@ -588,12 +669,13 @@ class ElectricityService:
         Args:
             interval_prices: Dictionary of (hour, quarter) -> price in EUR/MWh
             avg_price_snt: Average price in snt/kWh with VAT
+            palette: Palette number (1-3) for bar symbols
 
         Returns:
             String representation of the bar graph
         """
-        # Define bar symbols for different heights (low to high) - single-width ASCII
-        bar_symbols = [".", "_", "░", "▒", "▓", "█"]
+        # Get bar symbols based on palette
+        bar_symbols = self._get_palette(palette)
 
         # IRC color codes: 3=green, 7=orange/yellow, 4=red
         green = "\x033"  # Below average (good price)
@@ -641,12 +723,17 @@ class ElectricityService:
                     if valid_prices:
                         avg_hour_price = sum(valid_prices) / len(valid_prices)
 
-                        # Calculate bar height (0-5 index into bar_symbols)
+                        # Calculate bar height based on palette size
                         if price_range > 0:
                             height_ratio = (avg_hour_price - min_price) / price_range
-                            bar_height = min(5, int(height_ratio * 6))
+                            max_height = len(bar_symbols) - 1
+                            bar_height = min(
+                                max_height, int(height_ratio * (max_height + 1))
+                            )
                         else:
-                            bar_height = 3  # Middle height if all prices are same
+                            bar_height = (
+                                len(bar_symbols) // 2
+                            )  # Middle height if all prices are same
 
                         # Choose color based on comparison to average
                         if (
@@ -681,9 +768,12 @@ class ElectricityService:
 
                 if price_range > 0:
                     height_ratio = (avg_hour_price - min_price) / price_range
-                    bar_height = min(5, int(height_ratio * 6))
+                    max_height = len(bar_symbols) - 1
+                    bar_height = min(max_height, int(height_ratio * (max_height + 1)))
                 else:
-                    bar_height = 3
+                    bar_height = (
+                        len(bar_symbols) // 2
+                    )  # Middle height if all prices are same
 
                 if abs(avg_hour_price - avg_price_snt) < 0.01:
                     color = yellow
@@ -702,88 +792,84 @@ class ElectricityService:
         return "".join(hourly_bars)
 
     def _create_long_price_bar_graph(
-        self, interval_prices: Dict[Tuple[int, int], float]
+        self, interval_prices: Dict[Tuple[int, int], float], palette: int = 1
     ) -> str:
-        """
-        Create a long bar graph showing each 15-minute interval for the day.
+        """Create a compact long bar graph for the day.
+
+        Important: IRC has a ~512 byte line limit. The previous implementation
+        wrapped *every* bar in IRC color control codes which made the response
+        exceed the line limit and get truncated (typically leaving only ~80 bars
+        and sometimes cutting mid-control-code, producing apparent "gaps").
+
+        This implementation intentionally produces **exactly 96 visible blocks**
+        (24 hours × 4 quarters) using only bar glyphs to keep the message short
+        and stable.
 
         Args:
-            interval_prices: Dictionary of (hour, quarter) -> price in EUR/MWh
+            interval_prices: Dict[(hour, quarter)] -> price in EUR/MWh
+            palette: Palette number (1-3) for bar symbols
 
         Returns:
-            String representation of the long bar graph (96 bars)
+            96-character string (one bar per 15-minute interval)
         """
-        # Define bar symbols for different heights (low to high) - single-width ASCII
-        bar_symbols = [".", "_", "░", "▒", "▓", "█"]
 
-        # IRC color codes: 3=green, 7=orange/yellow, 4=red
-        green = "\x033"  # Below average (good price)
-        yellow = "\x038"  # At average
-        red = "\x034"  # Above average (expensive)
-        reset = "\x0f"  # Reset color
+        bar_symbols = self._get_palette(palette)
 
-        # Convert prices to snt/kWh and create time-price pairs
-        # Ensure we have all 96 quarters (24 hours × 4 quarters)
-        time_prices = []
+        # Build a full 96-interval list in chronological order.
+        # Store None for missing intervals so we still output 96 bars.
+        time_prices: List[Optional[float]] = []
         for hour in range(24):
             for quarter in range(1, 5):
-                if (hour, quarter) in interval_prices:
-                    price_eur_mwh = interval_prices[(hour, quarter)]
-                    price_snt_kwh = self._convert_price(price_eur_mwh)
-                    time_prices.append((hour, quarter, price_snt_kwh))
+                eur_mwh = interval_prices.get((hour, quarter))
+                if eur_mwh is None:
+                    time_prices.append(None)
                 else:
-                    # Missing data - use None to indicate missing
-                    time_prices.append((hour, quarter, None))
+                    time_prices.append(self._convert_price(eur_mwh))
 
-        if not time_prices:
-            return "No data"
+        # Always return exactly 96 bars (even if all are missing).
+        if len(time_prices) != 96:
+            # Defensive: should never happen, but don't crash the command.
+            return "".join(["?"] * len(time_prices))
 
-        # Find min/max for bar height scaling (only from available prices)
-        available_prices = [price for _, _, price in time_prices if price is not None]
-        if available_prices:
-            min_price = min(available_prices)
-            max_price = max(available_prices)
-            price_range = max_price - min_price if max_price > min_price else 1
-            avg_price_snt = sum(available_prices) / len(available_prices)
-        else:
-            min_price = max_price = avg_price_snt = 0
+        available_prices = [p for p in time_prices if p is not None]
+        if not available_prices:
+            # No usable data at all.
+            return "".join([bar_symbols[0]] * 96)
+
+        min_price = min(available_prices)
+        max_price = max(available_prices)
+        price_range = max_price - min_price
+        if price_range <= 0:
             price_range = 1
 
-        # Create bar graph - one bar per 15-minute interval
-        bars = []
-        for hour, quarter, price_snt in time_prices:
+        max_height = len(bar_symbols) - 1
+        out: List[str] = []
+
+        for price_snt in time_prices:
             if price_snt is None:
-                # Missing data - show empty space
-                bar = " "
-            else:
-                # Calculate bar height (0-5 index into bar_symbols)
-                if price_range > 0:
-                    height_ratio = (price_snt - min_price) / price_range
-                    bar_height = min(5, int(height_ratio * 6))
-                else:
-                    bar_height = 3  # Middle height if all prices are same
+                # Missing data: output lowest bar instead of a literal space so
+                # the output remains 96 blocks.
+                out.append(bar_symbols[0])
+                continue
 
-                # Choose color based on comparison to average
-                if abs(price_snt - avg_price_snt) < 0.01:  # Essentially equal
-                    color = yellow
-                elif price_snt < avg_price_snt:
-                    color = green  # Below average = good = green
-                else:
-                    color = red  # Above average = expensive = red
+            height_ratio = (price_snt - min_price) / price_range
+            # Clamp to [0, 1] just in case rounding produces slightly out-of-range.
+            height_ratio = max(0.0, min(1.0, height_ratio))
+            bar_height = int(height_ratio * (max_height + 1))
+            bar_height = min(max_height, max(0, bar_height))
+            out.append(bar_symbols[bar_height])
 
-                # Create colored bar
-                bar = f"{color}{bar_symbols[bar_height]}{reset}"
+        return "".join(out)
 
-            bars.append(bar)
-
-        return "".join(bars)
-
-    def format_statistics_message(self, stats_data: Dict[str, Any]) -> str:
+    def format_statistics_message(
+        self, stats_data: Dict[str, Any], palette: int = 1
+    ) -> str:
         """
         Format statistics data into a readable message with bar graph.
 
         Args:
             stats_data: Statistics data dictionary
+            palette: Palette number (1-3) for the bar graph
 
         Returns:
             Formatted statistics message string with colorful bar graph
@@ -812,7 +898,9 @@ class ElectricityService:
 
             if not daily_prices.get("error") and daily_prices.get("interval_prices"):
                 bar_graph = self._create_price_bar_graph(
-                    daily_prices["interval_prices"], avg_price["snt_per_kwh_with_vat"]
+                    daily_prices["interval_prices"],
+                    avg_price["snt_per_kwh_with_vat"],
+                    palette,
                 )
                 message += f" | {bar_graph}"
         except Exception as e:

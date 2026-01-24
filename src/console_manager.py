@@ -667,7 +667,18 @@ class ConsoleManager:
                 stats_data = electricity_service.get_price_statistics(
                     parsed_args["date"]
                 )
-                response = electricity_service.format_statistics_message(stats_data)
+                response = electricity_service.format_statistics_message(
+                    stats_data, parsed_args.get("palette", 1)
+                )
+            elif parsed_args.get("show_longbar"):
+                # Get daily prices for longbar
+                daily_prices = electricity_service.get_daily_prices(parsed_args["date"])
+                if daily_prices.get("error"):
+                    response = f"⚡ {daily_prices.get('message', 'Error getting daily prices')}"
+                else:
+                    response = electricity_service._create_long_price_bar_graph(
+                        daily_prices["interval_prices"], parsed_args.get("palette", 1)
+                    )
             elif parsed_args.get("show_all_hours"):
                 all_prices = []
                 for h in range(24):

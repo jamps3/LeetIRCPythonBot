@@ -434,7 +434,9 @@ def electricity_command(context: CommandContext, bot_functions):
 
             if parsed_args.get("show_stats"):
                 stats_data = service.get_price_statistics(parsed_args["date"])
-                return service.format_statistics_message(stats_data)
+                return service.format_statistics_message(
+                    stats_data, parsed_args.get("palette", 1)
+                )
             elif parsed_args.get("show_all_hours"):
                 all_prices = []
                 for h in range(24):

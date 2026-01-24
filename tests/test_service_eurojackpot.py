@@ -1295,3 +1295,34 @@ def test_eurojackpot_tuesday_friday_validation(service):
     result = service.add_draw_manually("20.12.2023", "3,7,14,27,37,5,10", "25000000")
     assert result["success"] is False
     assert "tiistaisin ja perjantaisin" in result["message"]
+
+
+def test_real_database_file_smoke(monkeypatch):
+    """Optional smoke-test for local real DB file.
+
+    This mirrors the old `src/debug/test_eurojackpot_service.py` manual script,
+    but is safe for CI: it skips if `data/eurojackpot.json` is not present.
+    """
+
+    from services.eurojackpot_service import get_eurojackpot_service
+
+    db_path = os.path.join("data", "eurojackpot.json")
+    if not os.path.exists(db_path):
+        pytest.skip(f"Optional local DB file not found: {db_path}")
+
+    service = get_eurojackpot_service()
+    # Force service to load from the real DB file
+    service.db_file = db_path
+
+    db = service._load_database()
+    assert isinstance(db, dict)
+    assert "draws" in db
+    assert "last_updated" in db
+
+    # If there is data, verify that the service can use it.
+    if db.get("draws"):
+        last = service.get_last_results()
+        assert last.get("success") is True
+
+        freq = service.get_frequent_numbers()
+        assert freq.get("success") is True

@@ -33,26 +33,55 @@ def get_irc_connection(context: CommandContext, bot_functions):
 @command(
     "join",
     description="Join an IRC channel",
-    usage="/join <#channel> [key]",
-    examples=["/join #general", "/join #private secretkey"],
+    usage="/join <#channel> [key] or /join <server> <#channel> [key]",
+    examples=["/join #general", "/join #private secretkey", "/join ircnet #channel"],
     requires_args=True,
-    scope=CommandScope.CONSOLE_ONLY,
+    scope=CommandScope.BOTH,
 )
 def irc_join_command(context: CommandContext, bot_functions):
     """Join an IRC channel."""
-    if len(context.args) < 1:
-        return "Usage: /join <#channel> [key]"
+    # Parse args.
+    # NOTE: /join is not an admin-only command, so don't require a password.
+    # We still allow an *optional* password as the first argument for
+    # convenience/consistency with other admin-gated commands.
+    args = list(context.args or [])
+    if not context.is_console and verify_admin_password(args):
+        args = args[1:]
 
-    channel = context.args[0]
-    key = context.args[1] if len(context.args) > 1 else ""
+    if len(args) < 1:
+        return "Usage: /join <#channel> [key] or /join <server> <#channel> [key]"
+
+    # Parse arguments: [server] <#channel> [key]
+    # - /join #chan [key]
+    # - /join server #chan [key]
+    server_name = None
+    if len(args) >= 2 and (not args[0].startswith("#")) and args[1].startswith("#"):
+        # server + channel (+ optional key)
+        server_name = args[0]
+        channel = args[1]
+        key = args[2] if len(args) > 2 else ""
+    else:
+        # channel (+ optional key)
+        channel = args[0]
+        key = args[1] if len(args) > 1 else ""
 
     # Ensure channel starts with #
     if not channel.startswith("#"):
         channel = "#" + channel
 
-    irc = get_irc_connection(context, bot_functions)
-    if not irc:
-        return "❌ No IRC connection available"
+    # Get IRC connection
+    if server_name:
+        # Specific server requested
+        bot_manager = bot_functions.get("bot_manager")
+        if bot_manager and server_name in bot_manager.servers:
+            irc = bot_manager.servers[server_name]
+        else:
+            return f"❌ Server '{server_name}' not found"
+    else:
+        # Use current or default connection
+        irc = get_irc_connection(context, bot_functions)
+        if not irc:
+            return "❌ No IRC connection available"
 
     try:
         if hasattr(irc, "send_raw"):

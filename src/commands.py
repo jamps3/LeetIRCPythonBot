@@ -260,6 +260,25 @@ def ping_command(context: CommandContext, bot_functions):
 
 
 @command(
+    "servers",
+    description="List connected server names",
+    usage="!servers",
+    scope=CommandScope.CONSOLE_ONLY,
+)
+def servers_command(context: CommandContext, bot_functions):
+    """List the names of connected servers."""
+    bot_manager = bot_functions.get("bot_manager")
+    if not bot_manager or not bot_manager.servers:
+        return "No servers configured"
+
+    server_names = list(bot_manager.servers.keys())
+    if not server_names:
+        return "No servers configured"
+
+    return f"Connected servers: {', '.join(server_names)}"
+
+
+@command(
     "kolikko",
     description="Flip a coin",
     usage="!kolikko [kruuna|klaava]",

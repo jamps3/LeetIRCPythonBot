@@ -37,7 +37,7 @@ class EurojackpotService:
         self.next_draw_url = "https://www.magayo.com/api/next_draw.php"
         self.jackpot_url = "https://www.magayo.com/api/jackpot.php"
         self.results_url = "https://www.magayo.com/api/results.php"
-        self.db_file = "eurojackpot.json"
+        self.db_file = "data/eurojackpot.json"
 
     def get_week_number(self, date_str: str) -> int:
         """Get ISO week number from date string."""

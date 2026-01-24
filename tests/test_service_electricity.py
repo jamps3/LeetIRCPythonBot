@@ -98,6 +98,34 @@ class TestElectricityService(unittest.TestCase):
         self.assertTrue(result["error"])
         self.assertIn("Failed to fetch daily prices.", result["message"])
 
+    def test_longbar_output_is_96_blocks(self):
+        """Longbar should always output 96 blocks (24h × 4 quarters)."""
+        interval_prices = {}
+        # Provide a simple increasing curve so min/max scaling is deterministic.
+        pos = 0
+        for hour in range(24):
+            for quarter in range(1, 5):
+                interval_prices[(hour, quarter)] = float(pos)
+                pos += 1
+
+        out = self.service._create_long_price_bar_graph(interval_prices, palette=1)
+        self.assertEqual(
+            len(out),
+            96,
+            f"Expected 96 bars for longbar output, got {len(out)}: {out!r}",
+        )
+
+    def test_longbar_fills_missing_intervals(self):
+        """If interval data is missing, longbar still outputs 96 bars."""
+        # Only include a few intervals
+        interval_prices = {
+            (0, 1): 10.0,
+            (12, 3): 20.0,
+            (23, 4): 30.0,
+        }
+        out = self.service._create_long_price_bar_graph(interval_prices, palette=1)
+        self.assertEqual(len(out), 96)
+
 
 class TestElectricityServiceIntegration(unittest.TestCase):
     """
