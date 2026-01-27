@@ -10,7 +10,7 @@ import os
 import re
 from datetime import datetime
 
-from command_registry import (
+from src.command_registry import (
     CommandContext,
     CommandResponse,
     CommandScope,
@@ -1080,6 +1080,90 @@ def url_command(context: CommandContext, bot_functions):
         logger = logging.getLogger(__name__)
         logger.error(f"Error in url command: {e}")
         return f"🔗 Error: {str(e)}"
+
+
+@command(
+    "ecode",
+    aliases=["e"],
+    description="Get information about E-codes (food additives)",
+    usage="!ecode <E-number> or !e <E-number>",
+    examples=["!ecode E153", "!e 153", "!ecode E300"],
+    requires_args=True,
+)
+def ecode_command(context: CommandContext, bot_functions):
+    """Get information about E-codes (food additives)."""
+    try:
+        import json
+        from pathlib import Path
+
+        # Load E-codes data
+        data_file = Path(__file__).parent.parent / "data" / "ecodes.json"
+        if not data_file.exists():
+            return CommandResponse.error_msg("E-codes database not found")
+
+        with open(data_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Parse E-code from arguments
+        ecode_input = context.args_text.strip().upper()
+        if not ecode_input:
+            return CommandResponse.error_msg(
+                "Usage: !ecode <E-number> (e.g., !ecode E153 or !e 153)"
+            )
+
+        # Normalize E-code format (remove spaces, ensure E prefix)
+        ecode = ecode_input.replace(" ", "")
+        if not ecode.startswith("E"):
+            ecode = "E" + ecode
+
+        # Check if E-code exists
+        if ecode not in data["ecodes"]:
+            return CommandResponse.error_msg(f"E-code {ecode} not found in database")
+
+        ecode_data = data["ecodes"][ecode]
+        symbol_defs = data["symbol_definitions"]
+        indicator_defs = data["indicator_definitions"]
+
+        # Build response
+        parts = [f"{ecode}: {ecode_data['name']}"]
+
+        # Add categories with symbol definitions
+        if ecode_data["categories"]:
+            category_symbols = " ".join(ecode_data["categories"])
+            category_names = []
+            for symbol in ecode_data["categories"]:
+                if symbol in symbol_defs:
+                    category_names.append(symbol_defs[symbol])
+            if category_names:
+                parts.append(
+                    f"Categories: {category_symbols} ({', '.join(category_names)})"
+                )
+
+        # Add indicators with definitions
+        if ecode_data["indicators"]:
+            indicators = []
+            for indicator in ecode_data["indicators"]:
+                if indicator in indicator_defs:
+                    indicators.append(f"{indicator} ({indicator_defs[indicator]})")
+                else:
+                    indicators.append(indicator)
+            parts.append(f"Indicators: {' '.join(indicators)}")
+
+        # Build full response
+        response = " | ".join(parts)
+
+        # Truncate if too long (for IRC)
+        if len(response) > 400:
+            response = response[:397] + "..."
+
+        return CommandResponse.success_msg(response)
+
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in ecode command: {e}")
+        return CommandResponse.error_msg(f"Error getting E-code information: {str(e)}")
 
 
 @command(
