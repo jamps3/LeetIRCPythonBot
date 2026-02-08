@@ -208,17 +208,63 @@ def help_command(context: CommandContext, bot_functions):
 @command(
     "kaiku",
     aliases=["echo"],
-    description="Echo back the message",
-    usage="!kaiku <message>",
-    examples=["!kaiku Hello world!"],
+    description="Echo back the message or send to channel",
+    usage="!kaiku [#channel] [command] [command_parameters]",
+    examples=[
+        "!kaiku Hello world!",
+        "!kaiku #general Hello",
+        "!kaiku #general !weather Helsinki",
+    ],
     requires_args=True,
 )
 def echo_command(context: CommandContext, bot_functions):
-    """Echo back the provided message."""
-    if context.is_console:
-        return f"Console: {context.args_text}"
+    """Echo back the provided message or send to specified channel."""
+    if not context.args:
+        return "Usage: !kaiku [#channel] [command] [command_parameters]"
+
+    # Get the server instance
+    server = bot_functions.get("server")
+    if not server:
+        return "Server not available"
+
+    # Check if first argument is a channel
+    first_arg = context.args[0]
+    is_channel = first_arg.startswith("#")
+
+    if is_channel:
+        # Channel mode - check if second argument is a command
+        if len(context.args) >= 2 and context.args[1].startswith("!"):
+            # Command mode - execute the command and send to channel
+            command_text = " ".join(context.args[1:])
+            command_context = CommandContext(
+                command="kaiku",
+                args=context.args[1:],
+                args_text=command_text,
+                sender=context.sender,
+                target=first_arg,
+                server_name=context.server_name,
+                is_console=context.is_console,
+            )
+            # Get the command registry
+            from command_registry import get_command_registry
+
+            registry = get_command_registry()
+            response = registry.process_command_message(command_context, bot_functions)
+
+            # Send to channel
+            server.send_message(first_arg, response.message)
+            return CommandResponse.no_response()
+        else:
+            # Simple echo to channel
+            message = " ".join(context.args[1:])
+            server.send_message(first_arg, message)
+            return CommandResponse.no_response()
     else:
-        return f"{context.sender}: {context.args_text}"
+        # Regular echo mode
+        if context.is_console:
+            return f"Console: {context.args_text}"
+        else:
+            return f"{context.sender}: {context.args_text}"
 
 
 @command("version", description="Show bot version", usage="!version")
