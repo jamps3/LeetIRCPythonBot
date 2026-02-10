@@ -539,6 +539,75 @@ class BotManager:
     def server_threads(self, value):
         self._server_threads = value
 
+    def _console_select_channel(self, channel_input):
+        """Select a channel as the active channel for sending messages.
+
+        Usage: #channel [server]
+        - If server is provided, it will be remembered for future #channel commands
+        - If no server is provided, uses the last selected server or lists available servers
+        """
+        if not self.servers:
+            return "No servers available"
+
+        # Parse input - can be "#channel" or "#channel servername" or "#channel @servername"
+        channel_name = channel_input.strip()
+        server_name = None
+
+        # Check if server name is included (space-separated)
+        if " " in channel_name:
+            parts = channel_name.split(None, 1)  # Split on whitespace
+            channel_name = parts[0]
+            server_name = parts[1].lstrip("@")  # Remove @ prefix if present
+
+        # Normalize channel name
+        if not channel_name.startswith("#"):
+            channel_name = f"#{channel_name}"
+
+        # Get connected servers
+        connected_servers = {
+            name: srv for name, srv in self.servers.items() if srv.connected
+        }
+
+        if not connected_servers:
+            return "No connected servers available"
+
+        # If server name provided, use it
+        if server_name:
+            if server_name in connected_servers:
+                self.active_channel = channel_name
+                self.active_server = server_name
+                # Remember this server for future selections
+                self._last_selected_server = server_name
+                return f"Selected {channel_name} on {server_name}"
+            else:
+                # Server not found or not connected
+                available = ", ".join(connected_servers.keys())
+                return f"Server '{server_name}' not found or not connected. Available: {available}"
+
+        # No server specified - check if we have a remembered server
+        if hasattr(self, "_last_selected_server") and self._last_selected_server:
+            if self._last_selected_server in connected_servers:
+                self.active_channel = channel_name
+                self.active_server = self._last_selected_server
+                return f"Selected {channel_name} on {self._last_selected_server}"
+
+        # No remembered server or it's no longer connected - check if we have an active server
+        if self.active_server and self.active_server in connected_servers:
+            self.active_channel = channel_name
+            return f"Selected {channel_name} on {self.active_server}"
+
+        # Still no server - if only one connected, use it
+        if len(connected_servers) == 1:
+            server_name = list(connected_servers.keys())[0]
+            self.active_channel = channel_name
+            self.active_server = server_name
+            self._last_selected_server = server_name
+            return f"Selected {channel_name} on {server_name}"
+
+        # Multiple servers available - list them
+        server_list = ", ".join(connected_servers.keys())
+        return f"Multiple servers available. Use '#channel {channel_name} <server>' where server is one of: {server_list}"
+
     def _console_join_or_part_channel(self, channel_name):
         """Join or part a channel based on current state."""
         if not self.server_threads:
