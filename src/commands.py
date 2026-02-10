@@ -222,16 +222,16 @@ async def echo_command(context: CommandContext, bot_functions):
     if not context.args:
         return "Usage: !kaiku [#channel] [command] [command_parameters]"
 
-    # Get the server instance
-    server = bot_functions.get("server")
-    if not server:
-        return "Server not available"
-
     # Check if first argument is a channel
     first_arg = context.args[0]
     is_channel = first_arg.startswith("#")
 
     if is_channel:
+        # Channel mode - need server
+        server = bot_functions.get("server")
+        if not server:
+            return "Server not available"
+
         # Channel mode - check if second argument is a command
         if len(context.args) >= 2 and context.args[1].startswith("!"):
             # Command mode - execute the command and send to channel

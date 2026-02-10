@@ -1463,6 +1463,8 @@ def test_help_irc_fallback_without_notice():
 
 def test_echo_command_console_vs_irc():
     """Test echo command has different console vs IRC message format."""
+    import asyncio
+
     from command_registry import CommandContext
     from commands import echo_command
 
@@ -1477,7 +1479,7 @@ def test_echo_command_console_vs_irc():
         is_console=True,
         server_name="console",
     )
-    res = echo_command(ctx_console, {})
+    res = asyncio.run(echo_command(ctx_console, {}))
     assert "Console:" in res
 
     # IRC context
@@ -1491,7 +1493,7 @@ def test_echo_command_console_vs_irc():
         is_console=False,
         server_name="server",
     )
-    res2 = echo_command(ctx_irc, {})
+    res2 = asyncio.run(echo_command(ctx_irc, {}))
     assert "TestUser:" in res2
 
 
