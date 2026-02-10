@@ -217,7 +217,7 @@ def help_command(context: CommandContext, bot_functions):
     ],
     requires_args=True,
 )
-def echo_command(context: CommandContext, bot_functions):
+async def echo_command(context: CommandContext, bot_functions):
     """Echo back the provided message or send to specified channel."""
     if not context.args:
         return "Usage: !kaiku [#channel] [command] [command_parameters]"
@@ -236,23 +236,43 @@ def echo_command(context: CommandContext, bot_functions):
         if len(context.args) >= 2 and context.args[1].startswith("!"):
             # Command mode - execute the command and send to channel
             command_text = " ".join(context.args[1:])
+            # Get the command registry
+            from command_registry import get_command_registry, process_command_message
+
+            registry = get_command_registry()
             command_context = CommandContext(
                 command="kaiku",
                 args=context.args[1:],
-                args_text=command_text,
+                raw_message=command_text,
                 sender=context.sender,
                 target=first_arg,
                 server_name=context.server_name,
                 is_console=context.is_console,
             )
-            # Get the command registry
-            from command_registry import get_command_registry
+            try:
+                # Await the async command directly
+                response = await process_command_message(
+                    command_text, command_context, bot_functions
+                )
+            except Exception as e:
+                # Handle any errors during command execution
+                import traceback
 
-            registry = get_command_registry()
-            response = registry.process_command_message(command_context, bot_functions)
+                error_msg = str(e) if str(e) else type(e).__name__
+                logger.error(f"!kaiku command error: {error_msg}")
+                logger.error(traceback.format_exc())
+                server.send_message(first_arg, f"Command error: {error_msg}")
+                return CommandResponse.no_response()
 
             # Send to channel
-            server.send_message(first_arg, response.message)
+            if response is None:
+                server.send_message(
+                    first_arg, "Command not found or returned no response"
+                )
+            elif hasattr(response, "message"):
+                server.send_message(first_arg, response.message)
+            else:
+                server.send_message(first_arg, str(response))
             return CommandResponse.no_response()
         else:
             # Simple echo to channel
