@@ -622,9 +622,9 @@ def crypto_command(context: CommandContext, bot_functions):
         currency = (context.args[1] if len(context.args) > 1 else "eur").lower()
         try:
             price = get_crypto_price(coin, currency)
-            currency_upper = currency.upper()
             coin_upper = coin.capitalize()
-            return f"💸 {coin_upper}: {price} {currency_upper}"
+            # Price already includes currency from get_crypto_price
+            return f"💸 {coin_upper}: {price}"
         except Exception as e:
             return f"Error getting {coin} price: {str(e)}"
     else:
@@ -635,9 +635,7 @@ def crypto_command(context: CommandContext, bot_functions):
             try:
                 price = get_crypto_price(coin, "eur")
                 coin_upper = coin.capitalize()
-                response_parts.append(
-                    f"The current price of {coin_upper} is {price} €."
-                )
+                response_parts.append(f"The current price of {coin_upper} is {price}.")
             except Exception as e:
                 response_parts.append(f"Error getting {coin} price.")
         return " ".join(response_parts)
