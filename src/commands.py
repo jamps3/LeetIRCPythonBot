@@ -264,18 +264,37 @@ async def echo_command(context: CommandContext, bot_functions):
                 server.send_message(first_arg, f"Command error: {error_msg}")
                 return CommandResponse.no_response()
 
-            # Send to channel (respect command's preference for notices vs messages)
+            # Send to channel (respect global USE_NOTICES setting)
+            use_notices = os.getenv("USE_NOTICES", "false").lower() == "true"
+
             if response is None:
-                server.send_message(
-                    first_arg, "Command not found or returned no response"
-                )
+                msg = "Command not found or returned no response"
+                if use_notices:
+                    notice = bot_functions.get("notice_message")
+                    irc = bot_functions.get("irc")
+                    if notice and irc:
+                        notice(msg, irc, first_arg)
+                else:
+                    server.send_message(first_arg, msg)
             elif hasattr(response, "should_respond") and not response.should_respond:
                 # Command handled its own output (e.g., sent notices) - don't send to channel
                 pass
             elif hasattr(response, "message"):
-                server.send_message(first_arg, response.message)
+                if use_notices:
+                    notice = bot_functions.get("notice_message")
+                    irc = bot_functions.get("irc")
+                    if notice and irc:
+                        notice(response.message, irc, first_arg)
+                else:
+                    server.send_message(first_arg, response.message)
             else:
-                server.send_message(first_arg, str(response))
+                if use_notices:
+                    notice = bot_functions.get("notice_message")
+                    irc = bot_functions.get("irc")
+                    if notice and irc:
+                        notice(str(response), irc, first_arg)
+                else:
+                    server.send_message(first_arg, str(response))
             return CommandResponse.no_response()
         else:
             # Simple echo to channel

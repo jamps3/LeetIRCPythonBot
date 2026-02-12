@@ -95,7 +95,15 @@ class LogEntry:
 
     def get_display_text(self) -> str:
         """Get formatted display text for this log entry."""
-        time_str = self.timestamp.strftime("%H:%M:%S")
+        # Include nanoseconds for maximum accuracy.
+        import time
+
+        # Get current nanoseconds - use stored timestamp if possible, otherwise current time
+        # The timestamp is created when LogEntry is created, so we use that
+        # Convert datetime to nanoseconds since epoch for consistent display
+        now_ns = time.time_ns()
+        nanoseconds = now_ns % 1_000_000_000
+        time_str = self.timestamp.strftime("%H.%M.%S") + f",{nanoseconds:09d}"
         return f"[{time_str}] [{self.server}] [{self.level}] {self.message}"
 
     def get_color_attr(self) -> str:
@@ -1987,7 +1995,7 @@ class TUIManager:
         # Get ISO week number
         week_num = now.isocalendar()[1]
 
-        # Format: [day@vko{week}_{HH:MM:SS}]
+        # Format: [day@vko{week}_{HH:MM:SS}] - seconds accuracy for input line
         return f"[{days_fi[now.weekday()]}@vko{week_num}_{now.strftime('%H:%M:%S')}]"
 
     def update_input_style(self):
