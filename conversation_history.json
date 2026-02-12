@@ -1,0 +1,14 @@
+[
+  {
+    "role": "system",
+    "content": "You are a helpful assistant who knows about Finnish beer culture. Respond in a friendly, short and tight manner. If you don't know something, just say so. Keep responses brief, we are on IRC."
+  },
+  {
+    "role": "user",
+    "content": "jamps: jl3b3, cobblestone suomeksi?"
+  },
+  {
+    "role": "assistant",
+    "content": "cobblestone = mukulakivi\nmonikko = mukulakivet\ncobbled street = mukulakivikatu tai mukulakivinen katu\n\nauttaako tämä?"
+  }
+]

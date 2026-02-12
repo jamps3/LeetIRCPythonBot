@@ -264,11 +264,14 @@ async def echo_command(context: CommandContext, bot_functions):
                 server.send_message(first_arg, f"Command error: {error_msg}")
                 return CommandResponse.no_response()
 
-            # Send to channel
+            # Send to channel (respect command's preference for notices vs messages)
             if response is None:
                 server.send_message(
                     first_arg, "Command not found or returned no response"
                 )
+            elif hasattr(response, "should_respond") and not response.should_respond:
+                # Command handled its own output (e.g., sent notices) - don't send to channel
+                pass
             elif hasattr(response, "message"):
                 server.send_message(first_arg, response.message)
             else:
@@ -578,12 +581,14 @@ def muunnos_command(context: CommandContext, bot_functions):
         with open(data_file, "r", encoding="utf-8") as f:
             transformations = json.load(f)
     except (FileNotFoundError, IOError) as e:
-        return f"Virhe ladattaessa sananmuunnoksia: {e}"
+        result = f"Virhe ladattaessa sananmuunnoksia: {e}"
+        return _send_muunnos_response(context, bot_functions, result)
 
     # Check for 'add' command
     if context.args and context.args[0].lower() == "add":
         if len(context.args) < 3:
-            return 'Usage: !muunnos add "original phrase" "transformed phrase"'
+            result = 'Usage: !muunnos add "original phrase" "transformed phrase"'
+            return _send_muunnos_response(context, bot_functions, result)
 
         # Parse quoted strings
         args_text = context.args_text
@@ -600,29 +605,36 @@ def muunnos_command(context: CommandContext, bot_functions):
                     try:
                         with open(data_file, "w", encoding="utf-8") as f:
                             json.dump(transformations, f, ensure_ascii=False, indent=4)
-                        return (
+                        result = (
                             f'✅ Added transformation: "{original}" → "{transformed}"'
                         )
+                        return _send_muunnos_response(context, bot_functions, result)
                     except Exception as e:
-                        return f"Virhe tallennettaessa: {e}"
+                        result = f"Virhe tallennettaessa: {e}"
+                        return _send_muunnos_response(context, bot_functions, result)
                 else:
-                    return "Both original and transformed phrases must be non-empty."
-        return 'Usage: !muunnos add "original phrase" "transformed phrase"'
+                    result = "Both original and transformed phrases must be non-empty."
+                    return _send_muunnos_response(context, bot_functions, result)
+        result = 'Usage: !muunnos add "original phrase" "transformed phrase"'
+        return _send_muunnos_response(context, bot_functions, result)
 
     # If no arguments, return a random transformation
     if not context.args_text.strip():
         if not transformations:
-            return "Ei sananmuunnoksia saatavilla."
+            result = "Ei sananmuunnoksia saatavilla."
+            return _send_muunnos_response(context, bot_functions, result)
 
         original = random.choice(list(transformations.keys()))
         transformed = transformations[original]
-        return f"{original} - {transformed}"
+        result = f"{original} - {transformed}"
+        return _send_muunnos_response(context, bot_functions, result)
 
     # If arguments provided, try to find exact match first
     input_text = context.args_text.strip()
     if input_text in transformations:
         transformed = transformations[input_text]
-        return f"{input_text} - {transformed}"
+        result = f"{input_text} - {transformed}"
+        return _send_muunnos_response(context, bot_functions, result)
 
     # Try algorithmic transformation for unknown inputs
     words = input_text.split()
@@ -630,7 +642,8 @@ def muunnos_command(context: CommandContext, bot_functions):
         # Single word: split into parts and try to transform
         word = words[0]
         if len(word) < 3:
-            return "Liian lyhyt sana muunnokseen."
+            result = "Liian lyhyt sana muunnokseen."
+            return _send_muunnos_response(context, bot_functions, result)
 
         # Split word into two parts (roughly half)
         mid = len(word) // 2
@@ -642,14 +655,16 @@ def muunnos_command(context: CommandContext, bot_functions):
         transformed_part2 = transformations.get(part2, part2)
 
         # Combine without space for single word transformation
-        result = transformed_part1 + transformed_part2
-        return f"{word} - {result}"
+        result_str = transformed_part1 + transformed_part2
+        result = f"{word} - {result_str}"
+        return _send_muunnos_response(context, bot_functions, result)
 
     elif len(words) >= 2:
         # Use the algorithmic transformation
-        result = transform_phrase(input_text)
-        if result != input_text:
-            return f"{input_text} - {result}"
+        result_str = transform_phrase(input_text)
+        if result_str != input_text:
+            result = f"{input_text} - {result_str}"
+            return _send_muunnos_response(context, bot_functions, result)
 
     # Fallback: try random transformations until one works
     max_attempts = 10
@@ -657,9 +672,25 @@ def muunnos_command(context: CommandContext, bot_functions):
         random_original = random.choice(list(transformations.keys()))
         random_transformed = transformations[random_original]
         # Try to apply this transformation somehow - for now just return it
-        return f"{random_original} - {random_transformed}"
+        result = f"{random_original} - {random_transformed}"
+        return _send_muunnos_response(context, bot_functions, result)
 
-    return f"Ei löydy muunnosta: {input_text}"
+    result = f"Ei löydy muunnosta: {input_text}"
+    return _send_muunnos_response(context, bot_functions, result)
+
+
+def _send_muunnos_response(context: CommandContext, bot_functions, result: str):
+    """Send muunnos response via notices (IRC) or return directly (console)."""
+    if context.is_console:
+        return result
+    else:
+        # IRC: send as notice to the nick who asked
+        notice = bot_functions.get("notice_message")
+        irc = bot_functions.get("irc")
+        if notice and irc:
+            notice(result, irc, context.sender)
+            return CommandResponse.no_response()
+        return CommandResponse.success_msg(result)
 
 
 @command(

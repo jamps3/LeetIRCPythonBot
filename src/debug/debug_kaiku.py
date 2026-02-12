@@ -262,17 +262,35 @@ async def test_kaiku_with_np():
 
 
 async def test_kaiku_with_muunnos():
-    """Test !kaiku #channel !muunnos command flow."""
+    """Test !kaiku #channel !muunnos command flow.
+
+    Note: !muunnos now uses notices instead of channel messages,
+    so when executed via !kaiku, it should NOT send to the channel.
+    """
     print("\n" + "=" * 60)
     print("Testing: !kaiku #test !muunnos")
+    print("Expected: No channel message (muunnos uses notices)")
     print("=" * 60)
 
     # Create mock server
     mock_server = MockServer()
 
-    # Create bot_functions with just the mock server
+    # Track notices sent
+    sent_notices = []
+
+    def mock_notice(msg, irc=None, target=None):
+        sent_notices.append((target, msg))
+        print(f"[Notice to {target}]: {msg}")
+
+    # Mock IRC object
+    class MockIRC:
+        pass
+
+    # Create bot_functions with mock server and notice function
     bot_functions = {
         "server": mock_server,
+        "notice_message": mock_notice,
+        "irc": MockIRC(),  # Mock IRC object (required for notice-based commands)
     }
 
     # Create context for !kaiku #test !muunnos
@@ -296,17 +314,20 @@ async def test_kaiku_with_muunnos():
 
     if mock_server.sent_messages:
         print(
-            f"✅ Successfully sent {len(mock_server.sent_messages)} message(s) to channel:"
+            f"❌ Unexpected: {len(mock_server.sent_messages)} message(s) sent to channel:"
         )
         for target, msg in mock_server.sent_messages:
             print(f"   -> {target}: {msg}")
+        print("\nNote: !muunnos should use notices, not channel messages!")
     else:
-        print("❌ No messages were sent to the channel")
+        print("✅ No messages sent to channel (as expected for notice-based commands)")
 
-    if response and hasattr(response, "message"):
-        print(f"\nCommand response: {response.message}")
-    elif response:
-        print(f"\nCommand response: {response}")
+    if sent_notices:
+        print(f"\n✅ Notices sent to user: {len(sent_notices)}")
+        for target, msg in sent_notices:
+            print(f"   -> {target}: {msg}")
+    else:
+        print("\n⚠️  No notices sent (may be expected if data file is missing)")
 
     print("\n" + "=" * 60)
     print("Test completed!")
