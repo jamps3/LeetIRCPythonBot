@@ -528,6 +528,7 @@ class ConsoleManager:
             # Core functions
             "notice_message": lambda msg, irc=None, target=None: logger.msg(msg),
             "log": logger.msg,
+            "server_manager": self.server_manager,
             "send_weather": lambda irc, channel, location: self._console_weather(
                 location
             ),

@@ -16,14 +16,31 @@ def get_irc_connection(context: CommandContext, bot_functions):
     """Get IRC connection for the current context."""
     if context.is_console:
         # In console mode, we need to get the active server
+        # Try bot_manager first, then fall back to server_manager
         bot_manager = bot_functions.get("bot_manager")
-        if bot_manager and bot_manager.servers:
+        server_manager = bot_functions.get("server_manager")
+
+        # Try bot_manager.servers first
+        if bot_manager and hasattr(bot_manager, "servers") and bot_manager.servers:
             # Use the first connected server as default
             for server in bot_manager.servers.values():
                 if hasattr(server, "connected") and server.connected:
                     return server
             # If no connected servers, use the first one
             return next(iter(bot_manager.servers.values()))
+
+        # Fall back to server_manager
+        if (
+            server_manager
+            and hasattr(server_manager, "servers")
+            and server_manager.servers
+        ):
+            # Use the first connected server as default
+            for server in server_manager.servers.values():
+                if hasattr(server, "connected") and server.connected:
+                    return server
+            # If no connected servers, use the first one
+            return next(iter(server_manager.servers.values()))
     else:
         # In IRC mode, use the current IRC connection
         return bot_functions.get("irc")
