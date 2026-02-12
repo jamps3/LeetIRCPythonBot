@@ -684,11 +684,13 @@ def _send_muunnos_response(context: CommandContext, bot_functions, result: str):
     if context.is_console:
         return result
     else:
-        # IRC: send as notice to the nick who asked
+        # IRC: send as notice to the channel where requested
         notice = bot_functions.get("notice_message")
         irc = bot_functions.get("irc")
         if notice and irc:
-            notice(result, irc, context.sender)
+            # Send to the target (channel) where the command was issued
+            target = context.target if context.target else context.sender
+            notice(result, irc, target)
             return CommandResponse.no_response()
         return CommandResponse.success_msg(result)
 
