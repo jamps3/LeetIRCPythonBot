@@ -604,6 +604,53 @@ class BotManager:
             self._last_selected_server = server_name
             return f"Selected {channel_name} on {server_name}"
 
+            # Helper function to join and return
+
+        def _join_and_return(server_name, channel):
+            server = self.servers[server_name]
+            if server_name not in self.joined_channels:
+                self.joined_channels[server_name] = set()
+
+            if channel not in self.joined_channels[server_name]:
+                try:
+                    server.join_channel(channel)
+                    self.joined_channels[server_name].add(channel)
+                    return f"Joined and selected {channel} on {server_name}"
+                except Exception as e:
+                    return f"Error joining {channel}: {e}"
+            return f"Selected {channel} on {server_name} (already joined)"
+
+        # If server name provided, use it
+        if server_name:
+            if server_name in connected_servers:
+                self.active_channel = channel_name
+                self.active_server = server_name
+                self._last_selected_server = server_name
+                return _join_and_return(server_name, channel_name)
+            else:
+                available = ", ".join(connected_servers.keys())
+                return f"Server '{server_name}' not found or not connected. Available: {available}"
+
+        # No server specified - check if we have a remembered server
+        if hasattr(self, "_last_selected_server") and self._last_selected_server:
+            if self._last_selected_server in connected_servers:
+                self.active_channel = channel_name
+                self.active_server = self._last_selected_server
+                return _join_and_return(self._last_selected_server, channel_name)
+
+        # No remembered server - check if we have an active server
+        if self.active_server and self.active_server in connected_servers:
+            self.active_channel = channel_name
+            return _join_and_return(self.active_server, channel_name)
+
+        # Still no server - if only one connected, use it
+        if len(connected_servers) == 1:
+            server_name = list(connected_servers.keys())[0]
+            self.active_channel = channel_name
+            self.active_server = server_name
+            self._last_selected_server = server_name
+            return _join_and_return(server_name, channel_name)
+
         # Multiple servers available - list them
         server_list = ", ".join(connected_servers.keys())
         return f"Multiple servers available. Use '#channel {channel_name} <server>' where server is one of: {server_list}"

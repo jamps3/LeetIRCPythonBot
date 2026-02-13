@@ -1388,15 +1388,44 @@ class TUIManager:
         # View indicator
         view_indicator = f"View: {self.current_view.title()}"
 
+        # Get dynamic help text based on current input
+        help_text = self._get_dynamic_help_text()
+
         # Update header text with two lines
         status_line1 = (
             f"LeetIRCBot TUI | {current_time} | {server_status} | {service_status} | "
             f"{view_indicator} | Logs: {len(self.log_entries)}"
         )
-        status_line2 = "F1=Help F2=Console F3=Stats F4=Config F5=RawLogs"
+        status_line2 = f"F1=Help F2=Console F3=Stats F4=Config F5=RawLogs | {help_text}"
 
         status_text = f"{status_line1}\n{status_line2}"
         self.header.set_text(status_text)
+
+    def _get_dynamic_help_text(self) -> str:
+        """Get dynamic help text based on current input."""
+        if not hasattr(self, "input_field") or not self.input_field:
+            return "Enter message"
+
+        text = self.input_field.get_edit_text()
+        if text.startswith("!"):
+            return "[!cmd] Send bot command"
+        elif text.startswith("-"):
+            return "[-msg] Send to AI chat"
+        elif text.lower().startswith("filter:"):
+            return "[filter:text] Filter logs"
+        elif text.lower().startswith("config:"):
+            return "[config:key=val] Set config"
+        elif text.startswith("#"):
+            return "[#ch] Select/join channel"
+        else:
+            # Show active channel or prompt to select/join
+            if (
+                self.bot_manager
+                and hasattr(self.bot_manager, "active_channel")
+                and self.bot_manager.active_channel
+            ):
+                return f"[MSG to {self.bot_manager.active_channel}]"
+            return "[#channel] Select/join a channel"
 
     def _get_service_status(self) -> str:
         """Get service status indicators."""
@@ -2002,24 +2031,32 @@ class TUIManager:
         """Update input field caption based on current text."""
         timestamp = self._get_timestamp_string()
         text = self.input_field.get_edit_text()
+        # Fixed width labels (7 chars inside brackets for consistent alignment)
         if text.startswith("!"):
-            self.input_field.set_caption(f"{timestamp} > [CMD   ]: ")
+            self.input_field.set_caption(f"{timestamp} > [CMD    ]: ")
         elif text.startswith("-"):
-            self.input_field.set_caption(f"{timestamp} > [AI    ]: ")
+            self.input_field.set_caption(f"{timestamp} > [AI     ]: ")
         elif text.lower().startswith("filter:"):
-            self.input_field.set_caption(f"{timestamp} > [Filter]: ")
+            self.input_field.set_caption(f"{timestamp} > [Filter ]: ")
         elif text.lower().startswith("config:"):
-            self.input_field.set_caption(f"{timestamp} > [Config]: ")
+            self.input_field.set_caption(f"{timestamp} > [Config ]: ")
+        elif text.startswith("#"):
+            self.input_field.set_caption(f"{timestamp} > [Channel]: ")
         else:
-            # Show active channel name or prompt to select/join
-            active_channel = "Select/join a channel with #channel"
+            # Show active channel name or empty brackets if none selected
+            active_channel = ""
             if (
                 self.bot_manager
                 and hasattr(self.bot_manager, "active_channel")
                 and self.bot_manager.active_channel
             ):
                 active_channel = self.bot_manager.active_channel
-            self.input_field.set_caption(f"{timestamp} > [{active_channel}]: ")
+            if active_channel:
+                # Truncate or pad channel name to 7 characters for consistency
+                channel_display = active_channel[:7].ljust(7)
+                self.input_field.set_caption(f"{timestamp} > [{channel_display}]: ")
+            else:
+                self.input_field.set_caption(f"{timestamp} > [       ]: ")
 
     def _open_log_file(self, filename="tui.log"):
         """Open the log file for immediate writing."""

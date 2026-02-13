@@ -433,7 +433,9 @@ class YouTubeService:
         )
         # Use IRC color codes: \x0304 = red, \x03 = reset
         # Format: ▶ 'Title' [duration] / Views: xx | xx 👍 / Added: date / url
-        message = f"{yt_logo} '{title}' [{duration}] / {view_str}|{like_str}👍 / Added: {date_str}"
+        message = (
+            f"{yt_logo} '{title}' [{duration}] / {view_str}👀|{like_str}👍 @{date_str}"
+        )
 
         return message
 

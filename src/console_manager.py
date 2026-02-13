@@ -501,24 +501,50 @@ class ConsoleManager:
 
     def _get_channel_status(self) -> str:
         """Get status of joined channels and active channel."""
-        joined_channels = self.server_manager.get_joined_channels()
-        if not joined_channels:
-            return "No channels joined."
+        if not self.server_manager or not self.server_manager.servers:
+            return "No servers configured."
 
         status_lines = ["Channel Status:"]
-        for server_name, channels in joined_channels.items():
+        has_any_channels = False
+
+        for server_name, server in self.server_manager.servers.items():
+            # Check server connection status
+            server_connected = (
+                server.connected
+                and server_name in self.server_manager.server_threads
+                and self.server_manager.server_threads[server_name].is_alive()
+            )
+            server_status = "🟢" if server_connected else "🔴"
+
+            # Mark active server
+            active_marker = " (active)" if server_name == self.active_server else ""
+
+            status_lines.append(f"  {server_status} {server_name}{active_marker}:")
+
+            # Get joined channels for this server
+            channels = []
+            if hasattr(self.server_manager, "joined_channels"):
+                channels = self.server_manager.joined_channels.get(server_name, [])
+
             if channels:
-                server = self.server_manager.get_server(server_name)
-                server_status = "🟢" if server and server.connected else "🔴"
-                status_lines.append(f"  {server_status} {server_name}:")
+                has_any_channels = True
                 for channel in sorted(channels):
-                    active_marker = (
-                        " (active)"
-                        if channel == self.active_channel
+                    # Mark active channel
+                    channel_marker = ""
+                    if (
+                        channel == self.active_channel
                         and server_name == self.active_server
-                        else ""
-                    )
-                    status_lines.append(f"    {channel}{active_marker}")
+                    ):
+                        channel_marker = " ← active"
+                    status_lines.append(f"    {channel}{channel_marker}")
+            else:
+                status_lines.append("    (no channels joined)")
+
+        # Add help text at the end
+        if not has_any_channels:
+            status_lines.append("\nUse #channel to join a channel (e.g., #test)")
+        elif not self.active_channel:
+            status_lines.append("\nUse #channel to select an active channel")
 
         return "\n".join(status_lines)
 
