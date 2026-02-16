@@ -46,6 +46,14 @@ class BACTracker:
 
     def _save_bac_data(self, bac_data: Dict[str, Dict]):
         """Save BAC data to state.json."""
+        # Cap any BAC values higher than 10‰ before saving (unrealistic values)
+        MAX_BAC = 10.0
+        for user_key, user_data in bac_data.items():
+            if user_data.get("current_bac", 0) > MAX_BAC:
+                user_data["current_bac"] = MAX_BAC
+            if user_data.get("peak_bac", 0) > MAX_BAC:
+                user_data["peak_bac"] = MAX_BAC
+
         state = self.data_manager.load_json(self.data_manager.state_file)
         state["bac_tracking"] = bac_data
         self.data_manager.save_json(self.data_manager.state_file, state)

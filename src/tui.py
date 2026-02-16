@@ -2060,20 +2060,8 @@ class TUIManager:
         elif text.startswith("#"):
             self.input_field.set_caption(f"{timestamp} > [Channel]: ")
         else:
-            # Show active channel name or empty brackets if none selected
-            active_channel = ""
-            if (
-                self.bot_manager
-                and hasattr(self.bot_manager, "active_channel")
-                and self.bot_manager.active_channel
-            ):
-                active_channel = self.bot_manager.active_channel
-            if active_channel:
-                # Truncate or pad channel name to 7 characters for consistency
-                channel_display = active_channel[:7].ljust(7)
-                self.input_field.set_caption(f"{timestamp} > [{channel_display}]: ")
-            else:
-                self.input_field.set_caption(f"{timestamp} > [       ]: ")
+            # Show "Channel" label when there's an active channel
+            self.input_field.set_caption(f"{timestamp} > [Channel]: ")
 
     def _open_log_file(self, filename="tui.log"):
         """Open the log file for immediate writing."""

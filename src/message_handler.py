@@ -366,14 +366,24 @@ class MessageHandler:
 
         # Track when the bot itself joins a channel
         if sender.lower() == server.bot_name.lower():
-            # Initialize joined channels for this server if needed
-            if not hasattr(server, "joined_channels"):
-                server.joined_channels = {}
-            if server_name not in server.joined_channels:
-                server.joined_channels[server_name] = set()
+            # Use bot_manager.joined_channels as the central tracking source
+            if hasattr(self, "bot_manager") and self.bot_manager:
+                if server_name not in self.bot_manager.joined_channels:
+                    self.bot_manager.joined_channels[server_name] = set()
+                self.bot_manager.joined_channels[server_name].add(channel)
 
-            # Add channel to joined channels tracking
-            server.joined_channels[server_name].add(channel)
+                # Auto-select first automatically joined channel as active
+                # This ensures there's always an active channel if any channels are joined
+                if (
+                    self.bot_manager.active_channel is None
+                    and self.bot_manager.active_server is None
+                ):
+                    self.bot_manager.active_channel = channel
+                    self.bot_manager.active_server = server_name
+                    logger.debug(
+                        f"Auto-selected first joined channel {channel} on {server_name} as active"
+                    )
+
             logger.info(f"Bot joined {channel} on {server_name}")
         else:
             # Track other user activity
@@ -1060,26 +1070,21 @@ class MessageHandler:
                 else:
                     target_normalized = target.lower()
 
-                    # Handle joined_channels for real servers
-                    if hasattr(server, "joined_channels"):
-                        joined_channels = server.joined_channels
-                    else:
-                        joined_channels = {}
-                        server.joined_channels = joined_channels
-
-                    server_name_str = str(server_name)
-                    if server_name_str not in joined_channels:
-                        joined_channels[server_name_str] = []
-
-                    joined_channels_normalized = {
-                        ch.lower() for ch in joined_channels.get(server_name_str, [])
-                    }
-
-                    if target_normalized not in joined_channels_normalized:
-                        logger.debug(
-                            f"Channel {target} not in joined_channels, adding it now (server: {server_name_str})"
-                        )
-                        joined_channels[server_name_str].append(target)
+                    # Use bot_manager.joined_channels as the central tracking source
+                    if hasattr(self, "bot_manager") and self.bot_manager:
+                        if server_name not in self.bot_manager.joined_channels:
+                            self.bot_manager.joined_channels[server_name] = set()
+                        joined_channels_normalized = {
+                            ch.lower()
+                            for ch in self.bot_manager.joined_channels.get(
+                                server_name, set()
+                            )
+                        }
+                        if target_normalized not in joined_channels_normalized:
+                            logger.debug(
+                                f"Channel {target} not in joined_channels, adding it now (server: {server_name})"
+                            )
+                            self.bot_manager.joined_channels[server_name].add(target)
             except (AttributeError, TypeError):
                 # If anything goes wrong with channel validation, skip it
                 pass

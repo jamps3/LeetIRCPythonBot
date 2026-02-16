@@ -73,6 +73,10 @@ class ConsoleManager:
         """Set the server manager after initialization."""
         self.server_manager = server_manager
 
+    def set_bot_manager(self, bot_manager):
+        """Set the bot manager after initialization for channel status tracking."""
+        self.bot_manager = bot_manager
+
     def set_stop_event(self, stop_event: threading.Event):
         """Set the stop event after initialization."""
         self.stop_event = stop_event
@@ -255,6 +259,9 @@ class ConsoleManager:
 
     def _process_console_input(self, user_input: str):
         """Process a line of console input."""
+        # Log raw console commands at DEBUG level for visibility in tui.log
+        logger.debug(f"[CONSOLE_CMD] {user_input}")
+
         if user_input.lower() in ("quit", "exit"):
             self._handle_console_quit()
         elif user_input.startswith("!"):
@@ -499,6 +506,12 @@ class ConsoleManager:
         except Exception as e:
             return f"Error sending message: {e}"
 
+    def _normalize_channel(self, channel: str) -> str:
+        """Normalize channel name to always have # prefix."""
+        if channel and not channel.startswith("#"):
+            return f"#{channel}"
+        return channel
+
     def _get_channel_status(self) -> str:
         """Get status of joined channels and active channel."""
         if not self.server_manager or not self.server_manager.servers:
@@ -506,6 +519,19 @@ class ConsoleManager:
 
         status_lines = ["Channel Status:"]
         has_any_channels = False
+
+        # Use bot_manager.joined_channels as the single source of truth
+        # Fall back to empty dict if not available
+        channels_by_server = {}
+        if hasattr(self, "bot_manager") and self.bot_manager:
+            channels_by_server = self.bot_manager.joined_channels
+
+        # Get active server from bot_manager if available
+        active_server_for_marker = None
+        if hasattr(self, "bot_manager") and self.bot_manager:
+            active_server_for_marker = getattr(self.bot_manager, "active_server", None)
+        else:
+            active_server_for_marker = self.active_server
 
         for server_name, server in self.server_manager.servers.items():
             # Check server connection status
@@ -517,26 +543,42 @@ class ConsoleManager:
             server_status = "🟢" if server_connected else "🔴"
 
             # Mark active server
-            active_marker = " (active)" if server_name == self.active_server else ""
+            active_marker = (
+                " (active)" if server_name == active_server_for_marker else ""
+            )
 
             status_lines.append(f"  {server_status} {server_name}{active_marker}:")
 
-            # Get joined channels for this server
-            channels = []
-            if hasattr(self.server_manager, "joined_channels"):
-                channels = self.server_manager.joined_channels.get(server_name, [])
+            # Get joined channels for this server (deduplicated)
+            channels = channels_by_server.get(server_name, set())
 
             if channels:
                 has_any_channels = True
+                # Get active channel and server from bot_manager if available, otherwise use console_manager's
+                active_channel = None
+                active_server = None
+                if hasattr(self, "bot_manager") and self.bot_manager:
+                    active_channel = getattr(self.bot_manager, "active_channel", None)
+                    active_server = getattr(self.bot_manager, "active_server", None)
+                else:
+                    active_channel = self.active_channel
+                    active_server = self.active_server
+
                 for channel in sorted(channels):
-                    # Mark active channel
-                    channel_marker = ""
+                    # Wrap active channel in [] brackets
+                    # Normalize active_channel for comparison
+                    active_channel_normalized = (
+                        self._normalize_channel(active_channel)
+                        if active_channel
+                        else None
+                    )
                     if (
-                        channel == self.active_channel
-                        and server_name == self.active_server
+                        channel == active_channel_normalized
+                        and server_name == active_server
                     ):
-                        channel_marker = " ← active"
-                    status_lines.append(f"    {channel}{channel_marker}")
+                        status_lines.append(f"    [{channel}]")
+                    else:
+                        status_lines.append(f"    {channel}")
             else:
                 status_lines.append("    (no channels joined)")
 

@@ -91,6 +91,7 @@ class BotManager:
         # Set remaining dependencies in console manager
         self.console_manager.set_message_handler(self.message_handler)
         self.console_manager.set_server_manager(self.server_manager)
+        self.console_manager.set_bot_manager(self)
         self.console_manager.set_stop_event(self.stop_event)
 
         # Register message callbacks
