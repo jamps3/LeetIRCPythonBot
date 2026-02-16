@@ -52,22 +52,6 @@ class TestSolarWindService:
             == "https://services.swpc.noaa.gov/products/solar-wind/mag-5-minute.json"
         )
 
-    @pytest.mark.skip(reason="Complex pandas mocking requires significant refactoring")
-    def test_get_solar_wind_data_success(self, solarwind_service, mock_requests):
-        """Test successful solar wind data retrieval."""
-        # This test is skipped due to complex pandas DataFrame mocking requirements
-        pass
-
-    @pytest.mark.skip(
-        reason="Complex pandas DataFrame mocking requires significant refactoring"
-    )
-    def test_get_solar_wind_data_no_common_timestamps(
-        self, solarwind_service, mock_requests
-    ):
-        """Test when no common timestamps are found."""
-        # This test is skipped due to complex pandas DataFrame mocking requirements
-        pass
-
     def test_get_solar_wind_data_pandas_import_error(self, solarwind_service):
         """Test handling when pandas is not available."""
         with patch.dict("sys.modules", {"pandas": None}):

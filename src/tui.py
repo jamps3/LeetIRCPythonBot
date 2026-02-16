@@ -1572,6 +1572,9 @@ class TUIManager:
             try:
                 channel_name = text[1:].strip()
                 if channel_name:
+                    # Normalize channel name to always have # prefix
+                    if not channel_name.startswith("#"):
+                        channel_name = f"#{channel_name}"
                     # Track the channel join
                     result = self.bot_manager._console_select_channel(channel_name)
                     if result.startswith("Joined"):
@@ -2063,7 +2066,7 @@ class TUIManager:
             # Show "Channel" label when there's an active channel
             self.input_field.set_caption(f"{timestamp} > [Channel]: ")
 
-    def _open_log_file(self, filename="tui.log"):
+    def _open_log_file(self, filename="data/leet.log"):
         """Open the log file for immediate writing."""
         try:
             self.log_file = open(filename, "a", encoding="utf-8")
@@ -2091,20 +2094,26 @@ class TUIManager:
             return
 
         try:
-            # Write each log entry in a compact single-line format
-            timestamp_str = entry.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            # Write each log entry with nanosecond precision
+            # Get nanoseconds from the timestamp - handle both datetime and string formats
+            if hasattr(entry.timestamp, 'nanosecond'):
+                nanoseconds = entry.timestamp.nanosecond
+            elif hasattr(entry.timestamp, 'second'):
+                # For datetime objects without nanosecond, assume 0
+                nanoseconds = 0
+            else:
+                # Timestamp might be a string, try to parse it or use 0
+                nanoseconds = 0
+
+            timestamp_str = entry.timestamp.strftime("%Y-%m-%d %H:%M:%S") + f".{nanoseconds:09d}"
             self.log_file.write(
                 f"[{timestamp_str}] [{entry.server}] [{entry.level}] {entry.message}\n"
             )
             self.log_file.flush()  # Ensure it's written immediately
-        except Exception as e:
-            # Try to log the error, but don't fail if we can't
-            try:
-                logger.get_logger("TUI").error(
-                    f"Failed to write log entry to file: {e}"
-                )
-            except Exception:
-                pass  # Ignore if logger is unavailable
+        except Exception:
+            # Silently ignore errors to prevent infinite recursion
+            # (logging errors would trigger this method again)
+            pass
 
     def _close_log_file(self):
         """Close the log file."""
@@ -2119,14 +2128,14 @@ class TUIManager:
                 except Exception:
                     pass  # Ignore if logger is unavailable
 
-    def write_log_to_file(self, filename="tui.log"):
-        """Write all log entries to a file.
+    def write_log_to_file(self, filename="data/leet.log"):
+        """Write all log entries to a file (appending to existing content).
 
         Args:
-            filename: The filename to write the log to (default: tui.log)
+            filename: The filename to write the log to (default: data/leet.log)
         """
         try:
-            with open(filename, "w", encoding="utf-8") as f:
+            with open(filename, "a", encoding="utf-8") as f:
                 f.write("=" * 80 + "\n")
                 f.write("LeetIRCBot TUI Log\n")
                 f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -2207,15 +2216,19 @@ Tips:
         # Set up logger hook to receive all log messages immediately
         logger.set_tui_hook(self.add_log_entry)
 
-        # Add initial log entries
-        self.add_log_entry(
-            datetime.now(),
-            "Console",
-            "INFO",
-            "TUI starting up - capturing all logs from now on.",
-            "SYSTEM",
-        )
+        # Load command history from file
+        history_file = "data/leetbot_history"
+        try:
+            if os.path.exists(history_file):
+                with open(history_file, "r", encoding="utf-8") as f:
+                    self.command_history = [
+                        line.strip() for line in f if line.strip()
+                    ]
+                self.history_index = len(self.command_history)
+        except Exception:
+            pass  # Ignore errors loading history
 
+        # Add initial log entries
         # Show clipboard status
         clipboard_status = (
             "Select-to-copy functionality enabled - select text with mouse to copy it"
@@ -2231,10 +2244,6 @@ Tips:
         )
 
         if self.bot_manager:
-            self.add_log_entry(
-                datetime.now(), "Console", "INFO", "Bot manager connected", "SYSTEM"
-            )
-
             # Report connection status (auto-connect is handled by bot manager)
             auto_connect_enabled = os.getenv("AUTO_CONNECT", "false").lower() == "true"
             if auto_connect_enabled:
@@ -2242,7 +2251,7 @@ Tips:
                     datetime.now(),
                     "Console",
                     "INFO",
-                    "AUTO_CONNECT is enabled. Servers should connect automatically.",
+                    "AUTO_CONNECT on. Servers should connect automatically.",
                     "SYSTEM",
                 )
             else:
@@ -2250,7 +2259,7 @@ Tips:
                     datetime.now(),
                     "Console",
                     "INFO",
-                    "AUTO_CONNECT is disabled. Use !connect to connect to IRC servers.",
+                    "AUTO_CONNECT off. Use !connect to connect to IRC servers.",
                     "SYSTEM",
                 )
 
@@ -2367,10 +2376,24 @@ Tips:
         try:
             self.loop.run()
         finally:
+            # Clean up Voikko to avoid deallocator errors on shutdown
+            try:
+                from lemmatizer import cleanup_voikko
+                cleanup_voikko()
+            except Exception:
+                pass
             # Close the log file
             self._close_log_file()
             # Write TUI log to file before exiting
             self.write_log_to_file()
+            # Save command history to file
+            history_file = "data/leetbot_history"
+            try:
+                os.makedirs(os.path.dirname(history_file), exist_ok=True)
+                with open(history_file, "w", encoding="utf-8") as f:
+                    f.write("\n".join(self.command_history))
+            except Exception:
+                pass  # Ignore errors saving history
             # Clear the logger hook when TUI exits
             logger.clear_tui_hook()
 

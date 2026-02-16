@@ -558,44 +558,6 @@ def test_irc_keepalive_worker(monkeypatch):
     assert any("PING :keepalive" in s for s in client.socket.sent)
 
 
-@pytest.mark.skip(
-    reason="This test may cause hanging when run with others due to real IRC client creation"
-)
-def test_create_irc_client_factory(monkeypatch):
-    from irc_client import create_irc_client
-
-    class CM:
-        def __init__(self, server=None, name="bot"):
-            self._server = server
-            self.config = types.SimpleNamespace(name=name)
-
-        def get_server_by_name(self, n):
-            return self._server
-
-        def get_primary_server(self):
-            return self._server
-
-    import types
-
-    # No server available -> ValueError
-    def fake_gcm():
-        return CM(server=None)
-
-    monkeypatch.setattr("config.get_config_manager", fake_gcm, raising=True)
-    with pytest.raises(ValueError):
-        create_irc_client("X")
-
-    # With server and default nickname from config
-    server = types.SimpleNamespace(host="h", port=1, channels=[], keys=[], name="srv")
-
-    def fake_gcm2():
-        return CM(server=server, name="nickfromcfg")
-
-    monkeypatch.setattr("config.get_config_manager", fake_gcm2, raising=True)
-    client = create_irc_client("X")
-    assert client.nickname == "nickfromcfg"
-
-
 def test_connection_failure_paths(monkeypatch):
     """Test that connect() returns False on connection failures."""
     import types
@@ -836,75 +798,6 @@ def test_remove_message_handler_value_error():
 # ==========================================
 
 
-@pytest.mark.skip(reason="Heavy BotManager creation causes slow test execution")
-def test_bot_manager_default_unconnected_state():
-    """Test that BotManager defaults to unconnected state."""
-    # This test creates a full BotManager instance which is slow
-    # The functionality is tested elsewhere with lighter mocks
-    pass
-
-
-@pytest.mark.skip(reason="Heavy BotManager creation causes slow test execution")
-def test_bot_manager_auto_connect_environment():
-    """Test AUTO_CONNECT environment variable parsing."""
-    # This test creates full BotManager instances which are slow
-    # The functionality is tested elsewhere with lighter mocks
-    pass
-
-
-@pytest.mark.skip(reason="Heavy BotManager creation causes slow test execution")
-def test_bot_manager_connection_control_methods():
-    """Test connection control methods."""
-    # This test creates a full BotManager instance which is slow
-    # The functionality is tested elsewhere with lighter mocks
-    pass
-
-
-@pytest.mark.skip(reason="Heavy BotManager creation causes slow test execution")
-def test_bot_manager_add_server_and_connect():
-    """Test dynamic server addition."""
-    # This test creates a full BotManager instance which is slow
-    # The functionality is tested elsewhere with lighter mocks
-    pass
-
-
-# ==========================================
-# TESTS FOR CHANNEL MANAGEMENT FEATURES
-# ==========================================
-
-
-@pytest.mark.skip(reason="Heavy BotManager creation causes slow test execution")
-def test_bot_manager_channel_state_initialization():
-    """Test that channel management state is properly initialized."""
-    # This test creates a full BotManager instance which is slow
-    # The functionality is tested elsewhere with lighter mocks
-    pass
-
-
-@pytest.mark.skip(reason="Heavy BotManager creation causes slow test execution")
-def test_bot_manager_channel_join_part_logic():
-    """Test channel join/part logic without actual IRC connection."""
-    # This test creates a full BotManager instance which is slow
-    # The functionality is tested elsewhere with lighter mocks
-    pass
-
-
-@pytest.mark.skip(reason="Heavy BotManager creation causes slow test execution")
-def test_bot_manager_channel_messaging():
-    """Test sending messages to active channel."""
-    # This test creates a full BotManager instance which is slow
-    # The functionality is tested elsewhere with lighter mocks
-    pass
-
-
-@pytest.mark.skip(reason="Heavy BotManager creation causes slow test execution")
-def test_bot_manager_channel_status():
-    """Test channel status display."""
-    # This test creates a full BotManager instance which is slow
-    # The functionality is tested elsewhere with lighter mocks
-    pass
-
-
 def test_server_join_part_channel_methods():
     """Test new join_channel and part_channel methods in Server class."""
     import os
@@ -955,25 +848,3 @@ def test_server_join_part_channel_methods():
     stop_event.set()
 
 
-@pytest.mark.skip(reason="Heavy BotManager creation causes slow test execution")
-def test_console_input_prefix_parsing():
-    """Test console input prefix parsing logic."""
-    # This test creates a full BotManager instance which is slow
-    # The functionality is tested elsewhere with lighter mocks
-    pass
-
-
-@pytest.mark.skip(reason="Heavy BotManager creation causes slow test execution")
-def test_channel_name_normalization():
-    """Test that channel names are properly normalized with # prefix."""
-    # This test creates a full BotManager instance which is slow
-    # The functionality is tested elsewhere with lighter mocks
-    pass
-
-
-@pytest.mark.skip(reason="Heavy BotManager creation causes slow test execution")
-def test_wait_for_shutdown_with_console_thread():
-    """Test that wait_for_shutdown properly handles console thread."""
-    # This test creates a full BotManager instance which is slow
-    # The functionality is tested elsewhere with lighter mocks
-    pass

@@ -54,8 +54,12 @@ class Lemmatizer:
         if self.v is not None:
             try:
                 self.v.terminate()
+            except AttributeError:
+                # Ignore AttributeError: 'Voikko' object has no attribute '_Voikko__handle'
+                # This is a bug in libvoikko's __del__ method
+                pass
             except Exception:
-                # Ignore cleanup errors during shutdown
+                # Ignore any other cleanup errors during shutdown
                 pass
             finally:
                 self.v = None
@@ -167,6 +171,21 @@ class Lemmatizer:
 
 # Global Voikko instance
 _voikko_instance = None
+
+
+def cleanup_voikko():
+    """Explicitly clean up the global Voikko instance to avoid deallocator errors."""
+    global _voikko_instance
+    if _voikko_instance is not None:
+        try:
+            _voikko_instance.terminate()
+        except AttributeError:
+            # Ignore: 'Voikko' object has no attribute '_Voikko__handle'
+            pass
+        except Exception:
+            pass
+        finally:
+            _voikko_instance = None
 
 
 def _get_voikko():

@@ -312,6 +312,15 @@ class OtiedoteService:
             "json_file": self.json_file,
         }
 
+    def load_otiedote_data(self):
+        """Load otiedote data from JSON file.
+        
+        Returns:
+            List of otiedote entries, or empty list if no data available.
+        """
+        id_map, _ = load_existing_ids()
+        return list(id_map.values())
+
     def fetch_next_release(self) -> Optional[dict]:
         """Manually fetch the next release after the current latest one."""
         # Reload latest_release from state.json to ensure we have the most current value
@@ -351,6 +360,92 @@ class OtiedoteService:
             f"fetch_next_release: no accessible releases found in next {max_attempts} attempts after #{self.latest_release}"
         )
         return None
+
+    def fetch_all_releases(self, start_id: int = DEFAULT_START_ID, max_releases: int = 500) -> dict:
+        """Fetch all releases starting from start_id and save to JSON file.
+
+        Args:
+            start_id: The release ID to start fetching from (default: DEFAULT_START_ID)
+            max_releases: Maximum number of releases to fetch (default: 500)
+
+        Returns:
+            Dict with 'success', 'count', 'latest_id', and optional 'error' keys.
+        """
+        import time
+
+        releases = []
+        existing_ids = set()
+        next_id = start_id
+        fetched_count = 0
+        consecutive_failures = 0
+        max_consecutive_failures = 10  # Stop after 10 consecutive failures
+
+        logger.info(f"Starting to fetch otiedote releases from #{start_id}...")
+
+        while fetched_count < max_releases and consecutive_failures < max_consecutive_failures:
+            try:
+                release = fetch_release(next_id)
+
+                if release:
+                    releases.append(release)
+                    existing_ids.add(release["id"])
+                    consecutive_failures = 0
+                    fetched_count += 1
+
+                    if fetched_count % 50 == 0:
+                        logger.info(f"Fetched {fetched_count} releases so far (current: #{next_id})")
+                else:
+                    consecutive_failures += 1
+
+                next_id += 1
+
+                # Small delay to be nice to the server
+                time.sleep(0.2)
+
+            except Exception as e:
+                logger.warning(f"Error fetching release #{next_id}: {e}")
+                consecutive_failures += 1
+                next_id += 1
+
+        if releases:
+            # Sort by ID
+            releases.sort(key=lambda x: x["id"])
+
+            # Save to JSON file
+            try:
+                # Ensure data directory exists
+                os.makedirs(os.path.dirname(self.json_file), exist_ok=True)
+
+                with open(self.json_file, "w", encoding="utf8") as f:
+                    json.dump(releases, f, ensure_ascii=False, indent=2)
+
+                logger.info(f"Saved {len(releases)} releases to {self.json_file}")
+            except Exception as e:
+                return {
+                    "success": False,
+                    "count": fetched_count,
+                    "error": f"Failed to save JSON: {e}"
+                }
+
+            # Update state
+            latest_id = max(r["id"] for r in releases)
+            self.latest_release = latest_id
+            self._save_latest_release(latest_id)
+
+            logger.info(f"Completed! Fetched {len(releases)} releases, latest ID: #{latest_id}")
+
+            return {
+                "success": True,
+                "count": len(releases),
+                "latest_id": latest_id,
+                "start_id": start_id,
+            }
+        else:
+            return {
+                "success": False,
+                "count": 0,
+                "error": "No releases found. The website may be unavailable or the start_id is too high."
+            }
 
 
 # Factory

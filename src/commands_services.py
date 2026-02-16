@@ -150,7 +150,7 @@ def solarwind_command(context: CommandContext, bot_functions):
 @command(
     "otiedote",
     description="Get accident reports (Onnettomuustiedotteet) from local JSON",
-    usage="!otiedote [N | #N | seuraava | set <number> | filter #channel <organization> <field> | filter list]",
+    usage="!otiedote [N | #N | seuraava | set <number> | filter #channel <organization> <field> | filter list | init]",
     examples=[
         "!otiedote",
         "!otiedote 2",
@@ -158,6 +158,7 @@ def solarwind_command(context: CommandContext, bot_functions):
         "!otiedote seuraava",
         "!otiedote filter #joensuu Pohjois-Karjalan pelastuslaitos organization",
         "!otiedote filter list",
+        "!otiedote init",
         "Fields: id, title, date, location, organization, content, units, url or * for all",
     ],
 )
@@ -178,10 +179,40 @@ def otiedote_command(context: CommandContext, bot_functions):
     # Load otiedote data
     try:
         otiedote_list = otiedote_service.load_otiedote_data()
-        if not otiedote_list:
-            return "❌ No otiedote data available."
     except Exception as e:
         return f"❌ Error loading otiedote data: {e}"
+
+    # If no data exists and no init requested, try to fetch at least one release
+    if not otiedote_list:
+        # Check if this is an init or other special command that handles its own data
+        if context.args and context.args[0].lower() == "init":
+            # Handle init command below
+            pass
+        elif context.args and context.args[0].lower() == "set":
+            # Handle set command below
+            pass
+        elif context.args and context.args[0].lower() == "filter":
+            # Handle filter command below
+            pass
+        else:
+            # No data exists and not a special command - try to fetch the latest release
+            try:
+                release = otiedote_service.fetch_next_release()
+                if release:
+                    # Reload data after fetching
+                    otiedote_list = otiedote_service.load_otiedote_data()
+                else:
+                    return (
+                        "❌ No otiedote data available and could not fetch from website. "
+                        "Use '!otiedote init' to manually fetch all releases."
+                    )
+            except Exception as e:
+                return f"❌ Error fetching otiedote data: {e}"
+
+    # Check again if we have data now (skip for init/set/filter which handle their own data)
+    is_special_command = context.args and context.args[0].lower() in ["init", "set", "filter"]
+    if not otiedote_list and not is_special_command:
+        return "❌ No otiedote data available."
 
     # Latest release number (highest ID)
     latest_id = max(item["id"] for item in otiedote_list) if otiedote_list else 0
@@ -273,6 +304,39 @@ def otiedote_command(context: CommandContext, bot_functions):
             return "❌ Invalid number format"
         except Exception as e:
             return f"❌ Error setting release number: {e}"
+
+    # Handle "init" subcommand - fetch all releases from the website
+    if context.args and context.args[0].lower() == "init":
+        # Check if data already exists
+        if otiedote_list:
+            return (
+                f"⚠️ Otiedote data already exists with {len(otiedote_list)} releases. "
+                f"Latest ID: #{latest_id}. Use '!otiedote set 2830' to reset first, "
+                "or delete data/otiedote.json to reinitialize."
+            )
+
+        try:
+            # Parse optional start_id argument
+            start_id = 2830  # default
+            if len(context.args) >= 2:
+                try:
+                    start_id = int(context.args[1])
+                except ValueError:
+                    return "❌ Invalid start ID. Usage: !otiedote init [start_id]"
+
+            # Fetch all releases
+            result = otiedote_service.fetch_all_releases(start_id=start_id, max_releases=500)
+
+            if result.get("success"):
+                return (
+                    f"✅ Successfully fetched {result['count']} otiedote releases! "
+                    f"Latest ID: #{result['latest_id']}. Use '!otiedote' to view."
+                )
+            else:
+                return f"❌ Failed to fetch otiedote data: {result.get('error', 'Unknown error')}"
+
+        except Exception as e:
+            return f"❌ Error initializing otiedote: {e}"
 
     # Handle filter subcommand
     if context.args and context.args[0].lower() == "filter":

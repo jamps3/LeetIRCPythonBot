@@ -128,12 +128,17 @@ class PrecisionLogger:
             # Only include string elements in parts
             output = " ".join(str(p) for p in parts if isinstance(p, str))
 
+            # Forward to file if hook is set (always do this for file logging)
+            if _file_hook:
+                try:
+                    _file_hook(timestamp, level.upper(), output)
+                except Exception as e:
+                    # Don't let file hook errors break logging
+                    print(f"[LOGGER ERROR] File hook failed: {e}")
+
             # Forward to TUI if hook is set, otherwise print to console
             if _tui_hook:
                 try:
-                    from datetime import datetime
-
-                    dt = datetime.now()
                     # Determine source type based on context and level
                     source_type = "SYSTEM"
                     if context and any(
@@ -145,8 +150,10 @@ class PrecisionLogger:
                     elif level.upper() == "MSG":
                         source_type = "IRC"
 
+                    # Pass datetime to TUI - TUI recalculates nanoseconds when displaying
+                    # using its own time.time_ns() call in get_display_text()
                     _tui_hook(
-                        dt, context or "System", level.upper(), message, source_type
+                        datetime.now(), context or "System", level.upper(), message, source_type
                     )
                 except Exception as e:
                     # Don't let TUI hook errors break logging
@@ -177,9 +184,6 @@ class PrecisionLogger:
                 # Handle output same way as normal logging
                 if _tui_hook:
                     try:
-                        from datetime import datetime
-
-                        dt = datetime.now()
                         # Determine source type based on context and level
                         source_type = "SYSTEM"
                         if context and any(
@@ -191,8 +195,9 @@ class PrecisionLogger:
                         elif level.upper() == "MSG":
                             source_type = "IRC"
 
+                        # Pass datetime to TUI - TUI recalculates nanoseconds when displaying
                         _tui_hook(
-                            dt,
+                            datetime.now(),
                             context or "System",
                             level.upper(),
                             safe_message,
@@ -212,10 +217,8 @@ class PrecisionLogger:
                 error_msg = f"Could not display Unicode message: {repr(message)}"
                 if _tui_hook:
                     try:
-                        from datetime import datetime
-
-                        dt = datetime.now()
-                        _tui_hook(dt, "Logger", "ERROR", error_msg, "SYSTEM")
+                        # Pass datetime to TUI - TUI recalculates nanoseconds when displaying
+                        _tui_hook(datetime.now(), "Logger", "ERROR", error_msg, "SYSTEM")
                     except Exception:
                         print(f"[LOGGER ERROR] {error_msg}")
                 else:
@@ -245,6 +248,25 @@ _global_logger = PrecisionLogger()
 
 # TUI hook for forwarding log messages
 _tui_hook = None
+
+# File hook for writing logs to file
+_file_hook = None
+
+
+def set_file_hook(hook_function):
+    """Set a hook function to forward log messages to file.
+    
+    Args:
+        hook_function: Function that accepts (timestamp, level, message)
+    """
+    global _file_hook
+    _file_hook = hook_function
+
+
+def clear_file_hook():
+    """Clear the file hook."""
+    global _file_hook
+    _file_hook = None
 
 
 def set_tui_hook(hook_function):

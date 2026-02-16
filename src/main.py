@@ -41,6 +41,37 @@ from config import load_env_file
 # Create logger with MAIN context
 main_logger = logger.get_logger("MAIN")
 
+# Global file handle for logging
+_log_file_handle = None
+
+
+def setup_file_logging(log_file: str = "data/leet.log"):
+    """
+    Set up file logging to capture all logs from startup.
+    
+    This ensures logs from before the TUI is ready are still saved to file.
+    Uses the custom file hook in the logger module.
+    """
+    global _log_file_handle
+    
+    # Ensure data directory exists
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    
+    # Open the log file in append mode
+    _log_file_handle = open(log_file, 'a', encoding='utf-8')
+    
+    # Define the file hook function that writes to the file
+    def file_hook(timestamp, level, message):
+        """Write log message to file."""
+        # message already includes level and context, so just write it directly
+        _log_file_handle.write(f"{timestamp} {message}\n")
+        _log_file_handle.flush()  # Ensure it's written immediately
+    
+    # Register the file hook with the logger
+    logger.set_file_hook(file_hook)
+    
+    return _log_file_handle
+
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -126,6 +157,9 @@ def main():
     # Setup console encoding for Unicode support - broken
     # setup_console_encoding()
 
+    # Set up file logging FIRST to capture all logs from startup
+    setup_file_logging()
+
     # Parse command line arguments
     args = parse_arguments()
 
@@ -183,6 +217,16 @@ def main():
     tui_manager = None
     if not use_console:
         main_logger.log("Starting TUI interface...", "INFO")
+        
+        # Clear file hook - TUI will handle file logging from now on
+        # This prevents duplicate entries in tui.log
+        logger.clear_file_hook()
+        if _log_file_handle:
+            try:
+                _log_file_handle.close()
+            except:
+                pass
+        
         try:
             from tui import TUIManager
 
@@ -192,6 +236,9 @@ def main():
             main_logger.error(f"TUI not available: {e}")
             main_logger.log("Falling back to console interface...", "INFO")
             use_console = True  # Force console mode
+            
+            # Re-enable file logging if we fell back to console mode
+            setup_file_logging()
 
     # Create the bot manager (this initializes console manager immediately)
     bot_manager = BotManager(bot_name, console_mode=use_console)

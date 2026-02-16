@@ -127,14 +127,6 @@ class TestOtiedoteService:
 class TestOtiedoteServiceAsync:
     """Test async functionality of OtiedoteService."""
 
-    @pytest.mark.skip(
-        reason="Async testing requires pytest-asyncio which is not installed"
-    )
-    async def test_start_stop(self, mock_callback):
-        """Test starting and stopping the service."""
-        # This test is skipped due to missing pytest-asyncio dependency
-        pass
-
     def test_stop_without_start(self, mock_callback):
         """Test stopping service that was never started."""
         service = OtiedoteService(mock_callback)
@@ -222,14 +214,6 @@ class TestFetchRelease:
         result = fetch_release(1234)
 
         assert result is None
-
-    @pytest.mark.skip(
-        reason="Complex HTML parsing mock setup requires significant refactoring"
-    )
-    def test_fetch_release_with_units(self, mock_requests, mock_bs4):
-        """Test fetching release with participant units."""
-        # This test is skipped due to complex BeautifulSoup mocking requirements
-        pass
 
 
 class TestLoadExistingIds:
@@ -620,9 +604,3 @@ class TestOtiedoteServiceIntegration:
 
             # This would run indefinitely, so we'll just test the setup
             assert service.latest_release == DEFAULT_START_ID - 1
-
-    @pytest.mark.skip(reason="Complex state file interaction with existing data")
-    def test_monitor_loop_no_new_release(self, mock_callback):
-        """Test monitor loop when no new release is found."""
-        # This test is skipped due to complex interaction with existing state file data
-        pass

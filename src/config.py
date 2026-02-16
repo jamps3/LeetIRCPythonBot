@@ -511,6 +511,10 @@ def get_api_key(key_name: str, default: str = "") -> str:
     """
     Get an API key from environment variables.
 
+    This function ensures the .env file is properly loaded from the project root
+    before attempting to read environment variables. It provides unified API key
+    fetching across the entire project.
+
     Args:
         key_name: Name of the environment variable
         default: Default value if the key doesn't exist
@@ -518,7 +522,24 @@ def get_api_key(key_name: str, default: str = "") -> str:
     Returns:
         API key value or default
     """
-    return os.environ.get(key_name, default)
+    # Ensure .env is loaded from project root before reading from os.environ
+    # This matches the pattern used in other parts of the codebase
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    env_file = os.path.join(project_root, ".env")
+    
+    # Load .env file from project root
+    load_dotenv(env_file)
+    
+    # Get the API key value
+    api_key = os.environ.get(key_name, default)
+    
+    # Log the result for debugging (but don't log the actual key value)
+    if api_key:
+        logger.debug(f"API key '{key_name}' loaded successfully (length: {len(api_key)})")
+    else:
+        logger.warning(f"API key '{key_name}' not found, using default value")
+    
+    return api_key
 
 
 def generate_server_channel_id(server_name: str, channel: str) -> str:

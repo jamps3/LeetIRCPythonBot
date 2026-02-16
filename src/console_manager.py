@@ -152,8 +152,8 @@ class ConsoleManager:
         if not self.readline:
             return
 
-        # Set history file
-        history_file = os.path.expanduser("~/.leetbot_history")
+        # Set history file in data/ directory
+        history_file = os.path.join("data", "leetbot_history")
 
         # Set history length (number of commands to remember)
         self.readline.set_history_length(1000)
@@ -455,16 +455,26 @@ class ConsoleManager:
         if not target_server:
             return "No connected servers available. Use !connect first."
 
+        # Use bot_manager.joined_channels as the single source of truth
+        # Fall back to using server_manager if bot_manager not available
+        if hasattr(self, "bot_manager") and self.bot_manager:
+            joined_channels = self.bot_manager.joined_channels
+        else:
+            # Fallback: use server_manager.joined_channels (convert to set for consistency)
+            if not hasattr(self, "_console_joined_channels"):
+                self._console_joined_channels = {}
+            joined_channels = self._console_joined_channels
+
         # Initialize joined channels for this server if needed
-        if server_name not in self.server_manager.joined_channels:
-            self.server_manager.joined_channels[server_name] = []
+        if server_name not in joined_channels:
+            joined_channels[server_name] = set()
 
         # Check if already in channel
-        if channel_name in self.server_manager.joined_channels[server_name]:
+        if channel_name in joined_channels[server_name]:
             # Part the channel
             try:
                 target_server.part_channel(channel_name)
-                self.server_manager.joined_channels[server_name].remove(channel_name)
+                joined_channels[server_name].remove(channel_name)
 
                 # If this was the active channel, clear it
                 if (
@@ -481,7 +491,7 @@ class ConsoleManager:
             # Join the channel
             try:
                 target_server.join_channel(channel_name)
-                self.server_manager.joined_channels[server_name].append(channel_name)
+                joined_channels[server_name].add(channel_name)
 
                 # Set as active channel
                 self.active_channel = channel_name
@@ -525,6 +535,18 @@ class ConsoleManager:
         channels_by_server = {}
         if hasattr(self, "bot_manager") and self.bot_manager:
             channels_by_server = self.bot_manager.joined_channels
+
+        # Clean up any channels without # prefix (legacy data cleanup)
+        for server_name in list(channels_by_server.keys()):
+            channels = channels_by_server.get(server_name, set())
+            cleaned_channels = set()
+            for channel in channels:
+                # Normalize to always have # prefix
+                if channel and not channel.startswith("#"):
+                    cleaned_channels.add(f"#{channel}")
+                else:
+                    cleaned_channels.add(channel)
+            channels_by_server[server_name] = cleaned_channels
 
         # Get active server from bot_manager if available
         active_server_for_marker = None

@@ -27,26 +27,33 @@ class ServiceManager:
 
     def __init__(self):
         """Initialize the service manager."""
-        # Make sure config is loaded first (which loads .env)
-        from config import get_config
+        try:
+            # Make sure config is loaded first (which loads .env)
+            from config import get_config
 
-        _ = get_config()  # This will load the .env file via ConfigManager
+            _ = get_config()  # This will load the .env file via ConfigManager
 
-        self.services: Dict[str, Any] = {}
+            self.services: Dict[str, Any] = {}
 
-        # Initialize all services
-        self._initialize_weather_service()
-        self._initialize_gpt_service()
-        self._initialize_electricity_service()
-        self._initialize_youtube_service()
-        self._initialize_crypto_service()
-        self._initialize_alko_service()
-        self._initialize_drug_service()
-        self._initialize_leet_detector()
-        self._initialize_fmi_warning_service()
-        self._initialize_otiedote_service()
+            # Initialize all services
+            self._initialize_weather_service()
+            self._initialize_gpt_service()
+            self._initialize_electricity_service()
+            self._initialize_youtube_service()
+            self._initialize_crypto_service()
+            self._initialize_alko_service()
+            self._initialize_drug_service()
+            self._initialize_leet_detector()
+            self._initialize_fmi_warning_service()
+            self._initialize_otiedote_service()
 
-        logger.info("Service manager initialization complete")
+            logger.info("Service manager initialization complete")
+        except Exception as e:
+            import traceback
+            logger.error(f"Error initializing ServiceManager: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            # Initialize empty services dict to prevent further errors
+            self.services = {}
 
     def _initialize_weather_service(self):
         """Initialize weather service if API key is available."""
@@ -152,6 +159,13 @@ class ServiceManager:
             from services.youtube_service import create_youtube_service
 
             youtube_api_key = get_api_key("YOUTUBE_API_KEY")
+            logger.info(
+                f"DEBUG: YOUTUBE_API_KEY from get_api_key: '{youtube_api_key}' (length: {len(youtube_api_key) if youtube_api_key else 0})"
+            )
+            logger.info(
+                f"DEBUG: os.environ.get('YOUTUBE_API_KEY'): '{os.environ.get('YOUTUBE_API_KEY', 'NOT_SET')}'"
+            )
+
             if youtube_api_key:
                 self.services["youtube"] = create_youtube_service(youtube_api_key)
                 logger.info("▶️ YouTube service initialized.")

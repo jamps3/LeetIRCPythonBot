@@ -82,13 +82,6 @@ class TestAlkoService:
         assert service.local_excel_path == expected_excel_path
         assert service.cache_file == expected_cache_path
 
-    @pytest.mark.skip(
-        reason="Global patch returns False, preventing test of real logic"
-    )
-    def test_should_download_file_when_no_local_file(self):
-        """Test that service should download when no local file exists."""
-        pass
-
     def test_should_not_download_when_local_file_exists_and_same_size(self):
         """Test that service should not download when local file exists with same size."""
         service = AlkoService(data_dir=self.data_dir)
@@ -100,21 +93,6 @@ class TestAlkoService:
         result = service._should_download_file()
 
         assert result is False
-
-    @pytest.mark.skip(reason="Test expectation conflict with global patches")
-    def test_should_download_when_local_file_exists_but_different_size(self):
-        """Test that service should download when local file exists but size differs."""
-        pass
-
-    @pytest.mark.skip(reason="Mock conflict with global patches")
-    def test_download_excel_file_success(self):
-        """Test successful Excel file download."""
-        pass
-
-    @pytest.mark.skip(reason="Mock conflict with global patches")
-    def test_download_excel_file_failure(self):
-        """Test Excel file download failure."""
-        pass
 
     def test_parse_bottle_size_various_formats(self):
         """Test parsing bottle size from various formats."""
@@ -490,21 +468,6 @@ class TestAlkoService:
             assert (
                 calculated_grams == expected_grams
             ), f"For {volume}L at {alcohol_percent}%: expected {expected_grams}g, got {calculated_grams}g"
-
-    @pytest.mark.skip(reason="Mock complexity issues")
-    def test_parse_excel_file_with_mock_data(self):
-        """Test Excel file parsing with mock data."""
-        pass
-
-    @pytest.mark.skip(reason="Global patch returns empty list instead of None")
-    def test_parse_excel_file_missing_file(self):
-        """Test Excel file parsing when file doesn't exist."""
-        pass
-
-    @pytest.mark.skip(reason="Global patch returns empty list instead of None")
-    def test_parse_excel_file_read_error(self):
-        """Test Excel file parsing when read raises exception."""
-        pass
 
     @patch.object(AlkoService, "_download_excel_file", return_value=True)
     @patch.object(AlkoService, "_parse_excel_file", return_value=[])

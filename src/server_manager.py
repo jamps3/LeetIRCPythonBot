@@ -201,8 +201,8 @@ class ServerManager:
             server = self.servers[server_name]
             if server.connected:
                 try:
-                    server.quit(quit_msg)
                     logger.info(f"Sent quit command to {server_name}")
+                    server.quit(quit_msg)
                     disconnected_any = True
                 except Exception as e:
                     logger.error(f"Error quitting server {server_name}: {e}")

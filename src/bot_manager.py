@@ -144,6 +144,13 @@ class BotManager:
         # Shutdown server manager
         self.server_manager.shutdown(quit_message)
 
+        # Clean up Voikko to avoid deallocator errors on shutdown
+        try:
+            from lemmatizer import cleanup_voikko
+            cleanup_voikko()
+        except Exception:
+            pass  # Ignore cleanup errors
+
         self.logger.info("✅ Bot shutdown complete")
 
     def wait_for_shutdown(self):

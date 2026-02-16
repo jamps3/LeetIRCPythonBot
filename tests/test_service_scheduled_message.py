@@ -94,14 +94,6 @@ class TestScheduledMessageService:
         msg_info2 = scheduled_service.scheduled_messages[message_id2]
         assert msg_info2["target_display"] == "12:59:00.000000000"  # Clamped to 59
 
-    @pytest.mark.skip(
-        reason="Timing calculations are complex and environment-dependent"
-    )
-    def test_schedule_message_past_time(self, scheduled_service, mock_irc_client):
-        """Test scheduling when target time is in the past (should schedule for next day)."""
-        # This test is skipped due to complex timing calculations that vary by environment
-        pass
-
     def test_cancel_message_success(self, scheduled_service, mock_irc_client):
         """Test successful message cancellation."""
         message_id = scheduled_service.schedule_message(
@@ -153,15 +145,6 @@ class TestScheduledMessageService:
         messages = scheduled_service.list_scheduled_messages()
 
         assert messages == {}
-
-    @pytest.mark.skip(
-        reason="Complex datetime comparison logic requires significant refactoring"
-    )
-    def test_cleanup_expired(self, scheduled_service, mock_irc_client):
-        """Test cleanup of expired messages."""
-        # This test is skipped due to complex datetime logic in cleanup_expired method
-        # The method expects 'target_time' field but stores 'target_display'
-        pass
 
 
 class TestScheduledMessageServiceExecution:
@@ -301,13 +284,3 @@ class TestScheduledMessageServiceTiming:
 
         # Verify message was sent
         mock_irc_client.send_message.assert_called_once_with("#test", "Timing test")
-
-    @pytest.mark.skip(
-        reason="Complex threading timing test requires significant refactoring"
-    )
-    def test_wait_and_send_cancelled_during_wait(
-        self, scheduled_service, mock_irc_client
-    ):
-        """Test cancelling message during wait."""
-        # This test is skipped due to complex threading and timing interactions
-        pass
