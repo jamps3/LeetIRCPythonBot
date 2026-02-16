@@ -298,7 +298,7 @@ def test_format_video_info_message_variants(svc):
     msg1 = svc.format_video_info_message(
         {**base, "view_count": 999, "like_count": 999, "upload_date": None}
     )
-    assert "999|999👍" in msg1 and "Unknown" in msg1
+    assert "999👀|999👍" in msg1 and "Unknown" in msg1
 
     msg2 = svc.format_video_info_message(
         {
@@ -308,7 +308,7 @@ def test_format_video_info_message_variants(svc):
             "upload_date": datetime(2023, 1, 1),
         }
     )
-    assert "1.5k|1.5k👍" in msg2 and "01.01.2023" in msg2
+    assert "1.5k👀|1.5k👍" in msg2 and "01.01.2023" in msg2
 
     msg3 = svc.format_video_info_message(
         {
@@ -318,7 +318,7 @@ def test_format_video_info_message_variants(svc):
             "upload_date": datetime(2023, 2, 2),
         }
     )
-    assert "2.0M|3.0M👍" in msg3 and "02.02.2023" in msg3
+    assert "2.0M👀|3.0M👍" in msg3 and "02.02.2023" in msg3
 
 
 def test_format_search_results_message_variants(svc):

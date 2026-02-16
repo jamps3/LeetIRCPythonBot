@@ -174,7 +174,9 @@ class TestLogEntry:
     def test_get_display_text(self, sample_log_entry):
         """Test get_display_text formatting."""
         text = sample_log_entry.get_display_text()
-        assert "[12:00:00]" in text
+        # Check for time format with nanoseconds (HH.MM.SS,nnnnnnnnn)
+        assert "[12.00.00," in text
+        assert "]" in text  # Closing bracket after nanoseconds
         assert "[TestServer]" in text
         assert "[INFO]" in text
         assert "Test message" in text

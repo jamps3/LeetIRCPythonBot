@@ -113,6 +113,19 @@ def manager(monkeypatch):
 
     # Construct bot manager with all mocks (should be fast now)
     m = bm.BotManager("MyBot")
+
+    # CRITICAL: Reset ALL state that could persist between tests
+    # The BotManager caches servers and channel state
+    # Must reset _servers to empty dict AFTER creation because
+    # BotManager.__init__ loads real servers from server_manager
+    m._servers = {}
+    if hasattr(m, "_joined_channels"):
+        m._joined_channels = {}
+    m._active_channel = None
+    m._active_server = None
+    if hasattr(m, "_last_selected_server"):
+        m._last_selected_server = None
+
     return m
 
 
@@ -1363,3 +1376,187 @@ def test_process_commands_paths(monkeypatch, manager):
 
     asyncio.run(manager._process_commands(ctx2))
     assert called2["args"] is not None
+
+
+# =====================
+# # Command Tests
+# =====================
+
+
+def test_console_select_channel_basic(manager):
+    """Test basic channel selection without server specification."""
+    # Mock servers with one connected server
+    mock_server = Mock()
+    mock_server.connected = True
+    mock_server.name = "test_server"
+    manager.servers = {"test_server": mock_server}
+
+    # Test basic channel selection - now joins the channel
+    result = manager._console_select_channel("#general")
+    assert "Joined and selected #general on test_server" in result
+    assert manager.active_channel == "#general"
+    assert manager.active_server == "test_server"
+
+
+def test_console_select_channel_with_server(manager):
+    """Test channel selection with server specification."""
+    # Clear ALL state from previous tests - this is critical
+    manager.joined_channels = {}
+    manager.active_channel = None
+    manager.active_server = None
+    manager._last_selected_server = None
+
+    # Mock servers with two servers (one connected, one not)
+    mock_server1 = Mock()
+    mock_server1.connected = True
+    mock_server1.name = "server1"
+    mock_server2 = Mock()
+    mock_server2.connected = False
+    mock_server2.name = "server2"
+    manager.servers = {"server1": mock_server1, "server2": mock_server2}
+
+    # Test with server specification - now joins the channel
+    result = manager._console_select_channel("#general server1")
+    assert "Joined and selected #general on server1" in result
+    assert manager.active_channel == "#general"
+    assert manager.active_server == "server1"
+
+    # Reset state before next test
+    manager.active_channel = None
+    manager.active_server = None
+
+    # Test with @server specification - now it's already joined from above, so it returns "(already joined)"
+    result = manager._console_select_channel("#general @server1")
+    assert "already joined" in result
+    assert manager.active_channel == "#general"
+    assert manager.active_server == "server1"
+
+    # Reset state before next test - this is the key fix
+    manager.active_channel = None
+    manager.active_server = None
+    manager.joined_channels = {}  # Also reset joined channels
+
+    # Test with disconnected server
+    result = manager._console_select_channel("#newchannel server2")
+    assert "not found or not connected" in result
+    assert manager.active_channel is None
+    assert manager.active_server is None
+
+
+def test_console_select_channel_joining(manager):
+    """Test channel joining functionality."""
+    # Mock servers with one connected server
+    mock_server = Mock()
+    mock_server.connected = True
+    mock_server.name = "test_server"
+    manager.servers = {"test_server": mock_server}
+
+    # Test joining new channel
+    result = manager._console_select_channel("#newchannel")
+    assert "Joined and selected #newchannel" in result
+    assert manager.active_channel == "#newchannel"
+    assert manager.active_server == "test_server"
+    assert manager.joined_channels == {"test_server": {"#newchannel"}}
+
+    # Test selecting already joined channel
+    result = manager._console_select_channel("#newchannel")
+    assert result == "Selected #newchannel on test_server (already joined)"
+    assert manager.active_channel == "#newchannel"
+    assert manager.active_server == "test_server"
+
+
+def test_console_select_channel_multiple_servers(manager):
+    """Test scenarios with multiple servers."""
+    # Mock servers with two connected servers
+    mock_server1 = Mock()
+    mock_server1.connected = True
+    mock_server1.name = "server1"
+    mock_server2 = Mock()
+    mock_server2.connected = True
+    mock_server2.name = "server2"
+    manager.servers = {"server1": mock_server1, "server2": mock_server2}
+
+    # Test without server specification (should use remembered server)
+    manager._last_selected_server = "server1"
+    result = manager._console_select_channel("#general")
+    # The channel is now joined, so it shows "Joined and selected"
+    assert "Joined and selected #general on server1" in result
+    assert manager.active_channel == "#general"
+    assert manager.active_server == "server1"
+
+    # Test without server specification and no remembered server - with multiple servers it asks to specify
+    manager._last_selected_server = None
+    manager.active_server = None
+    result = manager._console_select_channel("#general")
+    # With multiple servers, it should select one and join
+    assert "server" in result.lower()
+    assert manager.active_channel == "#general"
+
+
+def test_console_select_channel_error_handling(manager):
+    """Test error handling scenarios."""
+    # Test with no servers available (empty servers dict)
+    # Use _servers to bypass property getter that falls back to server_manager
+    manager._servers = {}
+    result = manager._console_select_channel("#general")
+    assert result == "No servers available"
+    assert manager.active_channel is None
+    assert manager.active_server is None
+
+    # Test with no connected servers (server exists but connected=False)
+    mock_server = Mock()
+    mock_server.connected = False
+    manager._servers = {"test_server": mock_server}
+    result = manager._console_select_channel("#general")
+    assert result == "No connected servers available"
+    assert manager.active_channel is None
+    assert manager.active_server is None
+
+
+def test_console_select_channel_edge_cases(manager):
+    """Test edge cases and special scenarios."""
+    # Reset ALL state first
+    manager.joined_channels = {}
+    manager.active_channel = None
+    manager.active_server = None
+    manager._last_selected_server = None
+
+    # Mock servers with one connected server
+    mock_server = Mock()
+    mock_server.connected = True
+    mock_server.name = "test_server"
+    # Use _servers to bypass property getter
+    manager._servers = {"test_server": mock_server}
+
+    # Test with channel name containing spaces - second word is interpreted as server name
+    # Since there's no server named "channel", it returns an error message
+    result = manager._console_select_channel("#general channel")
+    # The implementation parses "channel" as the server name
+    assert "not found or not connected" in result or "Available:" in result
+    assert manager.active_channel is None
+    assert manager.active_server is None
+
+    # Reset state before next test - use _servers to ensure empty
+    manager.active_channel = None
+    manager.active_server = None
+    manager.joined_channels = {}
+    manager._servers = {}
+
+    # Test with empty input - should have no servers available
+    result = manager._console_select_channel("")
+    assert "No servers available" in result
+    assert manager.active_channel is None
+    assert manager.active_server is None
+
+    # Reset state before next test - set up server again
+    manager.active_channel = None
+    manager.active_server = None
+    manager.joined_channels = {}
+    manager._servers = {"test_server": mock_server}
+
+    # Test with channel that already exists in joined_channels
+    manager.joined_channels = {"test_server": {"#general"}}
+    result = manager._console_select_channel("#general")
+    assert "Selected #general on test_server (already joined)" in result
+    assert manager.active_channel == "#general"
+    assert manager.active_server == "test_server"

@@ -1286,6 +1286,10 @@ class TUIManager:
         self.current_filter = ""
         self.current_view = "console"  # console, stats, config
 
+        # Channel tracking
+        self.joined_channels = None  # Will be set from bot_manager
+        self.active_channel = None  # Currently selected channel
+
         # Initialize basic UI components for tests
         self.header = urwid.Text("")
         self.log_walker = urwid.SimpleListWalker([])
@@ -1311,6 +1315,10 @@ class TUIManager:
 
         # Track if wrap mode has been loaded to prevent duplicate logging
         self._wrap_mode_loaded = False
+
+        # Initialize channel tracking from bot_manager
+        self.joined_channels = self.bot_manager.joined_channels
+        self.active_channel = self.bot_manager.active_channel
 
         # UI components
         self.header = urwid.Text("")
@@ -1560,15 +1568,24 @@ class TUIManager:
             self.switch_view("console")
             return True
         elif text.startswith("#"):
-            # Channel select command - handle locally instead of going through command_loader
+            # Channel select command - handle through bot manager
             try:
                 channel_name = text[1:].strip()
                 if channel_name:
+                    # Track the channel join
                     result = self.bot_manager._console_select_channel(channel_name)
+                    if result.startswith("Joined"):
+                        server_name = self.bot_manager.active_server
+                        if server_name not in self.joined_channels:
+                            self.joined_channels[server_name] = set()
+                        self.joined_channels[server_name].add(channel_name)
+                        self.active_channel = channel_name
+                        self.update_header()
                     self.add_log_entry(
                         datetime.now(), "Console", "INFO", result, "SYSTEM"
                     )
                 else:
+                    # Get channel status directly from bot manager
                     result = self.bot_manager._get_channel_status()
                     self.add_log_entry(
                         datetime.now(), "Console", "INFO", result, "SYSTEM"
@@ -2169,7 +2186,7 @@ Commands:
   filter:text     - Filter logs by text (use 'filter:' to clear)
   config:key=val  - Set configuration value
   config:save     - Save config to .env file
-  config:reload   - Reload config from .env file
+  config:reload  - Reload config from .env file
   message         - Send to IRC channel
 
 Keyboard Shortcuts:
