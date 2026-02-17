@@ -147,6 +147,7 @@ class BotManager:
         # Clean up Voikko to avoid deallocator errors on shutdown
         try:
             from lemmatizer import cleanup_voikko
+
             cleanup_voikko()
         except Exception:
             pass  # Ignore cleanup errors

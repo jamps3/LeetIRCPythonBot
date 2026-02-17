@@ -1048,7 +1048,18 @@ class MessageHandler:
 
     def _send_response(self, server, target: str, message: str):
         """Send a response using NOTICE or PRIVMSG based on USE_NOTICES setting."""
+        # Handle console mode (no server) or None target
         if not server:  # Console output
+            logger.msg(message, "MSG")
+            return
+
+        # Handle None target - default to console output
+        if not target:
+            logger.msg(message, "MSG")
+            return
+
+        # For console target, skip server connection check - console commands work offline
+        if target == "console":
             logger.msg(message, "MSG")
             return
 

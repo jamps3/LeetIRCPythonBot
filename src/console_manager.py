@@ -614,11 +614,28 @@ class ConsoleManager:
 
     def _create_console_bot_functions(self) -> Dict[str, Any]:
         """Create bot functions dictionary for console commands."""
+        # Get the active server for console commands
+        active_server = None
+        # If no active server is set, use the first available server
+        if (
+            not self.active_server
+            and self.server_manager
+            and self.server_manager.servers
+        ):
+            self.active_server = next(iter(self.server_manager.servers.keys()))
+        if self.active_server and self.server_manager:
+            try:
+                active_server = self.server_manager.get_server(self.active_server)
+            except Exception as e:
+                logger.warning(f"Could not get active server {self.active_server}: {e}")
+                active_server = None
+
         return {
             # Core functions
             "notice_message": lambda msg, irc=None, target=None: logger.msg(msg),
             "log": logger.msg,
             "server_manager": self.server_manager,
+            "server": active_server,  # Add active server for commands that need it
             "send_weather": lambda irc, channel, location: self._console_weather(
                 location
             ),
@@ -626,7 +643,7 @@ class ConsoleManager:
             "get_crypto_price": self.message_handler._get_crypto_price,
             "send_scheduled_message": self.message_handler._send_scheduled_message,
             "get_eurojackpot_numbers": self.message_handler._get_eurojackpot_numbers,
-            "search_youtube": self.message_handler._search_youtube,
+            "search_youtube": self.message_handler._send_youtube_info,
             "handle_ipfs_command": self.message_handler._handle_ipfs_command,
             "load_leet_winners": self.message_handler._load_leet_winners,
             "save_leet_winners": self.message_handler._save_leet_winners,
@@ -656,12 +673,38 @@ class ConsoleManager:
             "join_channel": self._console_join_or_part_channel,
             "send_to_channel": self._console_send_to_channel,
             "bot_manager": None,  # Will be set by main bot manager
-            "bac_tracker": self.message_handler.bac_tracker,
-            "drink_tracker": self.message_handler.drink_tracker,
-            "general_words": self.message_handler.general_words,
-            "tamagotchi": self.message_handler.tamagotchi,
+            # Service functions for console commands
             "data_manager": self.message_handler.data_manager,
+            "drink_tracker": self.message_handler.drink_tracker,
+            "bac_tracker": self.message_handler.bac_tracker,
+            "general_words": self.message_handler.general_words,
+            "tamagotchi_bot": self.message_handler.tamagotchi,
+            "lemmat": self.message_handler.lemmatizer,
+            "latency_start": lambda: getattr(self.message_handler, "_latency_start", 0),
+            "set_latency_start": lambda value: setattr(
+                self.message_handler, "_latency_start", value
+            ),
+            "measure_latency": self.message_handler._measure_latency,
+            "send_youtube_info": self.message_handler._send_youtube_info,
+            "send_imdb_info": self.message_handler._send_imdb_info,
+            "send_crypto_price": self.message_handler._send_crypto_price,
+            "get_alko_product": self.message_handler._get_alko_product,
+            "check_drug_interactions": self.message_handler._check_drug_interactions,
+            "lookup": lambda irc: "console",
+            "format_counts": self.message_handler._format_counts,
+            "wrap_irc_message_utf8_bytes": self.message_handler._wrap_irc_message_utf8_bytes,
+            "send_message": lambda irc, target, msg: logger.msg(f"[{target}] {msg}"),
+            "fetch_title": self.message_handler._fetch_title,
             "subscriptions": self.message_handler._get_subscriptions_module(),
+            "DRINK_WORDS": self.message_handler._get_drink_words(),
+            "get_latency_start": lambda: getattr(
+                self.message_handler, "_latency_start", 0
+            ),
+            "toggle_tamagotchi": lambda srv, tgt, snd: self.message_handler.toggle_tamagotchi(
+                srv, tgt, snd
+            ),
+            # Additional service functions
+            "get_eurojackpot_results": self.message_handler._get_eurojackpot_results,
         }
 
     def _get_current_version(self) -> str:

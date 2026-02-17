@@ -526,19 +526,21 @@ def get_api_key(key_name: str, default: str = "") -> str:
     # This matches the pattern used in other parts of the codebase
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     env_file = os.path.join(project_root, ".env")
-    
+
     # Load .env file from project root
     load_dotenv(env_file)
-    
+
     # Get the API key value
     api_key = os.environ.get(key_name, default)
-    
+
     # Log the result for debugging (but don't log the actual key value)
     if api_key:
-        logger.debug(f"API key '{key_name}' loaded successfully (length: {len(api_key)})")
+        logger.debug(
+            f"API key '{key_name}' loaded successfully (length: {len(api_key)})"
+        )
     else:
         logger.warning(f"API key '{key_name}' not found, using default value")
-    
+
     return api_key
 
 

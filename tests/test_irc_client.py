@@ -846,5 +846,3 @@ def test_server_join_part_channel_methods():
 
     # Clean up
     stop_event.set()
-
-

@@ -1,3 +1,4 @@
+import atexit
 import json
 import os
 import re
@@ -34,7 +35,9 @@ class Lemmatizer:
                             os.add_dll_directory(voikko_path)
 
                 # Try to initialize Voikko
-                self.v = libvoikko.Voikko("fi")
+                voikko_obj = libvoikko.Voikko("fi")
+                # Wrap in our class to handle garbage collection safely
+                self.v = VoikkoWrapper(voikko_obj)
                 self.voikko_enabled = True
                 logger.info("Voikko lemmatizer initialized successfully")
 
@@ -173,11 +176,40 @@ class Lemmatizer:
 _voikko_instance = None
 
 
+class VoikkoWrapper:
+    """Wrapper class for Voikko to handle garbage collection issues."""
+
+    def __init__(self, voikko_obj):
+        self._voikko = voikko_obj
+        # Immediately patch Voikko's __del__ to prevent garbage collection errors
+        # The original __del__ has a bug that causes AttributeError
+        try:
+            self._voikko.__del__ = lambda: None
+        except Exception:
+            pass
+
+    def __getattr__(self, name):
+        # Delegate all attribute access to the wrapped Voikko object
+        return getattr(self._voikko, name)
+
+    def __del__(self):
+        """Safely clean up Voikko without triggering deallocator errors."""
+        if self._voikko is not None:
+            # Ensure __del__ is a no-op before releasing the reference
+            try:
+                self._voikko.__del__ = lambda: None
+            except Exception:
+                pass
+            # Clear the reference - this may trigger Voikko's (now patched) __del__
+            self._voikko = None
+
+
 def cleanup_voikko():
     """Explicitly clean up the global Voikko instance to avoid deallocator errors."""
     global _voikko_instance
     if _voikko_instance is not None:
         try:
+            # Call terminate on the wrapper, which will handle it safely
             _voikko_instance.terminate()
         except AttributeError:
             # Ignore: 'Voikko' object has no attribute '_Voikko__handle'
@@ -188,11 +220,39 @@ def cleanup_voikko():
             _voikko_instance = None
 
 
+def _voikko_atexit_cleanup():
+    """Cleanup function called at program exit to suppress Voikko deallocator errors."""
+    import gc
+    import io
+    import sys
+
+    # Disable garbage collection to prevent Voikko's buggy __del__ from running
+    gc.disable()
+    try:
+        # Clean up Voikko
+        cleanup_voikko()
+        # Also clean up any Lemmatizer instances that might have Voikko
+        for obj in gc.get_objects():
+            if isinstance(obj, Lemmatizer) and hasattr(obj, "v") and obj.v is not None:
+                try:
+                    obj.v = None
+                except Exception:
+                    pass
+    finally:
+        # Re-enable garbage collection
+        gc.enable()
+
+
+atexit.register(_voikko_atexit_cleanup)
+
+
 def _get_voikko():
     global _voikko_instance
     if _voikko_instance is None and VOIKKO_AVAILABLE:
         try:
-            _voikko_instance = libvoikko.Voikko("fi")
+            voikko_obj = libvoikko.Voikko("fi")
+            # Wrap in our class to handle garbage collection safely
+            _voikko_instance = VoikkoWrapper(voikko_obj)
         except Exception as e:
             logger.error(f"Failed to initialize Voikko: {e}")
             _voikko_instance = None

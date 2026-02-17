@@ -210,7 +210,11 @@ def otiedote_command(context: CommandContext, bot_functions):
                 return f"❌ Error fetching otiedote data: {e}"
 
     # Check again if we have data now (skip for init/set/filter which handle their own data)
-    is_special_command = context.args and context.args[0].lower() in ["init", "set", "filter"]
+    is_special_command = context.args and context.args[0].lower() in [
+        "init",
+        "set",
+        "filter",
+    ]
     if not otiedote_list and not is_special_command:
         return "❌ No otiedote data available."
 
@@ -325,7 +329,9 @@ def otiedote_command(context: CommandContext, bot_functions):
                     return "❌ Invalid start ID. Usage: !otiedote init [start_id]"
 
             # Fetch all releases
-            result = otiedote_service.fetch_all_releases(start_id=start_id, max_releases=500)
+            result = otiedote_service.fetch_all_releases(
+                start_id=start_id, max_releases=500
+            )
 
             if result.get("success"):
                 return (
@@ -638,7 +644,13 @@ def youtube_command(context: CommandContext, bot_functions):
         return "Usage: !youtube <search query>"
 
     try:
-        send_youtube_info(None, context.target, query)
+        # Get the server instance from bot_functions
+        server = bot_functions.get("server")
+
+        # For console mode, use a dummy target; _send_response handles None server
+        target = context.target if context.target else "console"
+
+        send_youtube_info(server, target, query)
         return CommandResponse.no_response()  # Service handles the output
     except Exception as e:
         return f"❌ YouTube search error: {str(e)}"

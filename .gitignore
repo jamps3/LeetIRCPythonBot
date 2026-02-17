@@ -172,6 +172,7 @@ cython_debug/
 
 # Saved data
 data/state.json
+data/leetbot_history
 data/conversation_history.json
 data/leet_winners.json
 data/ekavika.json
@@ -182,6 +183,7 @@ data/leet_detections.json
 data/drugs.json
 data/interactions.json
 data/urls.json
+data/otiedote.json
 
 # Alko service cache and data
 data/alko_cache.json

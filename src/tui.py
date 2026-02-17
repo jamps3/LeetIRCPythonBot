@@ -2096,16 +2096,18 @@ class TUIManager:
         try:
             # Write each log entry with nanosecond precision
             # Get nanoseconds from the timestamp - handle both datetime and string formats
-            if hasattr(entry.timestamp, 'nanosecond'):
+            if hasattr(entry.timestamp, "nanosecond"):
                 nanoseconds = entry.timestamp.nanosecond
-            elif hasattr(entry.timestamp, 'second'):
+            elif hasattr(entry.timestamp, "second"):
                 # For datetime objects without nanosecond, assume 0
                 nanoseconds = 0
             else:
                 # Timestamp might be a string, try to parse it or use 0
                 nanoseconds = 0
 
-            timestamp_str = entry.timestamp.strftime("%Y-%m-%d %H:%M:%S") + f".{nanoseconds:09d}"
+            timestamp_str = (
+                entry.timestamp.strftime("%Y-%m-%d %H:%M:%S") + f".{nanoseconds:09d}"
+            )
             self.log_file.write(
                 f"[{timestamp_str}] [{entry.server}] [{entry.level}] {entry.message}\n"
             )
@@ -2221,9 +2223,7 @@ Tips:
         try:
             if os.path.exists(history_file):
                 with open(history_file, "r", encoding="utf-8") as f:
-                    self.command_history = [
-                        line.strip() for line in f if line.strip()
-                    ]
+                    self.command_history = [line.strip() for line in f if line.strip()]
                 self.history_index = len(self.command_history)
         except Exception:
             pass  # Ignore errors loading history
@@ -2379,6 +2379,7 @@ Tips:
             # Clean up Voikko to avoid deallocator errors on shutdown
             try:
                 from lemmatizer import cleanup_voikko
+
                 cleanup_voikko()
             except Exception:
                 pass

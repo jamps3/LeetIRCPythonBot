@@ -314,7 +314,7 @@ class OtiedoteService:
 
     def load_otiedote_data(self):
         """Load otiedote data from JSON file.
-        
+
         Returns:
             List of otiedote entries, or empty list if no data available.
         """
@@ -361,7 +361,9 @@ class OtiedoteService:
         )
         return None
 
-    def fetch_all_releases(self, start_id: int = DEFAULT_START_ID, max_releases: int = 500) -> dict:
+    def fetch_all_releases(
+        self, start_id: int = DEFAULT_START_ID, max_releases: int = 500
+    ) -> dict:
         """Fetch all releases starting from start_id and save to JSON file.
 
         Args:
@@ -382,7 +384,10 @@ class OtiedoteService:
 
         logger.info(f"Starting to fetch otiedote releases from #{start_id}...")
 
-        while fetched_count < max_releases and consecutive_failures < max_consecutive_failures:
+        while (
+            fetched_count < max_releases
+            and consecutive_failures < max_consecutive_failures
+        ):
             try:
                 release = fetch_release(next_id)
 
@@ -393,7 +398,9 @@ class OtiedoteService:
                     fetched_count += 1
 
                     if fetched_count % 50 == 0:
-                        logger.info(f"Fetched {fetched_count} releases so far (current: #{next_id})")
+                        logger.info(
+                            f"Fetched {fetched_count} releases so far (current: #{next_id})"
+                        )
                 else:
                     consecutive_failures += 1
 
@@ -424,7 +431,7 @@ class OtiedoteService:
                 return {
                     "success": False,
                     "count": fetched_count,
-                    "error": f"Failed to save JSON: {e}"
+                    "error": f"Failed to save JSON: {e}",
                 }
 
             # Update state
@@ -432,7 +439,9 @@ class OtiedoteService:
             self.latest_release = latest_id
             self._save_latest_release(latest_id)
 
-            logger.info(f"Completed! Fetched {len(releases)} releases, latest ID: #{latest_id}")
+            logger.info(
+                f"Completed! Fetched {len(releases)} releases, latest ID: #{latest_id}"
+            )
 
             return {
                 "success": True,
@@ -444,7 +453,7 @@ class OtiedoteService:
             return {
                 "success": False,
                 "count": 0,
-                "error": "No releases found. The website may be unavailable or the start_id is too high."
+                "error": "No releases found. The website may be unavailable or the start_id is too high.",
             }
 
 

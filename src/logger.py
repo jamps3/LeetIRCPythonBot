@@ -153,7 +153,11 @@ class PrecisionLogger:
                     # Pass datetime to TUI - TUI recalculates nanoseconds when displaying
                     # using its own time.time_ns() call in get_display_text()
                     _tui_hook(
-                        datetime.now(), context or "System", level.upper(), message, source_type
+                        datetime.now(),
+                        context or "System",
+                        level.upper(),
+                        message,
+                        source_type,
                     )
                 except Exception as e:
                     # Don't let TUI hook errors break logging
@@ -218,7 +222,9 @@ class PrecisionLogger:
                 if _tui_hook:
                     try:
                         # Pass datetime to TUI - TUI recalculates nanoseconds when displaying
-                        _tui_hook(datetime.now(), "Logger", "ERROR", error_msg, "SYSTEM")
+                        _tui_hook(
+                            datetime.now(), "Logger", "ERROR", error_msg, "SYSTEM"
+                        )
                     except Exception:
                         print(f"[LOGGER ERROR] {error_msg}")
                 else:
@@ -255,7 +261,7 @@ _file_hook = None
 
 def set_file_hook(hook_function):
     """Set a hook function to forward log messages to file.
-    
+
     Args:
         hook_function: Function that accepts (timestamp, level, message)
     """
