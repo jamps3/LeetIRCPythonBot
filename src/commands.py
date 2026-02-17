@@ -1843,7 +1843,9 @@ def command_schedule(context, bot_functions):
             hour = int(match.group(3))
             minute = int(match.group(4))
             second = int(match.group(5))
-            frac_str = match.group(6)  # up to 9 digits (nanoseconds resolution in input)
+            frac_str = match.group(
+                6
+            )  # up to 9 digits (nanoseconds resolution in input)
             message = match.group(7)
         elif num_groups == 6:
             # Format: #channel HH:MM:SS message (no server name)
@@ -1853,7 +1855,9 @@ def command_schedule(context, bot_functions):
             hour = int(match.group(2))
             minute = int(match.group(3))
             second = int(match.group(4))
-            frac_str = match.group(5)  # up to 9 digits (nanoseconds resolution in input)
+            frac_str = match.group(
+                5
+            )  # up to 9 digits (nanoseconds resolution in input)
             message = match.group(6)
         else:
             # Format: HH:MM:SS message (no channel - use active channel)
@@ -1862,7 +1866,9 @@ def command_schedule(context, bot_functions):
             hour = int(match.group(1))
             minute = int(match.group(2))
             second = int(match.group(3))
-            frac_str = match.group(4)  # up to 9 digits (nanoseconds resolution in input)
+            frac_str = match.group(
+                4
+            )  # up to 9 digits (nanoseconds resolution in input)
             message = match.group(5)
     else:
         channel = match.group(1)
@@ -1892,16 +1898,21 @@ def command_schedule(context, bot_functions):
         # If called from console, use the provided server name or get active server
         if not server:
             # Check if bot_manager is a proper instance with servers attribute
-            if not hasattr(bot_manager, 'servers') or not isinstance(getattr(bot_manager, 'servers', None), dict):
+            if not hasattr(bot_manager, "servers") or not isinstance(
+                getattr(bot_manager, "servers", None), dict
+            ):
                 # bot_manager is not a proper instance, can't determine server
                 return "❌ Server context not available for scheduling"
-            
+
             if server_name:
                 # Use the provided server name
                 server = bot_manager.servers.get(server_name)
             else:
                 # Try to get active server from console_manager
-                if hasattr(bot_manager, 'console_manager') and bot_manager.console_manager:
+                if (
+                    hasattr(bot_manager, "console_manager")
+                    and bot_manager.console_manager
+                ):
                     active_server = bot_manager.console_manager.active_server
                     if active_server:
                         server = bot_manager.servers.get(active_server)
@@ -1914,7 +1925,7 @@ def command_schedule(context, bot_functions):
 
         # If no channel provided, get from active channel
         if not channel:
-            if hasattr(bot_manager, 'console_manager') and bot_manager.console_manager:
+            if hasattr(bot_manager, "console_manager") and bot_manager.console_manager:
                 channel = bot_manager.console_manager.active_channel
             if not channel:
                 return "❌ No active channel. Use #channel to select one, or specify channel in command."
