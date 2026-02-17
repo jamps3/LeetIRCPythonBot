@@ -173,6 +173,7 @@ cython_debug/
 # Saved data
 data/state.json
 data/leetbot_history
+data/.command_history
 data/conversation_history.json
 data/leet_winners.json
 data/ekavika.json

@@ -32,6 +32,7 @@ Environment Configuration:
 import argparse
 import os
 import sys
+import time
 from datetime import datetime
 
 import logger
@@ -93,7 +94,7 @@ Examples:
 
 Configuration:
   The bot reads configuration from a .env file. Copy .env.sample to .env
-  and configure your servers, API keys, and bot settings.
+  and configure your servers, API keys and bot settings.
         """,
     )
 
@@ -224,17 +225,15 @@ def main():
     if not use_console:
         main_logger.log("Starting TUI interface...", "INFO")
 
-        # Clear file hook - TUI will handle file logging from now on
-        # This prevents duplicate entries in tui.log
-        logger.clear_file_hook()
-        if _log_file_handle:
-            try:
-                _log_file_handle.close()
-            except Exception:
-                pass
-
         try:
             from tui import TUIManager
+
+            # Show startup message and delay before TUI loads
+            print("\n" + "=" * 60)
+            print("  LeetIRCPythonBot v2.x - Starting up...")
+            print("  Loading TUI in 5 seconds... (Press Ctrl+C to abort)")
+            print("=" * 60 + "\n")
+            time.sleep(5)
 
             # Create TUI manager early (will be updated with bot_manager after creation)
             tui_manager = TUIManager()
@@ -252,6 +251,15 @@ def main():
     # Set bot manager in TUI
     if tui_manager:
         tui_manager.set_bot_manager(bot_manager)
+
+        # Clear file hook now that TUI has taken over file logging
+        # This prevents duplicate entries in leet.log
+        logger.clear_file_hook()
+        if _log_file_handle:
+            try:
+                _log_file_handle.close()
+            except Exception:
+                pass
 
     try:
         # Decide whether to use TUI or console interface

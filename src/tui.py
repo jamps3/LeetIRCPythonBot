@@ -101,9 +101,15 @@ class LogEntry:
         # Get current nanoseconds - use stored timestamp if possible, otherwise current time
         # The timestamp is created when LogEntry is created, so we use that
         # Convert datetime to nanoseconds since epoch for consistent display
-        now_ns = time.time_ns()
-        nanoseconds = now_ns % 1_000_000_000
-        time_str = self.timestamp.strftime("%H.%M.%S") + f",{nanoseconds:09d}"
+        if hasattr(self.timestamp, "nanosecond") and self.timestamp.nanosecond > 0:
+            nanoseconds = self.timestamp.nanosecond
+        elif hasattr(self.timestamp, "microsecond"):
+            nanoseconds = self.timestamp.microsecond * 1000  # Convert to nanoseconds
+        else:
+            # Fall back to current time's nanoseconds
+            now_ns = time.time_ns()
+            nanoseconds = now_ns % 1_000_000_000
+        time_str = self.timestamp.strftime("%H.%M.%S") + f".{nanoseconds:09d}"
         return f"[{time_str}] [{self.server}] [{self.level}] {self.message}"
 
     def get_color_attr(self) -> str:
@@ -2094,16 +2100,16 @@ class TUIManager:
             return
 
         try:
-            # Write each log entry with nanosecond precision
+            # Write each log entry with precision
             # Get nanoseconds from the timestamp - handle both datetime and string formats
-            if hasattr(entry.timestamp, "nanosecond"):
+            if hasattr(entry.timestamp, "nanosecond") and entry.timestamp.nanosecond > 0:
                 nanoseconds = entry.timestamp.nanosecond
-            elif hasattr(entry.timestamp, "second"):
-                # For datetime objects without nanosecond, assume 0
-                nanoseconds = 0
+            elif hasattr(entry.timestamp, "microsecond"):
+                nanoseconds = entry.timestamp.microsecond * 1000  # Convert microseconds to nanoseconds
             else:
-                # Timestamp might be a string, try to parse it or use 0
-                nanoseconds = 0
+                # Timestamp might be a string or datetime without microsecond, try to get current time
+                import time
+                nanoseconds = time.time_ns() % 1_000_000_000
 
             timestamp_str = (
                 entry.timestamp.strftime("%Y-%m-%d %H:%M:%S") + f".{nanoseconds:09d}"
@@ -2219,7 +2225,7 @@ Tips:
         logger.set_tui_hook(self.add_log_entry)
 
         # Load command history from file
-        history_file = "data/leetbot_history"
+        history_file = "data/.command_history"
         try:
             if os.path.exists(history_file):
                 with open(history_file, "r", encoding="utf-8") as f:
@@ -2388,7 +2394,7 @@ Tips:
             # Write TUI log to file before exiting
             self.write_log_to_file()
             # Save command history to file
-            history_file = "data/leetbot_history"
+            history_file = "data/.command_history"
             try:
                 os.makedirs(os.path.dirname(history_file), exist_ok=True)
                 with open(history_file, "w", encoding="utf-8") as f:

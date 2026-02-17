@@ -11,7 +11,7 @@ import stat
 
 def get_hook_content():
     """Generate the pre-commit hook content."""
-    return '''#!/bin/bash
+    return """#!/bin/bash
 # LeetIRCPythonBot Pre-commit Hook
 # Formats code with isort and black, lints with flake8, then runs quick tests if PRECOMMIT_RUN_TESTS enabled.
 # If any step fails, the commit is aborted.
@@ -150,7 +150,7 @@ git add VERSION
 
 echo "All checks passed! Proceeding with commit."
 exit 0
-'''
+"""
 
 
 def setup_hooks():

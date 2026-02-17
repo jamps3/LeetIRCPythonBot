@@ -311,13 +311,35 @@ def otiedote_command(context: CommandContext, bot_functions):
 
     # Handle "init" subcommand - fetch all releases from the website
     if context.args and context.args[0].lower() == "init":
-        # Check if data already exists
+        # If data already exists, fetch newer releases starting from current latest
         if otiedote_list:
-            return (
-                f"⚠️ Otiedote data already exists with {len(otiedote_list)} releases. "
-                f"Latest ID: #{latest_id}. Use '!otiedote set 2830' to reset first, "
-                "or delete data/otiedote.json to reinitialize."
-            )
+            # Start from current latest ID + 1 to get newer releases
+            start_id = latest_id + 1
+            try:
+                # Fetch newer releases only
+                result = otiedote_service.fetch_all_releases(
+                    start_id=start_id, max_releases=500
+                )
+
+                if result.get("success"):
+                    if result["count"] > 0:
+                        # Reload data to include new releases
+                        otiedote_list = otiedote_service.load_otiedote_data()
+                        new_latest = max(item["id"] for item in otiedote_list) if otiedote_list else latest_id
+                        return (
+                            f"✅ Fetched {result['count']} NEW otiedote releases! "
+                            f"Total: {len(otiedote_list)} releases, Latest ID: #{new_latest}. "
+                            f"Use '!otiedote' to view."
+                        )
+                    else:
+                        return (
+                            f"ℹ️ Otiedote data already up to date. "
+                            f"Latest ID: #{latest_id}. No newer releases available."
+                        )
+                else:
+                    return f"❌ Failed to fetch otiedote data: {result.get('error', 'Unknown error')}"
+            except Exception as e:
+                return f"❌ Error fetching otiedote updates: {e}"
 
         try:
             # Parse optional start_id argument
