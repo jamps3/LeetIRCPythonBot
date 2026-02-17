@@ -1805,27 +1805,65 @@ def command_schedule(context, bot_functions):
     # or !schedule #channel HH:MM:SS.<1..9 digits> message
     text = " ".join(args)
     if context.is_console:
-        # In console, the first parameter is the server name
+        # In console, the server name is optional - use active server if not provided
+        # Try with server name first, then without, then just time (use active channel)
         match = re.match(
             r"(\S+)\s+(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)",
             text,
         )
+        if not match:
+            # Try without server name (use active channel from console)
+            match = re.match(
+                r"(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)",
+                text,
+            )
+        if not match:
+            # Try just time and message (use active channel)
+            match = re.match(
+                r"(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)",
+                text,
+            )
     else:
         match = re.match(
             r"(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)", text
         )
 
     if not match:
-        return "Invalid format! Use: !schedule #channel HH:MM:SS<.microsecs> message"
+        return "Invalid format! Use: !schedule [server] [#channel] HH:MM:SS<.ns> message\nIn console, both server and channel are optional - uses active ones."
+
+    # Determine if server name was provided based on number of groups
+    # Format with server: 7 groups, Format without: 6 groups, Format just time: 5 groups
+    num_groups = len(match.groups())
 
     if context.is_console:
-        server_name = match.group(1)
-        channel = match.group(2)
-        hour = int(match.group(3))
-        minute = int(match.group(4))
-        second = int(match.group(5))
-        frac_str = match.group(6)  # up to 9 digits (nanoseconds resolution in input)
-        message = match.group(7)
+        if num_groups == 7:
+            # Format: server #channel HH:MM:SS message
+            server_name = match.group(1)
+            channel = match.group(2)
+            hour = int(match.group(3))
+            minute = int(match.group(4))
+            second = int(match.group(5))
+            frac_str = match.group(6)  # up to 9 digits (nanoseconds resolution in input)
+            message = match.group(7)
+        elif num_groups == 6:
+            # Format: #channel HH:MM:SS message (no server name)
+            # Use active server from console
+            server_name = None
+            channel = match.group(1)
+            hour = int(match.group(2))
+            minute = int(match.group(3))
+            second = int(match.group(4))
+            frac_str = match.group(5)  # up to 9 digits (nanoseconds resolution in input)
+            message = match.group(6)
+        else:
+            # Format: HH:MM:SS message (no channel - use active channel)
+            server_name = None
+            channel = None  # Will be resolved from active channel
+            hour = int(match.group(1))
+            minute = int(match.group(2))
+            second = int(match.group(3))
+            frac_str = match.group(4)  # up to 9 digits (nanoseconds resolution in input)
+            message = match.group(5)
     else:
         channel = match.group(1)
         hour = int(match.group(2))
@@ -1851,14 +1889,35 @@ def command_schedule(context, bot_functions):
         # Retrieve the IRC/server object from bot_functions
         server = bot_functions.get("server")
 
-        # If called from console, use the first parameter or if omitted get the first server
+        # If called from console, use the provided server name or get active server
         if not server:
-            server = server_name or (
-                bot_manager.servers[0] if bot_manager.servers else None
-            )
+            # Check if bot_manager is a proper instance with servers attribute
+            if not hasattr(bot_manager, 'servers') or not isinstance(getattr(bot_manager, 'servers', None), dict):
+                # bot_manager is not a proper instance, can't determine server
+                return "❌ Server context not available for scheduling"
+            
+            if server_name:
+                # Use the provided server name
+                server = bot_manager.servers.get(server_name)
+            else:
+                # Try to get active server from console_manager
+                if hasattr(bot_manager, 'console_manager') and bot_manager.console_manager:
+                    active_server = bot_manager.console_manager.active_server
+                    if active_server:
+                        server = bot_manager.servers.get(active_server)
+                # Fallback to first available server
+                if not server and bot_manager.servers:
+                    server = next(iter(bot_manager.servers.values()))
 
         if not server:
             return "❌ Server context not available for scheduling"
+
+        # If no channel provided, get from active channel
+        if not channel:
+            if hasattr(bot_manager, 'console_manager') and bot_manager.console_manager:
+                channel = bot_manager.console_manager.active_channel
+            if not channel:
+                return "❌ No active channel. Use #channel to select one, or specify channel in command."
 
         # Schedule
         message_id = send_scheduled_message(

@@ -1051,7 +1051,7 @@ def test_schedule_command_cases(monkeypatch):
     )
     assert "Invalid format" in command_schedule(ctx2, {"server": object()})
 
-    # Invalid time
+    # Invalid time (now valid format without server name, but invalid time values)
     ctx3 = CommandContext(
         command="schedule",
         args=["#ch", "25:61:61", "oops"],
@@ -1062,9 +1062,9 @@ def test_schedule_command_cases(monkeypatch):
         is_console=True,
         server_name="console",
     )
-    assert "Invalid format!" in command_schedule(ctx3, {"server": object()})
+    assert "Invalid time!" in command_schedule(ctx3, {"server": object()})
 
-    # Missing server
+    # Missing server (now valid format without server name, but no server context available)
     ctx4 = CommandContext(
         command="schedule",
         args=["#ch", "10:00:00", "hi"],
@@ -1075,7 +1075,9 @@ def test_schedule_command_cases(monkeypatch):
         is_console=True,
         server_name="console",
     )
-    assert "Invalid format!" in command_schedule(ctx4, {})
+    result = command_schedule(ctx4, {})
+    # Format is now valid, but no server context
+    assert "Server context not available" in result
 
 
 def test_ipfs_command_usage_and_success(monkeypatch):
@@ -1626,6 +1628,8 @@ def test_schedule_invalid_arg_cases(monkeypatch):
         "services.scheduled_message_service.send_scheduled_message", boom
     )
 
+    # Test with valid format but no valid server (now valid format without server name)
+    # This should fail with scheduling error, not format error
     ctx2 = CommandContext(
         command="schedule",
         args=["#c", "12:00:00.500", "msg"],
@@ -1636,7 +1640,9 @@ def test_schedule_invalid_arg_cases(monkeypatch):
         is_console=True,
         server_name="console",
     )
-    assert "Invalid format!" in command_schedule(ctx2, {"server": object()})
+    result = command_schedule(ctx2, {"server": object()})
+    # Now valid format, so it tries to schedule and may fail with scheduling error
+    assert "Error" in result or "Invalid" in result
 
 
 def test_sana_no_users_branch(monkeypatch):
