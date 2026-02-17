@@ -602,7 +602,7 @@ class BotManager:
                 self.active_server = server_name
                 self._last_selected_server = server_name
                 # Sync with console_manager for consistent state
-                if hasattr(self, 'console_manager') and self.console_manager:
+                if hasattr(self, "console_manager") and self.console_manager:
                     self.console_manager.active_channel = channel_name
                     self.console_manager.active_server = server_name
                 return _join_and_return(server_name, channel_name)
@@ -616,7 +616,7 @@ class BotManager:
                 self.active_channel = channel_name
                 self.active_server = self._last_selected_server
                 # Sync with console_manager for consistent state
-                if hasattr(self, 'console_manager') and self.console_manager:
+                if hasattr(self, "console_manager") and self.console_manager:
                     self.console_manager.active_channel = channel_name
                     self.console_manager.active_server = self._last_selected_server
                 return _join_and_return(self._last_selected_server, channel_name)
@@ -625,7 +625,7 @@ class BotManager:
         if self.active_server and self.active_server in connected_servers:
             self.active_channel = channel_name
             # Sync with console_manager for consistent state
-            if hasattr(self, 'console_manager') and self.console_manager:
+            if hasattr(self, "console_manager") and self.console_manager:
                 self.console_manager.active_channel = channel_name
                 self.console_manager.active_server = self.active_server
             return _join_and_return(self.active_server, channel_name)
@@ -637,7 +637,7 @@ class BotManager:
             self.active_server = server_name
             self._last_selected_server = server_name
             # Sync with console_manager for consistent state
-            if hasattr(self, 'console_manager') and self.console_manager:
+            if hasattr(self, "console_manager") and self.console_manager:
                 self.console_manager.active_channel = channel_name
                 self.console_manager.active_server = server_name
             return _join_and_return(server_name, channel_name)

@@ -484,7 +484,7 @@ class ConsoleManager:
                     self.active_channel = None
                     self.active_server = None
                     # Sync with bot_manager for consistent state
-                    if hasattr(self, 'bot_manager') and self.bot_manager:
+                    if hasattr(self, "bot_manager") and self.bot_manager:
                         self.bot_manager.active_channel = None
                         self.bot_manager.active_server = None
 
@@ -502,7 +502,7 @@ class ConsoleManager:
                 self.active_server = server_name
 
                 # Sync with bot_manager for consistent state
-                if hasattr(self, 'bot_manager') and self.bot_manager:
+                if hasattr(self, "bot_manager") and self.bot_manager:
                     self.bot_manager.active_channel = channel_name
                     self.bot_manager.active_server = server_name
 
