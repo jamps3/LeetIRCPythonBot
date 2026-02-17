@@ -87,10 +87,8 @@ else
   echo "black not found, skipping (pip install black)"
 fi
 
-# Re-stage only modified files (not new untracked files)
-# Using -u to stage only tracked files that have been modified
-# This prevents accidentally committing new untracked files
-git add -u
+# Note: We don't auto-stage files here to avoid accidentally committing
+# unintended changes. Run 'git add <files>' manually before commit.
 
 # Run flake8 if available (lint errors should fail the commit)
 if $PYTHON_CMD -m flake8 --version >/dev/null 2>&1; then
