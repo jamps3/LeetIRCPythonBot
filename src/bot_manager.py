@@ -601,6 +601,10 @@ class BotManager:
                 self.active_channel = channel_name
                 self.active_server = server_name
                 self._last_selected_server = server_name
+                # Sync with console_manager for consistent state
+                if hasattr(self, 'console_manager') and self.console_manager:
+                    self.console_manager.active_channel = channel_name
+                    self.console_manager.active_server = server_name
                 return _join_and_return(server_name, channel_name)
             else:
                 available = ", ".join(connected_servers.keys())
@@ -611,11 +615,19 @@ class BotManager:
             if self._last_selected_server in connected_servers:
                 self.active_channel = channel_name
                 self.active_server = self._last_selected_server
+                # Sync with console_manager for consistent state
+                if hasattr(self, 'console_manager') and self.console_manager:
+                    self.console_manager.active_channel = channel_name
+                    self.console_manager.active_server = self._last_selected_server
                 return _join_and_return(self._last_selected_server, channel_name)
 
         # No remembered server - check if we have an active server
         if self.active_server and self.active_server in connected_servers:
             self.active_channel = channel_name
+            # Sync with console_manager for consistent state
+            if hasattr(self, 'console_manager') and self.console_manager:
+                self.console_manager.active_channel = channel_name
+                self.console_manager.active_server = self.active_server
             return _join_and_return(self.active_server, channel_name)
 
         # Still no server - if only one connected, use it
@@ -624,6 +636,10 @@ class BotManager:
             self.active_channel = channel_name
             self.active_server = server_name
             self._last_selected_server = server_name
+            # Sync with console_manager for consistent state
+            if hasattr(self, 'console_manager') and self.console_manager:
+                self.console_manager.active_channel = channel_name
+                self.console_manager.active_server = server_name
             return _join_and_return(server_name, channel_name)
 
         # Multiple servers available - list them

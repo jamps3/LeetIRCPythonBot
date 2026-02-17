@@ -483,6 +483,10 @@ class ConsoleManager:
                 ):
                     self.active_channel = None
                     self.active_server = None
+                    # Sync with bot_manager for consistent state
+                    if hasattr(self, 'bot_manager') and self.bot_manager:
+                        self.bot_manager.active_channel = None
+                        self.bot_manager.active_server = None
 
                 return f"Parted {channel_name} on {server_name}"
             except Exception as e:
@@ -496,6 +500,11 @@ class ConsoleManager:
                 # Set as active channel
                 self.active_channel = channel_name
                 self.active_server = server_name
+
+                # Sync with bot_manager for consistent state
+                if hasattr(self, 'bot_manager') and self.bot_manager:
+                    self.bot_manager.active_channel = channel_name
+                    self.bot_manager.active_server = server_name
 
                 return f"Joined {channel_name} on {server_name} (now active)"
             except Exception as e:
