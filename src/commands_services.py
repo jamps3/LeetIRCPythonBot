@@ -325,7 +325,11 @@ def otiedote_command(context: CommandContext, bot_functions):
                     if result["count"] > 0:
                         # Reload data to include new releases
                         otiedote_list = otiedote_service.load_otiedote_data()
-                        new_latest = max(item["id"] for item in otiedote_list) if otiedote_list else latest_id
+                        new_latest = (
+                            max(item["id"] for item in otiedote_list)
+                            if otiedote_list
+                            else latest_id
+                        )
                         return (
                             f"✅ Fetched {result['count']} NEW otiedote releases! "
                             f"Total: {len(otiedote_list)} releases, Latest ID: #{new_latest}. "

@@ -2102,13 +2102,19 @@ class TUIManager:
         try:
             # Write each log entry with precision
             # Get nanoseconds from the timestamp - handle both datetime and string formats
-            if hasattr(entry.timestamp, "nanosecond") and entry.timestamp.nanosecond > 0:
+            if (
+                hasattr(entry.timestamp, "nanosecond")
+                and entry.timestamp.nanosecond > 0
+            ):
                 nanoseconds = entry.timestamp.nanosecond
             elif hasattr(entry.timestamp, "microsecond"):
-                nanoseconds = entry.timestamp.microsecond * 1000  # Convert microseconds to nanoseconds
+                nanoseconds = (
+                    entry.timestamp.microsecond * 1000
+                )  # Convert microseconds to nanoseconds
             else:
                 # Timestamp might be a string or datetime without microsecond, try to get current time
                 import time
+
                 nanoseconds = time.time_ns() % 1_000_000_000
 
             timestamp_str = (
