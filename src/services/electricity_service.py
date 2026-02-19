@@ -168,17 +168,30 @@ class ElectricityService:
             cached_data = cached["data"]
             # Validate cached data - ensure it has actual price data
             # This handles cases where old cached data might have empty interval_prices
-            if (
-                not cached_data.get("error")
-                and cached_data.get("interval_prices")
-                and len(cached_data.get("interval_prices", {})) > 0
-            ):
-                log(
-                    f"Using cached data for {date_key}",
-                    level="DEBUG",
-                    context="ELECTRICITY",
-                )
-                return cached_data
+            # or incomplete data (e.g., tomorrow's prices with only hour 0 available)
+            interval_prices = cached_data.get("interval_prices", {})
+            if not cached_data.get("error") and interval_prices:
+                # Check if we have all 24 hours (for quarter resolution, that's 96 entries)
+                # For hourly resolution, that's 24 entries
+                # We'll consider data "complete" if we have at least 20 hours to avoid
+                # rejecting valid partial data while still ensuring fresh data for tomorrow
+                unique_hours = set(h for (h, q) in interval_prices.keys())
+                if len(unique_hours) >= 20:
+                    log(
+                        f"Using cached data for {date_key}",
+                        level="DEBUG",
+                        context="ELECTRICITY",
+                    )
+                    return cached_data
+                else:
+                    # Incomplete cached data (e.g., only hour 0 for tomorrow)
+                    # Remove from cache and fetch fresh data
+                    log(
+                        f"Incomplete cached data for {date_key} ({len(unique_hours)} hours), fetching fresh",
+                        level="DEBUG",
+                        context="ELECTRICITY",
+                    )
+                    del self._cache[date_key]
             else:
                 # Invalid cached data (empty or error), remove from cache and fetch fresh
                 log(
