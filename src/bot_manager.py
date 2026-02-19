@@ -1,5 +1,4 @@
-"""
-Bot Manager for Multiple IRC Servers
+"""Bot Manager for Multiple IRC Servers
 
 This module provides the BotManager class that orchestrates multiple IRC server
 connections and integrates all bot functionality across servers.
@@ -89,6 +88,7 @@ class BotManager:
         self.server_manager = create_server_manager(bot_name, self.stop_event)
 
         # Set remaining dependencies in console manager
+        self.console_manager.set_service_manager(self.service_manager)
         self.console_manager.set_message_handler(self.message_handler)
         self.console_manager.set_server_manager(self.server_manager)
         self.console_manager.set_bot_manager(self)
@@ -590,21 +590,31 @@ class BotManager:
                     server = self.servers[server_name]
                     server.join_channel(channel)
                     self.joined_channels[server_name].add(channel)
+                    # Automatically select the channel after joining
+                    self.active_channel = channel
+                    self.active_server = server_name
+                    self._last_selected_server = server_name
+                    # Sync with console_manager for consistent state
+                    if hasattr(self, "console_manager") and self.console_manager:
+                        self.console_manager.active_channel = channel
+                        self.console_manager.active_server = server_name
                     return f"Joined and selected {channel} on {server_name}"
                 except Exception as e:
                     return f"Error joining {channel}: {e}"
-            return f"Selected {channel} on {server_name} (already joined)"
-
-        # If server name provided, use it
-        if server_name:
-            if server_name in connected_servers:
-                self.active_channel = channel_name
+            else:
+                # If already joined, select it
+                self.active_channel = channel
                 self.active_server = server_name
                 self._last_selected_server = server_name
                 # Sync with console_manager for consistent state
                 if hasattr(self, "console_manager") and self.console_manager:
-                    self.console_manager.active_channel = channel_name
+                    self.console_manager.active_channel = channel
                     self.console_manager.active_server = server_name
+                return f"Selected {channel} on {server_name} (already joined)"
+
+        # If server name provided, use it
+        if server_name:
+            if server_name in connected_servers:
                 return _join_and_return(server_name, channel_name)
             else:
                 available = ", ".join(connected_servers.keys())
@@ -613,33 +623,15 @@ class BotManager:
         # No server specified - check if we have a remembered server
         if hasattr(self, "_last_selected_server") and self._last_selected_server:
             if self._last_selected_server in connected_servers:
-                self.active_channel = channel_name
-                self.active_server = self._last_selected_server
-                # Sync with console_manager for consistent state
-                if hasattr(self, "console_manager") and self.console_manager:
-                    self.console_manager.active_channel = channel_name
-                    self.console_manager.active_server = self._last_selected_server
                 return _join_and_return(self._last_selected_server, channel_name)
 
         # No remembered server - check if we have an active server
         if self.active_server and self.active_server in connected_servers:
-            self.active_channel = channel_name
-            # Sync with console_manager for consistent state
-            if hasattr(self, "console_manager") and self.console_manager:
-                self.console_manager.active_channel = channel_name
-                self.console_manager.active_server = self.active_server
             return _join_and_return(self.active_server, channel_name)
 
         # Still no server - if only one connected, use it
         if len(connected_servers) == 1:
             server_name = list(connected_servers.keys())[0]
-            self.active_channel = channel_name
-            self.active_server = server_name
-            self._last_selected_server = server_name
-            # Sync with console_manager for consistent state
-            if hasattr(self, "console_manager") and self.console_manager:
-                self.console_manager.active_channel = channel_name
-                self.console_manager.active_server = server_name
             return _join_and_return(server_name, channel_name)
 
         # Multiple servers available - list them

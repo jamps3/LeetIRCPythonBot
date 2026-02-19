@@ -20,10 +20,169 @@ Features:
 """
 
 import os
+import shutil
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # from typing import Optional
+
+
+def get_log_files(log_file: str = "data/leet.log"):
+    """Get sorted list of existing log files."""
+    base_name = os.path.basename(log_file)
+    dir_name = os.path.dirname(log_file)
+    files = []
+    for f in os.listdir(dir_name):
+        if f.startswith(base_name):
+            files.append(os.path.join(dir_name, f))
+    # Sort by modification time (oldest first)
+    files.sort(key=lambda x: os.path.getmtime(x))
+    return files
+
+
+def rotate_logs(log_file: str = "data/leet.log", max_count: int = 10):
+    """Rotate log files, keeping maximum of max_count files."""
+    # Ensure data directory exists
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
+    # Get existing log files
+    files = get_log_files(log_file)
+
+    # Remove oldest file if we have too many
+    if len(files) >= max_count:
+        try:
+            os.remove(files[0])
+            files.pop(0)
+        except Exception:
+            pass
+
+    # Rename files: leet.log.9 -> leet.log.10, leet.log.8 -> leet.log.9, etc.
+    for i in range(len(files) - 1, -1, -1):
+        try:
+            new_index = i + 2  # leet.log.1 becomes leet.log.2, etc.
+            if new_index <= max_count:
+                new_name = f"{log_file}.{new_index}"
+                os.rename(files[i], new_name)
+        except Exception:
+            pass
+
+    # Rename current log file to .1
+    try:
+        if os.path.exists(log_file):
+            os.rename(log_file, f"{log_file}.1")
+    except Exception:
+        pass
+
+    # Create new empty log file
+    try:
+        with open(log_file, "w", encoding="utf-8") as f:
+            f.write("LeetIRCBot Log - Rotated at startup\n")
+    except Exception:
+        pass
+
+
+def check_log_size(log_file: str = "data/leet.log", max_size: int = 10485760):
+    """Check if log file exceeds max_size and rotate if needed."""
+    try:
+        if os.path.exists(log_file) and os.path.getsize(log_file) > max_size:
+            rotate_logs(log_file)
+    except Exception:
+        pass
+
+
+def should_rotate_by_time(
+    log_file: str = "data/leet.log", interval: str = "", rotation_time: str = "00:00"
+):
+    """
+    Check if log should be rotated based on time interval.
+    interval: minute, hour, day, week, month, year
+    rotation_time: time of day for daily/weekly/monthly rotation (HH:MM format)
+    """
+    try:
+        if not interval:
+            return False
+
+        # Get last rotation time from log file metadata
+        if not os.path.exists(log_file):
+            return True  # First run, rotate
+
+        last_mod_time = datetime.fromtimestamp(os.path.getmtime(log_file))
+        now = datetime.now()
+
+        # Calculate time since last rotation
+        time_since = now - last_mod_time
+
+        # Check interval
+        if interval == "minute":
+            return time_since >= timedelta(minutes=1)
+        elif interval == "hour":
+            return time_since >= timedelta(hours=1)
+        elif interval == "day":
+            # Check if it's a new day at the specified time
+            target_time = now.replace(
+                hour=int(rotation_time.split(":")[0]),
+                minute=int(rotation_time.split(":")[1]),
+                second=0,
+                microsecond=0,
+            )
+            if now >= target_time and last_mod_time < target_time:
+                return True
+        elif interval == "week":
+            # Check if it's a new week (Monday at specified time)
+            target_day = now - timedelta(days=now.weekday())  # Monday
+            target_time = target_day.replace(
+                hour=int(rotation_time.split(":")[0]),
+                minute=int(rotation_time.split(":")[1]),
+                second=0,
+                microsecond=0,
+            )
+            if now >= target_time and last_mod_time < target_time:
+                return True
+        elif interval == "month":
+            # Check if it's a new month at specified time
+            if now.month != last_mod_time.month or now.year != last_mod_time.year:
+                target_time = now.replace(
+                    day=1,
+                    hour=int(rotation_time.split(":")[0]),
+                    minute=int(rotation_time.split(":")[1]),
+                    second=0,
+                    microsecond=0,
+                )
+                if now >= target_time:
+                    return True
+        elif interval == "year":
+            # Check if it's a new year at specified time
+            if now.year != last_mod_time.year:
+                target_time = now.replace(
+                    month=1,
+                    day=1,
+                    hour=int(rotation_time.split(":")[0]),
+                    minute=int(rotation_time.split(":")[1]),
+                    second=0,
+                    microsecond=0,
+                )
+                if now >= target_time:
+                    return True
+
+        return False
+    except Exception:
+        return False
+
+
+def check_log_rotation(
+    log_file: str = "data/leet.log",
+    max_size: int = 10485760,
+    interval: str = "",
+    rotation_time: str = "00:00",
+):
+    """Check both size and time-based rotation conditions."""
+    # Check size-based rotation
+    check_log_size(log_file, max_size)
+
+    # Check time-based rotation
+    if should_rotate_by_time(log_file, interval, rotation_time):
+        rotate_logs(log_file)
+
 
 # Default log level
 _LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG").upper()
@@ -165,6 +324,23 @@ class PrecisionLogger:
             else:
                 # Only print to console if TUI hook is not active
                 print(f"{timestamp} {output}")  # Main console log output
+                # Also buffer for TUI display later
+                source_type = "SYSTEM"
+                if context and any(
+                    word in context.lower() for word in ["irc", "server"]
+                ):
+                    source_type = "IRC"
+                elif context and "gpt" in context.lower():
+                    source_type = "AI"
+                elif level.upper() == "MSG":
+                    source_type = "IRC"
+                add_to_log_buffer(
+                    datetime.now(),
+                    context or "System",
+                    level.upper(),
+                    message,
+                    source_type,
+                )
 
         except UnicodeEncodeError:
             # Fall back to ASCII-safe version
@@ -257,6 +433,22 @@ _tui_hook = None
 
 # File hook for writing logs to file
 _file_hook = None
+
+# Buffer for logs before TUI starts
+_log_buffer = []
+
+
+def add_to_log_buffer(timestamp, server, level, message, source_type):
+    """Add a log entry to the buffer for later display in TUI."""
+    _log_buffer.append((timestamp, server, level, message, source_type))
+
+
+def get_and_clear_log_buffer():
+    """Get all buffered log entries and clear the buffer."""
+    global _log_buffer
+    buffer = _log_buffer.copy()
+    _log_buffer = []
+    return buffer
 
 
 def set_file_hook(hook_function):

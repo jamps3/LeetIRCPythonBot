@@ -175,12 +175,13 @@ data/state.json
 data/leetbot_history
 data/.command_history
 data/conversation_history.json
+data/leet_detections.json
+data/leet.log*
 data/leet_winners.json
 data/ekavika.json
 data/*_words.json
 data/eurojackpot.json
 data/drink_tracking.json
-data/leet_detections.json
 data/drugs.json
 data/interactions.json
 data/urls.json
@@ -202,7 +203,4 @@ test-results.txt
 # Others
 commits.csv
 quotes.txt
-tui.log
-test_state.json
-test_state.json.backup
 .pytest_import_diag.log

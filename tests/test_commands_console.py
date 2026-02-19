@@ -994,18 +994,34 @@ def test_drink_commands_full_cycle(tmp_path):
 
 def test_tamagotchi_commands_basic():
     from command_loader import process_console_command
+    from word_tracking import DataManager
 
-    responses = []
+    # Create temporary data directory for testing
+    temp_data_dir = tempfile.mkdtemp(prefix="tamagotchi_test_")
 
-    def n(m, *a, **k):
-        responses.append(m)
+    # Patch the data directory in DataManager
+    original_data_dir = DataManager._data_dir
+    DataManager._data_dir = temp_data_dir
 
-    botf = {"notice_message": n}
+    try:
+        responses = []
 
-    process_console_command("!tamagotchi", botf)
-    process_console_command("!feed pizza", botf)
-    process_console_command("!pet", botf)
-    assert len(responses) >= 3
+        def n(m, *a, **k):
+            responses.append(m)
+
+        botf = {"notice_message": n}
+
+        process_console_command("!tamagotchi", botf)
+        process_console_command("!feed pizza", botf)
+        process_console_command("!pet", botf)
+        assert len(responses) >= 3
+    finally:
+        # Clean up temporary directory
+        import shutil
+
+        shutil.rmtree(temp_data_dir, ignore_errors=True)
+        # Restore original data directory
+        DataManager._data_dir = original_data_dir
 
 
 def test_schedule_command_cases(monkeypatch):

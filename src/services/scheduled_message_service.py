@@ -11,6 +11,9 @@ import time
 from datetime import datetime
 from typing import Dict, Optional
 
+# Import the logger module for displaying messages in TUI
+from logger import get_logger
+
 
 class ScheduledMessageService:
     """Service for scheduling messages to be sent at specific times at nanosecond precision."""
@@ -115,18 +118,36 @@ class ScheduledMessageService:
             channel = msg_info.get("channel")
             message = msg_info.get("message")
 
+            # Check if the server/client is connected before attempting to send
+            is_connected = getattr(irc_client, "connected", None)
+            if is_connected is False:
+                self.logger.warning(
+                    "Cannot send scheduled message: server not connected"
+                )
+                # Don't clean up - let the message retry on next schedule check or remove it
+                self.scheduled_messages.pop(message_id, None)
+                self.thread_pool.pop(message_id, None)
+                return
+
             if hasattr(irc_client, "send_message") and callable(
                 getattr(irc_client, "send_message")
             ):
+                self.logger.info(f"Attempting to send scheduled message to {channel}")
                 irc_client.send_message(channel, message)
             elif hasattr(irc_client, "send_raw") and callable(
                 getattr(irc_client, "send_raw")
             ):
+                self.logger.info(
+                    f"Attempting to send scheduled message via send_raw to {channel}"
+                )
                 irc_client.send_raw(f"PRIVMSG {channel} :{message}")
             else:
                 self.logger.error(
                     "IRC client does not support send_message or send_raw; cannot send scheduled message"
                 )
+                self.scheduled_messages.pop(message_id, None)
+                self.thread_pool.pop(message_id, None)
+                return
 
             actual_ns = time.time_ns()
             expected_ns = msg_info.get("target_epoch_ns", actual_ns)
@@ -144,6 +165,14 @@ class ScheduledMessageService:
             self.logger.info(
                 f"Sent scheduled message '{message}' to {channel} at {actual_display} (expected: {expected_display}, diff: {diff_s:.9f}s)"
             )
+
+            # Also display the message in the TUI (like other outgoing messages)
+            try:
+                logger = get_logger(__name__)
+                logger.msg(f"[{channel}] {message}")
+            except Exception as e:
+                # Don't fail the whole operation if TUI display fails
+                self.logger.warning(f"Could not display message in TUI: {e}")
         except Exception as e:
             self.logger.error(f"Error sending scheduled message {message_id}: {e}")
         finally:

@@ -48,6 +48,9 @@ class ConsoleManager:
         self.server_manager = server_manager
         self.stop_event = stop_event
 
+        # Bot manager reference (set via set_bot_manager after initialization)
+        self.bot_manager = None
+
         # Console mode settings
         self.console_mode = True  # Always console mode for this manager
         self.readline_available = False
@@ -72,6 +75,10 @@ class ConsoleManager:
     def set_server_manager(self, server_manager):
         """Set the server manager after initialization."""
         self.server_manager = server_manager
+
+    def set_service_manager(self, service_manager):
+        """Set the service manager after initialization."""
+        self.service_manager = service_manager
 
     def set_bot_manager(self, bot_manager):
         """Set the bot manager after initialization for channel status tracking."""
@@ -643,6 +650,8 @@ class ConsoleManager:
             # Core functions
             "notice_message": lambda msg, irc=None, target=None: logger.msg(msg),
             "log": logger.msg,
+            "bot_manager": self.bot_manager,  # Add bot_manager for commands that need it
+            "message_handler": self.message_handler,  # Add message_handler for commands that need it
             "server_manager": self.server_manager,
             "server": active_server,  # Add active server for commands that need it
             "send_weather": lambda irc, channel, location: self._console_weather(
@@ -681,7 +690,6 @@ class ConsoleManager:
             "channels": self._get_channel_status,
             "join_channel": self._console_join_or_part_channel,
             "send_to_channel": self._console_send_to_channel,
-            "bot_manager": None,  # Will be set by main bot manager
             # Service functions for console commands
             "data_manager": self.message_handler.data_manager,
             "drink_tracker": self.message_handler.drink_tracker,

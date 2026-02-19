@@ -1296,6 +1296,11 @@ class TUIManager:
         self.joined_channels = None  # Will be set from bot_manager
         self.active_channel = None  # Currently selected channel
 
+        # Tab completion state
+        self._completion_options = []  # List of possible completions
+        self._completion_index = 0  # Current completion index
+        self._last_completion_text = ""  # Text when completion was started
+
         # Initialize basic UI components for tests
         self.header = urwid.Text("")
         self.log_walker = urwid.SimpleListWalker([])
@@ -1704,6 +1709,75 @@ class TUIManager:
             self.main_layout.set_focus("footer")
             return result
 
+    def _get_completions(self, text):
+        """Get command completions for the given text."""
+        if not text:
+            return []
+
+        # Get all commands from registry
+        try:
+            from command_registry import get_command_registry
+
+            registry = get_command_registry()
+            commands = list(registry._commands.keys())
+            aliases = list(registry._aliases.keys())
+            all_commands = set(commands + aliases)
+        except Exception:
+            # Fallback to basic commands if registry not available
+            all_commands = {
+                "!help",
+                "!quit",
+                "!exit",
+                "!connect",
+                "!disconnect",
+                "!status",
+                "!channels",
+                "!servers",
+                "!about",
+                "!s",
+                "!sa",
+                "!schedule",
+                "!leet",
+                "!sahko",
+                "!crypto",
+                "!weather",
+                "!yt",
+                "!youtube",
+                "#",
+                "-",
+            }
+
+        # Filter by prefix (case-insensitive)
+        text_lower = text.lower()
+        matches = [
+            cmd for cmd in sorted(all_commands) if cmd.lower().startswith(text_lower)
+        ]
+        return matches
+
+    def _handle_tab_completion(self):
+        """Handle tab key for command completion."""
+        current_text = self.input_field.get_edit_text()
+        cursor_pos = self.input_field.get_edit_pos()
+
+        # If text changed or no completion in progress, start new completion
+        if current_text != self._last_completion_text:
+            self._completion_options = self._get_completions(current_text)
+            self._completion_index = 0
+            self._last_completion_text = current_text
+
+        if not self._completion_options:
+            return  # No completions available
+
+        # Cycle through completions
+        completion = self._completion_options[self._completion_index]
+        self.input_field.set_edit_text(completion)
+        self.input_field.set_edit_pos(len(completion))
+
+        # Cycle to next completion
+        self._completion_index = (self._completion_index + 1) % len(
+            self._completion_options
+        )
+
     def handle_key(self, key):
         """Handle keyboard input."""
         if key in ("ctrl c", "ctrl C"):
@@ -1719,6 +1793,13 @@ class TUIManager:
                     raise urwid.ExitMainLoop()
                 self.input_field.set_edit_text("")
                 self.update_input_style()
+                # Clear completion state after sending
+                self._completion_options = []
+                self._last_completion_text = ""
+
+        elif key == "tab":
+            # Tab completion
+            self._handle_tab_completion()
 
         elif key == "up":
             # Command history up
@@ -2229,6 +2310,16 @@ Tips:
         """Run the TUI main loop."""
         # Set up logger hook to receive all log messages immediately
         logger.set_tui_hook(self.add_log_entry)
+
+        # Load and display buffered startup logs
+        try:
+            from logger import get_and_clear_log_buffer
+
+            buffered_logs = get_and_clear_log_buffer()
+            for timestamp, server, level, message, source_type in buffered_logs:
+                self.add_log_entry(timestamp, server, level, message, source_type)
+        except Exception:
+            pass  # Ignore errors loading buffered logs
 
         # Load command history from file
         history_file = "data/.command_history"

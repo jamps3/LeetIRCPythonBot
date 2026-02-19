@@ -716,6 +716,57 @@ def irc_version_command(context: CommandContext, bot_functions):
 
 
 @command(
+    "latency",
+    aliases=["lag"],
+    description="Measure latency to another bot by sending !ping",
+    usage="!latency <nick>",
+    examples=["!latency Beiki", "!lag Beiki"],
+    requires_args=True,
+    scope=CommandScope.CONSOLE_ONLY,
+)
+def latency_command(context: CommandContext, bot_functions):
+    """
+    Measure latency to another bot by sending !ping and reading the response time.
+
+    The target bot should respond with a NOTICE containing "Kello on HH.MM.SS,NNNNNNNNN"
+    """
+    if len(context.args) < 1:
+        return "Usage: !latency <nick>"
+
+    target = context.args[0]
+
+    # Get the message handler to send the ping
+    bot_manager = bot_functions.get("bot_manager")
+    if not bot_manager:
+        # Try to get message_handler directly from bot_functions
+        message_handler = bot_functions.get("message_handler")
+        if message_handler:
+            # Use message_handler directly, construct a minimal bot_manager-like object
+            class BotManagerStub:
+                def __init__(self, mh):
+                    self.message_handler = mh
+
+            bot_manager = BotManagerStub(message_handler)
+        else:
+            return "❌ Bot manager not available (not in bot_functions)"
+    elif not hasattr(bot_manager, "message_handler"):
+        return f"❌ Bot manager available but has no message_handler attribute (type: {type(bot_manager)})"
+
+    message_handler = bot_manager.message_handler
+
+    # Get the server connection
+    irc = get_irc_connection(context, bot_functions)
+    if not irc:
+        return "❌ No IRC connection available"
+
+    try:
+        result = message_handler._send_latency_ping(irc, target)
+        return result
+    except Exception as e:
+        return f"❌ Failed to send latency ping: {str(e)}"
+
+
+@command(
     "ircadmin",
     description="Get server administrator info",
     usage="/ircadmin [server]",

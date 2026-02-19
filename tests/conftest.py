@@ -120,6 +120,15 @@ def pytest_sessionstart(session):
 def pytest_sessionfinish(session, exitstatus):
     _log(f"=== pytest session finish: {exitstatus} ===")
 
+    # Clean up test artifacts
+    test_artifacts = ["test_state.json"]
+    for artifact in test_artifacts:
+        try:
+            if _os.path.exists(artifact):
+                _os.remove(artifact)
+        except Exception:
+            pass  # Never break test run due to cleanup errors
+
 
 # ---------------------------------------------------------------------------
 # Isolation fixture to restore commonly patched modules between tests

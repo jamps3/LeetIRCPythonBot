@@ -18,14 +18,19 @@ import logger
 class DataManager:
     """Manages all data persistence for the word tracking system."""
 
-    def __init__(self, data_dir: str = "data", state_file: Optional[str] = None):
+    # Class-level default for data directory (can be patched in tests)
+    _data_dir: str = "data"
+
+    def __init__(self, data_dir: str = None, state_file: Optional[str] = None):
         """
         Initialize the data manager.
 
         Args:
-            data_dir: Directory where data files are stored
+            data_dir: Directory where data files are stored (defaults to class _data_dir)
             state_file: Path to the state.json file (optional, defaults to data/state.json)
         """
+        if data_dir is None:
+            data_dir = DataManager._data_dir
         self.data_dir = data_dir
         self.drink_data_file = os.path.join(data_dir, "drink_tracking.json")
         self.general_words_file = os.path.join(data_dir, "general_words.json")

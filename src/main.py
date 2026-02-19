@@ -39,6 +39,9 @@ import logger
 from bot_manager import BotManager
 from config import load_env_file
 
+# Import log rotation functions from logger
+from logger import check_log_rotation, rotate_logs
+
 # Suppress Voikko's buggy __del__ error messages during startup
 # This is a known bug in libvoikko where it accesses a non-existent attribute during garbage collection
 # Redirect stderr to a file that we can discard after startup
@@ -55,11 +58,30 @@ _log_file_handle = None
 def setup_file_logging(log_file: str = "data/leet.log"):
     """
     Set up file logging to capture all logs from startup.
-
-    This ensures logs from before the TUI is ready are still saved to file.
-    Uses the custom file hook in the logger module.
+    Also handles log rotation on startup.
     """
     global _log_file_handle
+
+    # Get rotation settings from environment
+    def parse_env_int(var_name, default):
+        """Parse environment variable as integer, stripping comments."""
+        value = os.getenv(var_name, str(default))
+        # Strip comments and whitespace
+        value = value.split("#")[0].strip()
+        try:
+            return int(value)
+        except ValueError:
+            return default
+
+    max_size = parse_env_int("LOG_ROTATION_SIZE", 10485760)  # 10MB default
+    max_count = parse_env_int("LOG_ROTATION_COUNT", 10)  # 10 files default
+    interval = os.getenv(
+        "LOG_ROTATION_INTERVAL", ""
+    ).lower()  # minute, hour, day, week, month, year
+    rotation_time = os.getenv("LOG_ROTATION_TIME", "00:00")  # HH:MM format
+
+    # Rotate logs on startup
+    rotate_logs(log_file, max_count)
 
     # Ensure data directory exists
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
@@ -69,8 +91,11 @@ def setup_file_logging(log_file: str = "data/leet.log"):
 
     # Define the file hook function that writes to the file
     def file_hook(timestamp, level, message):
-        """Write log message to file."""
-        # message already includes level and context, so just write it directly
+        """Write log message to file with size and time checking."""
+        # Check both size and time-based rotation
+        check_log_rotation(log_file, max_size, interval, rotation_time)
+
+        # Write the log entry
         _log_file_handle.write(f"{timestamp} {message}\n")
         _log_file_handle.flush()  # Ensure it's written immediately
 

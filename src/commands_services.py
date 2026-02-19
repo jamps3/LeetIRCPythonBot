@@ -655,8 +655,12 @@ def trains_command(context: CommandContext, bot_functions):
 @command(
     "youtube",
     description="Search YouTube videos or get video info",
-    usage="!youtube <search query>",
-    examples=["!youtube python tutorial", "!youtube cat videos"],
+    usage="!youtube [number] <search query>",
+    examples=[
+        "!youtube 5 python tutorial",
+        "!youtube cat videos",
+        "!youtube 3 funny cats",
+    ],
     requires_args=True,
 )
 def youtube_command(context: CommandContext, bot_functions):
@@ -667,7 +671,24 @@ def youtube_command(context: CommandContext, bot_functions):
 
     query = context.args_text.strip()
     if not query:
-        return "Usage: !youtube <search query>"
+        return "Usage: !youtube [number] <search query>"
+
+    # Parse number parameter if present
+    parts = query.split()
+    max_results = 5  # default
+    if len(parts) > 1:
+        try:
+            # Try to parse the first part as a number
+            cand = int(parts[0])
+            if 1 <= cand <= 10:
+                max_results = cand
+                query = " ".join(parts[1:])  # remove the number from query
+            elif cand < 1:
+                return "❌ Number must be at least 1"
+            elif cand > 10:
+                return "❌ Number must be 10 or less"
+        except ValueError:
+            pass  # Not a number, use default
 
     try:
         # Get the server instance from bot_functions
@@ -676,7 +697,7 @@ def youtube_command(context: CommandContext, bot_functions):
         # For console mode, use a dummy target; _send_response handles None server
         target = context.target if context.target else "console"
 
-        send_youtube_info(server, target, query)
+        send_youtube_info(server, target, query, max_results)
         return CommandResponse.no_response()  # Service handles the output
     except Exception as e:
         return f"❌ YouTube search error: {str(e)}"

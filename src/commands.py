@@ -1937,11 +1937,16 @@ def command_schedule(context, bot_functions):
 
         # Show the requested time with 9-digit fractional part (as in logs)
         # Try to get server name from server object if possible
-        server_name_str = (
-            getattr(server, "name", None)
-            or getattr(server, "server_name", None)
-            or str(server)
-        )
+        server_name_str = None
+        if server:
+            server_name_str = (
+                getattr(server, "name", None)
+                or getattr(server, "server_name", None)
+                or getattr(getattr(server, "config", None), "name", None)
+                or getattr(server, "host", None)
+            )
+        if not server_name_str:
+            server_name_str = str(server) if server else "unknown"
         return f"✅ Message scheduled with ID: {message_id} for {hour:02d}:{minute:02d}:{second:02d}.{ns_str} in {server_name_str} {channel}"
 
     except Exception as e:

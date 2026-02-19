@@ -72,6 +72,11 @@ class MessageHandler:
         # Initialize X cache settings
         self._initialize_x_cache_settings()
 
+        # Latency measurement: track pending ping requests
+        # Key: (server_name, nick), Value: send_time_ns
+        self._pending_latency_requests = {}
+        self._latency_lock = threading.Lock()
+
         logger.info("Message handler initialized")
 
     def _initialize_lemmatizer(self) -> Optional[Lemmatizer]:
@@ -197,6 +202,11 @@ class MessageHandler:
                 "is_private": not target.startswith("#"),
                 "bot_name": server.bot_name,
             }
+
+            # Check for latency response first
+            latency_msg = self._check_latency_response(server, sender, text)
+            if latency_msg:
+                logger.msg(latency_msg)
 
             # Process leet winners summary lines (first/last/multileet)
             try:
@@ -380,6 +390,15 @@ class MessageHandler:
                 ):
                     self.bot_manager.active_channel = channel
                     self.bot_manager.active_server = server_name
+
+                    # Also sync with console_manager
+                    if (
+                        hasattr(self.bot_manager, "console_manager")
+                        and self.bot_manager.console_manager
+                    ):
+                        self.bot_manager.console_manager.active_channel = channel
+                        self.bot_manager.console_manager.active_server = server_name
+
                     logger.debug(
                         f"Auto-selected first joined channel {channel} on {server_name} as active"
                     )
@@ -1750,6 +1769,69 @@ class MessageHandler:
         setattr(self, "_latency_start", time.time())
         return time.time()
 
+    def _send_latency_ping(self, server, target: str) -> str:
+        """
+        Send a latency ping to a nick.
+
+        Args:
+            server: The Server instance
+            target: The target nick to ping
+
+        Returns:
+            Confirmation message
+        """
+        import time
+
+        send_time_ns = time.time_ns()
+        with self._latency_lock:
+            # Store the send time with (server_name, nick) as key
+            key = (server.config.name, target.lower())
+            self._pending_latency_requests[key] = send_time_ns
+
+        # Send !ping to the target
+        server.send_message(target, "!ping")
+
+        return f"✅ Latency ping sent to {target}"
+
+    def _check_latency_response(self, server, sender: str, text: str) -> Optional[str]:
+        """
+        Check if a notice is a latency response and calculate latency.
+
+        Args:
+            server: The Server instance
+            sender: The nick who sent the notice
+            text: The notice text
+
+        Returns:
+            Latency message if this was a latency response, None otherwise
+        """
+        import re
+        import time
+
+        # Pattern to match "Kello on HH.MM.SS,NNNNNNNNN" (Finnish time format)
+        # Example: "Kello on 8.55.37,388420605"
+        time_pattern = r"Kello on (\d+)\.(\d+)\.(\d+),(\d+)"
+        match = re.search(time_pattern, text)
+
+        if not match:
+            return None
+
+        # Check if we have a pending request for this nick
+        key = (server.config.name, sender.lower())
+        with self._latency_lock:
+            send_time_ns = self._pending_latency_requests.get(key)
+            if send_time_ns is None:
+                return None
+            # Remove the pending request
+            del self._pending_latency_requests[key]
+
+        # Calculate round-trip time
+        receive_time_ns = time.time_ns()
+        rtt_ns = receive_time_ns - send_time_ns
+        rtt_ms = rtt_ns / 1_000_000.0
+
+        return f"📡 Latency to {sender}: {rtt_ms:.2f} ms (RTT)"
+
     def _get_crypto_price(self, coin: str, currency: str = "eur"):
         """Get cryptocurrency price."""
         crypto_service = self.service_manager.get_service("crypto")
@@ -1905,7 +1987,7 @@ class MessageHandler:
                 logger.error(f"Error searching YouTube: {e}")
         return "YouTube service not available. Please configure YOUTUBE_API_KEY."
 
-    def _send_youtube_info(self, irc, channel, query_or_url):
+    def _send_youtube_info(self, irc, channel, query_or_url, max_results=1):
         """Send YouTube video info or search results."""
         youtube_service = self.service_manager.get_service("youtube")
         if not youtube_service:
@@ -1922,7 +2004,7 @@ class MessageHandler:
                 video_data = youtube_service.get_video_info(video_id)
                 response = youtube_service.format_video_info_message(video_data)
             else:
-                search_data = youtube_service.search_videos(query_or_url, max_results=3)
+                search_data = youtube_service.search_videos(query_or_url, max_results)
                 response = youtube_service.format_search_results_message(search_data)
 
             self._send_response(irc, channel, response)
