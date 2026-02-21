@@ -252,7 +252,7 @@ class TestScheduledMessageServiceGlobal:
 
             assert result == "test_message_id"
             mock_service.schedule_message.assert_called_once_with(
-                mock_irc_client, "#test", "Hello", 12, 0, 0, 0
+                mock_irc_client, "#test", "Hello", 12, 0, 0, 0, lag_ms=None
             )
 
 
