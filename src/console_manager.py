@@ -309,6 +309,13 @@ class ConsoleManager:
             elif command == "channels":
                 result = self._get_channel_status()
                 logger.info(result)
+            elif command == "reload":
+                result = self._console_reload(*args)
+                logger.info(result)
+            elif command == "rl":
+                # Alias for reload
+                result = self._console_reload(*args)
+                logger.info(result)
             else:
                 # Process other commands via command_loader
                 from command_loader import process_console_command
@@ -439,6 +446,26 @@ class ConsoleManager:
             )
 
         return "\n".join(status_lines)
+
+    def _console_reload(self, *args) -> str:
+        """Console command to reload command modules."""
+        try:
+            from reload_manager import reload_all_commands, verify_critical_commands
+
+            # Perform the reload
+            success, message = reload_all_commands()
+
+            if success:
+                # Verify critical commands are present
+                missing = verify_critical_commands()
+                if missing:
+                    return f"⚠️ {message} but critical commands missing: {', '.join(missing)}"
+                return f"✅ {message}"
+            else:
+                return f"❌ {message}"
+
+        except Exception as e:
+            return f"❌ Error during reload: {str(e)}"
 
     def _console_join_or_part_channel(self, channel_name: str) -> str:
         """Console command to join or part a channel."""
@@ -654,6 +681,7 @@ class ConsoleManager:
             "message_handler": self.message_handler,  # Add message_handler for commands that need it
             "server_manager": self.server_manager,
             "server": active_server,  # Add active server for commands that need it
+            "service_manager": self.service_manager,  # Add service_manager for reload command
             "send_weather": lambda irc, channel, location: self._console_weather(
                 location
             ),

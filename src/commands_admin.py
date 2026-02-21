@@ -267,6 +267,84 @@ def leetwinners_reset_command(context: CommandContext, bot_functions):
         return f"❌ Error resetting leetwinners: {str(e)}"
 
 
+@command(
+    "reload",
+    aliases=["rl"],
+    description="Reload command modules without restarting the bot (admin only)",
+    usage="!reload <password>",
+    examples=["!reload mypass"],
+    admin_only=True,
+    requires_args=True,
+)
+def reload_command(context: CommandContext, bot_functions):
+    """Reload all command modules without restarting the bot."""
+    if not verify_admin_password(context.args):
+        return "❌ Invalid admin password"
+
+    try:
+        from reload_manager import (
+            get_reload_status,
+            reload_all_commands,
+            verify_critical_commands,
+        )
+
+        # Perform the reload
+        success, message = reload_all_commands()
+
+        # Also try to reload services if service_manager is available
+        service_msg = ""
+        try:
+            service_manager = bot_functions.get("service_manager")
+            if service_manager and hasattr(service_manager, "reload_services"):
+                results = service_manager.reload_services()
+                service_msg = f" Services reloaded: {results}"
+        except Exception as se:
+            service_msg = f" (service reload failed: {se})"
+
+        if success:
+            # Verify critical commands are present
+            missing = verify_critical_commands()
+            if missing:
+                return f"⚠️ {message}{service_msg} but critical commands missing: {', '.join(missing)}"
+            return f"✅ {message}{service_msg}"
+        else:
+            return f"❌ {message}"
+
+    except Exception as e:
+        return f"❌ Error during reload: {str(e)}"
+
+
+@command(
+    "reloadstatus",
+    description="Show reload module status (admin only)",
+    usage="!reloadstatus <password>",
+    examples=["!reloadstatus mypass"],
+    admin_only=True,
+    requires_args=True,
+)
+def reload_status_command(context: CommandContext, bot_functions):
+    """Show status of reloadable modules."""
+    if not verify_admin_password(context.args):
+        return "❌ Invalid admin password"
+
+    try:
+        from reload_manager import get_reload_status
+
+        status = get_reload_status()
+
+        lines = [
+            "📦 Reload Status:",
+            f"  Available modules: {', '.join(status['available_modules'])}",
+            f"  Loaded modules: {len(status['loaded_modules'])}",
+            f"  Registered commands: {status['command_count']}",
+        ]
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        return f"❌ Error getting status: {str(e)}"
+
+
 # Import this module to register the commands
 def register_admin_commands():
     """Register all admin commands. Called automatically when module is imported."""

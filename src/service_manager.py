@@ -301,6 +301,69 @@ class ServiceManager:
         """
         return [name for name, service in self.services.items() if service is None]
 
+    def reload_services(self) -> Dict[str, str]:
+        """
+        Reload all services by reimporting modules and reinitializing.
+
+        Returns:
+            Dict mapping service name to status ('reloaded', 'failed', 'skipped')
+        """
+        import importlib
+        import sys
+
+        results = {}
+
+        # List of service initialization methods
+        init_methods = [
+            ("weather", self._initialize_weather_service),
+            ("gpt", self._initialize_gpt_service),
+            ("electricity", self._initialize_electricity_service),
+            ("youtube", self._initialize_youtube_service),
+            ("crypto", self._initialize_crypto_service),
+            ("alko", self._initialize_alko_service),
+            ("drug", self._initialize_drug_service),
+            ("leet_detector", self._initialize_leet_detector),
+            ("fmi_warning", self._initialize_fmi_warning_service),
+            ("otiedote", self._initialize_otiedote_service),
+        ]
+
+        # Service module names for reloading
+        service_modules = [
+            "services.weather_service",
+            "services.gpt_service",
+            "services.electricity_service",
+            "services.youtube_service",
+            "services.crypto_service",
+            "services.alko_service",
+            "services.drug_service",
+            "services.leet_detector",
+            "services.fmi_warning_service",
+            "services.otiedote_json_service",
+        ]
+
+        # Reload service modules
+        for mod_name in service_modules:
+            if mod_name in sys.modules:
+                try:
+                    importlib.reload(sys.modules[mod_name])
+                    logger.debug(f"Reloaded service module: {mod_name}")
+                except Exception as e:
+                    logger.warning(f"Failed to reload {mod_name}: {e}")
+
+        # Clear existing services
+        self.services.clear()
+
+        # Reinitialize all services
+        for service_name, init_method in init_methods:
+            try:
+                init_method()
+                results[service_name] = "reloaded"
+            except Exception as e:
+                logger.error(f"Failed to reinitialize {service_name}: {e}")
+                results[service_name] = "failed"
+
+        return results
+
 
 def create_service_manager() -> ServiceManager:
     """

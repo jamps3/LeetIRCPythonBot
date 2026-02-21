@@ -268,6 +268,12 @@ class CommandRegistry:
         del self._commands[command_name]
         return True
 
+    def clear_all(self) -> None:
+        """Clear all registered commands and aliases."""
+        self._commands.clear()
+        self._aliases.clear()
+        logger.debug("Cleared all commands from registry")
+
     def get_handler(self, command_name: str) -> Optional[CommandHandler]:
         """Get a command handler by name or alias."""
         # Check if it's an alias first
@@ -427,9 +433,8 @@ def reset_command_registry() -> None:
     """Reset the global command registry instance. Used for testing."""
     global _command_registry
     if _command_registry is not None:
-        # Clear existing registrations
-        _command_registry._commands.clear()
-        _command_registry._aliases.clear()
+        # Clear existing registrations using clear_all method
+        _command_registry.clear_all()
     _command_registry = None
 
 
