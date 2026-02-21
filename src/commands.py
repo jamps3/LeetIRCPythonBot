@@ -2281,19 +2281,54 @@ def krak_command(context: CommandContext, bot_functions):
         or "console"
     )
 
+    # Check if arguments are provided for setting profile
+    setting_message = None
+    if context.args:
+        # Try to parse profile settings
+        if len(context.args) == 2:
+            # Two args: weight_kg sex
+            try:
+                weight_kg = float(context.args[0])
+                sex = context.args[1].lower()
+                if sex in ["m", "f"]:
+                    bac_tracker.set_user_profile(
+                        server_name, context.sender, weight_kg=weight_kg, sex=sex
+                    )
+                    setting_message = f"✅ Set profile: {weight_kg}kg, {sex.upper()}"
+                else:
+                    return "❌ Invalid sex. Use 'm' or 'f'"
+            except ValueError:
+                return "❌ Invalid weight. Use a number for weight in kg"
+        elif len(context.args) == 1:
+            # One arg: could be burn_rate or nickname
+            try:
+                burn_rate = float(context.args[0])
+                # Validate burn rate range
+                if 0.05 <= burn_rate <= 1.0:
+                    bac_tracker.set_user_profile(
+                        server_name, context.sender, burn_rate=burn_rate
+                    )
+                    setting_message = f"✅ Set burn rate: {burn_rate}‰/h"
+                else:
+                    return "❌ Burn rate must be between 0.05 and 1.0 ‰/h"
+            except ValueError:
+                # Not a number, treat as nickname
+                pass  # Will be handled below
+        else:
+            return "❌ Too many arguments. Use: !krak [weight_kg sex] or !krak [burn_rate] or !krak [nickname]"
+
     # Determine the target user (default to sender)
     target_nick = context.sender
 
-    # Check if this looks like a nickname request (single non-numeric argument)
+    # Check if we have a nickname argument (single non-numeric argument)
     if context.args and len(context.args) == 1:
         potential_nick = context.args[0]
-        # Check if it's not a number (would be burn rate) and not a sex indicator
         try:
             float(potential_nick)
-            # It's a number, so it's burn rate - don't treat as nickname
+            # It's a number, already handled above
         except ValueError:
             if potential_nick.lower() not in ["m", "f"]:
-                # Not a number and not sex, so treat as nickname
+                # Not a number and not sex, treat as nickname
                 target_nick = potential_nick
 
     # Show BAC information
@@ -2314,9 +2349,15 @@ def krak_command(context: CommandContext, bot_functions):
         # Include last drink alcohol content even when no profile
         if last_drink_grams:
             response += f" | Last: {last_drink_grams:.1f}g"
+        if setting_message:
+            response = f"{setting_message}\n{response}"
         return response
 
     response_parts = []
+
+    # Add setting confirmation if we set something
+    if setting_message:
+        response_parts.append(setting_message)
 
     # Show current BAC if any
     if bac_info["current_bac"] > 0.0:

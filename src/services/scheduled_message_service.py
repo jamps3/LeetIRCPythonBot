@@ -33,9 +33,15 @@ class ScheduledMessageService:
         target_second: int,
         target_nanosecond: int = 0,
         message_id: Optional[str] = None,
+        lag_ms: Optional[float] = None,
     ) -> str:
         """
         Accepts milliseconds, microseconds and nanoseconds, schedules using nanoseconds.
+        
+        Args:
+            lag_ms: Optional lag in milliseconds to compensate for network delay.
+                   If provided, message will be sent earlier by lag_ms/2 to account
+                   for one-way latency.
         """
         # Convert any provided subsecond value to nanoseconds without losing precision
         ns = int(target_nanosecond)
@@ -70,6 +76,18 @@ class ScheduledMessageService:
         if target_epoch_ns <= now_ns:
             target_epoch_ns += 24 * 3600 * 1_000_000_000
 
+        # Apply lag compensation: send earlier by one-way delay (lag_ms / 2)
+        if lag_ms is not None and lag_ms > 0:
+            lag_ns = int(lag_ms * 1_000_000 / 2)  # Convert ms to ns, then half for one-way
+            compensated_ns = target_epoch_ns - lag_ns
+            self.logger.info(
+                f"Applying lag compensation: {lag_ms:.2f}ms (one-way: {lag_ms/2:.2f}ms, "
+                f"sending {lag_ns/1_000_000:.3f}ms earlier)"
+            )
+            # Use compensated time if it's in the future, otherwise use original
+            if compensated_ns > now_ns:
+                target_epoch_ns = compensated_ns
+
         delay_ns = target_epoch_ns - now_ns
         delay_s = delay_ns / 1_000_000_000.0
         target_display = f"{hour:02d}:{minute:02d}:{second:02d}.{nano:09d}"
@@ -88,6 +106,7 @@ class ScheduledMessageService:
             "scheduled_at_ns": now_ns,
             "delay_ns": delay_ns,
             "cancelled": False,
+            "lag_ms": lag_ms,
         }
 
         # Start waiter thread (hybrid sleep + spin)
@@ -302,11 +321,15 @@ def send_scheduled_message(
     minute: int,
     second: int,
     nanosecond: int = 0,
+    lag_ms: Optional[float] = None,
 ) -> str:
     """
     Convenience function to schedule a message with nanosecond resolution.
+    
+    Args:
+        lag_ms: Optional lag in milliseconds to compensate for network delay.
     """
     service = get_scheduled_message_service()
     return service.schedule_message(
-        irc_client, channel, message, hour, minute, second, nanosecond
+        irc_client, channel, message, hour, minute, second, nanosecond, lag_ms=lag_ms
     )

@@ -77,6 +77,12 @@ class MessageHandler:
         self._pending_latency_requests = {}
         self._latency_lock = threading.Lock()
 
+        # Lag storage: persistent storage for measured lags
+        # Key: (server_name, nick), Value: lag_ms (float)
+        self._lag_storage: Dict[tuple, float] = {}
+        self._lag_storage_lock = threading.Lock()
+        self._load_lag_storage()
+
         logger.info("Message handler initialized")
 
     def _initialize_lemmatizer(self) -> Optional[Lemmatizer]:
@@ -1830,7 +1836,107 @@ class MessageHandler:
         rtt_ns = receive_time_ns - send_time_ns
         rtt_ms = rtt_ns / 1_000_000.0
 
+        # Store the lag for future use
+        self._store_lag(server.config.name, sender, rtt_ms)
+
         return f"📡 Latency to {sender}: {rtt_ms:.2f} ms (RTT)"
+
+    def _load_lag_storage(self):
+        """Load lag storage from data file."""
+        try:
+            data = self.data_manager.load_data("lag_storage")
+            if data and isinstance(data, dict):
+                # Convert dict with string keys back to tuple keys
+                for key_str, value in data.items():
+                    if isinstance(key_str, str) and "|" in key_str:
+                        parts = key_str.split("|")
+                        if len(parts) == 2:
+                            key = (parts[0], parts[1])
+                            self._lag_storage[key] = float(value)
+                logger.info(f"Loaded {len(self._lag_storage)} lag measurements")
+        except Exception as e:
+            logger.debug(f"Could not load lag storage: {e}")
+
+    def _save_lag_storage(self):
+        """Save lag storage to data file."""
+        try:
+            # Convert tuple keys to string keys for JSON serialization
+            data = {}
+            for key, value in self._lag_storage.items():
+                if isinstance(key, tuple) and len(key) == 2:
+                    key_str = f"{key[0]}|{key[1]}"
+                    data[key_str] = value
+            self.data_manager.save_data("lag_storage", data)
+        except Exception as e:
+            logger.error(f"Could not save lag storage: {e}")
+
+    def _store_lag(self, server_name: str, nick: str, lag_ms: float):
+        """
+        Store lag measurement for a nick on a server.
+
+        Args:
+            server_name: Name of the server
+            nick: Nick to store lag for
+            lag_ms: Lag in milliseconds (RTT)
+        """
+        key = (server_name.lower(), nick.lower())
+        with self._lag_storage_lock:
+            self._lag_storage[key] = lag_ms
+        # Save asynchronously
+        threading.Thread(target=self._save_lag_storage, daemon=True).start()
+        logger.debug(f"Stored lag for {nick} on {server_name}: {lag_ms:.2f} ms")
+
+    def _get_lag(self, server_name: str, nick: str) -> Optional[float]:
+        """
+        Get stored lag for a nick on a server.
+
+        Args:
+            server_name: Name of the server
+            nick: Nick to get lag for
+
+        Returns:
+            Lag in milliseconds, or None if not found
+        """
+        key = (server_name.lower(), nick.lower())
+        with self._lag_storage_lock:
+            return self._lag_storage.get(key)
+
+    def _list_lags(self, server_name: Optional[str] = None) -> Dict[tuple, float]:
+        """
+        List all stored lags, optionally filtered by server.
+
+        Args:
+            server_name: Optional server name to filter by
+
+        Returns:
+            Dictionary of (server, nick) -> lag_ms
+        """
+        with self._lag_storage_lock:
+            if server_name:
+                return {
+                    k: v for k, v in self._lag_storage.items()
+                    if k[0] == server_name.lower()
+                }
+            return dict(self._lag_storage)
+
+    def _clear_lag(self, server_name: str, nick: str) -> bool:
+        """
+        Clear stored lag for a nick on a server.
+
+        Args:
+            server_name: Name of the server
+            nick: Nick to clear lag for
+
+        Returns:
+            True if cleared, False if not found
+        """
+        key = (server_name.lower(), nick.lower())
+        with self._lag_storage_lock:
+            if key in self._lag_storage:
+                del self._lag_storage[key]
+                threading.Thread(target=self._save_lag_storage, daemon=True).start()
+                return True
+        return False
 
     def _get_crypto_price(self, coin: str, currency: str = "eur"):
         """Get cryptocurrency price."""

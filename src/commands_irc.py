@@ -718,30 +718,30 @@ def irc_version_command(context: CommandContext, bot_functions):
 @command(
     "latency",
     aliases=["lag"],
-    description="Measure latency to another bot by sending !ping",
-    usage="!latency <nick>",
-    examples=["!latency Beiki", "!lag Beiki"],
-    requires_args=True,
+    description="Measure latency, show stored lags, or clear lag storage",
+    usage="!lag <nick> [show|clear] | !lag list | !lag clear [nick]",
+    examples=[
+        "!lag Beiki - measure latency to Beiki",
+        "!lag Beiki show - show stored lag for Beiki",
+        "!lag list - list all stored lags",
+        "!lag clear Beiki - clear lag for Beiki",
+        "!lag clear - clear all lags",
+    ],
+    requires_args=False,
     scope=CommandScope.CONSOLE_ONLY,
 )
 def latency_command(context: CommandContext, bot_functions):
     """
-    Measure latency to another bot by sending !ping and reading the response time.
+    Measure latency to another bot by sending !ping and reading the response time,
+    or manage stored lag values.
 
     The target bot should respond with a NOTICE containing "Kello on HH.MM.SS,NNNNNNNNN"
     """
-    if len(context.args) < 1:
-        return "Usage: !latency <nick>"
-
-    target = context.args[0]
-
-    # Get the message handler to send the ping
+    # Get the message handler
     bot_manager = bot_functions.get("bot_manager")
     if not bot_manager:
-        # Try to get message_handler directly from bot_functions
         message_handler = bot_functions.get("message_handler")
         if message_handler:
-            # Use message_handler directly, construct a minimal bot_manager-like object
             class BotManagerStub:
                 def __init__(self, mh):
                     self.message_handler = mh
@@ -759,11 +759,172 @@ def latency_command(context: CommandContext, bot_functions):
     if not irc:
         return "❌ No IRC connection available"
 
+    # Handle subcommands
+    if context.args:
+        first_arg = context.args[0].lower()
+
+        # !lag list - show all stored lags
+        if first_arg == "list":
+            lags = message_handler._list_lags()
+            if not lags:
+                return "📊 No stored lags"
+            server_name = irc.config.name
+            lines = [f"📊 Stored lags for {server_name}:"]
+            for (srv, nick), lag_ms in sorted(lags.items(), key=lambda x: x[1]):
+                if srv == server_name.lower():
+                    lines.append(f"  {nick}: {lag_ms:.2f} ms")
+            return "\n".join(lines) if len(lines) > 1 else "📊 No stored lags for this server"
+
+        # !lag clear [nick] - clear lag(s)
+        if first_arg == "clear":
+            if len(context.args) > 1:
+                nick = context.args[1]
+                server_name = irc.config.name
+                result = message_handler._clear_lag(server_name, nick)
+                if result:
+                    return f"✅ Cleared lag for {nick}"
+                return f"❌ No lag found for {nick}"
+            else:
+                # Clear all lags for this server
+                server_name = irc.config.name
+                lags = message_handler._list_lags(server_name)
+                count = len(lags)
+                for (srv, nick) in lags.keys():
+                    message_handler._clear_lag(srv, nick)
+                return f"✅ Cleared {count} lag(s) for {server_name}"
+
+        # !lag <nick> [show|clear] - show or clear specific nick
+        target = first_arg
+        if len(context.args) > 1:
+            second_arg = context.args[1].lower()
+            if second_arg == "show":
+                server_name = irc.config.name
+                lag = message_handler._get_lag(server_name, target)
+                if lag is not None:
+                    return f"📡 Stored lag for {target}: {lag:.2f} ms"
+                return f"❌ No stored lag for {target}. Run !lag {target} first."
+            if second_arg == "clear":
+                server_name = irc.config.name
+                result = message_handler._clear_lag(server_name, target)
+                if result:
+                    return f"✅ Cleared lag for {target}"
+                return f"❌ No lag found for {target}"
+
+        # No subcommand - measure latency
+        try:
+            result = message_handler._send_latency_ping(irc, target)
+            return result
+        except Exception as e:
+            return f"❌ Failed to send latency ping: {str(e)}"
+
+    # No args - show usage
+    return "Usage: !lag <nick> (measure) | !lag <nick> show | !lag list | !lag clear [nick]"
+
+
+@command(
+    "sexact",
+    description="Send a message at exact time using stored lag compensation",
+    usage="!sexact <nick|#channel> <HH:MM:SS> <message>",
+    examples=[
+        "!sexact Beiki 12:00:00 Hello Beiki!",
+        "!sexact Beiki #channel 14:30:00 Hello everyone!",
+    ],
+    requires_args=False,
+    scope=CommandScope.CONSOLE_ONLY,
+)
+def sexact_command(context: CommandContext, bot_functions):
+    """
+    Send a message at exact time using stored lag compensation.
+    
+    Usage:
+        !sexact <nick> <HH:MM:SS> <message>       - Send to nick (uses nick's lag)
+        !sexact <nick> #channel <HH:MM:SS> <msg>  - Send to channel using nick's lag
+    """
+    import re
+    from services.scheduled_message_service import send_scheduled_message
+
+    # Get the message handler and server connection
+    bot_manager = bot_functions.get("bot_manager")
+    if not bot_manager:
+        message_handler = bot_functions.get("message_handler")
+        if message_handler:
+            class BotManagerStub:
+                def __init__(self, mh):
+                    self.message_handler = mh
+            bot_manager = BotManagerStub(message_handler)
+        else:
+            return "❌ Bot manager not available"
+    elif not hasattr(bot_manager, "message_handler"):
+        return "❌ Bot manager has no message_handler"
+
+    message_handler = bot_manager.message_handler
+    irc = get_irc_connection(context, bot_functions)
+    if not irc:
+        return "❌ No IRC connection available"
+
+    # Parse arguments
+    if len(context.args) < 3:
+        return "Usage: !sexact <nick> <HH:MM:SS> <message> or !sexact <nick> #channel <HH:MM:SS> <message>"
+
+    # Check if format is: !sexact <nick> #channel <time> <message>
+    # Pattern: nick starts with letter (not #), and has #channel as second arg
+    if len(context.args) >= 4 and context.args[1].startswith("#"):
+        # Format: !sexact <nick> #channel <time> <message>
+        nick = context.args[0]
+        channel = context.args[1]
+        time_str = context.args[2]
+        message = " ".join(context.args[3:])
+    else:
+        # Format: !sexact <nick|channel> <time> <message>
+        target = context.args[0]
+        time_str = context.args[1]
+        message = " ".join(context.args[2:])
+        
+        # Determine if target is a nick or channel
+        if target.startswith("#"):
+            # It's a channel - need a nick to get lag from
+            return "❌ For channels, use format: !sexact <nick> #channel <time> <message>"
+        else:
+            # It's a nick - send to the nick directly
+            nick = target
+            channel = nick
+
+    # Parse time (HH:MM:SS)
+    time_pattern = r"(\d{1,2}):(\d{2}):(\d{2})"
+    match = re.match(time_pattern, time_str)
+    if not match:
+        return "❌ Invalid time format. Use HH:MM:SS"
+    
+    hour = int(match.group(1))
+    minute = int(match.group(2))
+    second = int(match.group(3))
+    
+    if hour > 23 or minute > 59 or second > 59:
+        return "❌ Invalid time values"
+
+    # Get stored lag for the nick
+    server_name = irc.config.name
+    lag_ms = message_handler._get_lag(server_name, nick)
+    
+    if lag_ms is None:
+        return f"❌ No lag measured for {nick}. Run !lag {nick} first."
+
+    # Schedule the message with lag compensation
     try:
-        result = message_handler._send_latency_ping(irc, target)
-        return result
+        msg_id = send_scheduled_message(
+            irc_client=irc,
+            channel=channel,
+            message=message,
+            hour=hour,
+            minute=minute,
+            second=second,
+            nanosecond=0,
+            lag_ms=lag_ms,
+        )
+        target_time = f"{hour:02d}:{minute:02d}:{second:02d}"
+        return f"✅ Message scheduled to arrive at {target_time} (sending at {target_time} - {lag_ms/2:.1f}ms early, lag: {lag_ms:.1f}ms)"
     except Exception as e:
-        return f"❌ Failed to send latency ping: {str(e)}"
+        return f"❌ Failed to schedule message: {str(e)}"
 
 
 @command(
