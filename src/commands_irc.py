@@ -742,6 +742,7 @@ def latency_command(context: CommandContext, bot_functions):
     if not bot_manager:
         message_handler = bot_functions.get("message_handler")
         if message_handler:
+
             class BotManagerStub:
                 def __init__(self, mh):
                     self.message_handler = mh
@@ -773,7 +774,11 @@ def latency_command(context: CommandContext, bot_functions):
             for (srv, nick), lag_ms in sorted(lags.items(), key=lambda x: x[1]):
                 if srv == server_name.lower():
                     lines.append(f"  {nick}: {lag_ms:.2f} ms")
-            return "\n".join(lines) if len(lines) > 1 else "📊 No stored lags for this server"
+            return (
+                "\n".join(lines)
+                if len(lines) > 1
+                else "📊 No stored lags for this server"
+            )
 
         # !lag clear [nick] - clear lag(s)
         if first_arg == "clear":
@@ -789,7 +794,7 @@ def latency_command(context: CommandContext, bot_functions):
                 server_name = irc.config.name
                 lags = message_handler._list_lags(server_name)
                 count = len(lags)
-                for (srv, nick) in lags.keys():
+                for srv, nick in lags.keys():
                     message_handler._clear_lag(srv, nick)
                 return f"✅ Cleared {count} lag(s) for {server_name}"
 
@@ -835,12 +840,13 @@ def latency_command(context: CommandContext, bot_functions):
 def sexact_command(context: CommandContext, bot_functions):
     """
     Send a message at exact time using stored lag compensation.
-    
+
     Usage:
         !sexact <nick> <HH:MM:SS> <message>       - Send to nick (uses nick's lag)
         !sexact <nick> #channel <HH:MM:SS> <msg>  - Send to channel using nick's lag
     """
     import re
+
     from services.scheduled_message_service import send_scheduled_message
 
     # Get the message handler and server connection
@@ -848,9 +854,11 @@ def sexact_command(context: CommandContext, bot_functions):
     if not bot_manager:
         message_handler = bot_functions.get("message_handler")
         if message_handler:
+
             class BotManagerStub:
                 def __init__(self, mh):
                     self.message_handler = mh
+
             bot_manager = BotManagerStub(message_handler)
         else:
             return "❌ Bot manager not available"
@@ -879,11 +887,13 @@ def sexact_command(context: CommandContext, bot_functions):
         target = context.args[0]
         time_str = context.args[1]
         message = " ".join(context.args[2:])
-        
+
         # Determine if target is a nick or channel
         if target.startswith("#"):
             # It's a channel - need a nick to get lag from
-            return "❌ For channels, use format: !sexact <nick> #channel <time> <message>"
+            return (
+                "❌ For channels, use format: !sexact <nick> #channel <time> <message>"
+            )
         else:
             # It's a nick - send to the nick directly
             nick = target
@@ -894,18 +904,18 @@ def sexact_command(context: CommandContext, bot_functions):
     match = re.match(time_pattern, time_str)
     if not match:
         return "❌ Invalid time format. Use HH:MM:SS"
-    
+
     hour = int(match.group(1))
     minute = int(match.group(2))
     second = int(match.group(3))
-    
+
     if hour > 23 or minute > 59 or second > 59:
         return "❌ Invalid time values"
 
     # Get stored lag for the nick
     server_name = irc.config.name
     lag_ms = message_handler._get_lag(server_name, nick)
-    
+
     if lag_ms is None:
         return f"❌ No lag measured for {nick}. Run !lag {nick} first."
 

@@ -1914,7 +1914,8 @@ class MessageHandler:
         with self._lag_storage_lock:
             if server_name:
                 return {
-                    k: v for k, v in self._lag_storage.items()
+                    k: v
+                    for k, v in self._lag_storage.items()
                     if k[0] == server_name.lower()
                 }
             return dict(self._lag_storage)

@@ -37,7 +37,7 @@ class ScheduledMessageService:
     ) -> str:
         """
         Accepts milliseconds, microseconds and nanoseconds, schedules using nanoseconds.
-        
+
         Args:
             lag_ms: Optional lag in milliseconds to compensate for network delay.
                    If provided, message will be sent earlier by lag_ms/2 to account
@@ -78,7 +78,9 @@ class ScheduledMessageService:
 
         # Apply lag compensation: send earlier by one-way delay (lag_ms / 2)
         if lag_ms is not None and lag_ms > 0:
-            lag_ns = int(lag_ms * 1_000_000 / 2)  # Convert ms to ns, then half for one-way
+            lag_ns = int(
+                lag_ms * 1_000_000 / 2
+            )  # Convert ms to ns, then half for one-way
             compensated_ns = target_epoch_ns - lag_ns
             self.logger.info(
                 f"Applying lag compensation: {lag_ms:.2f}ms (one-way: {lag_ms/2:.2f}ms, "
@@ -325,7 +327,7 @@ def send_scheduled_message(
 ) -> str:
     """
     Convenience function to schedule a message with nanosecond resolution.
-    
+
     Args:
         lag_ms: Optional lag in milliseconds to compensate for network delay.
     """
