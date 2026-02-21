@@ -97,6 +97,8 @@ class BACTracker:
         if weight_kg is not None:
             if 30 <= weight_kg <= 300:
                 profiles[user_key]["weight_kg"] = weight_kg
+                # Clear stored burn_rate so it recalculates based on new weight
+                profiles[user_key].pop("burn_rate", None)
             # If invalid, don't set it (will use default)
 
         # Validate and set sex
@@ -104,6 +106,8 @@ class BACTracker:
             sex_lower = sex.lower()
             if sex_lower in ["m", "f"]:
                 profiles[user_key]["sex"] = sex_lower
+                # Clear stored burn_rate so it recalculates based on new sex
+                profiles[user_key].pop("burn_rate", None)
             # If invalid, don't set it (will use default)
 
         # Validate and set burn rate
