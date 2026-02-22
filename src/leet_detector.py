@@ -370,6 +370,49 @@ class LeetDetector:
 
         return None
 
+    # Special 420 leet detection
+    _420_LEET_RESPONSES = [
+        "🌿 420 Leet! 🌿",
+        "🔥 Blaze it! 🔥",
+        "🍃 420 detected! 🍃",
+        "😎 Ultimate 420! 😎",
+        "💚 Green legend! 💚",
+        "🌟 420 Master! 🌟",
+        "☮️ Peaceful 420! ☮️",
+        "✨ Mellow vibes! ✨",
+        "🎉 420 celebration! 🎉",
+        "💨 Cloud master! 💨",
+    ]
+
+    def check_420_leet(
+        self, nick: str, user_message: Optional[str] = None
+    ) -> Optional[Tuple[str, str]]:
+        """
+        Check if a message contains 420 and respond with a special 420 leet.
+
+        Args:
+            nick: Nickname of the message sender
+            user_message: Optional user message text to check for 420
+
+        Returns:
+            Tuple of (achievement_message, achievement_level) or None
+        """
+        import random
+        import re
+
+        if not user_message:
+            return None
+
+        # Check if message contains "420" as a standalone number
+        if re.search(r"\b420\b", user_message, re.IGNORECASE):
+            response = random.choice(self._420_LEET_RESPONSES)
+            achievement_message = f"🌟 420 LEET: {nick} {response}"
+
+            self.logger.info(f"420 leet detected for {nick}: {user_message}")
+            return (achievement_message, "420")
+
+        return None
+
     def get_achievement_stats(self) -> Dict[str, Dict[str, any]]:
         """
         Get statistics about all achievement levels.

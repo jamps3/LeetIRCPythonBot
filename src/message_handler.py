@@ -59,6 +59,7 @@ class MessageHandler:
         # Load configuration settings
         self.use_notices = self._load_use_notices_setting()
         self.tamagotchi_enabled = self._load_tamagotchi_enabled_setting()
+        self.four_twenty_enabled = self._load_420_enabled_setting()
 
         # Cache sanaketju game instance to prevent duplicate command imports
         self._sanaketju_game = None
@@ -102,6 +103,23 @@ class MessageHandler:
         """Load TAMAGOTCHI_ENABLED setting from environment."""
         tamagotchi_setting = os.getenv("TAMAGOTCHI_ENABLED", "true").lower()
         return tamagotchi_setting in ("true", "1", "yes", "on")
+
+    def _load_420_enabled_setting(self) -> bool:
+        """Load 420 feature enabled setting from data manager."""
+        try:
+            state = self.data_manager.load_state()
+            return state.get("420_enabled", True)  # Default to True
+        except Exception:
+            return True  # Default to enabled
+
+    def _save_420_enabled_setting(self, enabled: bool):
+        """Save 420 feature enabled setting to data manager."""
+        try:
+            state = self.data_manager.load_state()
+            state["420_enabled"] = enabled
+            self.data_manager.save_state(state)
+        except Exception as e:
+            logger.error(f"Error saving 420 enabled setting: {e}")
 
     def _initialize_x_cache_settings(self):
         """Initialize X cache settings with defaults if not already set."""
@@ -147,8 +165,20 @@ class MessageHandler:
             if sender.lower() != server.bot_name.lower():
                 self._check_nanoleet_achievement(context)
 
+            # 🌿 Check for 420 special leet in message content
+            if sender.lower() != server.bot_name.lower() and self.four_twenty_enabled:
+                self._check_420_leet_achievement(context)
+
             # Process commands FIRST (before AI chat) to ensure commands are handled properly
             await self._process_commands(context)
+
+            # 🌿 Check for 420 auto-response (but not for commands or bot itself)
+            if (
+                sender.lower() != server.bot_name.lower()
+                and not text.strip().startswith("!")
+                and self.four_twenty_enabled
+            ):
+                self._handle_420_response(context)
 
             # Track words if not from the bot itself (but skip if this was a command)
             if (
@@ -556,6 +586,74 @@ class MessageHandler:
 
         except Exception as e:
             logger.error(f"Error checking nanoleet achievement: {e}")
+
+    def _check_420_leet_achievement(self, context: Dict[str, Any]):
+        """Check for 420 special leet in message content."""
+        server = context["server"]
+        target = context["target"]
+        sender = context["sender"]
+        user_message = context["text"]
+
+        # Only check in channels, not private messages
+        if not target.startswith("#"):
+            return
+
+        # Skip if it's a command
+        if user_message.strip().startswith("!"):
+            return
+
+        try:
+            leet_detector = self.service_manager.get_service("leet_detector")
+            if not leet_detector:
+                return
+
+            # Check for 420 leet achievement in the message content
+            result = leet_detector.check_420_leet(sender, user_message)
+
+            if result:
+                achievement_message, achievement_level = result
+                # Send achievement message to the channel
+                self._send_response(server, target, achievement_message)
+
+                # Log the achievement
+                logger.info(
+                    f"420 leet: {achievement_level} for {sender} in {target} - message: {user_message}"
+                )
+
+        except Exception as e:
+            logger.error(f"Error checking 420 leet achievement: {e}")
+
+    # 420 auto-response messages
+    _420_AUTO_RESPONSES = [
+        "🌿 420! 🌿",
+        "🔥 Blaze it! 🔥",
+        "🍃 High five! 🍃",
+        "😎 420, man! 😎",
+        "🌱 It's 420 somewhere! 🌱",
+        "💨 Cloud nine! 💨",
+        "🎉 4/20! 🎉",
+        "🌿 Hyvä! 🌿",
+        "💚 Green vibes! 💚",
+        "✌️ Peace! ✌️",
+        "☮️ Stay mellow! ☮️",
+        "🌞 Good vibes! 🌞",
+    ]
+
+    def _handle_420_response(self, context: Dict[str, Any]):
+        """Respond to 420 mentions in chat."""
+        import random
+        import re
+
+        text = context["text"]
+        server = context["server"]
+        target = context["target"]
+
+        # Check if message contains "420" as a standalone number
+        # Match 420 surrounded by word boundaries or whitespace
+        if re.search(r"\b420\b", text, re.IGNORECASE):
+            response = random.choice(self._420_AUTO_RESPONSES)
+            self._send_response(server, target, response)
+            logger.debug(f"420 auto-response triggered in {target}")
 
     def _track_words(self, context: Dict[str, Any]):
         """Track words for statistics and drink tracking."""

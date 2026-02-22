@@ -337,6 +337,144 @@ def version_command(context: CommandContext, bot_functions):
     return f"Bot version: {version}"
 
 
+# 420-related responses and countdown
+_420_RESPONSES = [
+    # Classic 420 responses
+    "🌿 420! Stay chill! 🌿",
+    "🔥 Blaze it! 🔥",
+    "🍃 High five! 🍃",
+    "😎 420, man! 😎",
+    "🌱 It's 420 somewhere! 🌱",
+    "🎉 4/20 forever! 🎉",
+    "💨 Cloud nine calling! 💨",
+    # Finnish/Estonian vibes
+    "🌿 Hyvä meininki! 🌿",
+    "🔥 Saundaa! 🔥",
+    "😎 420 vaan! 😎",
+    # Fun responses
+    "🍪 Time for cookies! 🍪",
+    "🎰 Lucky number 420! 🎰",
+    "🌟 Legendary number! 🌟",
+    "💚 Green vibes only! 💚",
+    "☮️ Peace and love! ☮️",
+    "🎶 Bobbing along! 🎶",
+    "🦋 Floating on clouds! 🦋",
+    # Emoji combinations
+    "🌿☀️🌿",
+    "🔥💨🔥",
+    "🍃🎵🍃",
+    "😎✨😎",
+    # Inspirational
+    "Stay elevated! 💫",
+    "Keep it mellow! 🌊",
+    "Good vibes only! ✌️",
+    "Stay positive! 🌞",
+    # Random fun
+    "Puff puff pass! 🎋",
+    "Herb is the word! 🌾",
+    "Nature's gift! 🌻",
+    "Pure relaxation! 🧘",
+    "Live and let live! 🕊️",
+]
+
+
+def _get_420_countdown() -> str:
+    """Calculate days until next April 20th."""
+    now = datetime.now()
+    current_year = now.year
+    # April 20th of current year
+    april_20 = datetime(current_year, 4, 20)
+
+    if now > april_20:
+        # Already passed this year, next year's April 20th
+        april_20 = datetime(current_year + 1, 4, 20)
+
+    days_until = (april_20 - now).days
+    return days_until
+
+
+def _get_1620_countdown() -> str:
+    """Calculate time until next 16:20 (4:20 PM) today."""
+    now = datetime.now()
+    current_hour = now.hour
+    current_minute = now.minute
+
+    # Target: 16:20 (4:20 PM)
+    target_hour = 16
+    target_minute = 20
+
+    # Calculate minutes until 16:20
+    current_minutes = current_hour * 60 + current_minute
+    target_minutes = target_hour * 60 + target_minute
+
+    if current_minutes >= target_minutes:
+        # Already passed today, tomorrow's 16:20
+        minutes_until = (24 * 60 - current_minutes) + target_minutes
+    else:
+        minutes_until = target_minutes - current_minutes
+
+    hours = minutes_until // 60
+    mins = minutes_until % 60
+
+    if hours > 0:
+        return f"{hours}h {mins}min"
+    else:
+        return f"{mins}min"
+
+
+@command(
+    "420",
+    description="420 countdown and toggle responses",
+    usage="!420 [on|off|toggle]",
+)
+def four_twenty_command(context: CommandContext, bot_functions):
+    """Show 420 countdown and respond with 420 vibes! Use !420 on/off to toggle."""
+    import random
+
+    # Check for on/off/toggle argument
+    args = context.args if hasattr(context, "args") and context.args else []
+
+    if args:
+        # Handle toggle command
+        action = args[0].lower() if args else ""
+        data_manager = bot_functions.get("data_manager")
+
+        if action in ("on", "off", "toggle") and data_manager:
+            try:
+                state = data_manager.load_state()
+                current_enabled = state.get("420_enabled", True)
+
+                if action == "on":
+                    new_enabled = True
+                elif action == "off":
+                    new_enabled = False
+                else:  # toggle
+                    new_enabled = not current_enabled
+
+                # Update the setting
+                state["420_enabled"] = new_enabled
+                data_manager.save_state(state)
+
+                status = "päällä" if new_enabled else "pois päältä"
+                return f"🌿 420 responses: {status} 🌿"
+            except Exception as e:
+                return f"🌿 Error updating 420 setting: {e}"
+
+    # Default: show countdown
+    days = _get_420_countdown()
+    time_to_1620 = _get_1620_countdown()
+    response = random.choice(_420_RESPONSES)
+
+    # Check if today is 4/20
+    now = datetime.now()
+    is_420_today = now.month == 4 and now.day == 20
+
+    if is_420_today:
+        return f"🎉 IT'S 4/20 TODAY! 🎉 | {response}"
+    else:
+        return f"⏰ {days} päivää 4/20:een | ⌚ {time_to_1620} 16:20:een | {response}"
+
+
 @command("ping", description="Check if bot is responsive", usage="!ping")
 def ping_command(context: CommandContext, bot_functions):
     """Simple ping command to check bot responsiveness."""
