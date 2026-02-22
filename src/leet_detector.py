@@ -385,7 +385,10 @@ class LeetDetector:
     ]
 
     def check_420_leet(
-        self, nick: str, user_message: Optional[str] = None, timestamp: Optional[str] = None
+        self,
+        nick: str,
+        user_message: Optional[str] = None,
+        timestamp: Optional[str] = None,
     ) -> Optional[Tuple[str, str]]:
         """
         Check if a message contains 420 in message OR timestamp and respond with a special 420 leet.

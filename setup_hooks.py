@@ -49,31 +49,34 @@ fi
 
 echo "Using Python: $PYTHON_CMD"
 
-# Run isort if available
+# Run isort if available, fail if not found
 if $PYTHON_CMD -m isort --version >/dev/null 2>&1; then
   echo "$PYTHON_CMD -m isort ."
   $PYTHON_CMD -m isort .
 else
-  echo "isort not found, skipping (pip install isort)"
+  echo "ERROR: isort not found. Install with: pip install isort"
+  exit 1
 fi
 
-# Run black if available
+# Run black if available, fail if not found
 if $PYTHON_CMD -m black --version >/dev/null 2>&1; then
   echo "$PYTHON_CMD -m black ."
   $PYTHON_CMD -m black .
 else
-  echo "black not found, skipping (pip install black)"
+  echo "ERROR: black not found. Install with: pip install black"
+  exit 1
 fi
 
 # Note: We don't auto-stage files here to avoid accidentally committing
 # unintended changes. Run 'git add <files>' manually before commit.
 
-# Run flake8 if available (lint errors should fail the commit)
+# Run flake8 if available, fail if not found
 if $PYTHON_CMD -m flake8 --version >/dev/null 2>&1; then
   echo "$PYTHON_CMD -m flake8 ."
   $PYTHON_CMD -m flake8 .
 else
-  echo "flake8 not found, skipping (pip install flake8)"
+  echo "ERROR: flake8 not found. Install with: pip install flake8"
+  exit 1
 fi
 
 # Optionally run tests if PRECOMMIT_RUN_TESTS is enabled
