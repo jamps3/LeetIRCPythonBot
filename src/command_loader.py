@@ -22,7 +22,6 @@ def load_all_commands():
         import commands  # unified commands module
 
         # import commands_admin
-        # import commands_irc  # IRC commands with / prefix
         # Resolve registry at call time to avoid early imports
         from command_registry import get_command_registry
 

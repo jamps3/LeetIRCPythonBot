@@ -47,7 +47,6 @@ def ensure_command_registry():
 
         import commands
         import commands_admin
-        import commands_irc
         import commands_services
 
         # Force reload so decorators execute again after registry reset
@@ -64,11 +63,6 @@ def ensure_command_registry():
                 raise
         try:
             importlib.reload(commands_admin)
-        except ValueError as e:
-            if "already registered" not in str(e):
-                raise
-        try:
-            importlib.reload(commands_irc)
         except ValueError as e:
             if "already registered" not in str(e):
                 raise
@@ -992,7 +986,7 @@ def test_drink_commands_full_cycle(tmp_path):
     assert responses and any("Krakit" in r for r in responses)
 
 
-def test_tamagotchi_commands_basic():
+def test_tamagotchi_commands():
     from command_loader import process_console_command
     from word_tracking import DataManager
 
@@ -1299,10 +1293,9 @@ def test_schedule_management_list_and_cancel(monkeypatch):
     # Force reload all command modules to ensure all commands are registered
     import commands
     import commands_admin
-    import commands_irc
 
     # Reload modules to trigger command registration (ignore duplicate errors)
-    for mod in [commands, commands_admin, commands_irc]:
+    for mod in [commands, commands_admin]:
         try:
             importlib.reload(mod)
         except ValueError:
@@ -1796,10 +1789,9 @@ def test_scheduled_empty_and_not_found_and_usage(monkeypatch):
     # Force reload all command modules to ensure all commands are registered
     import commands
     import commands_admin
-    import commands_irc
 
     # Reload modules to trigger command registration (ignore duplicate errors)
-    for mod in [commands, commands_admin, commands_irc]:
+    for mod in [commands, commands_admin]:
         try:
             importlib.reload(mod)
         except ValueError:

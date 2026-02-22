@@ -931,11 +931,9 @@ def test_quit_command_console_triggers_shutdown():
     try:
         import commands
         import commands_admin
-        import commands_irc
 
         importlib.reload(commands)
         importlib.reload(commands_admin)
-        importlib.reload(commands_irc)
     except Exception:
         pass
 

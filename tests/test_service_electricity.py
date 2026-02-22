@@ -42,7 +42,6 @@ def reset_command_registry():
         try:
             import commands  # noqa: F401
             import commands_admin  # noqa: F401
-            import commands_irc  # noqa: F401
         except Exception:
             pass
 

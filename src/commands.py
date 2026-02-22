@@ -847,6 +847,13 @@ def np_command(context: CommandContext, bot_functions):
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    # Load additional namedays (Swedish, Sami, Orthodox) if available
+    others_path = os.path.join(base_dir, "data", "nimipaivat_others.json")
+    others_data = {}
+    if os.path.exists(others_path):
+        with open(others_path, "r", encoding="utf-8") as f:
+            others_data = json.load(f)
+
     args = getattr(context, "args", [])
     query = " ".join(args).strip() if args else ""
 
@@ -857,6 +864,26 @@ def np_command(context: CommandContext, bot_functions):
             msg_parts.append("Viralliset: " + ", ".join(entry["official"]))
         if entry.get("unofficial"):
             msg_parts.append("Epäviralliset: " + ", ".join(entry["unofficial"]))
+
+        # Add other namedays (Swedish, Sami, Orthodox) - match on month-day only
+        key_suffix = f"-{dt.month:02d}-{dt.day:02d}"
+        other_entry = None
+        for other_key in others_data.keys():
+            if other_key.endswith(key_suffix):
+                other_entry = others_data[other_key]
+                break
+
+        if other_entry:
+            other_parts = []
+            if other_entry.get("swedish"):
+                other_parts.append("Ruotsalaiset: " + ", ".join(other_entry["swedish"]))
+            if other_entry.get("sami"):
+                other_parts.append("Saamelaiset: " + ", ".join(other_entry["sami"]))
+            if other_entry.get("orthodox"):
+                other_parts.append("Ortodoksit: " + ", ".join(other_entry["orthodox"]))
+            if other_parts:
+                msg_parts.append(" | ".join(other_parts))
+
         if entry.get("dogs"):
             msg_parts.append("Koirat: " + ", ".join(entry["dogs"]))
         if entry.get("cats"):
@@ -914,6 +941,7 @@ def np_command(context: CommandContext, bot_functions):
     name = query.lower()
     results = []
 
+    # Search in main data
     for k, v in data.items():
         all_names = (
             v.get("official", [])
@@ -923,6 +951,14 @@ def np_command(context: CommandContext, bot_functions):
         )
         if any(name == n.lower() for n in all_names):
             results.append(format_entry(k, v))
+
+    # Also search in others_data (Swedish, Sami, Orthodox)
+    for k, v in others_data.items():
+        all_names = v.get("swedish", []) + v.get("sami", []) + v.get("orthodox", [])
+        if any(name == n.lower() for n in all_names):
+            # Avoid duplicates - only add if not already in results
+            if not any(k in r for r in results):
+                results.append(format_entry(k, data.get(k, {})))
 
     if results:
         msg = f"Nimi '{query.title()}' löytyy seuraavilta päiviltä: " + " || ".join(

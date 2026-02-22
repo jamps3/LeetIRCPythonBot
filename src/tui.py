@@ -2371,7 +2371,6 @@ Tips:
                 # Import command modules to ensure they're loaded
                 import commands  # noqa: F401
                 import commands_admin  # noqa: F401
-                import commands_irc  # noqa: F401
                 from command_registry import CommandScope as _CS
                 from command_registry import get_command_registry
 

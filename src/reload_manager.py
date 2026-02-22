@@ -18,12 +18,10 @@ RELOADABLE_MODULES: List[str] = [
     # Base modules first
     "command_registry",
     "command_loader",
-    # Command modules
+    # Command modules (imported by commands.py)
     "commands",
     "commands_services",
     "commands_admin",
-    "commands_basic",
-    "commands_irc",
 ]
 
 # Service modules to reload (imported by commands_services)

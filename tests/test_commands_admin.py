@@ -2,7 +2,7 @@
 """
 Minimal Admin Commands Tests
 
-Tests for the remaining admin commands after moving IRC commands to commands_irc.py
+Tests for admin commands in commands_admin.py
 """
 
 import os

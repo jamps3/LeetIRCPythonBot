@@ -50,7 +50,6 @@ def reset_command_registry():
 
         import commands
         import commands_admin
-        import commands_irc
 
         # Force reload so decorators execute again after registry reset
         # Ignore duplicate registration errors
@@ -61,11 +60,6 @@ def reset_command_registry():
                 raise
         try:
             importlib.reload(commands_admin)
-        except ValueError as e:
-            if "already registered" not in str(e):
-                raise
-        try:
-            importlib.reload(commands_irc)
         except ValueError as e:
             if "already registered" not in str(e):
                 raise
