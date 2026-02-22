@@ -39,13 +39,13 @@ class LeetDetector:
                 "name": "Ultimate Leet!!",
                 "emoji": "🏆👑",
                 "criteria": "Perfect 13:37:13.371337133 format",
-                "min_count": 1,
+                # min_count not used - determined by pattern matching
             },
             "heroic": {
                 "name": "Heroic Leet!!",
                 "emoji": "🥇🚀",
                 "criteria": "Almost perfect 13:37:13.371337 format",
-                "min_count": 1,
+                # min_count not used - determined by pattern matching
             },
             "mega": {
                 "name": "Mega Leet!",
