@@ -13,14 +13,14 @@ from typing import Any, Dict, Optional
 
 import requests
 
-import logger
+from logger import get_logger
 from lemmatizer import Lemmatizer
 from server import Server
 from tamagotchi import TamagotchiBot
 from word_tracking import DataManager, DrinkTracker, GeneralWords
 from word_tracking.bac_tracker import BACTracker
 
-logger = logger.get_logger("MessageHandler")
+logger = get_logger("MessageHandler")
 
 
 class MessageHandler:

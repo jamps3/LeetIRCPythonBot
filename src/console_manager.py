@@ -10,9 +10,9 @@ import threading
 import time
 from typing import Any, Dict
 
-import logger
+from logger import get_logger
 
-logger = logger.get_logger("ConsoleManager")
+logger = get_logger("ConsoleManager")
 
 
 class ConsoleManager:

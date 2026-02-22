@@ -8,10 +8,10 @@ This includes weather, GPT, electricity, YouTube, crypto, Alko, Otiedote, and FM
 import os
 from typing import Any, Dict, Optional
 
-import logger
+from logger import get_logger
 from config import get_api_key
 
-logger = logger.get_logger("ServiceManager")
+logger = get_logger("ServiceManager")
 
 
 class ServiceManager:

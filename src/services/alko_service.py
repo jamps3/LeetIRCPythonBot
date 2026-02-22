@@ -12,9 +12,9 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import requests
 
-import logger
+from logger import get_logger
 
-logger = logger.get_logger("AlkoService")
+logger = get_logger("AlkoService")
 
 
 class AlkoService:
