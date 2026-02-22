@@ -169,7 +169,9 @@ class TamagotchiBot:
         if not response_parts:
             response_parts = [f"Kiitos {interactor}!" if interactor else "Kiitos!"]
 
-        status = f"[Lvl:{new_level} ❤️:{state['happiness']}/100 🍽️:{state['hunger']}/100]"
+        status = (
+            f"[Lvl:{new_level} ❤️:{state['happiness']}/100 🍽️:{state['hunger']}/100]"
+        )
 
         final_response = f"{mood_emoji} {' '.join(response_parts)} {status}"
 

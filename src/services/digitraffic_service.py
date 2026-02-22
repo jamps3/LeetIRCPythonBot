@@ -12,6 +12,7 @@ Notes:
 - Accepts common forms like "Joensuu" or "JNS" (case-insensitive).
 - Returns a short, IRC-friendly summary string. Multiple lines are separated by \n.
 """
+
 from __future__ import annotations
 
 import datetime as dt

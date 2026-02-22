@@ -173,8 +173,7 @@ class EurojackpotScraper:
         """
         try:
             # Method 1: Look for structured data in JSON-LD or data attributes
-            structured_data = page.evaluate(
-                """
+            structured_data = page.evaluate("""
                 () => {
                     // Look for JSON-LD structured data
                     const scripts = document.querySelectorAll('script[type="application/ld+json"]');
@@ -194,8 +193,7 @@ class EurojackpotScraper:
 
                     return null;
                 }
-            """
-            )
+            """)
 
             if structured_data:
                 logger.info("Found structured data")
