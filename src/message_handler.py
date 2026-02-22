@@ -588,7 +588,7 @@ class MessageHandler:
             logger.error(f"Error checking nanoleet achievement: {e}")
 
     def _check_420_leet_achievement(self, context: Dict[str, Any]):
-        """Check for 420 special leet in message content."""
+        """Check for 420 special leet in message content and timestamp."""
         server = context["server"]
         target = context["target"]
         sender = context["sender"]
@@ -607,8 +607,11 @@ class MessageHandler:
             if not leet_detector:
                 return
 
-            # Check for 420 leet achievement in the message content
-            result = leet_detector.check_420_leet(sender, user_message)
+            # Get timestamp with nanoseconds for 420 detection
+            timestamp = leet_detector.get_timestamp_with_nanoseconds()
+
+            # Check for 420 leet achievement in the message content AND timestamp
+            result = leet_detector.check_420_leet(sender, user_message, timestamp)
 
             if result:
                 achievement_message, achievement_level = result
@@ -617,7 +620,7 @@ class MessageHandler:
 
                 # Log the achievement
                 logger.info(
-                    f"420 leet: {achievement_level} for {sender} in {target} - message: {user_message}"
+                    f"420 leet: {achievement_level} for {sender} in {target} at {timestamp}"
                 )
 
         except Exception as e:

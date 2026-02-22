@@ -385,14 +385,15 @@ class LeetDetector:
     ]
 
     def check_420_leet(
-        self, nick: str, user_message: Optional[str] = None
+        self, nick: str, user_message: Optional[str] = None, timestamp: Optional[str] = None
     ) -> Optional[Tuple[str, str]]:
         """
-        Check if a message contains 420 and respond with a special 420 leet.
+        Check if a message contains 420 in message OR timestamp and respond with a special 420 leet.
 
         Args:
             nick: Nickname of the message sender
             user_message: Optional user message text to check for 420
+            timestamp: Optional timestamp to check for 420 in nanoseconds
 
         Returns:
             Tuple of (achievement_message, achievement_level) or None
@@ -400,13 +401,24 @@ class LeetDetector:
         import random
         import re
 
-        if not user_message:
-            return None
+        # Get timestamp if not provided
+        if timestamp is None:
+            timestamp = self.get_timestamp_with_nanoseconds()
+
+        # Check for 420 in the timestamp (nanoseconds part like the 1337 detection)
+        if "." in timestamp:
+            time_part, nano_part = timestamp.split(".", 1)
+            # Check for 420 in nanoseconds (like nano leet for 1337)
+            if "420" in nano_part:
+                response = random.choice(self._420_LEET_RESPONSES)
+                achievement_message = f"🌟 420 NANO: {nick} {response}"
+                self.logger.info(f"420 nano leet detected for {nick} at {timestamp}")
+                return (achievement_message, "420_nano")
 
         # Check if message contains "420" as a standalone number
-        if re.search(r"\b420\b", user_message, re.IGNORECASE):
+        if user_message and re.search(r"\b420\b", user_message, re.IGNORECASE):
             response = random.choice(self._420_LEET_RESPONSES)
-            achievement_message = f"🌟 420 LEET: {nick} {response}"
+            achievement_message = f"🌟 {nick} {response}"
 
             self.logger.info(f"420 leet detected for {nick}: {user_message}")
             return (achievement_message, "420")
