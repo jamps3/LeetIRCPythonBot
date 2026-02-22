@@ -46,18 +46,74 @@ from server import Server
 from tamagotchi import TamagotchiBot
 from word_tracking import DataManager, DrinkTracker, GeneralWords
 
-# Initialize word tracking system (shared singletons)
-_data_manager = DataManager()
-_drink_tracker = DrinkTracker(_data_manager)
-_general_words = GeneralWords(_data_manager)
-_tamagotchi_bot = TamagotchiBot(_data_manager)
+# Lazy-initialized singletons to avoid duplicate DataManager instances
+# These will be initialized on first access using config's state_file
+_data_manager = None
+_drink_tracker = None
+_general_words = None
+_tamagotchi_bot = None
+
+
+def _get_data_manager():
+    """Lazy getter for DataManager to ensure single shared instance."""
+    global _data_manager
+    if _data_manager is None:
+        from config import get_config
+        config = get_config()
+        _data_manager = DataManager(state_file=config.state_file)
+    return _data_manager
+
+
+def _get_drink_tracker():
+    """Lazy getter for DrinkTracker."""
+    global _drink_tracker
+    if _drink_tracker is None:
+        _drink_tracker = DrinkTracker(_get_data_manager())
+    return _drink_tracker
+
+
+def _get_general_words():
+    """Lazy getter for GeneralWords."""
+    global _general_words
+    if _general_words is None:
+        _general_words = GeneralWords(_get_data_manager())
+    return _general_words
+
+
+def _get_tamagotchi_bot():
+    """Lazy getter for TamagotchiBot."""
+    global _tamagotchi_bot
+    if _tamagotchi_bot is None:
+        _tamagotchi_bot = TamagotchiBot(_get_data_manager())
+    return _tamagotchi_bot
+
 
 # Backwards-compatibility aliases for tests and external modules that monkeypatch
-# These names match those previously exposed by commands_extended.py
-data_manager = _data_manager
-drink_tracker = _drink_tracker
-general_words = _general_words
-tamagotchi_bot = _tamagotchi_bot
+# These now delegate to the lazy getters using a forwarding proxy
+class _LazyDataManagerProxy:
+    """Proxy that forwards all attribute accesses to the lazily-initialized DataManager."""
+    def __getattr__(self, name):
+        return getattr(_get_data_manager(), name)
+
+
+class _LazyGeneralWordsProxy:
+    """Proxy that forwards all attribute accesses to the lazily-initialized GeneralWords."""
+    def __getattr__(self, name):
+        return getattr(_get_general_words(), name)
+
+
+class _LazyTamagotchiProxy:
+    """Proxy that forwards all attribute accesses to the lazily-initialized TamagotchiBot."""
+    def __getattr__(self, name):
+        return getattr(_get_tamagotchi_bot(), name)
+
+
+# For backward compatibility, create proxy objects
+# These will delegate to lazy-initialized instances on first access
+data_manager = _LazyDataManagerProxy()
+drink_tracker = _LazyDataManagerProxy()  # Shares DataManager with data_manager  
+general_words = _LazyGeneralWordsProxy()
+tamagotchi_bot = _LazyTamagotchiProxy()
 
 
 # =====================
@@ -1519,7 +1575,7 @@ def command_sana(context, bot_functions):
         if not search_word:
             return "Käytä komentoa: !sana <sana> [limit]"
 
-        results = _general_words.search_word(search_word)
+        results = _get_general_words().search_word(search_word)
 
         # Determine current server (fallback to 'console' if missing)
         current_server = getattr(context, "server_name", "") or "console"
@@ -1700,7 +1756,7 @@ def command_leaderboard(context, bot_functions):
     admin_only=False,
 )
 def command_drinkword(context, bot_functions):
-    drink = bot_functions.get("drink_tracker") or _drink_tracker
+    drink = bot_functions.get("drink_tracker") or _get_drink_tracker()
     if not drink:
         return "Drink tracker ei ole käytettävissä."
 
@@ -1732,7 +1788,7 @@ def command_drinkword(context, bot_functions):
     admin_only=False,
 )
 def command_drink(context, bot_functions):
-    drink = bot_functions.get("drink_tracker") or _drink_tracker
+    drink = bot_functions.get("drink_tracker") or _get_drink_tracker()
     if not drink:
         return "Drink tracker ei ole käytettävissä."
 
@@ -1776,7 +1832,7 @@ def command_drink(context, bot_functions):
 
 def _get_statistics_start_date():
     """Get the earliest timestamp from drink tracking data and format as dd.mm.yyyy."""
-    data = _data_manager.load_drink_data()
+    data = _get_data_manager().load_drink_data()
     earliest_timestamp = None
 
     # Look through all servers and users for the earliest timestamp
@@ -1838,7 +1894,7 @@ def command_kraks(context, bot_functions):
 
     # Original kraks functionality
     # Use injected drink tracker to ensure shared persistence
-    drink = bot_functions.get("drink_tracker") or _drink_tracker
+    drink = bot_functions.get("drink_tracker") or _get_drink_tracker()
     if not drink:
         return "Drink tracker ei ole käytettävissä."
 
@@ -1886,7 +1942,7 @@ def command_kraks(context, bot_functions):
 )
 def command_tamagotchi(context, bot_functions):
     console_server = "console"
-    status = _tamagotchi_bot.get_status(console_server)
+    status = _get_tamagotchi_bot().get_status(console_server)
     return status
 
 
@@ -1900,7 +1956,7 @@ def command_tamagotchi(context, bot_functions):
 def command_feed(context, bot_functions):
     food = context.args_text.strip() if context.args_text else None
     console_server = "console"
-    response = _tamagotchi_bot.feed(console_server, food)
+    response = _get_tamagotchi_bot().feed(console_server, food)
     return response
 
 
@@ -1913,7 +1969,7 @@ def command_feed(context, bot_functions):
 )
 def command_pet(context, bot_functions):
     console_server = "console"
-    response = _tamagotchi_bot.pet(console_server)
+    response = _get_tamagotchi_bot().pet(console_server)
     return response
 
 
@@ -2163,7 +2219,7 @@ def command_ipfs(context, bot_functions):
 def krakstats_command(context: CommandContext, bot_functions):
     """Show personal krak statistics for the user."""
     # Use injected drink tracker to ensure shared persistence
-    drink = bot_functions.get("drink_tracker") or _drink_tracker
+    drink = bot_functions.get("drink_tracker") or _get_drink_tracker()
     if not drink:
         return "Drink tracker ei ole käytettävissä."
 
@@ -2310,7 +2366,7 @@ def ksp_command(context: CommandContext, bot_functions):
         return f"Virheellinen valinta. Käytä: {', '.join(valid_choices)}"
 
     # Load current game state
-    current_game = _data_manager.load_ksp_state()
+    current_game = _get_data_manager().load_ksp_state()
 
     def determine_winner(c1, c2):
         if c1 == c2:
@@ -2323,7 +2379,7 @@ def ksp_command(context: CommandContext, bot_functions):
     if current_game is None:
         # Start new game
         game_state = {"choice": choice, "sender": context.sender}
-        _data_manager.save_ksp_state(game_state)
+        _get_data_manager().save_ksp_state(game_state)
         return f"Peli aloitettu: {choice} pelaajalta {context.sender}"
     else:
         player1_sender = current_game["sender"]
@@ -2334,7 +2390,7 @@ def ksp_command(context: CommandContext, bot_functions):
         if player1_sender == player2_sender:
             # Same player changing choice
             game_state = {"choice": choice, "sender": context.sender}
-            _data_manager.save_ksp_state(game_state)
+            _get_data_manager().save_ksp_state(game_state)
             return f"Valinta vaihdettu: {choice} (aiempi: {player1_choice})"
 
         # Different player, play the game
@@ -2347,7 +2403,7 @@ def ksp_command(context: CommandContext, bot_functions):
             result = f"{player2_sender} voitti {player1_sender}: {player2_choice} vs {player1_choice}"
 
         # Reset game
-        _data_manager.save_ksp_state(None)
+        _get_data_manager().save_ksp_state(None)
         return result
 
 
