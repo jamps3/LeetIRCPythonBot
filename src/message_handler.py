@@ -13,8 +13,8 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from logger import get_logger
 from lemmatizer import Lemmatizer
+from logger import get_logger
 from server import Server
 from tamagotchi import TamagotchiBot
 from word_tracking import DataManager, DrinkTracker, GeneralWords

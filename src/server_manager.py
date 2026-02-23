@@ -9,8 +9,8 @@ import os
 import threading
 from typing import Dict, List, Optional
 
-from logger import get_logger
 from config import get_config
+from logger import get_logger
 from server import Server
 
 logger = get_logger("ServerManager")
