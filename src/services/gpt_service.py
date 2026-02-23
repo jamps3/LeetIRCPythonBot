@@ -8,16 +8,16 @@ import json
 import os
 from typing import Any, Dict, List
 
-from dotenv import load_dotenv
 from openai import APIError as OpenAIAPIError
 from openai import AuthenticationError as OpenAIAuthenticationError
 from openai import OpenAI
 from openai import RateLimitError as OpenAIRateLimitError
 
-import logger
+from logger import get_logger
 
-# Load .env if available
-load_dotenv(override=True)
+logger = get_logger("GPTService")
+
+# Note: .env is loaded by config.py before services are initialized
 
 
 # Custom exception classes that properly inherit from Exception

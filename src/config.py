@@ -135,6 +135,19 @@ class BotConfig:
         ]
     )
 
+    # Feature toggles
+    use_notices: bool = False
+    tamagotchi_enabled: bool = True
+    four_twenty_enabled: bool = True
+
+    # X (Twitter) API settings
+    x_bearer_token: str = ""
+
+    # URL title fetching settings
+    title_blacklist_domains: str = ""
+    title_blacklist_extensions: str = ""
+    title_banned_texts: str = ""
+
 
 class ConfigManager:
     """
@@ -205,6 +218,19 @@ class ConfigManager:
             electricity_api_key=os.getenv("ELECTRICITY_API_KEY", ""),
             openai_api_key=os.getenv("OPENAI_API_KEY", ""),
             youtube_api_key=os.getenv("YOUTUBE_API_KEY", ""),
+            # Feature toggles
+            use_notices=os.getenv("USE_NOTICES", "false").lower()
+            in ("true", "1", "yes", "on"),
+            tamagotchi_enabled=os.getenv("TAMAGOTCHI_ENABLED", "true").lower()
+            in ("true", "1", "yes", "on"),
+            four_twenty_enabled=os.getenv("420_ENABLED", "true").lower()
+            in ("true", "1", "yes", "on"),
+            # X (Twitter) API settings
+            x_bearer_token=os.getenv("X_BEARER_TOKEN", ""),
+            # URL title fetching settings
+            title_blacklist_domains=os.getenv("TITLE_BLACKLIST_DOMAINS", ""),
+            title_blacklist_extensions=os.getenv("TITLE_BLACKLIST_EXTENSIONS", ""),
+            title_banned_texts=os.getenv("TITLE_BANNED_TEXTS", ""),
             # Server configurations
             servers=self._load_server_configs(),
         )

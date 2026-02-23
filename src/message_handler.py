@@ -95,14 +95,16 @@ class MessageHandler:
             return None
 
     def _load_use_notices_setting(self) -> bool:
-        """Load USE_NOTICES setting from environment."""
-        use_notices_setting = os.getenv("USE_NOTICES", "false").lower()
-        return use_notices_setting in ("true", "1", "yes", "on")
+        """Load USE_NOTICES setting from config."""
+        from config import get_config
+
+        return get_config().use_notices
 
     def _load_tamagotchi_enabled_setting(self) -> bool:
-        """Load TAMAGOTCHI_ENABLED setting from environment."""
-        tamagotchi_setting = os.getenv("TAMAGOTCHI_ENABLED", "true").lower()
-        return tamagotchi_setting in ("true", "1", "yes", "on")
+        """Load TAMAGOTCHI_ENABLED setting from config."""
+        from config import get_config
+
+        return get_config().tamagotchi_enabled
 
     def _load_420_enabled_setting(self) -> bool:
         """Load 420 feature enabled setting from data manager."""

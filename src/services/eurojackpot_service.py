@@ -23,9 +23,8 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 import requests
-from dotenv import load_dotenv
 
-load_dotenv()
+# Note: .env is loaded by config.py before services are initialized
 
 
 class EurojackpotService:
