@@ -59,6 +59,7 @@ def _get_data_manager():
     global _data_manager
     if _data_manager is None:
         from config import get_config
+
         config = get_config()
         _data_manager = DataManager(state_file=config.state_file)
     return _data_manager
@@ -92,18 +93,21 @@ def _get_tamagotchi_bot():
 # These now delegate to the lazy getters using a forwarding proxy
 class _LazyDataManagerProxy:
     """Proxy that forwards all attribute accesses to the lazily-initialized DataManager."""
+
     def __getattr__(self, name):
         return getattr(_get_data_manager(), name)
 
 
 class _LazyGeneralWordsProxy:
     """Proxy that forwards all attribute accesses to the lazily-initialized GeneralWords."""
+
     def __getattr__(self, name):
         return getattr(_get_general_words(), name)
 
 
 class _LazyTamagotchiProxy:
     """Proxy that forwards all attribute accesses to the lazily-initialized TamagotchiBot."""
+
     def __getattr__(self, name):
         return getattr(_get_tamagotchi_bot(), name)
 
@@ -111,7 +115,7 @@ class _LazyTamagotchiProxy:
 # For backward compatibility, create proxy objects
 # These will delegate to lazy-initialized instances on first access
 data_manager = _LazyDataManagerProxy()
-drink_tracker = _LazyDataManagerProxy()  # Shares DataManager with data_manager  
+drink_tracker = _LazyDataManagerProxy()  # Shares DataManager with data_manager
 general_words = _LazyGeneralWordsProxy()
 tamagotchi_bot = _LazyTamagotchiProxy()
 
