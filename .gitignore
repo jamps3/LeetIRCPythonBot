@@ -206,6 +206,9 @@ test_state
 # Local plans
 plans/
 
+# Documentation
+docs/
+
 # Others
 commits.csv
 quotes.txt
