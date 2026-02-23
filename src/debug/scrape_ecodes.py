@@ -39,20 +39,43 @@ def setup_chrome_driver():
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=chrome_options)
         logger.info("Chrome WebDriver initialized successfully")
+
+        # Bypass CookieBot consent
+        driver.execute_cdp_cmd(
+            "Page.addScriptToEvaluateOnNewDocument",
+            {
+                "source": """
+                // Override CookieBot consent
+                window.CookieBot = { consent: { necessary: true, preferences: false, statistics: false, marketing: false } };
+                window.CookieConsent = { get: function() { return true; } };
+                Object.defineProperty(document, 'cookie', {
+                    set: function(c) {
+                        // Allow setting consent cookie
+                        if (c.includes('CookieConsent') || c.includes('CookieBot')) return;
+                    },
+                    get: function() { return 'CookieConsent=true'; }
+                });
+            """
+            },
+        )
+
         return driver
     except Exception as e:
         logger.error(f"Failed to initialize Chrome WebDriver: {e}")
         raise
 
 
-def click_show_more_button(driver, max_attempts=3):
+def click_show_more_button(driver, max_attempts=50):
     """Click 'Näytä lisää tuloksia' button to load more content"""
     for attempt in range(max_attempts):
         try:
-            # Wait for the button to be clickable
+            # Wait for the button to be clickable - match input element with value and class
             button = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable(
-                    (By.XPATH, "//button[contains(text(), 'Näytä lisää tuloksia')]")
+                    (
+                        By.XPATH,
+                        "//input[@value='Näytä lisää tuloksia' and @class='btn']",
+                    )
                 )
             )
             driver.execute_script("arguments[0].click();", button)
@@ -157,9 +180,9 @@ def click_ecode_buttons(driver):
                         ecode_number = ecode_match.group(1)
                         ecode_key = f"E{ecode_number}"
 
-                        # Extract information from the detailed content
-                        adi_info = extract_adi_information(detailed_text)
-                        description = extract_description(detailed_text)
+                        # Extract information from the detailed content using BeautifulSoup
+                        adi_info = extract_adi_information(soup)  # Pass soup, not text
+                        description = extract_description(soup)
 
                         logger.info(
                             f"Extracted for {ecode_key}: ADI={adi_info}, Description={description}"
@@ -179,79 +202,58 @@ def click_ecode_buttons(driver):
         logger.warning(f"Error finding E-code buttons: {e}")
 
 
-def extract_adi_information(text):
-    """Extract ADI information from text content"""
-    adi_info = []
-
-    # Pattern for ADI information
-    adi_patterns = [
-        r"Hyväksyttävä päivittäinen enimmäissaanti \(ADI\):\s*([^.\n]+)",
-        r"ADI:\s*([^.\n]+)",
-        r"Ei ole määritelty",
-        r"\d+\s*mg/kg/vrk",
-        r"\d+\s*mg/\w+",
-        r"E\d+-E\d+\s*ja\s*E\d+\s*yhteismäärälle\s*\d+\s*mg/kg/vrk",
-    ]
-
-    for pattern in adi_patterns:
-        matches = re.findall(pattern, text, re.IGNORECASE)
-        adi_info.extend(matches)
-
-    # Clean up the ADI information
-    cleaned_adi = []
-    seen = set()
-
-    for item in adi_info:
-        # Remove "Siirry sivulle E..." text
-        cleaned_item = re.sub(
-            r"\s*Siirry sivulle\s+E\d+\s*", "", item, flags=re.IGNORECASE
-        )
-        # Remove extra whitespace
-        cleaned_item = cleaned_item.strip()
-
-        # Only add non-empty items and avoid duplicates
-        if cleaned_item and cleaned_item not in seen:
-            cleaned_adi.append(cleaned_item)
-            seen.add(cleaned_item)
-
-    return cleaned_adi
+def extract_adi_information(soup_or_text):
+    """Extract ADI information - handles BeautifulSoup objects or text strings"""
+    # Check if we have a BeautifulSoup object (it has find_all method)
+    if hasattr(soup_or_text, "find_all"):
+        # It's a BeautifulSoup object - use HTML structure
+        soup = soup_or_text
+        # Find all dt elements that contain ADI info
+        dt_elements = soup.find_all("dt")
+        for dt in dt_elements:
+            dt_text = dt.get_text()
+            if (
+                "ADI" in dt_text
+                or "Hyvaeksyttaeva paivittaenen enimmaisaanti" in dt_text
+            ):
+                # Get the next sibling dd element
+                dd = dt.find_next_sibling("dd")
+                if dd:
+                    adi_info = dd.get_text().strip()
+                    # Clean up the ADI information
+                    adi_info = re.sub(
+                        r"\s*Siirry sivulle\s+E\d+\s*",
+                        "",
+                        adi_info,
+                        flags=re.IGNORECASE,
+                    )
+                    adi_info = adi_info.strip()
+                    return adi_info if adi_info else None
+        return None
+    else:
+        # It's a text string - use regex patterns
+        text = soup_or_text
 
 
-def extract_additional_info(text):
-    """Extract additional information from E-code descriptions"""
-    additional_info = []
-
-    # Look for usage descriptions
-    usage_patterns = [
-        r"Käytetään\s+[^.\n]+",
-        r"Valmistetaan\s+[^.\n]+",
-        r"Esiintyy\s+[^.\n]+",
-        r"Saa käyttää\s+[^.\n]+",
-        r"Enimmäismäärärajoituksia",
-        r"Ei enimmäismäärärajoituksia",
-    ]
-
-    for pattern in usage_patterns:
-        matches = re.findall(pattern, text, re.IGNORECASE)
-        additional_info.extend(matches)
-
-    return additional_info if additional_info else None
-
-
-def extract_description(text):
-    """Extract description (Kuvaus) from E-code descriptions"""
-    description = []
-
-    # Look for description patterns
-    description_patterns = [
-        r"Kuvaus:\s*([^.\n]+)",
-    ]
-
-    for pattern in description_patterns:
-        matches = re.findall(pattern, text, re.IGNORECASE)
-        description.extend(matches)
-
-    return description if description else None
+def extract_description(soup_or_text):
+    """Extract description (Kuvaus) - handles BeautifulSoup objects or text strings"""
+    # Check if we have a BeautifulSoup object (it has find_all method)
+    if hasattr(soup_or_text, "find_all"):
+        # It's a BeautifulSoup object - use HTML structure
+        soup = soup_or_text
+        # Find dt element containing Kuvaus
+        dt_elements = soup.find_all("dt")
+        for dt in dt_elements:
+            dt_text = dt.get_text()
+            if "Kuvaus" in dt_text:
+                # Get the next sibling dd element
+                dd = dt.find_next_sibling("dd")
+                if dd:
+                    return dd.get_text().strip()
+        return None
+    else:
+        # It's a text string - use regex
+        text = soup_or_text
 
 
 def parse_ecode_details(soup):
@@ -277,7 +279,8 @@ def parse_ecode_details(soup):
             adi_info = extract_adi_information(full_text)
 
             # Extract additional information
-            additional_info = extract_additional_info(full_text)
+            # additional_info not available
+            additional_info = None
 
             # Extract description
             description = extract_description(full_text)
@@ -297,7 +300,8 @@ def parse_ecode_details(soup):
                 if description:
                     ecode_data[ecode_key]["description"] = description
                 if adi_info:
-                    ecode_data[ecode_key]["ADI"].extend(adi_info)
+                    # ADI is now a string, just assign it
+                    ecode_data[ecode_key]["ADI"] = adi_info
 
     return ecode_data
 
@@ -396,36 +400,20 @@ def merge_ecode_data(existing_data, scraped_data):
             # Update existing E-code
             existing_ecode = existing_data["ecodes"][ecode_key]
 
-            # Update ADI information with cleaning
-            if scraped_info["ADI"]:
-                # Clean the scraped ADI information
-                cleaned_adi = []
-                seen = set()
-
-                for item in scraped_info["ADI"]:
-                    # Remove "Siirry sivulle E..." text
-                    cleaned_item = re.sub(
-                        r"\s*Siirry sivulle\s+E\d+\s*", "", item, flags=re.IGNORECASE
-                    )
-                    # Remove extra whitespace
-                    cleaned_item = cleaned_item.strip()
-
-                    # Only add non-empty items and avoid duplicates
-                    if cleaned_item and cleaned_item not in seen:
-                        cleaned_adi.append(cleaned_item)
-                        seen.add(cleaned_item)
-
-                existing_ecode["ADI"] = cleaned_adi
+            # Update ADI information (now a string, not a list)
+            if scraped_info.get("ADI"):
+                # The scraped ADI is now a clean string
+                existing_ecode["ADI"] = scraped_info["ADI"]
                 updated_count += 1
-                logger.info(f"Updated ADI for {ecode_key}: {cleaned_adi}")
+                logger.info(f"Updated ADI for {ecode_key}: {scraped_info['ADI']}")
 
             # Update additional information
-            if scraped_info["additional_info"]:
+            if scraped_info.get("additional_info"):
                 existing_ecode["additional_info"] = scraped_info["additional_info"]
                 logger.info(f"Updated additional info for {ecode_key}")
 
             # Update description
-            if scraped_info["description"]:
+            if scraped_info.get("description"):
                 existing_ecode["description"] = scraped_info["description"]
                 logger.info(
                     f"Updated description for {ecode_key}: {scraped_info['description']}"
@@ -437,34 +425,17 @@ def merge_ecode_data(existing_data, scraped_data):
                 or scraped_info["additional_info"]
                 or scraped_info["description"]
             ):
-                # Clean the scraped ADI information
-                cleaned_adi = []
-                if scraped_info["ADI"]:
-                    seen = set()
-                    for item in scraped_info["ADI"]:
-                        # Remove "Siirry sivulle E..." text
-                        cleaned_item = re.sub(
-                            r"\s*Siirry sivulle\s+E\d+\s*",
-                            "",
-                            item,
-                            flags=re.IGNORECASE,
-                        )
-                        # Remove extra whitespace
-                        cleaned_item = cleaned_item.strip()
-
-                        # Only add non-empty items and avoid duplicates
-                        if cleaned_item and cleaned_item not in seen:
-                            cleaned_adi.append(cleaned_item)
-                            seen.add(cleaned_item)
+                # ADI is now a string, not a list
+                new_adi = scraped_info.get("ADI")
 
                 # Create minimal E-code entry
                 new_ecode = {
                     "categories": [],
                     "name": scraped_info.get("name", ""),
                     "indicators": [],
-                    "additional_info": scraped_info["additional_info"],
-                    "description": scraped_info["description"],
-                    "ADI": cleaned_adi,
+                    "additional_info": scraped_info.get("additional_info"),
+                    "description": scraped_info.get("description"),
+                    "ADI": new_adi,
                 }
                 existing_data["ecodes"][ecode_key] = new_ecode
                 new_count += 1
