@@ -1111,6 +1111,38 @@ def ecode_command(context: CommandContext, bot_functions):
                 "Usage: !ecode <E-number> (e.g., !ecode E153 or !e 153)"
             )
 
+        # Check for search command
+        if ecode_input.startswith("SEARCH ") or ecode_input.startswith("S "):
+            search_term = (
+                ecode_input.replace("SEARCH ", "").replace("S ", "").strip().lower()
+            )
+            if not search_term:
+                return CommandResponse.error_msg(
+                    "Usage: !e search <term> (e.g., !e searchkari color)"
+                )
+
+            # Search through E-codes
+            results = []
+            for ecode, info in data["ecodes"].items():
+                name = info.get("name", "").lower()
+                description = info.get("description", "").lower()
+                if search_term in name or search_term in description:
+                    results.append((ecode, info["name"], info.get("ADI")))
+
+            if not results:
+                return CommandResponse.error_msg(
+                    f"No E-codes found matching '{search_term}'"
+                )
+
+            # Limit results
+            results = results[:10]
+            response_lines = [f"Search results for '{search_term}':"]
+            for ecode, name, adi in results:
+                adi_str = f" (ADI: {adi})" if adi else ""
+                response_lines.append(f"{ecode}: {name}{adi_str}")
+
+            return CommandResponse.success_msg(" | ".join(response_lines))
+
         # Normalize E-code format (remove spaces, ensure E prefix)
         ecode = ecode_input.replace(" ", "")
         if not ecode.startswith("E"):
