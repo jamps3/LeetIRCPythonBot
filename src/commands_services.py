@@ -1149,6 +1149,14 @@ def ecode_command(context: CommandContext, bot_functions):
                     indicators.append(indicator)
             parts.append(f"Indicators: {' '.join(indicators)}")
 
+        # Add ADI (Acceptable Daily Intake) if available
+        if ecode_data.get("ADI"):
+            parts.append(f"ADI: {ecode_data['ADI']}")
+
+        # Add description if available
+        if ecode_data.get("description"):
+            parts.append(f"| {ecode_data['description']}")
+
         # Build full response
         response = " | ".join(parts)
 
