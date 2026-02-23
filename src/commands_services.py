@@ -1143,10 +1143,62 @@ def ecode_command(context: CommandContext, bot_functions):
 
             return CommandResponse.success_msg(" | ".join(response_lines))
 
-        # Normalize E-code format (remove spaces, ensure E prefix)
-        ecode = ecode_input.replace(" ", "")
-        if not ecode.startswith("E"):
-            ecode = "E" + ecode
+        # Check for list command - list E-codes by category
+        if ecode_input.startswith("LIST ") or ecode_input.startswith("L "):
+            category_term = (
+                ecode_input.replace("LIST ", "").replace("L ", "").strip().lower()
+            )
+
+            if not category_term:
+                # List all available categories
+                categories_found = set()
+                for info in data["ecodes"].values():
+                    for cat in info.get("categories", []):
+                        categories_found.add(cat)
+
+                if not categories_found:
+                    return CommandResponse.error_msg("No categories found in database")
+
+                cat_list = ", ".join(sorted(categories_found))
+                return CommandResponse.success_msg(f"Available categories: {cat_list}")
+
+            # Find E-codes in specific category
+            results = []
+            for ecode, info in data["ecodes"].items():
+                for cat in info.get("categories", []):
+                    if category_term in cat.lower():
+                        results.append((ecode, info["name"], info.get("ADI")))
+                        break
+
+            if not results:
+                return CommandResponse.error_msg(
+                    f"No E-codes found in category '{category_term}'"
+                )
+
+            # Limit results
+            results = results[:15]
+            response_lines = [f"E-codes in category '{category_term}':"]
+            for ecode, name, adi in results:
+                adi_str = f" (ADI: {adi})" if adi else ""
+                response_lines.append(f"{ecode}: {name}{adi_str}")
+
+            return CommandResponse.success_msg(" | ".join(response_lines))
+
+        # Check for random command
+        if ecode_input in ["RANDOM", "R", "RND"]:
+            import random
+
+            ecodes_list = list(data["ecodes"].keys())
+            if not ecodes_list:
+                return CommandResponse.error_msg("No E-codes in database")
+
+            random_ecode = random.choice(ecodes_list)
+            ecode = random_ecode
+        else:
+            # Normalize E-code format (remove spaces, ensure E prefix)
+            ecode = ecode_input.replace(" ", "")
+            if not ecode.startswith("E"):
+                ecode = "E" + ecode
 
         # Check if E-code exists
         if ecode not in data["ecodes"]:
