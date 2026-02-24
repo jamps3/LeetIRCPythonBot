@@ -18,10 +18,12 @@ import logger
 def load_all_commands():
     """Load all command modules to register their commands."""
     try:
-        # Import all command modules to trigger registration
-        import commands  # unified commands module
+        # Import cmd_modules to trigger registration from modular command files
+        import cmd_modules  # noqa: F401
 
-        # import commands_admin
+        # Also import commands for backward compatibility
+        import commands  # noqa: F401
+
         # Resolve registry at call time to avoid early imports
         from command_registry import get_command_registry
 

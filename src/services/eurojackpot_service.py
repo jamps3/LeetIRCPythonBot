@@ -17,7 +17,6 @@ Features:
 """
 
 import json
-import logging
 import os
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -25,14 +24,17 @@ from typing import Dict, List, Optional
 import requests
 
 # Note: .env is loaded by config.py before services are initialized
+from config import get_config
+from logger import get_logger
 
 
 class EurojackpotService:
     """Service for Eurojackpot lottery information using Magayo API."""
 
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
-        self.api_key = os.getenv("EUROJACKPOT_API_KEY")
+        self.logger = get_logger("EurojackpotService")
+        config = get_config()
+        self.api_key = config.eurojackpot_api_key
         self.next_draw_url = "https://www.magayo.com/api/next_draw.php"
         self.jackpot_url = "https://www.magayo.com/api/jackpot.php"
         self.results_url = "https://www.magayo.com/api/results.php"
@@ -50,101 +52,17 @@ class EurojackpotService:
         try:
             self.logger.debug(f"Making request to {url} with params: {params}")
 
-            # Try multiple approaches to handle the API
-            approaches = [
-                # Approach 1: Standard session with modern headers
-                {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                    "Accept": "application/json, text/html, */*",
-                    "Accept-Language": "en-US,en;q=0.9",
-                    "Referer": "https://www.magayo.com/",
-                    "Cache-Control": "no-cache",
-                },
-                # Approach 2: Minimal headers (sometimes APIs prefer this)
-                {"User-Agent": "Python-requests/2.31.0", "Accept": "application/json"},
-                # Approach 3: Legacy browser headers
-                {
-                    "User-Agent": "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1)",
-                    "Accept": "application/json, text/html",
-                },
-            ]
+            # Use Session for connection pooling and better error handling
+            session = requests.Session()
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "application/json",
+            }
 
-            for i, headers in enumerate(approaches):
-                try:
-                    self.logger.debug(
-                        f"Trying approach {i+1} with headers: {list(headers.keys())}"
-                    )
+            response = session.get(url, params=params, headers=headers, timeout=timeout)
+            response.raise_for_status()
 
-                    session = requests.Session()
-                    session.headers.update(headers)
-
-                    response = session.get(url, params=params, timeout=timeout)
-                    self.logger.debug(
-                        f"Approach {i+1} - Response status: {response.status_code}, URL: {response.url}"
-                    )
-
-                    if response.status_code == 303:
-                        self.logger.warning(
-                            f"Approach {i+1} - Got 303 redirect, following to: {response.headers.get('Location', 'unknown')}"
-                        )
-                        continue  # Try next approach
-
-                    response.raise_for_status()
-
-                    # Log response content for debugging
-                    try:
-                        preview_text = (
-                            response.text[:200]
-                            if hasattr(response, "text")
-                            else str(response)[:200]
-                        )
-                        self.logger.debug(
-                            f"Approach {i+1} - Response content preview: {preview_text}..."
-                        )
-                    except Exception:
-                        self.logger.debug(
-                            f"Approach {i+1} - Response content preview: [unable to get preview]"
-                        )
-
-                    json_data = response.json()
-                    self.logger.debug(
-                        f"Approach {i+1} - Parsed JSON response: {json_data}"
-                    )
-
-                    # Check if the API returned an error in the JSON (common with Magayo API)
-                    if isinstance(json_data, dict) and json_data.get("error") == 303:
-                        self.logger.warning(
-                            f"Approach {i+1} - API returned error 303 in JSON response"
-                        )
-                        if i < len(approaches) - 1:  # Not the last approach
-                            continue  # Try next approach
-
-                    return json_data
-
-                except requests.RequestException as e:
-                    self.logger.warning(
-                        f"Approach {i+1} failed with request error: {e}"
-                    )
-                    if i == len(approaches) - 1:  # Last approach
-                        raise
-                    continue
-                except json.JSONDecodeError as e:
-                    self.logger.warning(
-                        f"Approach {i+1} failed with JSON decode error: {e}"
-                    )
-                    if i == len(approaches) - 1:  # Last approach
-                        raise
-                    continue
-                except Exception as e:
-                    self.logger.warning(
-                        f"Approach {i+1} failed with unexpected error: {e}"
-                    )
-                    if i == len(approaches) - 1:  # Last approach
-                        raise
-                    continue
-
-            # If we get here, all approaches failed
-            return {"error": 303, "message": "All API request approaches failed"}
+            return response.json()
 
         except requests.RequestException as e:
             self.logger.error(f"Request error for {url}: {e}")

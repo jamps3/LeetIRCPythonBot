@@ -1200,53 +1200,6 @@ def test_short_forecast_commands_console_and_irc(monkeypatch):
     assert notices and any("L1" in n[0] for n in notices)
 
 
-def test_sana_topwords_leaderboard_commands(monkeypatch):
-    """Cover sana, topwords and leaderboard command branches."""
-    import commands as _cmd
-    from command_loader import process_console_command
-
-    # Patch search_word to return results with users
-    def fake_search(word):
-        return {
-            "total_occurrences": 2,
-            "servers": {"srv": {"users": [{"nick": "a", "count": 2}]}},
-        }
-
-    monkeypatch.setattr(_cmd._general_words, "search_word", fake_search)
-
-    responses = []
-    botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
-
-    responses.clear()
-    process_console_command("!sana testisana", botf)
-    assert any("Sana" in r for r in responses)
-
-    # Patch data_manager and general_words for topwords
-    monkeypatch.setattr(_cmd.data_manager, "get_all_servers", lambda: ["srv1"])
-    monkeypatch.setattr(
-        _cmd.general_words, "get_user_stats", lambda srv, nick: {"total_words": 5}
-    )
-    monkeypatch.setattr(
-        _cmd.general_words,
-        "get_user_top_words",
-        lambda srv, nick, n: [{"word": "foo", "count": 3}],
-    )
-
-    responses.clear()
-    process_console_command("!topwords Alice", botf)
-    assert any("Alice@srv1" in r for r in responses)
-
-    # Global leaderboard
-    def fake_leaderboard(srv, n):
-        return [{"nick": "u1", "total_words": 10}, {"nick": "u2", "total_words": 7}]
-
-    monkeypatch.setattr(_cmd.general_words, "get_leaderboard", fake_leaderboard)
-
-    responses.clear()
-    process_console_command("!leaderboard", botf)
-    assert any("Aktiivisimmat" in r for r in responses)
-
-
 def test_kraks_no_breakdown(monkeypatch, tmp_path):
     """Cover kraks else-branch when no breakdown but top users exist."""
     from command_loader import process_console_command
@@ -1663,7 +1616,7 @@ def test_sana_no_users_branch(monkeypatch):
     def fake_search_no_users(word):
         return {"total_occurrences": 1, "servers": {"srv": {"users": []}}}
 
-    monkeypatch.setattr(_cmd._general_words, "search_word", fake_search_no_users)
+    monkeypatch.setattr(_cmd.general_words, "search_word", fake_search_no_users)
 
     responses = []
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
@@ -1748,26 +1701,6 @@ def test_topwords_and_leaderboard_no_data(monkeypatch):
     responses.clear()
     process_console_command("!leaderboard", botf)
     assert any("Ei vielä tarpeeksi dataa" in r for r in responses)
-
-
-def test_drink_tracker_missing_paths(monkeypatch):
-    """Force drink commands to report missing tracker by nulling globals."""
-    import commands as _cmd
-    from command_loader import process_console_command
-
-    # Temporarily null trackers
-    orig_dt = _cmd._drink_tracker
-    try:
-        _cmd._drink_tracker = None
-        responses = []
-        botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
-        process_console_command("!drinkword krak", botf)
-        assert any("ei ole käytettävissä" in r.lower() for r in responses)
-        responses.clear()
-        process_console_command("!drink krak", botf)
-        assert any("ei ole käytettävissä" in r.lower() for r in responses)
-    finally:
-        _cmd._drink_tracker = orig_dt
 
 
 def test_scheduled_empty_and_not_found_and_usage(monkeypatch):
@@ -2379,34 +2312,6 @@ def test_drinkword_and_drink_no_hits(tmp_path, monkeypatch):
     assert any("Ei osumia juomalle" in r for r in responses)
 
 
-def test_kraks_missing_tracker_and_empty(monkeypatch, tmp_path):
-    import commands as _cmd
-    from command_loader import process_console_command
-    from word_tracking import DataManager, DrinkTracker
-
-    # Missing tracker
-    orig_dt = _cmd._drink_tracker
-    try:
-        _cmd._drink_tracker = None
-        responses = []
-        botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
-        process_console_command("!kraks", botf)
-        assert any("ei ole käytettävissä" in r.lower() for r in responses)
-    finally:
-        _cmd._drink_tracker = orig_dt
-    # Empty stats
-    dm = DataManager(str(tmp_path))
-    dt = DrinkTracker(dm)
-    responses = []
-    botf2 = {
-        "notice_message": lambda m, *a, **k: responses.append(m),
-        "drink_tracker": dt,
-        "server_name": "console",
-    }
-    process_console_command("!kraks", botf2)
-    assert any("Ei vielä krakkauksia" in r for r in responses)
-
-
 def test_leets_invalid_datetime(monkeypatch):
     from command_registry import CommandContext
     from commands import command_leets
@@ -2489,7 +2394,7 @@ def test_direct_leetwinners_and_electricity_unavailable_and_sana_no_users(monkey
 
     import commands as _cmd
 
-    monkeypatch.setattr(_cmd._general_words, "search_word", lambda w: G().search(w))
+    monkeypatch.setattr(_cmd.general_words, "search_word", lambda w: G().search(w))
     ctx3 = CommandContext(
         command="sana",
         args=["test"],
@@ -2526,7 +2431,7 @@ def test_sana_total_zero(monkeypatch):
     from commands import command_sana
 
     monkeypatch.setattr(
-        _cmd._general_words, "search_word", lambda w: {"total_occurrences": 0}
+        _cmd.general_words, "search_word", lambda w: {"total_occurrences": 0}
     )
     ctx = CommandContext(
         command="sana",

@@ -15,7 +15,7 @@ def _read_version_from_file() -> str:
     Read version from VERSION file.
 
     Returns:
-        Version string, defaults to "0.1.0" if file doesn't exist
+        Version string, defaults to "1.0.1" if file doesn't exist
     """
     version_file = "VERSION"
     try:
@@ -28,12 +28,12 @@ def _read_version_from_file() -> str:
                 logger.warning(
                     f"Invalid version format in {version_file}: {version}, using default"
                 )
-                return "0.1.0"
+                return "1.0.1"
     except (FileNotFoundError, IOError) as e:
         logger.warning(
             f"Could not read version from {version_file}: {e}, using default"
         )
-        return "0.1.0"
+        return "1.0.1"
 
 
 @dataclass
@@ -104,6 +104,7 @@ class BotConfig:
     electricity_api_key: str = ""
     openai_api_key: str = ""
     youtube_api_key: str = ""
+    eurojackpot_api_key: str = ""
 
     # Drink tracking words
     drink_words: Dict[str, int] = field(
@@ -218,6 +219,7 @@ class ConfigManager:
             electricity_api_key=os.getenv("ELECTRICITY_API_KEY", ""),
             openai_api_key=os.getenv("OPENAI_API_KEY", ""),
             youtube_api_key=os.getenv("YOUTUBE_API_KEY", ""),
+            eurojackpot_api_key=os.getenv("EUROJACKPOT_API_KEY", ""),
             # Feature toggles
             use_notices=os.getenv("USE_NOTICES", "false").lower()
             in ("true", "1", "yes", "on"),

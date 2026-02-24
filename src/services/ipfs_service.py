@@ -7,7 +7,6 @@ with size limits and password protection for large files.
 """
 
 import hashlib
-import logging
 import os
 import subprocess
 import tempfile
@@ -15,12 +14,14 @@ from typing import Dict, Optional, Tuple
 
 import requests
 
+from logger import get_logger
+
 
 class IPFSService:
     """Service for IPFS operations."""
 
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger("IPFSService")
         self.max_size_without_password = 100 * 1024 * 1024  # 100MB
 
         # Check if IPFS is available

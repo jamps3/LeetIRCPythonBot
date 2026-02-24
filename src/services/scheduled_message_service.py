@@ -5,7 +5,6 @@ Scheduled Message Service for LeetIRCPythonBot
 This service handles the scheduling and execution of messages at specific times.
 """
 
-import logging
 import threading
 import time
 from datetime import datetime
@@ -21,7 +20,7 @@ class ScheduledMessageService:
     def __init__(self):
         self.scheduled_messages: Dict[str, dict] = {}
         self.thread_pool = {}
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger("ScheduledMessageService")
 
     def schedule_message(
         self,

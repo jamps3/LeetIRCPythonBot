@@ -13,6 +13,9 @@ from typing import Any, Dict, Optional
 
 import requests
 
+# Import handlers mixins
+from handlers.latency_tracker import LatencyTrackerMixin
+from handlers.url_handler import UrlHandlerMixin
 from lemmatizer import Lemmatizer
 from logger import get_logger
 from server import Server
@@ -23,7 +26,7 @@ from word_tracking.bac_tracker import BACTracker
 logger = get_logger("MessageHandler")
 
 
-class MessageHandler:
+class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
     """
     Handles IRC message processing and routing.
 

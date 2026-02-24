@@ -253,12 +253,12 @@ def main():
         try:
             from tui import TUIManager
 
-            # Show startup message and delay before TUI loads
+            """ # Show startup message and delay before TUI loads
             print("\n" + "=" * 60)
             print("  LeetIRCPythonBot v2.x - Starting up...")
             print("  Loading TUI in 5 seconds... (Press Ctrl+C to abort)")
             print("=" * 60 + "\n")
-            time.sleep(5)
+            time.sleep(5) """
 
             # Create TUI manager early (will be updated with bot_manager after creation)
             tui_manager = TUIManager()

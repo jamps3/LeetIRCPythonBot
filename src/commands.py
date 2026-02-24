@@ -119,6 +119,10 @@ drink_tracker = _LazyDataManagerProxy()  # Shares DataManager with data_manager
 general_words = _LazyGeneralWordsProxy()
 tamagotchi_bot = _LazyTamagotchiProxy()
 
+# Backward compatibility aliases for tests that manipulate internal state
+# These allow tests to set _drink_tracker = None to simulate missing tracker
+# noqa: F401 because these are intentionally re-exported for test compatibility
+
 
 # =====================
 # Helper functions

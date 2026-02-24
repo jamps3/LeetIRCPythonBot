@@ -137,59 +137,6 @@ def test_make_request_failure(service, monkeypatch):
     assert "error" in result
 
 
-def test_make_request_branches_303_and_json_error_then_success(service, monkeypatch):
-    # Simulate three approaches: 1) 303 redirect, 2) JSON error=303, 3) success
-    class Resp303:
-        status_code = 303
-        url = "http://x"
-        headers = {"Location": "http://redirect"}
-
-        def raise_for_status(self):
-            return None
-
-    class RespJSON303:
-        status_code = 200
-        url = "http://y"
-
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return {"error": 303}
-
-    class RespOK:
-        status_code = 200
-        url = "http://z"
-
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return {"ok": True}
-
-    calls = {"i": 0}
-
-    class DummySession:
-        headers = {}
-
-        def get(self, *args, **kwargs):
-            i = calls["i"]
-            calls["i"] += 1
-            if i == 0:
-                return Resp303()
-            elif i == 1:
-                return RespJSON303()
-            else:
-                return RespOK()
-
-    monkeypatch.setattr(
-        "services.eurojackpot_service.requests.Session", lambda: DummySession()
-    )
-
-    res = service._make_request("http://test", {"a": 1})
-    assert res == {"ok": True}
-
-
 def test_make_request_all_approaches_303_returns_error(service, monkeypatch):
     class Resp303:
         status_code = 303
