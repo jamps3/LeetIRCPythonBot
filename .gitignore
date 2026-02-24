@@ -203,11 +203,8 @@ test-coverage.txt
 test-results.txt
 test_state
 
-# Local plans
-plans/
-
-# Documentation
-docs/
+# Documentation and plans
+#docs/
 
 # Others
 commits.csv
