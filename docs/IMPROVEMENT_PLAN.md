@@ -50,11 +50,13 @@ Tests: 766 passed, 4 skipped (all tests pass)
 
 **Priority:** High - Affects debugging and log analysis
 
-**Status: FIXED** ✅
+**Status: FIXED** ✅ (log file only)
 
 - Added thread lock (`_file_lock`) to ensure thread-safe writes in correct order
 - Fixed timestamp calculation to use single time source (`time.time_ns()`) for both seconds and nanoseconds
-- This ensures timestamps are consistent and file writes happen in chronological order
+- Log file timestamps are now in chronological order
+
+**Note:** TUI display shows buffered logs after current logs (cosmetic issue, does not affect log file)
 
 ---
 
