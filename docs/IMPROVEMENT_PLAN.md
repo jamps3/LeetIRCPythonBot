@@ -44,6 +44,20 @@ Tests: 766 passed, 4 skipped (all tests pass)
 
 ---
 
+## 2026-02-24: Log Timestamp Issue
+
+**Issue:** Log timestamps are not in chronological order, causing messages to have wrong order in the log file.
+
+**Priority:** High - Affects debugging and log analysis
+
+**Status: FIXED** ✅
+
+- Added thread lock (`_file_lock`) to ensure thread-safe writes in correct order
+- Fixed timestamp calculation to use single time source (`time.time_ns()`) for both seconds and nanoseconds
+- This ensures timestamps are consistent and file writes happen in chronological order
+
+---
+
 ## Summary
 
 The project has been significantly improved:

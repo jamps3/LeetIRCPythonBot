@@ -21,8 +21,9 @@ Features:
 
 import os
 import shutil
+import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # from typing import Optional
 
@@ -239,14 +240,22 @@ class PrecisionLogger:
         """
         Get high-precision timestamp with nanosecond accuracy.
 
+        Uses a single time source (time.time_ns()) to ensure consistent timestamps.
+
         Returns:
             Formatted timestamp string with nanoseconds
         """
-        now = datetime.now()
-        nanoseconds = time.time_ns() % 1_000_000_000
+        # Use time.time_ns() as single source for both seconds and nanoseconds
+        # This ensures the datetime and nanoseconds are from the same moment
+        ns = time.time_ns()
+        seconds = ns // 1_000_000_000
+        nanoseconds = ns % 1_000_000_000
+
+        # Convert to datetime using UTC to avoid timezone issues
+        dt = datetime.fromtimestamp(seconds, tz=timezone.utc).astimezone()
 
         # Format: [2025-06-19 02:15:38.882221300]
-        return f"[{now.strftime('%Y-%m-%d %H:%M:%S')}.{nanoseconds:09d}]"
+        return f"[{dt.strftime('%Y-%m-%d %H:%M:%S')}.{nanoseconds:09d}]"
 
     def log(
         self,
@@ -288,9 +297,11 @@ class PrecisionLogger:
             output = " ".join(str(p) for p in parts if isinstance(p, str))
 
             # Forward to file if hook is set (always do this for file logging)
+            # Use lock to ensure thread-safe writes in correct order
             if _file_hook:
                 try:
-                    _file_hook(timestamp, level.upper(), output)
+                    with _file_lock:
+                        _file_hook(timestamp, level.upper(), output)
                 except Exception as e:
                     # Don't let file hook errors break logging
                     print(f"[LOGGER ERROR] File hook failed: {e}")
@@ -433,6 +444,9 @@ _tui_hook = None
 
 # File hook for writing logs to file
 _file_hook = None
+
+# Lock for thread-safe file writing
+_file_lock = threading.Lock()
 
 # Buffer for logs before TUI starts
 _log_buffer = []
