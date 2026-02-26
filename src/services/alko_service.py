@@ -92,6 +92,12 @@ class AlkoService:
                         logger.warning(
                             "Or run the bot with cached data if you have it."
                         )
+                elif not self._is_cache_up_to_date():
+                    # Cache exists but may be stale - log at debug level, don't spam
+                    logger.debug(
+                        f"Alko cache exists but may be stale (cache: {self.cache_last_updated}). "
+                        "Use !alko update to refresh."
+                    )
 
     def _load_cache(self):
         """Load cached product data if available."""
