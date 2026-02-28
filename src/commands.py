@@ -838,7 +838,10 @@ def muunnos_command(context: CommandContext, bot_functions):
             result_parts = []
             for original, transformed in matches:
                 entry = f"{original}→{transformed}"
-                if len(header) + sum(len(p) + 2 for p in result_parts) + len(entry) + 4 <= remaining:
+                if (
+                    len(header) + sum(len(p) + 2 for p in result_parts) + len(entry) + 4
+                    <= remaining
+                ):
                     result_parts.append(entry)
                 else:
                     break
