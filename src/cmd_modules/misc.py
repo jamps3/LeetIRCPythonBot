@@ -8,11 +8,13 @@ Note: Some commands depend on shared helpers in commands.py - they are imported 
 
 import os
 import random
+import re
 import urllib.request
 from datetime import datetime
 
 import requests
 
+import bot_manager  # noqa: F401 - needed for schedule command
 from command_registry import CommandContext, CommandType, command
 from config import get_config
 
@@ -301,6 +303,7 @@ def np_command(context: CommandContext, bot_functions):
 def command_leets(context, bot_functions):
     """Show recent leet detection history."""
     from datetime import datetime
+
     from leet_detector import create_leet_detector
 
     # Parse optional numeric limit from context.args
@@ -525,11 +528,213 @@ def driving_distance_osrm(context: CommandContext, bot_functions):
 
 
 # =====================
+# Schedule Command
+# =====================
+
+
+@command(
+    name="schedule",
+    command_type=CommandType.ADMIN,
+    aliases=["leet"],
+    description="Schedule a message to be sent at a specific time",
+    usage="!schedule #channel HH:MM:SS<.microsecs> message",
+    admin_only=True,
+)
+def command_schedule(context, bot_functions):
+    """Schedule a message for later delivery."""
+    # Use parsed args from context (as provided by the command registry)
+    args = context.args
+    if not args:
+        return "Usage: !schedule #channel HH:MM:SS<.ns> message"
+
+    # Parse the command format: !schedule #channel HH:MM:SS message
+    # or !schedule #channel HH:MM:SS.<1..9 digits> message
+    text = " ".join(args)
+    if context.is_console:
+        # In console, the server name is optional - use active server if not provided
+        # Try with server name first, then without, then just time (use active channel)
+        match = re.match(
+            r"(\S+)\s+(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)",
+            text,
+        )
+        if not match:
+            # Try without server name (use active channel from console)
+            match = re.match(
+                r"(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)",
+                text,
+            )
+        if not match:
+            # Try just time and message (use active channel)
+            match = re.match(
+                r"(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)",
+                text,
+            )
+    else:
+        match = re.match(
+            r"(#\S+)\s+(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,9}))?\s+(.+)", text
+        )
+
+    if not match:
+        return "Invalid format! Use: !schedule [server] [#channel] HH:MM:SS<.ns> message\nIn console, both server and channel are optional - uses active ones."
+
+    # Determine if server name was provided based on number of groups
+    # Format with server: 7 groups, Format without: 6 groups, Format just time: 5 groups
+    num_groups = len(match.groups())
+
+    if context.is_console:
+        if num_groups == 7:
+            # Format: server #channel HH:MM:SS message
+            server_name = match.group(1)
+            channel = match.group(2)
+            hour = int(match.group(3))
+            minute = int(match.group(4))
+            second = int(match.group(5))
+            frac_str = match.group(
+                6
+            )  # up to 9 digits (nanoseconds resolution in input)
+            message = match.group(7)
+        elif num_groups == 6:
+            # Format: #channel HH:MM:SS message (no server name)
+            # Use active server from console
+            server_name = None
+            channel = match.group(1)
+            hour = int(match.group(2))
+            minute = int(match.group(3))
+            second = int(match.group(4))
+            frac_str = match.group(
+                5
+            )  # up to 9 digits (nanoseconds resolution in input)
+            message = match.group(6)
+        else:
+            # Format: HH:MM:SS message (no channel - use active channel)
+            server_name = None
+            channel = None  # Will be resolved from active channel
+            hour = int(match.group(1))
+            minute = int(match.group(2))
+            second = int(match.group(3))
+            frac_str = match.group(
+                4
+            )  # up to 9 digits (nanoseconds resolution in input)
+            message = match.group(5)
+    else:
+        channel = match.group(1)
+        hour = int(match.group(2))
+        minute = int(match.group(3))
+        second = int(match.group(4))
+        frac_str = match.group(5)  # up to 9 digits (nanoseconds resolution in input)
+        message = match.group(6)
+
+    # Convert fractional seconds (up to 9 digits) for scheduling
+    if frac_str:
+        ns_str = frac_str.ljust(9, "0")[:9]  # normalize to exactly 9 digits for display
+    else:
+        ns_str = "000000000"
+
+    # Validate time values
+    if not (0 <= hour <= 23 and 0 <= minute <= 59 and 0 <= second <= 59):
+        return "Invalid time! Hour: 0-23, Minute: 0-59, Second: 0-59"
+
+    try:
+        # Get the scheduled message service
+        from services.scheduled_message_service import send_scheduled_message
+
+        # Retrieve the IRC/server object from bot_functions
+        server = bot_functions.get("server")
+
+        # If called from console, use the provided server name or get active server
+        if not server:
+            # Check if bot_manager is a proper instance with servers attribute
+            if not hasattr(bot_manager, "servers") or not isinstance(
+                getattr(bot_manager, "servers", None), dict
+            ):
+                # bot_manager is not a proper instance, can't determine server
+                return "❌ Server context not available for scheduling"
+
+            if server_name:
+                # Use the provided server name
+                server = bot_manager.servers.get(server_name)
+            else:
+                # Try to get active server from console_manager
+                if (
+                    hasattr(bot_manager, "console_manager")
+                    and bot_manager.console_manager
+                ):
+                    active_server = bot_manager.console_manager.active_server
+                    if active_server:
+                        server = bot_manager.servers.get(active_server)
+                # Fallback to first available server
+                if not server and bot_manager.servers:
+                    server = next(iter(bot_manager.servers.values()))
+
+        if not server:
+            return "❌ Server context not available for scheduling"
+
+        # If no channel provided, get from active channel
+        if not channel:
+            if hasattr(bot_manager, "console_manager") and bot_manager.console_manager:
+                channel = bot_manager.console_manager.active_channel
+            if not channel:
+                return "❌ No active channel. Use #channel to select one, or specify channel in command."
+
+        # Schedule
+        message_id = send_scheduled_message(
+            server, channel, message, hour, minute, second, ns_str
+        )
+
+        # Show the requested time with 9-digit fractional part (as in logs)
+        # Try to get server name from server object if possible
+        server_name_str = None
+        if server:
+            server_name_str = (
+                getattr(server, "name", None)
+                or getattr(server, "server_name", None)
+                or getattr(getattr(server, "config", None), "name", None)
+                or getattr(server, "host", None)
+            )
+        if not server_name_str:
+            server_name_str = str(server) if server else "unknown"
+        return f"✅ Message scheduled with ID: {message_id} for {hour:02d}:{minute:02d}:{second:02d}.{ns_str} in {server_name_str} {channel}"
+
+    except Exception as e:
+        return f"❌ Error scheduling message: {str(e)}"
+
+
+# =====================
 # Placeholder commands - these need more work to extract
 # =====================
 
 # muunnos_command - depends on Finnish word transformation helpers
-# schedule command - depends on scheduled_message_service
-# ipfs command - depends on IPFS service
+
+# =====================
+# IPFS Command
+# =====================
+
+
+@command(
+    name="ipfs",
+    command_type=CommandType.PUBLIC,
+    description="Add files to IPFS from URLs",
+    usage="!ipfs add <url> or !ipfs <password> <url>",
+    admin_only=False,
+)
+def command_ipfs(context, bot_functions):
+    """Handle IPFS file operations."""
+    # Use parsed args from context to avoid accidental contamination
+    if not context.args:
+        return "Usage: !ipfs add <url> or !ipfs <password> <url>"
+
+    try:
+        from services.ipfs_service import handle_ipfs_command
+
+        # Reconstruct the full command exactly as user intended (post-!ipfs)
+        command_text = "!ipfs " + " ".join(context.args)
+        admin_password = os.getenv("ADMIN_PASSWORD")
+
+        response = handle_ipfs_command(command_text, admin_password)
+        return response
+
+    except Exception as e:
+        return f"❌ IPFS error: {str(e)}"
+
 
 # For now, these will be imported from commands.py via the fallback mechanism
