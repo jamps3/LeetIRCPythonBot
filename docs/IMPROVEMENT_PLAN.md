@@ -27,18 +27,26 @@ All planned improvements have been implemented:
 
 ## 2026-02-24: Commands Refactoring
 
-Completed splitting of commands.py into modular files in cmd_modules/:
+### Current Status (2026-02-28)
+
+Progress made on splitting commands.py into modular files in cmd_modules/:
+
+**Already split (have actual implementations):**
 
 - **cmd_modules/basic.py** - help, ping, version, about, servers, status, channels
 - **cmd_modules/admin.py** - connect, disconnect, exit, countdown
-- **cmd_modules/games.py** - kolikko, noppa, ksp, blackjack (structure)
-- **cmd_modules/misc.py** - 420, kaiku/echo, np (name day)
+- **cmd_modules/games.py** - kolikko, noppa, ksp, blackjack
+- **cmd_modules/misc.py** - 420, kaiku/echo, np (name day), **leets, quote, matka** (NEWLY MOVED)
+- **cmd_modules/commands_services.py** - all service commands (s, se, sel, solarwind, otiedote, sahko, euribor, junat, youtube, imdb, crypto, leetwinners, eurojackpot, alko, drugs, url, wrap)
 
-Commands are now loaded from modular files instead of single monolithic commands.py.
-The cmd_modules/**init**.py imports all command modules to trigger @command decorator registration.
+**Backward compatibility layer (still in commands.py, need to be moved):**
 
-Note: Some complex commands (sanaketju, muunnos, quote, schedule, ipfs, etc.) still depend
-on helpers in commands.py and are imported via backward compatibility layer.
+- word_tracking.py: `from commands import *` imports drink, kraks, drinkword, krakstats, tamagotchi, feed, pet, krak, kraksdebug, leaderboard, topwords, sana, tilaa
+- misc.py placeholders: muunnos (complex - has many helper deps), schedule, ipfs
+- games.py: sanaketju
+
+**Architecture Note:**
+The command registry handles duplicate registrations gracefully (idempotent). When the same command is defined in both commands.py and cmd_modules with identical metadata, the second registration is skipped. This allows for incremental migration - commands can be moved one at a time.
 
 Tests: 766 passed, 4 skipped (all tests pass)
 

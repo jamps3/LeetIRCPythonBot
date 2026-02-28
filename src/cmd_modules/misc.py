@@ -6,10 +6,15 @@ Contains misc commands: 420, kaiku, muunnos, matka, np, quote, leets, etc.
 Note: Some commands depend on shared helpers in commands.py - they are imported as needed.
 """
 
+import os
 import random
+import urllib.request
 from datetime import datetime
 
-from command_registry import CommandContext, command
+import requests
+
+from command_registry import CommandContext, CommandType, command
+from config import get_config
 
 # =====================
 # 420 Command
@@ -282,13 +287,248 @@ def np_command(context: CommandContext, bot_functions):
 
 
 # =====================
+# Leets Command
+# =====================
+
+
+@command(
+    name="leets",
+    command_type=CommandType.PUBLIC,
+    description="Show recent leet detection history",
+    usage="!leets <limit>",
+    admin_only=False,
+)
+def command_leets(context, bot_functions):
+    """Show recent leet detection history."""
+    from datetime import datetime
+    from leet_detector import create_leet_detector
+
+    # Parse optional numeric limit from context.args
+    limit = 5
+    if context.args and isinstance(context.args[0], str) and context.args[0].isdigit():
+        try:
+            limit = max(1, int(context.args[0]))
+        except Exception:
+            limit = 5
+
+    detector = create_leet_detector()
+    history = detector.get_leet_history(limit=limit)
+
+    if not history:
+        return "No leet detections found."
+
+    response_lines = ["🎉 Recent Leet Detections:"]
+    for detection in history:
+        try:
+            date_str = datetime.fromisoformat(detection.get("datetime", "")).strftime(
+                "%d.%m %H:%M:%S"
+            )
+        except Exception:
+            date_str = ""
+        user_msg = detection.get("user_message")
+        user_msg_part = f' "{user_msg}"' if user_msg else ""
+        response_lines.append(
+            f"{detection.get('emoji', '')} {detection.get('achievement_name', '')} [{detection.get('nick', '')}] "
+            f"{detection.get('timestamp', '')}{user_msg_part} ({date_str})"
+        )
+
+    return "\n".join(response_lines)
+
+
+# =====================
+# Quote Command
+# =====================
+
+
+@command(
+    "quote",
+    description="Display a random quote, search for quotes, or add new quotes",
+    usage="!quote [search_text] or !quote add <quote_text>",
+    examples=["!quote", "!quote tunnuslauseemme on", "!quote add This is a new quote"],
+)
+def quote_command(context: CommandContext, bot_functions):
+    """Display a random quote from configured source (file or URL), search for a specific quote, or add a new quote."""
+    config_obj = get_config()
+
+    # Get quotes source from environment, default to data/quotes.txt
+    quotes_source = getattr(config_obj, "quotes_source", "data/quotes.txt")
+
+    # Make sure we have an absolute path for file operations
+    if not os.path.isabs(quotes_source):
+        # Make relative paths resolve from project root
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        quotes_source = os.path.join(project_root, quotes_source)
+
+    try:
+        # Check if this is an "add" command
+        if context.args and context.args[0].lower() == "add":
+            # Add a new quote
+            if len(context.args) < 2:
+                return "Usage: !quote add <quote_text>"
+
+            quote_text = " ".join(context.args[1:]).strip()
+            if not quote_text:
+                return "Quote text cannot be empty"
+
+            try:
+                # Ensure the directory exists
+                os.makedirs(os.path.dirname(quotes_source), exist_ok=True)
+
+                # Append the quote to the file
+                with open(quotes_source, "a", encoding="utf-8") as f:
+                    f.write(quote_text + "\n")
+
+                return f'✅ Quote added: "{quote_text}"'
+            except Exception as e:
+                return f"Error adding quote: {e}"
+
+        # Handle reading/displaying quotes
+        lines = []
+
+        if quotes_source.startswith("http://") or quotes_source.startswith("https://"):
+            # Handle URL source
+            try:
+                with urllib.request.urlopen(quotes_source) as response:
+                    content = response.read().decode("utf-8")
+                    lines = [
+                        line.strip() for line in content.splitlines() if line.strip()
+                    ]
+            except Exception as e:
+                return f"Error fetching quotes from URL: {e}"
+        else:
+            # Handle file source
+            if not os.path.exists(quotes_source):
+                return "Quotes file not found."
+
+            try:
+                with open(quotes_source, "r", encoding="utf-8") as f:
+                    lines = [line.strip() for line in f if line.strip()]
+            except Exception as e:
+                return f"Error reading quotes file: {e}"
+
+        if not lines:
+            return "No quotes available"
+
+        # Check if search text is provided
+        search_text = context.args_text.strip() if context.args_text else ""
+
+        if search_text:
+            # Search for quotes containing the search text (case-insensitive)
+            matching_quotes = [
+                line for line in lines if search_text.lower() in line.lower()
+            ]
+
+            if not matching_quotes:
+                return f"No quotes found containing '{search_text}'"
+
+            # Return the first matching quote
+            quote = matching_quotes[0]
+        else:
+            # Select random quote
+            quote = random.choice(lines)
+
+        # Remove line numbers if present (format: "123|quote text")
+        if "|" in quote and quote.split("|")[0].isdigit():
+            quote = "|".join(quote.split("|")[1:])
+
+        return quote
+
+    except Exception as e:
+        return f"Error with quote command: {e}"
+
+
+# =====================
+# Matka Command
+# =====================
+
+
+@command(
+    "matka", description="Show travel time and distance", usage="!matka <from> | <to>"
+)
+def driving_distance_osrm(context: CommandContext, bot_functions):
+    """
+    Laskee ajomatkan pituuden ja keston OSRM:n avulla kahden kaupungin valilla.
+    """
+
+    def get_coordinates(city_name):
+        """Hakee kaupungin koordinaatit (lon, lat) Nominatim-palvelusta."""
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {"q": city_name, "format": "json", "limit": 1}
+        response = requests.get(
+            url, params=params, headers={"User-Agent": "matkalaskuri"}
+        )
+        if response.status_code == 200 and response.json():
+            result = response.json()[0]
+            lon, lat = float(result["lon"]), float(result["lat"])
+            # Ota viimeinen osa display_name:sta → "Suomi / Finland"
+            display_name = result.get("display_name", "")
+            parts = [p.strip() for p in display_name.split(",")]
+            country = parts[-1] if parts else "Tuntematon maa"
+            return lon, lat, country
+        else:
+            raise Exception(f"Koordinaatteja ei loytynyt kaupungille: {city_name}")
+
+    text = context.args_text.strip()
+
+    # Jos lainausmerkit kaytossa → poimitaan niiden sisalto
+    if '"' in text:
+        parts = []
+        buf = ""
+        in_quotes = False
+        for ch in text:
+            if ch == '"':
+                if in_quotes:
+                    parts.append(buf.strip())
+                    buf = ""
+                    in_quotes = False
+                else:
+                    in_quotes = True
+            else:
+                if in_quotes:
+                    buf += ch
+        args = parts
+    else:
+        # Muuten pilkotaan valilyonneilla
+        args = text.split()
+
+    if len(args) != 2:
+        return "Anna kaupungit muodossa: !matka <kaupunki1> <kaupunki2> tai lainausmerkissa jos nimi sisaltaa valilyonnteja"
+
+    origin_city, destination_city = args
+
+    origin_lon, origin_lat, origin_country = get_coordinates(origin_city)
+    dest_lon, dest_lat, dest_country = get_coordinates(destination_city)
+
+    # OSRM-kutsu
+    url = (
+        f"http://router.project-osrm.org/route/v1/driving/"
+        f"{origin_lon},{origin_lat};{dest_lon},{dest_lat}?overview=false"
+    )
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        data = response.json()
+        route = data["routes"][0]
+        distance_km = route["distance"] / 1000  # metreista kilometreiksi
+        duration_min = route["duration"] / 60  # sekunneista minuuteiksi
+        origin_city = origin_city.title()
+        destination_city = destination_city.title()
+        origin_country = origin_country.title()
+        dest_country = dest_country.title()
+        return (
+            f"{origin_city}, {origin_country} → {destination_city}, {dest_country} : "
+            f"Matka: {distance_km:.1f} km, "
+            f"Ajoaika: {duration_min/60:.1f} h"
+        )
+    else:
+        raise Exception(f"Virhe haettaessa reitteja: {response.status_code}")
+
+
+# =====================
 # Placeholder commands - these need more work to extract
 # =====================
 
 # muunnos_command - depends on Finnish word transformation helpers
-# quote_command - depends on quote file loading
-# leets_command - depends on leet detector
-# matka_command - depends on OSRM API
 # schedule command - depends on scheduled_message_service
 # ipfs command - depends on IPFS service
 

@@ -188,6 +188,49 @@ class OtiedoteService:
         except Exception:
             return DEFAULT_START_ID - 1
 
+    def _load_state(self) -> dict:
+        """Load full state including filters from state.json."""
+        if not os.path.exists(self.state_file):
+            return {"otiedote": {"latest_release": 0, "filters": {}}}
+
+        try:
+            with open(self.state_file, "r", encoding="utf8") as f:
+                data = json.load(f)
+            return data
+        except Exception:
+            return {"otiedote": {"latest_release": 0, "filters": {}}}
+
+    def _save_state(self, state: dict) -> None:
+        """Save full state including filters to state.json."""
+        import tempfile
+        from datetime import datetime
+
+        temp_path = None
+        try:
+            # Ensure target directory exists
+            target_dir = os.path.dirname(self.state_file) or "."
+            os.makedirs(target_dir, exist_ok=True)
+
+            # Update timestamp
+            state["last_updated"] = datetime.now().isoformat()
+
+            # Save to a unique temporary file in the same directory, then rename atomically
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf8", dir=target_dir, delete=False, suffix=".json"
+            ) as temp_file:
+                json.dump(state, temp_file, ensure_ascii=False, indent=2)
+                temp_path = temp_file.name
+
+            # Atomic rename
+            os.replace(temp_path, self.state_file)
+        except Exception:
+            # Clean up temp file on error
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except Exception:
+                    pass
+
     def _save_latest_release(self, id_val: int) -> None:
         """Update state.json cleanly with atomic writes."""
         data = {}
