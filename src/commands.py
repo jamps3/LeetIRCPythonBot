@@ -781,7 +781,7 @@ def transform_phrase(input_text):
 @command(
     "muunnos",
     description="Finnish word transformation (sananmuunnos)",
-    usage="!muunnos [phrase|search <term>|add \"original\" \"transformed\"]",
+    usage='!muunnos [phrase|search <term>|add "original" "transformed"]',
     examples=[
         "!muunnos",
         "!muunnos hillittömästi mätti",
@@ -806,13 +806,17 @@ def muunnos_command(context: CommandContext, bot_functions):
         result = f"Virhe ladattaessa sananmuunnoksia: {e}"
         return _send_muunnos_response(context, bot_functions, result)
 
-    # Check for 'search' command
-    if context.args and context.args[0].lower() == "search":
-        if len(context.args) < 2:
-            result = "Usage: !muunnos search <term> - searches for transformations containing the term"
+    # Check for 'search' or 's' command
+    if context.args and context.args[0].lower() in ("search", "s"):
+        # 's' is shorthand for short mode search
+        short_mode = context.args[0].lower() == "s"
+        search_args = context.args[1:]
+
+        if not search_args:
+            result = "Usage: !muunnos search [-s] <term> - searches for transformations containing the term"
             return _send_muunnos_response(context, bot_functions, result)
 
-        search_term = context.args[1].lower()
+        search_term = search_args[0].lower()
         matches = []
         for original, transformed in transformations.items():
             if search_term in original.lower() or search_term in transformed.lower():
@@ -822,17 +826,43 @@ def muunnos_command(context: CommandContext, bot_functions):
             result = f'Ei löydy muunnoksia termillä: "{search_term}"'
             return _send_muunnos_response(context, bot_functions, result)
 
-        # Limit to 10 results
-        limited_matches = matches[:10]
-        result_lines = [f'Hakutulokset termillä "{search_term}" ({len(matches)}/{len(transformations)}):']
-        for original, transformed in limited_matches:
-            result_lines.append(f"  {original} → {transformed}")
+        if short_mode:
+            # Short mode: one line, IRC-friendly
+            # IRC message limit ~400 chars, format: "(24/6207): a→b, c→d, ..."
+            total = len(transformations)
+            found = len(matches)
+            header = f"({found}/{total}):"
 
-        if len(matches) > 10:
-            result_lines.append(f"  ... ja {len(matches) - 10} lisää")
+            # Build single line output
+            remaining = 400 - len(header) - 4  # 4 for " ..." suffix
+            result_parts = []
+            for original, transformed in matches:
+                entry = f"{original}→{transformed}"
+                if len(header) + sum(len(p) + 2 for p in result_parts) + len(entry) + 4 <= remaining:
+                    result_parts.append(entry)
+                else:
+                    break
 
-        result = "\n".join(result_lines)
-        return _send_muunnos_response(context, bot_functions, result)
+            result = header + " " + ", ".join(result_parts)
+            if found > len(result_parts):
+                result += f" ... [{found - len(result_parts)}]"
+
+            return _send_muunnos_response(context, bot_functions, result)
+        else:
+            # Full mode: multi-line output
+            # Limit to 10 results
+            limited_matches = matches[:10]
+            result_lines = [
+                f'Hakutulokset termillä "{search_term}" ({len(matches)}/{len(transformations)}):'
+            ]
+            for original, transformed in limited_matches:
+                result_lines.append(f"  {original} → {transformed}")
+
+            if len(matches) > 10:
+                result_lines.append(f"  ... ja {len(matches) - 10} lisää")
+
+            result = "\n".join(result_lines)
+            return _send_muunnos_response(context, bot_functions, result)
 
     # Check for 'add' command
     if context.args and context.args[0].lower() == "add":
