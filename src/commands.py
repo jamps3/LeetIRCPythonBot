@@ -781,10 +781,11 @@ def transform_phrase(input_text):
 @command(
     "muunnos",
     description="Finnish word transformation (sananmuunnos)",
-    usage="!muunnos [phrase] - returns random transformation if no args",
+    usage="!muunnos [phrase|search <term>|add \"original\" \"transformed\"]",
     examples=[
         "!muunnos",
         "!muunnos hillittömästi mätti",
+        "!muunnos search kalja",
         '!muunnos add "lokki kivellä" "kikki lovella"',
     ],
 )
@@ -803,6 +804,34 @@ def muunnos_command(context: CommandContext, bot_functions):
             transformations = json.load(f)
     except (FileNotFoundError, IOError) as e:
         result = f"Virhe ladattaessa sananmuunnoksia: {e}"
+        return _send_muunnos_response(context, bot_functions, result)
+
+    # Check for 'search' command
+    if context.args and context.args[0].lower() == "search":
+        if len(context.args) < 2:
+            result = "Usage: !muunnos search <term> - searches for transformations containing the term"
+            return _send_muunnos_response(context, bot_functions, result)
+
+        search_term = context.args[1].lower()
+        matches = []
+        for original, transformed in transformations.items():
+            if search_term in original.lower() or search_term in transformed.lower():
+                matches.append((original, transformed))
+
+        if not matches:
+            result = f'Ei löydy muunnoksia termillä: "{search_term}"'
+            return _send_muunnos_response(context, bot_functions, result)
+
+        # Limit to 10 results
+        limited_matches = matches[:10]
+        result_lines = [f'Hakutulokset termillä "{search_term}" ({len(matches)}/{len(transformations)}):']
+        for original, transformed in limited_matches:
+            result_lines.append(f"  {original} → {transformed}")
+
+        if len(matches) > 10:
+            result_lines.append(f"  ... ja {len(matches) - 10} lisää")
+
+        result = "\n".join(result_lines)
         return _send_muunnos_response(context, bot_functions, result)
 
     # Check for 'add' command
