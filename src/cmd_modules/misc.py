@@ -232,7 +232,57 @@ def np_command(context: CommandContext, bot_functions):
     today_month = now.month
     today_day = now.day
 
-    # Handle different argument patterns
+    # Handle new dict format: {"2025-01-01": {"official": [...], ...}}
+    if isinstance(nimipaivat, dict):
+        # Build date key for today
+        date_key = f"{now.year}-{today_month:02d}-{today_day:02d}"
+
+        if not context.args:
+            # Show today's name days
+            if date_key in nimipaivat:
+                entry = nimipaivat[date_key]
+                names = entry.get("official", [])
+                return f"Tänään ({today_day}.{today_month}) on nimipäivä: {', '.join(names)}"
+            return "No name day found for today"
+
+        arg = context.args[0].lower()
+
+        # Check if it's a number (date)
+        if arg.isdigit():
+            day = int(arg)
+            # Show all name days for that day number (any month)
+            results = []
+            for date_str, entry in nimipaivat.items():
+                try:
+                    _, m, d = date_str.split("-")
+                    if int(d) == day:
+                        names = entry.get("official", [])
+                        if names:
+                            results.append(f"{day}.{int(m)}: {', '.join(names)}")
+                except (ValueError, IndexError):
+                    continue
+            if results:
+                return " | ".join(results)
+            return f"No name day found for day {day}"
+
+        # Search by name
+        search_name = arg
+        results = []
+        for date_str, entry in nimipaivat.items():
+            names = entry.get("official", [])
+            for name in names:
+                if search_name in name.lower():
+                    try:
+                        _, month, day = date_str.split("-")
+                        results.append(f"{int(day)}.{int(month)}: {name}")
+                    except (ValueError, IndexError):
+                        pass
+        if results:
+            return " | ".join(results[:10])  # Limit results
+        return f"No name found: {search_name}"
+
+    # Handle old list format (legacy support)
+    # [{"month": 1, "day": 1, "names": ["..."]}]
     if not context.args:
         # Show today's name days
         for entry in nimipaivat:
