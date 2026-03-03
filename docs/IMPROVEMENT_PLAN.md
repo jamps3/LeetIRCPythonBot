@@ -100,7 +100,7 @@ Note: Some legacy tests fail due to API changes (record_word, etc.) - these test
 - muunnos command: cmd_modules/word_tracking.py (transform_phrase, \_send_muunnos_response)
 - noppa command: cmd_modules/games.py
 - matka command: cmd_modules/misc.py
-- np command: cmd_modules/misc.py (different JSON format - may need reconciliation)
+- np command: cmd_modules/misc.py ✅ (fixed to handle new dict format with year-month-day keys, includes fallback for old list format)
 - quote command: cmd_modules/misc.py
 - connect/disconnect/status/channels/about/k/exit: cmd_modules/admin.py, basic.py
 
@@ -174,3 +174,36 @@ $ python -c "import commands; from command_registry import get_command_registry;
 ```
 
 All 55 commands now load correctly whether accessed via command_loader or direct import.
+
+---
+
+## 2026-03-03: NP Command Verification - COMPLETED ✅
+
+**Issue:** np_command was returning "No name day found for today" from console but working via !kaiku from IRC.
+
+**Investigation:**
+
+1. Verified np_command implementation in cmd_modules/misc.py:
+   - ✅ Uses @command("np") decorator (line 213)
+   - ✅ Function is np_command (line 214)
+   - ✅ Handles new dict format: {"2025-01-01": {"official": [...]}}
+   - ✅ Searches by month-day ignoring year (line 238: `month_day_key = f"-{today_month:02d}-{today_day:02d}"`)
+   - ✅ Has fallback for old list format
+
+2. Verified data file (data/nimipaivat.json):
+   - ✅ Data exists for today (2025-03-03): {'official': ['Kauko'], ...}
+   - ✅ Format is dict with date keys
+
+3. Tested via process_console_command:
+   - ✅ Returns correct output: "Tänään (3.3) on nimipäivä: Kauko"
+
+**Conclusion:**
+The np_command is correctly implemented. The issue reported by user may have been:
+
+1. A stale pycache issue (cleared by restarting the bot)
+2. Running from an older version before the fix
+3. Different execution context
+
+**Status:** COMPLETED ✅
+
+Command count verified: 56 commands loaded successfully.

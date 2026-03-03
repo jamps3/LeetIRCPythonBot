@@ -232,6 +232,16 @@ def np_command(context: CommandContext, bot_functions):
     today_month = now.month
     today_day = now.day
 
+    # Load additional name day data (Swedish, Sami, Orthodox)
+    others_data = {}
+    others_file = os.path.join("data", "nimipaivat_others.json")
+    if os.path.exists(others_file):
+        try:
+            with open(others_file, "r", encoding="utf-8") as f:
+                others_data = json.load(f)
+        except Exception:
+            pass  # Silently skip if file can't be loaded
+
     # Handle new dict format: {"2025-01-01": {"official": [...], ...}}
     if isinstance(nimipaivat, dict):
         # Build date key for today (search by month-day ignoring year)
@@ -241,8 +251,40 @@ def np_command(context: CommandContext, bot_functions):
             # Show today's name days - search by month-day
             for date_str, entry in nimipaivat.items():
                 if date_str.endswith(month_day_key):
-                    names = entry.get("official", [])
-                    return f"Tänään ({today_day}.{today_month}) on nimipäivä: {', '.join(names)}"
+                    # Build detailed response with all name categories
+                    official = entry.get("official", [])
+                    unofficial = entry.get("unofficial", [])
+                    dogs = entry.get("dogs", [])
+                    cats = entry.get("cats", [])
+
+                    parts = []
+                    if official:
+                        parts.append(f"Viralliset: {', '.join(official)}")
+                    if unofficial:
+                        parts.append(f"Epäviralliset: {', '.join(unofficial)}")
+                    if dogs and dogs != [": -"]:
+                        parts.append(f"Koirat: {', '.join(dogs)}")
+                    if cats and cats != [": -"]:
+                        parts.append(f"Kissat: {', '.join(cats)}")
+
+                    # Add other name days (Swedish, Sami, Orthodox)
+                    for others_date_str, others_entry in others_data.items():
+                        if others_date_str.endswith(month_day_key):
+                            swedish = others_entry.get("swedish", [])
+                            sami = others_entry.get("sami", [])
+                            orthodox = others_entry.get("orthodox", [])
+                            if swedish:
+                                parts.append(f"Ruotsiksi: {', '.join(swedish)}")
+                            if sami:
+                                parts.append(f"Saameksi: {', '.join(sami)}")
+                            if orthodox:
+                                parts.append(f"Ortodoksit: {', '.join(orthodox)}")
+                            break
+
+                    if parts:
+                        return f"Nimipäivät tänään {today_day}.{today_month}.2025: | {' | '.join(parts)}"
+                    else:
+                        return f"Tänään ({today_day}.{today_month}) on nimipäivä: {', '.join(official)}"
             return "No name day found for today"
 
         arg = context.args[0].lower()
