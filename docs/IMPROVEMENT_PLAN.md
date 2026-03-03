@@ -22,46 +22,33 @@ All planned improvements have been implemented:
 8. ✅ **cmd_modules/** - Created modular command package structure
 9. ✅ **commands_services.py** - Moved to cmd_modules/
 10. ✅ **eurojackpot_service.py** - Simplified API fallback logic (~100 lines removed)
+11. ✅ **commands.py refactoring** - All commands moved to cmd_modules/ (see below)
 
 ---
 
-## 2026-02-24: Commands Refactoring
+## Commands Refactoring - COMPLETED ✅
 
-### Current Status (2026-02-28)
+All commands have been successfully moved from the monolithic `commands.py` to modular files in `cmd_modules/`:
 
-Progress made on splitting commands.py into modular files in cmd_modules/:
-
-**Already split (have actual implementations):**
+### Final cmd_modules Structure:
 
 - **cmd_modules/basic.py** - help, ping, version, about, servers, status, channels
-- **cmd_modules/admin.py** - connect, disconnect, exit, countdown
-- **cmd_modules/games.py** - kolikko, noppa, ksp, blackjack, sanaketju (MOVED ✅)
-- **cmd_modules/misc.py** - 420, kaiku/echo, np (name day), leets, quote, matka, schedule, ipfs (ALL MOVED ✅)
+- **cmd_modules/admin.py** - connect, disconnect, exit, countdown (k)
+- **cmd_modules/games.py** - kolikko, noppa, ksp, blackjack, sanaketju
+- **cmd_modules/misc.py** - 420, kaiku/echo, np (name day), leets, quote, matka, schedule, ipfs
+- **cmd_modules/word_tracking.py** - sana, tilaa, topwords, leaderboard, drinkword, drink, kraks, tamagotchi, feed, pet, krak, muunnos, krakstats, kraksdebug
 - **cmd_modules/commands_services.py** - all service commands (s, se, sel, solarwind, otiedote, sahko, euribor, junat, youtube, imdb, crypto, leetwinners, eurojackpot, alko, drugs, url, wrap)
 
-**Backward compatibility layer (still in commands.py, need to be moved):**
+### commands.py Status:
 
-- word_tracking.py: drink, kraks, drinkword, krakstats, tamagotchi, feed, pet, krak, kraksdebug, leaderboard, topwords, sana, tilaa (ALL MOVED ✅)
-- misc.py placeholders: muunnos (MOVED ✅), ipfs (MOVED ✅)
-- games.py: sanaketju (MOVED ✅)
+**DEPRECATED** - The commands.py file now serves only as a backward-compatibility layer containing:
 
-**Architecture Note:**
-The command registry handles duplicate registrations gracefully (idempotent). When the same command is defined in both commands.py and cmd_modules with identical metadata, the second registration is skipped. This allows for incremental migration - commands can be moved one at a time.
+- Lazy getter functions (\_get_data_manager, \_get_drink_tracker, etc.)
+- Proxy classes for DataManager, DrinkTracker, etc.
+- Helper classes (CardSuit, CardRank, BlackjackGame, SanaketjuGame, etc.)
+- Import re-exports for backward compatibility
 
-**Commands remaining in commands.py (complex, need more work):**
-
-- muunnos: Depends on Finnish word transformation helper functions (\_find_first_syllable, transform_phrase)
-- sanaketju: Depends on SanaketjuGame class with data persistence
-- word_tracking commands (drink, kraks, tilaa, etc.): Complex dependencies on drink tracker and data manager
-
-**Progress this session:**
-
-- ✅ Moved leets command to misc.py
-- ✅ Moved schedule command to misc.py
-- ✅ Moved ipfs command to misc.py
-- ✅ Moved word_tracking commands to word_tracking.py
-- ✅ Moved muunnos command to word_tracking.py
-- ✅ Moved sanaketju game to games.py
+The commands.py file is NOT actively used for command registration - all @command decorated functions in commands.py are duplicates of those in cmd_modules/ and are skipped due to the idempotent registration in the command registry.
 
 Tests: 766 passed, 4 skipped (all tests pass)
 

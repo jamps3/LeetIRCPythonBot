@@ -986,3 +986,231 @@ def muunnos_command(context: CommandContext, bot_functions):
 
     result = f"Ei löydy muunnosta: {input_text}"
     return _send_muunnos_response(context, bot_functions, result)
+
+
+# =====================
+# Krakstats Command
+# =====================
+
+
+@command(
+    "krakstats",
+    description="Show personal krak statistics",
+    usage="!krakstats",
+    examples=["!krakstats"],
+)
+def krakstats_command(context: CommandContext, bot_functions):
+    """Show personal krak statistics for the user."""
+    # Use injected drink tracker to ensure shared persistence
+    drink = bot_functions.get("drink_tracker") or _get_drink_tracker()
+    if not drink:
+        return "Drink tracker ei ole käytettävissä."
+
+    # Derive server name (works for both IRC and console)
+    server_name = (
+        bot_functions.get("server_name")
+        or getattr(context, "server_name", "console")
+        or "console"
+    )
+
+    nick = context.sender
+
+    # Get user stats
+    user_stats = drink.get_user_stats(server_name, nick)
+
+    if user_stats.get("total_drink_words", 0) == 0:
+        return f"Ei krakkauksia vielä tallennettuna käyttäjälle {nick}."
+
+    total_kraks = user_stats["total_drink_words"]
+
+    # Calculate recent counts
+    from datetime import datetime, timedelta
+
+    now = datetime.now()
+    last_30_days = now - timedelta(days=30)
+    last_week = now - timedelta(days=7)
+    last_24h = now - timedelta(hours=24)
+
+    count_30d = 0
+    count_week = 0
+    count_24h = 0
+
+    # Count by drink type and time periods
+    drink_type_counts = {}
+    drink_type_recent = {"30d": {}, "week": {}, "24h": {}}
+
+    for drink_word, drink_data in user_stats.get("drink_words", {}).items():
+        for timestamp_entry in drink_data.get("timestamps", []):
+            timestamp_str = timestamp_entry.get("time", "")
+            try:
+                timestamp = datetime.fromisoformat(timestamp_str)
+                specific_drink = timestamp_entry.get("specific_drink", "unspecified")
+
+                # Count by time period
+                if timestamp >= last_30_days:
+                    count_30d += 1
+                    drink_type_recent["30d"][specific_drink] = (
+                        drink_type_recent["30d"].get(specific_drink, 0) + 1
+                    )
+                if timestamp >= last_week:
+                    count_week += 1
+                    drink_type_recent["week"][specific_drink] = (
+                        drink_type_recent["week"].get(specific_drink, 0) + 1
+                    )
+                if timestamp >= last_24h:
+                    count_24h += 1
+                    drink_type_recent["24h"][specific_drink] = (
+                        drink_type_recent["24h"].get(specific_drink, 0) + 1
+                    )
+
+                # Count by drink type
+                drink_type_counts[specific_drink] = (
+                    drink_type_counts.get(specific_drink, 0) + 1
+                )
+
+            except (ValueError, KeyError):
+                continue
+
+    # Format response in compact multi-line format
+    response_parts = []
+
+    # First line: Summary stats
+    response_parts.append(
+        f"🐧 {nick} krak statistics: Total kraks: {total_kraks} | Last 30 days: {count_30d} | Last week: {count_week} | Last 24h: {count_24h}"
+    )
+
+    # Second line: All-time drink types
+    if drink_type_counts:
+        sorted_types = sorted(
+            drink_type_counts.items(), key=lambda x: x[1], reverse=True
+        )
+        drink_type_str = " | ".join(
+            f"{drink_type}: {count}" for drink_type, count in sorted_types[:5]
+        )
+        response_parts.append(f"Drink types: {drink_type_str}")
+
+    # Third line: Last 24h drink types
+    if drink_type_recent["24h"]:
+        sorted_24h = sorted(
+            drink_type_recent["24h"].items(), key=lambda x: x[1], reverse=True
+        )
+        drink_24h_str = " | ".join(
+            f"{drink_type}: {count}" for drink_type, count in sorted_24h[:3]
+        )
+        response_parts.append(f"Last 24h drink types: {drink_24h_str}")
+
+    # Fourth line: Last week drink types
+    if drink_type_recent["week"]:
+        sorted_week = sorted(
+            drink_type_recent["week"].items(), key=lambda x: x[1], reverse=True
+        )
+        drink_week_str = " | ".join(
+            f"{drink_type}: {count}" for drink_type, count in sorted_week[:3]
+        )
+        response_parts.append(f"Last week drink types: {drink_week_str}")
+
+    # Fifth line: Last 30 days drink types
+    if drink_type_recent["30d"]:
+        sorted_30d = sorted(
+            drink_type_recent["30d"].items(), key=lambda x: x[1], reverse=True
+        )
+        drink_30d_str = " | ".join(
+            f"{drink_type}: {count}" for drink_type, count in sorted_30d[:3]
+        )
+        response_parts.append(f"Last 30 days drink types: {drink_30d_str}")
+
+    # Send response privately to the user (not to channel)
+    if context.is_console:
+        return "\n".join(response_parts)
+    else:
+        # IRC: send as notices to the nick who asked
+        notice = bot_functions.get("notice_message")
+        irc = bot_functions.get("irc")
+        if notice and irc:
+            for line in response_parts:
+                if line.strip():
+                    notice(line, irc, context.sender)
+            return CommandResponse.no_response()
+        return CommandResponse.success_msg("\n".join(response_parts))
+
+
+# =====================
+# Kraksdebug Command
+# =====================
+
+
+@command(
+    "kraksdebug",
+    description="Configure drink word detection debugging",
+    usage="!kraksdebug [#channel] or !kraksdebug (in private: toggle nick whitelist)",
+    examples=["!kraksdebug #test", "!kraksdebug"],
+    admin_only=False,
+)
+def kraksdebug_command(context: CommandContext, bot_functions):
+    """Configure drink word detection debugging notifications.
+
+    In a channel: toggles sending drink word detections to that channel.
+    In private message: adds/removes your nick from the whitelist for nick notices.
+    """
+    # Get the data manager
+    data_manager = bot_functions.get("data_manager")
+    if not data_manager:
+        return "❌ Data manager not available"
+
+    # Load current kraksdebug state
+    kraksdebug_config = data_manager.load_kraksdebug_state()
+
+    if context.args:
+        # Channel parameter provided (channel usage)
+        channel = context.args[0]
+
+        # Ensure channel starts with #
+        if not channel.startswith("#"):
+            channel = "#" + channel
+
+        # Toggle channel in list
+        if channel in kraksdebug_config["channels"]:
+            kraksdebug_config["channels"].remove(channel)
+            action = "removed from"
+        else:
+            kraksdebug_config["channels"].append(channel)
+            action = "added to"
+
+        # Save state
+        data_manager.save_kraksdebug_state(kraksdebug_config)
+
+        return f"✅ Channel {channel} {action} drink word detection notifications"
+    else:
+        # No parameter - different behavior based on context
+        is_private = not context.target.startswith("#")
+
+        if is_private:
+            # Private message: toggle nick in whitelist
+            nick = context.sender
+            nicks_list = kraksdebug_config.get("nicks", [])
+
+            if nick in nicks_list:
+                nicks_list.remove(nick)
+                action = "removed from"
+            else:
+                nicks_list.append(nick)
+                action = "added to"
+
+            kraksdebug_config["nicks"] = nicks_list
+            data_manager.save_kraksdebug_state(kraksdebug_config)
+
+            return (
+                f"✅ Your nick '{nick}' {action} drink word detection notice whitelist"
+            )
+        else:
+            # Channel message: toggle nick notices (legacy behavior)
+            kraksdebug_config["nick_notices"] = not kraksdebug_config.get(
+                "nick_notices", False
+            )
+
+            # Save state
+            data_manager.save_kraksdebug_state(kraksdebug_config)
+
+            status = "enabled" if kraksdebug_config["nick_notices"] else "disabled"
+            return f"✅ Drink word detection notices to nicks are now {status}"
+

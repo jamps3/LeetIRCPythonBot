@@ -1,6 +1,19 @@
 """
 Unified Commands Module for LeetIRCPythonBot
-Admin commands in commands_admin.py
+
+DEPRECATED: All commands have been moved to cmd_modules/ package.
+This file now only contains helper classes and functions used by cmd_modules.
+
+Command locations:
+- basic.py: help, ping, version, servers, status, channels, about
+- admin.py: connect, disconnect, k (countdown), exit
+- games.py: kolikko, noppa, ksp, blackjack, sanaketju
+- misc.py: 420, kaiku, np, quote, matka, leets, schedule, ipfs
+- word_tracking.py: sana, tilaa, topwords, leaderboard, drinkword, drink, kraks,
+                    tamagotchi, feed, pet, krak, muunnos, krakstats, kraksdebug
+- commands_services.py: All service commands (weather, crypto, alko, etc.)
+
+Admin commands are in commands_admin.py
 """
 
 import json
@@ -197,10 +210,11 @@ def _parse_time_and_message(input_str: str) -> tuple[str, str]:
     return "", stripped
 
 
-# =====================
-# Basic commands section
-# =====================
+# NOTE: All commands moved to cmd_modules/
 
+
+
+# help moved to cmd_modules/basic.py
 
 @command(
     "help",
@@ -215,8 +229,7 @@ def help_command(context: CommandContext, bot_functions):
     - Do not list the 'help' command itself.
     - List regular (non-admin, non-Tamagotchi) commands alphabetically.
     - Then list Tamagotchi-related commands (tamagotchi, feed, pet) alphabetically.
-    - Finally list admin commands alphabetically (marked with * by the renderer).
-    """
+    - Finally list admin commands alphabetically (marked with * by the renderer)."""
     from command_registry import CommandScope as _CS
     from command_registry import get_command_registry
 
