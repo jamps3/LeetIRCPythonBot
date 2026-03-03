@@ -37,16 +37,22 @@ All commands have been successfully moved from the monolithic `commands.py` to m
 - **cmd_modules/games.py** - kolikko, noppa, ksp, blackjack, sanaketju, countdown (k)
 - **cmd_modules/misc.py** - 420, kaiku/echo, np (name day), leets, quote, matka, schedule, ipfs
 - **cmd_modules/services.py** - service commands: s/se/sel, solarwind, otiedote, sahko, euribor, junat, youtube, imdb, crypto, leetwinners, eurojackpot, alko, drugs, url, wrap, tilaa
-- **cmd_modules/word_tracking.py** - sana, topwords, leaderboard, drinkword, drink, kraks, tamagotchi, feed, pet, krak, muunnos, krakstats, kraksdebug
+- **cmd_modules/word_tracking.py** - sana, topwords, leaderboard, drinkword, drink, kraks, tamagotchi, feed, pet, krak, muunnos, krakstats, kraksdebug, assoc
 
 ### commands.py Status:
 
-**DEPRECATED** - The commands.py file now serves only as a backward-compatibility layer containing:
+**DEPRECATED** - Now a thin backward-compatibility layer (~6.5KB, down from 129KB originally)
 
-- Lazy getter functions (\_get_data_manager, \_get_drink_tracker, etc.)
-- Proxy classes for DataManager, DrinkTracker, etc.
-- Helper classes (CardSuit, CardRank, BlackjackGame, SanaketjuGame, etc.)
-- Import re-exports for backward compatibility
+**NO @command decorated functions exist in commands.py anymore**
+
+**Contents:**
+
+1. Lazy getters (`_get_data_manager()`, `_get_drink_tracker()`, etc.)
+2. Backward compatibility proxies (`_LazyProxy` class)
+3. Re-exports: `CommandContext`, `CommandResponse`, `CommandScope`, `CommandType`, `command`, `DataManager`, `DrinkTracker`, `GeneralWords`, `TamagotchiBot`, `Server`
+4. Helper classes moved to cmd_modules/games.py (CardSuit, CardRank, etc.)
+
+**All 56 commands are now in cmd_modules/ package**
 
 The commands.py file is NOT actively used for command registration - all @command decorated functions in commands.py are duplicates of those in cmd_modules/ and are skipped due to the idempotent registration in the command registry.
 
