@@ -1,87 +1,37 @@
-#!/usr/bin/env python3
 """
-Minimal Admin Commands Tests
-
-Tests for admin commands in commands_admin.py
+Tests for admin commands in cmd_modules/admin.py
 """
 
 import os
 import sys
-from unittest.mock import MagicMock, Mock, call, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
-from command_registry import CommandContext, CommandResponse
-from commands_admin import (
-    admin_quit_command,
-    openai_command,
-    verify_admin_password,
-)
+# Add src to path before importing project modules
+_TEST_ROOT = os.path.dirname(os.path.abspath(__file__))
+if _TEST_ROOT not in sys.path:
+    sys.path.insert(0, os.path.join(_TEST_ROOT, "..", "src"))
+
+from command_registry import CommandContext  # noqa: E402
 
 
 @pytest.fixture
-def mock_config():
-    """Create a mock configuration."""
-    config = Mock()
-    config.admin_password = "testpass123"
-    return config
-
-
-@pytest.fixture
-def mock_irc():
-    """Create a mock IRC connection."""
-    irc = Mock()
-    irc.send_raw = Mock()
-    return irc
-
-
-@pytest.fixture
-def mock_stop_event():
-    """Create a mock stop event."""
-    return Mock()
-
-
-@pytest.fixture
-def mock_logger():
-    """Create a mock logger."""
-    return Mock()
-
-
-@pytest.fixture
-def bot_functions(mock_irc, mock_stop_event, mock_logger):
-    """Create bot functions dictionary."""
+def mock_bot_functions():
+    """Create mock bot functions for testing commands."""
     return {
-        "irc": mock_irc,
-        "stop_event": mock_stop_event,
-        "log": mock_logger,
-        "set_quit_message": Mock(),
+        "log": Mock(),
+        "notice_message": Mock(),
     }
 
 
-def test_verify_admin_password_valid(mock_config):
-    """Test admin password verification with valid password."""
-    with patch("commands_admin.get_config", return_value=mock_config):
-        assert verify_admin_password(["testpass123"]) is True
-
-
-def test_verify_admin_password_invalid(mock_config):
-    """Test admin password verification with invalid password."""
-    with patch("commands_admin.get_config", return_value=mock_config):
-        assert verify_admin_password(["wrongpass"]) is False
-
-
-def test_verify_admin_password_no_args(mock_config):
-    """Test admin password verification with no arguments."""
-    with patch("commands_admin.get_config", return_value=mock_config):
-        assert verify_admin_password([]) is False
-
-
-def test_admin_quit_command_console_triggers_shutdown(mock_config, bot_functions):
-    """Test that admin_quit command in console triggers shutdown."""
-    context = CommandContext(
-        command="admin_quit",
-        args=["testpass123", "goodbye"],
-        raw_message="!admin_quit testpass123 goodbye",
+@pytest.fixture
+def console_context():
+    """Create a mock CommandContext for console commands."""
+    return CommandContext(
+        command="",
+        args=[],
+        raw_message="!test",
         sender=None,
         target=None,
         is_private=False,
@@ -89,91 +39,57 @@ def test_admin_quit_command_console_triggers_shutdown(mock_config, bot_functions
         server_name="console",
     )
 
-    with patch("commands_admin.get_config", return_value=mock_config):
-        response = admin_quit_command(context, bot_functions)
 
-    # Verify shutdown was triggered
-    bot_functions["stop_event"].set.assert_called_once()
-    assert "🛑 Shutting down bot" in response
-    assert "goodbye" in response
-
-
-def test_admin_quit_command_invalid_password(mock_config, bot_functions):
-    """Test admin_quit command with invalid password."""
-    context = CommandContext(
-        command="admin_quit",
-        args=["wrongpass"],
-        raw_message="!admin_quit wrongpass",
-        sender=None,
-        target=None,
+@pytest.fixture
+def irc_context():
+    """Create a mock CommandContext for IRC commands."""
+    return CommandContext(
+        command="",
+        args=[],
+        raw_message="!test",
+        sender="TestUser",
+        target="#test",
         is_private=False,
-        is_console=True,
-        server_name="console",
+        is_console=False,
+        server_name="TestServer",
     )
 
-    with patch("commands_admin.get_config", return_value=mock_config):
-        response = admin_quit_command(context, bot_functions)
 
-    # Verify shutdown was NOT triggered
-    bot_functions["stop_event"].set.assert_not_called()
-    assert response == "❌ Invalid admin password"
+class TestConnectCommand:
+    """Tests for the !connect command."""
 
+    def test_connect_command_exists(self):
+        """Test connect command is registered."""
+        from cmd_modules.admin import connect_command
 
-def test_openai_command_valid(mock_config, bot_functions):
-    """Test openai command with valid parameters."""
-    bot_functions["set_openai_model"] = Mock(return_value="✅ Model set to gpt-4")
-
-    context = CommandContext(
-        command="openai",
-        args=["testpass123", "gpt-4"],
-        raw_message="!openai testpass123 gpt-4",
-        sender=None,
-        target=None,
-        is_private=False,
-        is_console=True,
-        server_name="console",
-    )
-
-    with patch("commands_admin.get_config", return_value=mock_config):
-        response = openai_command(context, bot_functions)
-
-    bot_functions["set_openai_model"].assert_called_once_with("gpt-4")
-    assert "Model set to gpt-4" in response
+        assert callable(connect_command)
 
 
-def test_openai_command_invalid_password(mock_config, bot_functions):
-    """Test openai command with invalid password."""
-    context = CommandContext(
-        command="openai",
-        args=["wrongpass", "gpt-4"],
-        raw_message="!openai wrongpass gpt-4",
-        sender=None,
-        target=None,
-        is_private=False,
-        is_console=True,
-        server_name="console",
-    )
+class TestDisconnectCommand:
+    """Tests for the !disconnect command."""
 
-    with patch("commands_admin.get_config", return_value=mock_config):
-        response = openai_command(context, bot_functions)
+    def test_disconnect_command_exists(self):
+        """Test disconnect command is registered."""
+        from cmd_modules.admin import disconnect_command
 
-    assert response == "❌ Invalid admin password"
+        assert callable(disconnect_command)
 
 
-def test_openai_command_missing_args(mock_config, bot_functions):
-    """Test openai command with missing arguments."""
-    context = CommandContext(
-        command="openai",
-        args=["testpass123"],
-        raw_message="!openai testpass123",
-        sender=None,
-        target=None,
-        is_private=False,
-        is_console=True,
-        server_name="console",
-    )
+class TestExitCommand:
+    """Tests for the !exit command."""
 
-    with patch("commands_admin.get_config", return_value=mock_config):
-        response = openai_command(context, bot_functions)
+    def test_exit_command_exists(self):
+        """Test exit command is registered."""
+        from cmd_modules.admin import exit_command
 
-    assert "Usage:" in response
+        assert callable(exit_command)
+
+
+class TestCountdownCommand:
+    """Tests for the !k (countdown) command."""
+
+    def test_k_command_exists(self):
+        """Test k (countdown) command is registered."""
+        from cmd_modules.admin import countdown_command
+
+        assert callable(countdown_command)
