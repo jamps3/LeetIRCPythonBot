@@ -203,12 +203,9 @@ def reload_all_commands() -> Tuple[bool, str]:
             except Exception as e:
                 logger.warning(f"ReloadManager: Could not reinitialize services: {e}")
 
-            # Re-import commands module to trigger @command decorators
-            try:
-                import commands  # noqa: F401
-            except Exception as e:
-                logger.error(f"ReloadManager: Failed to re-import commands: {e}")
-                return False, f"Failed to re-import commands: {e}"
+            # Note: cmd_modules are already reloaded in the loop above (lines 140-164)
+            # The 'commands' module is kept in RELOADABLE_MODULES for backward compatibility
+            # but imports from cmd_modules instead (no longer has @command decorators)
 
             # Get new command count
             new_count = len(registry._commands)

@@ -755,7 +755,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         # Check for sanaketju word continuations (lazy load to prevent duplicate command imports)
         try:
             if self._sanaketju_game is None:
-                from commands import get_sanaketju_game
+                from cmd_modules.games import get_sanaketju_game
 
                 self._sanaketju_game = get_sanaketju_game()
 

@@ -19,7 +19,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 from command_registry import CommandContext, CommandResponse
-from commands import echo_command
+from cmd_modules.misc import echo_command
 from services.crypto_service import create_crypto_service
 
 
