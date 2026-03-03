@@ -45,27 +45,36 @@ def ensure_command_registry():
     try:
         import importlib
 
+        import cmd_modules.admin
+
+        # Import from cmd_modules (the new modular structure)
+        import cmd_modules.basic
+        import cmd_modules.games
+        import cmd_modules.misc
+        import cmd_modules.services
+        import cmd_modules.word_tracking
+
+        # Import commands FIRST (required for lazy getters)
         import commands
-        import commands_admin
-        import commands_services
 
         # Force reload so decorators execute again after registry reset
         # Ignore duplicate registration errors
-        try:
-            importlib.reload(commands_services)
-        except ValueError as e:
-            if "already registered" not in str(e):
-                raise
-        try:
-            importlib.reload(commands)
-        except ValueError as e:
-            if "already registered" not in str(e):
-                raise
-        try:
-            importlib.reload(commands_admin)
-        except ValueError as e:
-            if "already registered" not in str(e):
-                raise
+        for mod in [
+            commands,
+            cmd_modules.basic,
+            cmd_modules.admin,
+            cmd_modules.games,
+            cmd_modules.misc,
+            cmd_modules.services,
+            cmd_modules.word_tracking,
+        ]:
+            try:
+                importlib.reload(mod)
+            except ValueError as e:
+                if "already registered" not in str(e):
+                    raise
+            except Exception:
+                pass
 
         # Log the number of registered commands for debugging
         from command_registry import get_command_registry
@@ -1609,14 +1618,14 @@ def test_schedule_invalid_arg_cases(monkeypatch):
 
 def test_sana_no_users_branch(monkeypatch):
     """Cover sana command branch when total_occurrences>0 but no users."""
-    import commands as _cmd
     from command_loader import process_console_command
+    from word_tracking import GeneralWords
 
     # Mock search to return total>0 but empty users
     def fake_search_no_users(word):
         return {"total_occurrences": 1, "servers": {"srv": {"users": []}}}
 
-    monkeypatch.setattr(_cmd.general_words, "search_word", fake_search_no_users)
+    monkeypatch.setattr(GeneralWords, "search_word", fake_search_no_users)
 
     responses = []
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
@@ -1626,10 +1635,10 @@ def test_sana_no_users_branch(monkeypatch):
 
 def test_topwords_found_user_early_return(monkeypatch):
     """Cover topwords command early return when user found."""
-    import commands as _cmd
     from command_loader import process_console_command
+    from word_tracking import DataManager, GeneralWords
 
-    monkeypatch.setattr(_cmd.data_manager, "get_all_servers", lambda: ["srv1", "srv2"])
+    monkeypatch.setattr(DataManager, "get_all_servers", lambda: ["srv1", "srv2"])
 
     def user_stats(srv, nick):
         if srv == "srv1" and nick == "Alice":
@@ -1641,8 +1650,8 @@ def test_topwords_found_user_early_return(monkeypatch):
             return [{"word": "test", "count": 5}]
         return []
 
-    monkeypatch.setattr(_cmd.general_words, "get_user_stats", user_stats)
-    monkeypatch.setattr(_cmd.general_words, "get_user_top_words", top_words)
+    monkeypatch.setattr(GeneralWords, "get_user_stats", user_stats)
+    monkeypatch.setattr(GeneralWords, "get_user_top_words", top_words)
 
     responses = []
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
@@ -1688,11 +1697,11 @@ def test_help_command_direct_fallbacks():
 
 def test_topwords_and_leaderboard_no_data(monkeypatch):
     """Cover no-data branches in topwords and leaderboard."""
-    import commands as _cmd
     from command_loader import process_console_command
+    from word_tracking import DataManager, GeneralWords
 
     # topwords no data path
-    monkeypatch.setattr(_cmd.data_manager, "get_all_servers", lambda: [])
+    monkeypatch.setattr(DataManager, "get_all_servers", lambda: [])
     responses = []
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
     process_console_command("!topwords", botf)
@@ -2256,13 +2265,13 @@ def test_tilaa_subscriber_selection_branches():
 
 
 def test_topwords_not_found_and_global_aggregate(monkeypatch):
-    import commands as _cmd
     from command_loader import process_console_command
+    from word_tracking import DataManager, GeneralWords
 
     # Not found branch
-    monkeypatch.setattr(_cmd.data_manager, "get_all_servers", lambda: ["srv1"])
+    monkeypatch.setattr(DataManager, "get_all_servers", lambda: ["srv1"])
     monkeypatch.setattr(
-        _cmd.general_words, "get_user_stats", lambda srv, nick: {"total_words": 0}
+        GeneralWords, "get_user_stats", lambda srv, nick: {"total_words": 0}
     )
     responses = []
     botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
@@ -2274,8 +2283,8 @@ def test_topwords_not_found_and_global_aggregate(monkeypatch):
     def server_stats(server):
         return {"top_words": [("foo", 3), ("bar", 2)]}
 
-    monkeypatch.setattr(_cmd.general_words, "get_server_stats", server_stats)
-    monkeypatch.setattr(_cmd.data_manager, "get_all_servers", lambda: ["srv1", "srv2"])
+    monkeypatch.setattr(GeneralWords, "get_server_stats", server_stats)
+    monkeypatch.setattr(DataManager, "get_all_servers", lambda: ["srv1", "srv2"])
     responses.clear()
     process_console_command("!topwords", botf)
     assert any("Käytetyimmät sanat" in r for r in responses)

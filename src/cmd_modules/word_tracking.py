@@ -9,63 +9,67 @@ import os
 import random
 
 from command_registry import CommandContext, CommandResponse, CommandType, command
+from tamagotchi import TamagotchiBot
 
-# Import lazy getters from commands.py
-# Import lazy proxies from commands.py for backward compatibility
-from commands import data_manager  # noqa: F401 - needed for commands
-from commands import drink_tracker  # noqa: F401 - needed for commands
-from commands import general_words  # noqa: F401 - needed for commands
-from commands import tamagotchi_bot  # noqa: F401 - needed for commands
-from commands import (  # noqa: F401
-    _get_data_manager,
-    _get_drink_tracker,
-    _get_general_words,
-    _get_tamagotchi_bot,
-)
+# Import lazy getters from word_tracking module directly
+from word_tracking import DataManager, DrinkTracker, GeneralWords
+
+
+# Get the shared singletons via lazy getters
+def _get_data_manager():
+    """Get or create the shared DataManager instance."""
+    from config import get_config
+
+    config = get_config()
+    return DataManager(state_file=config.state_file)
+
+
+def _get_drink_tracker():
+    """Get or create the shared DrinkTracker instance."""
+    return DrinkTracker(_get_data_manager())
+
+
+def _get_general_words():
+    """Get or create the shared GeneralWords instance."""
+    return GeneralWords(_get_data_manager())
+
+
+def _get_tamagotchi_bot():
+    """Get or create the shared TamagotchiBot instance."""
+    return TamagotchiBot(_get_data_manager())
+
+
+# Module-level storage for lazy singleton instances
+# These are set on first access via getters, not at import time
+data_manager = None
+general_words = None
+
 
 # =====================
-# tilaa (Subscription) Command
+# Helper functions
 # =====================
 
 
-@command(
-    name="tilaa",
-    command_type=CommandType.PUBLIC,
-    description="Handle subscription commands",
-    usage="!tilaa varoitukset|onnettomuustiedotteet|list <kanava>",
-    admin_only=False,
-)
-def command_tilaa(context, bot_functions):
-    topic = context.args[0].lower() if context.args else None
-    if not topic:
-        return "⚠ Käyttö: !tilaa varoitukset|onnettomuustiedotteet|list <kanava>"
+def _get_from_bot_functions(bot_functions, key, default_getter):
+    """Get value from bot_functions dict, or use module-level singleton, or use default getter."""
+    # First try bot_functions
+    if bot_functions is not None:
+        value = bot_functions.get(key)
+        if value is not None:
+            return value
 
-    if not bot_functions or "subscriptions" not in bot_functions:
-        return "Subscription service is not available."
+    # Then try module-level singletons (for test compatibility)
+    if key == "general_words" and general_words is not None:
+        return general_words
+    if key == "data_manager" and data_manager is not None:
+        return data_manager
+    if key == "drink_tracker" and data_manager is not None:
+        return _get_drink_tracker()
+    if key == "tamagotchi" and data_manager is not None:
+        return _get_tamagotchi_bot()
 
-    subscriptions = bot_functions["subscriptions"]
-
-    if topic == "list":
-        result = subscriptions.format_all_subscriptions()
-        return result
-
-    elif topic in ["varoitukset", "onnettomuustiedotteet"]:
-        # Determine subscriber (channel/user)
-        if len(context.args) >= 2:
-            subscriber = context.args[1]  # Explicit override
-        elif context.target and context.target.startswith("#"):
-            subscriber = context.target
-        elif context.sender:
-            subscriber = context.sender
-        else:
-            subscriber = "console"
-
-        # Use server_name from context (fallback to 'console')
-        server_name = getattr(context, "server_name", "") or "console"
-        result = subscriptions.toggle_subscription(subscriber, server_name, topic)
-        return result
-    else:
-        return "⚠ Tuntematon tilaustyyppi. Käytä: varoitukset, onnettomuustiedotteet tai list"
+    # Fall back to getter
+    return default_getter()
 
 
 # =====================
@@ -94,12 +98,13 @@ def command_topwords(context, bot_functions):
             limit = 10
         args = args[:-1]  # remove limit token from args
 
-    # Get general_words from bot_functions or use lazy getter
-    words = bot_functions.get("general_words") or _get_general_words()
+    # Get general_words and data_manager from bot_functions or use lazy getter
+    words = _get_from_bot_functions(bot_functions, "general_words", _get_general_words)
+    dm = _get_from_bot_functions(bot_functions, "data_manager", _get_data_manager)
 
     if args:  # User-specific top words
         nick = " ".join(args).strip()
-        for server_name in data_manager.get_all_servers():
+        for server_name in dm.get_all_servers():
             user_stats = words.get_user_stats(server_name, nick)
             if user_stats.get("total_words", 0) > 0:
                 top_words = words.get_user_top_words(server_name, nick, limit)
@@ -110,7 +115,7 @@ def command_topwords(context, bot_functions):
         return f"Käyttäjää '{nick}' ei löydy."
     else:  # Global top words across servers
         global_word_counts = {}
-        for server_name in data_manager.get_all_servers():
+        for server_name in dm.get_all_servers():
             server_stats = words.get_server_stats(server_name)
             for word, count in server_stats.get("top_words", []):
                 global_word_counts[word] = global_word_counts.get(word, 0) + count
@@ -596,6 +601,71 @@ def command_sana(context, bot_functions):
         return f"'{word}': {stats['count']} kertaa (top: {stats['top_user']})"
     else:
         return f"'{word}' tallennettu."
+
+
+@command(
+    name="assoc",
+    command_type=CommandType.PUBLIC,
+    description="Look up or manage word associations (format: word (thing))",
+    usage="!assoc <word> [-sana | -add | -del | -list]",
+    examples=[
+        "!assoc sauna",
+        "!assoc suklaa",
+        "!assoc kahvi -list",
+    ],
+    admin_only=False,
+)
+def command_assoc(context, bot_functions):
+    """Look up or manage word associations."""
+    word_assoc = bot_functions.get("word_associations")
+    if not word_assoc:
+        return "Word associations ei ole käytettävissä."
+
+    if not context.args_text:
+        return "Käyttö: !assoc <sana> [-sana | -add | -del | -list]"
+
+    args = context.args_text.strip().split()
+    word = args[0].lower()
+
+    # Check for flags
+    has_list = "-list" in args or "-lista" in args
+    has_add = "-add" in args or "-lisaa" in args
+    has_del = "-del" in args or "-poista" in args
+
+    if has_del:
+        # Delete all associations for this word
+        if word_assoc.delete_association(word):
+            return f"Assosiaatiot sanalle '{word}' poistettu."
+        else:
+            return f"Assosiaatioita sanalle '{word}' ei löytynyt."
+
+    if has_add:
+        # Add a new association
+        if len(args) < 2:
+            return "Käyttö: !assoc <sana> -add <assoc>"
+        association = " ".join(args[1:])
+        if word_assoc.add_association(word, association):
+            return f"Assosiaatio '{word}' -> '{association}' lisätty."
+        return "Virhe lisättäessä assosiaatiota."
+
+    # Default: look up associations
+    associations = word_assoc.get_association(word)
+
+    if has_list or not associations:
+        # Show all associations for word or search
+        if associations:
+            return f"Assosiaatiot: {', '.join(associations)}"
+        else:
+            # Search for partial matches
+            results = word_assoc.search_associations(word)
+            if results:
+                response_parts = []
+                for w, assocs in list(results.items())[:5]:
+                    response_parts.append(f"{w}: {', '.join(assocs)}")
+                return " | ".join(response_parts)
+            return f"Assosiaatioita sanalle '{word}' ei löytynyt."
+
+    return f"{word}: {', '.join(associations)}"
 
 
 # =====================
@@ -1213,4 +1283,3 @@ def kraksdebug_command(context: CommandContext, bot_functions):
 
             status = "enabled" if kraksdebug_config["nick_notices"] else "disabled"
             return f"✅ Drink word detection notices to nicks are now {status}"
-

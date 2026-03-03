@@ -1221,3 +1221,48 @@ def wrap_command(context: CommandContext, bot_functions):
     # Toggle the wrap mode
     _current_tui.toggle_wrap()
     return ""  # Return empty string since toggle_wrap already logs the change
+
+
+# =====================
+# tilaa (Subscription) Command
+# =====================
+
+
+@command(
+    name="tilaa",
+    command_type=CommandType.PUBLIC,
+    description="Handle subscription commands",
+    usage="!tilaa varoitukset|onnettomuustiedotteet|list <kanava>",
+    admin_only=False,
+)
+def command_tilaa(context, bot_functions):
+    topic = context.args[0].lower() if context.args else None
+    if not topic:
+        return "⚠ Käyttö: !tilaa varoitukset|onnettomuustiedotteet|list <kanava>"
+
+    if not bot_functions or "subscriptions" not in bot_functions:
+        return "Subscription service is not available."
+
+    subscriptions = bot_functions["subscriptions"]
+
+    if topic == "list":
+        result = subscriptions.format_all_subscriptions()
+        return result
+
+    elif topic in ["varoitukset", "onnettomuustiedotteet"]:
+        # Determine subscriber (channel/user)
+        if len(context.args) >= 2:
+            subscriber = context.args[1]  # Explicit override
+        elif context.target and context.target.startswith("#"):
+            subscriber = context.target
+        elif context.sender:
+            subscriber = context.sender
+        else:
+            subscriber = "console"
+
+        # Use server_name from context (fallback to 'console')
+        server_name = getattr(context, "server_name", "") or "console"
+        result = subscriptions.toggle_subscription(subscriber, server_name, topic)
+        return result
+    else:
+        return "⚠ Tuntematon tilaustyyppi. Käytä: varoitukset, onnettomuustiedotteet tai list"

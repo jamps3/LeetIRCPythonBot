@@ -188,6 +188,7 @@ data/drugs.json
 data/interactions.json
 data/urls.json
 data/otiedote.json
+data/word_associations.json
 
 # Alko service cache and data
 data/alko_cache.json

@@ -17,8 +17,9 @@ Modules:
 from .data_manager import DataManager
 from .drink_tracker import DrinkTracker
 from .general_words import GeneralWords
+from .word_associations import WordAssociations
 
 __version__ = "1.0.0"
 __author__ = "LeetIRCPythonBot"
 
-__all__ = ["DrinkTracker", "GeneralWords", "DataManager"]
+__all__ = ["DrinkTracker", "GeneralWords", "DataManager", "WordAssociations"]

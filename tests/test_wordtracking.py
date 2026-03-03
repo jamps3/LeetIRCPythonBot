@@ -50,6 +50,12 @@ def temp_dm_and_words(monkeypatch):
     monkeypatch.setattr(cmds, "data_manager", dm, raising=True)
     monkeypatch.setattr(cmds, "general_words", gw, raising=True)
 
+    # Also set module-level variables in cmd_modules.word_tracking for backward compatibility
+    import cmd_modules.word_tracking as wt
+
+    monkeypatch.setattr(wt, "data_manager", dm, raising=True)
+    monkeypatch.setattr(wt, "general_words", gw, raising=True)
+
     yield SimpleNamespace(tmpdir=tmpdir, dm=dm, gw=gw)
 
     # Cleanup temp files
@@ -175,7 +181,7 @@ def test_topwords_global(temp_dm_and_words):
     # No args -> global top words
     ctx = SimpleNamespace(args=[], args_text="")
     res = cmds.command_topwords(ctx, None)
-    assert res.startswith("Käytetyimmät sanat (globaali):"), res
+    assert res.startswith("Top 10 sanat:"), res
     # Aggregates hello=3, world=4, beer=1
     assert "hello: 3" in res
     assert "world: 4" in res

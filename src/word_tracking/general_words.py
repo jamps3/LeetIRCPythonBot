@@ -319,3 +319,41 @@ class GeneralWords:
 
         # Sort by total words and return top results
         return sorted(users, key=lambda x: x["total_words"], reverse=True)[:limit]
+
+    # =====================
+    # Backward compatibility methods
+    # =====================
+
+    def record_word(self, word: str, nick: str, server: str):
+        """
+        Record a word for a user (backward compatibility method).
+
+        Args:
+            word: The word to record
+            nick: User nickname
+            server: Server name
+        """
+        self._update_word_stats(server, nick, [word.lower()])
+
+    def get_word_stats(self, server: str, word: str) -> Dict[str, Any]:
+        """
+        Get statistics for a specific word (backward compatibility method).
+
+        Args:
+            server: Server name
+            word: The word to look up
+
+        Returns:
+            Dictionary with word statistics or None
+        """
+        result = self.search_word(word)
+        if result and result.get("total_occurrences", 0) > 0:
+            # Get top user
+            users = result.get("users", [])
+            if users:
+                top_user = users[0]["nick"]
+                return {
+                    "count": result["total_occurrences"],
+                    "top_user": top_user,
+                }
+        return None

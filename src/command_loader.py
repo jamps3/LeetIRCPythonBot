@@ -18,11 +18,16 @@ import logger
 def load_all_commands():
     """Load all command modules to register their commands."""
     try:
-        # Import cmd_modules to trigger registration from modular command files
-        import cmd_modules  # noqa: F401
-
-        # Also import commands for backward compatibility
-        import commands  # noqa: F401
+        # Import cmd_modules submodules in specific order to avoid circular imports
+        # commands.py must be imported FIRST to define lazy getters
+        # word_tracking depends on lazy getters from commands.py
+        import cmd_modules.admin  # noqa: F401
+        import cmd_modules.basic  # noqa: F401
+        import cmd_modules.games  # noqa: F401
+        import cmd_modules.misc  # noqa: F401
+        import cmd_modules.services  # noqa: F401
+        import cmd_modules.word_tracking  # noqa: F401
+        import commands  # noqa: F401 - must be first
 
         # Resolve registry at call time to avoid early imports
         from command_registry import get_command_registry

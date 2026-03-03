@@ -3,20 +3,18 @@ Commands Package for LeetIRCPythonBot
 
 This package contains modular command modules organized by category.
 
-Modules:
-- basic.py: help, ping, version, about, servers, status, channels
-- admin.py: connect, disconnect, exit, countdown
-- games.py: blackjack, sanaketju, noppa, kolikko, ksp
-- word_tracking.py: drink, kraks, drinkword, krakstats
-- misc.py: 420, muunnos, quote, np, leets, tamagotchi
+NOTE: Do NOT import submodules from this package directly - it will cause circular imports.
+Use command_loader.load_all_commands() instead to properly load all commands.
 
-Importing this package triggers @command decorator registration for all commands.
+Modules (import via command_loader, not directly):
+- admin.py: connect, disconnect, exit
+- basic.py: help, ping, version, servers, status, channels, about
+- games.py: blackjack, sanaketju, noppa, kolikko, ksp, countdown (k)
+- misc.py: 420, kaiku, np, quote, matka, leets, schedule, ipfs
+- services.py: s, se, sel, solarwind, otiedote, sahko, euribor, junat, youtube, imdb, crypto, leetwinners, eurojackpot, alko, drugs, url, wrap
+- word_tracking.py: drink, kraks, drinkword, krakstats, sana, tilaa, topwords, leaderboard, tamagotchi, feed, pet, krak, muunnos, kraksdebug
 """
 
-# Import all command modules to trigger @command decorator registration
-from cmd_modules import admin  # noqa: F401, E402
-from cmd_modules import basic  # noqa: F401, E402
-from cmd_modules import commands_services  # noqa: F401, E402
-from cmd_modules import games  # noqa: F401, E402
-from cmd_modules import misc  # noqa: F401, E402
-from cmd_modules import word_tracking  # noqa: F401, E402
+# NOTE: This package should NOT import submodules directly to avoid circular imports.
+# The command_loader module handles importing submodules in the correct order.
+# See command_loader.load_all_commands() for the proper way to load commands.

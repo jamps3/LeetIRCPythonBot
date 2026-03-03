@@ -20,7 +20,7 @@ from lemmatizer import Lemmatizer
 from logger import get_logger
 from server import Server
 from tamagotchi import TamagotchiBot
-from word_tracking import DataManager, DrinkTracker, GeneralWords
+from word_tracking import DataManager, DrinkTracker, GeneralWords, WordAssociations
 from word_tracking.bac_tracker import BACTracker
 
 logger = get_logger("MessageHandler")
@@ -55,6 +55,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         self.bac_tracker = BACTracker(data_manager)
         self.general_words = GeneralWords(data_manager)
         self.tamagotchi = TamagotchiBot(data_manager)
+        self.word_associations = WordAssociations(data_manager)
 
         # Initialize lemmatizer
         self.lemmatizer = self._initialize_lemmatizer()
@@ -687,6 +688,9 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             server=server_name, nick=sender, text=text, target=target
         )
 
+        # Track word associations (detected from "word (thing)" pattern)
+        self.word_associations.process_message(server=server_name, text=text)
+
         # Track URLs in channels (not private messages)
         if target.startswith("#"):
             self._track_urls(context)
@@ -1131,6 +1135,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             "drink_tracker": self.drink_tracker,
             "bac_tracker": self.bac_tracker,
             "general_words": self.general_words,
+            "word_associations": self.word_associations,
             "tamagotchi_bot": self.tamagotchi,
             "lemmat": self.lemmatizer,
             "server": server,
