@@ -232,13 +232,20 @@ Command count verified: 56 commands loaded successfully.
    - Imports and re-exports all commands from cmd_modules for backward compatibility
    - Also exports: `CommandContext`, `CommandResponse`, `CommandScope`, `CommandType`, `command`, `Server`, `DataManager`, `DrinkTracker`, `GeneralWords`, `TamagotchiBot`
 
-### External Dependencies on commands.py (Must be updated before removal):
+### External Dependencies on commands.py (Now UPDATED ✅)
 
-| File                             | Usage                                      | Action Needed                                     |
-| -------------------------------- | ------------------------------------------ | ------------------------------------------------- |
-| `message_handler.py`             | `get_sanaketju_game`                       | Update to import from `cmd_modules.games`         |
-| `debug/debug_kaiku.py`           | `echo_command`                             | Update to import from `cmd_modules.misc`          |
-| `debug/debug_sananmuunnokset.py` | `_find_first_syllable`, `transform_phrase` | Update to import from `cmd_modules.word_tracking` |
+| File                             | Usage                                      | Status                                             |
+| -------------------------------- | ------------------------------------------ | -------------------------------------------------- |
+| `message_handler.py`             | `get_sanaketju_game`                       | Updated to import from `cmd_modules.games`         |
+| `debug/debug_kaiku.py`           | `echo_command`                             | Updated to import from `cmd_modules.misc`          |
+| `debug/debug_sananmuunnokset.py` | `_find_first_syllable`, `transform_phrase` | Updated to import from `cmd_modules.word_tracking` |
+
+### New: Simplified cmd_modules Imports ✅
+
+Now just `import cmd_modules` loads all 56 commands!
+
+- `cmd_modules/__init__.py` auto-loads all submodules
+- `command_loader.py` and `tui.py` simplified to single import
 
 ### Optional Cleanup (Not Required):
 
