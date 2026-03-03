@@ -210,6 +210,53 @@ Command count verified: 56 commands loaded successfully.
 
 ---
 
+## Remaining Refactoring Tasks from commands.py
+
+**Current Status:** commands.py is now a thin backward-compatibility layer (214 lines, ~6.5KB).
+
+**All 56 commands are in cmd_modules/ package.**
+
+### What Remains in commands.py (Needed for backward compatibility):
+
+1. **Lazy Getters** (lines 35-71):
+   - `_get_data_manager()`, `_get_drink_tracker()`, `_get_general_words()`, `_get_tamagotchi_bot()`
+   - These are used by cmd_modules to get singleton instances
+
+2. **\_LazyProxy class** (lines 90-115):
+   - Provides backward compatibility for code that expects `commands.data_manager`, `commands.drink_tracker`, etc. as objects
+
+3. **Helper Functions** (lines 129-131):
+   - `trim_with_dots()` - Used by some commands
+
+4. **Re-exports** (lines 139-212):
+   - Imports and re-exports all commands from cmd_modules for backward compatibility
+   - Also exports: `CommandContext`, `CommandResponse`, `CommandScope`, `CommandType`, `command`, `Server`, `DataManager`, `DrinkTracker`, `GeneralWords`, `TamagotchiBot`
+
+### External Dependencies on commands.py (Must be updated before removal):
+
+| File                             | Usage                                      | Action Needed                                     |
+| -------------------------------- | ------------------------------------------ | ------------------------------------------------- |
+| `message_handler.py`             | `get_sanaketju_game`                       | Update to import from `cmd_modules.games`         |
+| `debug/debug_kaiku.py`           | `echo_command`                             | Update to import from `cmd_modules.misc`          |
+| `debug/debug_sananmuunnokset.py` | `_find_first_syllable`, `transform_phrase` | Update to import from `cmd_modules.word_tracking` |
+
+### Optional Cleanup (Not Required):
+
+1. **Remove re-export statements** - Once all imports are updated, commands.py could be completely removed
+2. **Move lazy getters to a dedicated module** (e.g., `src/singletons.py`)
+3. **Move `_LazyProxy` class to command_registry** or a shared utils module
+
+### Current File Sizes:
+
+- `src/commands.py`: 214 lines (~6.5KB) - Already refactored!
+- Original size was ~129KB with all commands
+
+### Status: **Mostly Complete** ✅
+
+The refactoring is essentially done. commands.py now serves only as a backward-compatibility layer and could eventually be removed once all external dependencies are updated to import directly from cmd_modules.
+
+---
+
 ## 2026-03-03: Test Files Created - COMPLETED ✅
 
 **Task:** Create comprehensive test files for all command modules.
