@@ -234,15 +234,15 @@ def np_command(context: CommandContext, bot_functions):
 
     # Handle new dict format: {"2025-01-01": {"official": [...], ...}}
     if isinstance(nimipaivat, dict):
-        # Build date key for today
-        date_key = f"{now.year}-{today_month:02d}-{today_day:02d}"
+        # Build date key for today (search by month-day ignoring year)
+        month_day_key = f"-{today_month:02d}-{today_day:02d}"
 
         if not context.args:
-            # Show today's name days
-            if date_key in nimipaivat:
-                entry = nimipaivat[date_key]
-                names = entry.get("official", [])
-                return f"Tänään ({today_day}.{today_month}) on nimipäivä: {', '.join(names)}"
+            # Show today's name days - search by month-day
+            for date_str, entry in nimipaivat.items():
+                if date_str.endswith(month_day_key):
+                    names = entry.get("official", [])
+                    return f"Tänään ({today_day}.{today_month}) on nimipäivä: {', '.join(names)}"
             return "No name day found for today"
 
         arg = context.args[0].lower()
