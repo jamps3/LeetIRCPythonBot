@@ -608,6 +608,14 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         if user_message.strip().startswith("!"):
             return
 
+        # Check current enabled state from data manager (not cached)
+        try:
+            state = self.data_manager.load_state()
+            if not state.get("420_enabled", True):
+                return  # 420 responses are disabled
+        except Exception:
+            pass  # If we can't load state, allow response
+
         try:
             leet_detector = self.service_manager.get_service("leet_detector")
             if not leet_detector:
@@ -660,6 +668,14 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         # Check if message contains "420" as a standalone number
         # Match 420 surrounded by word boundaries or whitespace
         if re.search(r"\b420\b", text, re.IGNORECASE):
+            # Check current enabled state from data manager (not cached)
+            try:
+                state = self.data_manager.load_state()
+                if not state.get("420_enabled", True):
+                    return  # 420 responses are disabled
+            except Exception:
+                pass  # If we can't load state, allow response
+
             response = random.choice(self._420_AUTO_RESPONSES)
             self._send_response(server, target, response)
             logger.debug(f"420 auto-response triggered in {target}")
