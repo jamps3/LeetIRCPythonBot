@@ -14,8 +14,9 @@ from command_registry import (
     command,
 )
 
+# Import reload commands from commands_admin.py for backwards compatibility
 # Import scheduled command from commands_admin.py for backwards compatibility
-from commands_admin import scheduled_command
+from commands_admin import reload_command, reload_status_command, scheduled_command
 
 # = functions (====================
 # Helper (duplicated from commands.py for modularity)

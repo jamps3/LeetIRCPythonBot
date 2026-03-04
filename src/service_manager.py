@@ -235,9 +235,11 @@ class ServiceManager:
         try:
             from config import get_config
             from services.dream_service import create_dream_service
+            from word_tracking.data_manager import DataManager
 
             config = get_config()
-            data_manager = config.data_manager
+            # Create a new DataManager instance for the dream service
+            data_manager = DataManager(state_file=config.state_file)
             gpt_service = self.services.get("gpt")
 
             self.services["dream"] = create_dream_service(data_manager, gpt_service)

@@ -10,8 +10,9 @@ But when using !kaiku !s, the command goes through message_handler which provide
 the send_weather function in bot_functions.
 """
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
 
 
 class TestConsoleVsKaikuWeatherCommand:
@@ -20,7 +21,7 @@ class TestConsoleVsKaikuWeatherCommand:
     def test_weather_command_direct_console_missing_send_weather(self):
         """
         Test that !s command fails when bot_functions doesn't have send_weather.
-        
+
         This simulates using !s directly from console where bot_functions may not
         have the send_weather function available.
         """
@@ -46,7 +47,7 @@ class TestConsoleVsKaikuWeatherCommand:
     def test_weather_command_via_kaiku_has_send_weather(self):
         """
         Test that !s command works when bot_functions has send_weather.
-        
+
         This simulates using !kaiku !s which goes through message_handler
         and provides send_weather in bot_functions.
         """
@@ -65,7 +66,7 @@ class TestConsoleVsKaikuWeatherCommand:
         # Create bot_functions WITH send_weather (like through message_handler)
         bot_functions_with_weather = {
             "send_weather": mock_send_weather,
-            "irc": MagicMock()  # Required for non-console context
+            "irc": MagicMock(),  # Required for non-console context
         }
 
         # Call the command
@@ -73,14 +74,14 @@ class TestConsoleVsKaikuWeatherCommand:
 
         # The result should be no response (command handles output itself)
         # and send_weather should have been called
-        assert result is None or hasattr(result, 'message')  # Could be CommandResponse
+        assert result is None or hasattr(result, "message")  # Could be CommandResponse
         mock_send_weather.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_kaiku_routes_command_with_proper_bot_functions(self):
         """
         Test that when !kaiku !s is used, the nested command gets proper bot_functions.
-        
+
         This test verifies that kaiku command passes proper bot_functions to nested commands.
         """
         from cmd_modules.misc import echo_command
@@ -96,18 +97,18 @@ class TestConsoleVsKaikuWeatherCommand:
 
         # Mock server with send_message
         mock_server = MagicMock()
-        
+
         # Create bot_functions that would be provided by message_handler
         # This includes send_weather which is needed for the nested !s command
         bot_functions = {
             "server": mock_server,
             "send_weather": MagicMock(),  # This is provided by message_handler
-            "irc": MagicMock()
+            "irc": MagicMock(),
         }
 
         # The echo command is async, so we need to await it
         result = await echo_command(context, bot_functions)
-        
+
         # The result should be None (echo returns None when sending to channel)
         # or a string when it's a simple echo
         assert result is None or isinstance(result, str)
@@ -119,8 +120,8 @@ class TestConsoleCommandsBotFunctions:
     def test_console_weather_needs_send_weather_in_bot_functions(self):
         """
         Test that demonstrates the issue: console weather command needs send_weather.
-        
-        The issue is that when processing console commands directly (not through 
+
+        The issue is that when processing console commands directly (not through
         message_handler), the bot_functions may not have send_weather.
         """
         from cmd_modules.services import weather_command
@@ -142,7 +143,7 @@ class TestConsoleCommandsBotFunctions:
     def test_irc_message_provides_send_weather(self):
         """
         Test that IRC messages go through message_handler which provides send_weather.
-        
+
         This is what happens when someone uses !s in IRC - it goes through
         message_handler which adds send_weather to bot_functions.
         """
@@ -159,7 +160,7 @@ class TestConsoleCommandsBotFunctions:
         bot_functions = {
             "send_weather": mock_send_weather,
             "irc": MagicMock(),
-            "notice_message": MagicMock()
+            "notice_message": MagicMock(),
         }
 
         result = weather_command(context, bot_functions)

@@ -18,212 +18,217 @@ class TestReloadManager:
         # Initially, no modules should be loaded
         loaded = reload_manager.get_loaded_modules()
         assert isinstance(loaded, set)
-        
+
         # Import a reloadable module to test
         import src.command_registry
-        sys.modules['command_registry'] = src.command_registry
-        
+
+        sys.modules["command_registry"] = src.command_registry
+
         loaded = reload_manager.get_loaded_modules()
-        assert 'command_registry' in loaded
+        assert "command_registry" in loaded
 
     def test_clear_module_caches(self):
         """Test clearing module caches."""
         # Create a mock module with cache attributes
         mock_module = Mock()
         mock_module.__dict__ = {
-            '_commands_cache': {},
-            '_some_other_cache': [],
-            'normal_attribute': 'value',
-            '__cache_info': 'info'
+            "_commands_cache": {},
+            "_some_other_cache": [],
+            "normal_attribute": "value",
+            "__cache_info": "info",
         }
-        
+
         # Clear caches
-        reload_manager.clear_module_caches('test_module')
-        
+        reload_manager.clear_module_caches("test_module")
+
         # Verify cache attributes were cleared by checking the module's __dict__ directly
         # Since Mock objects don't actually modify their __dict__ when we try to delete keys,
         # we need to test the function logic differently
         test_dict = {
-            '_commands_cache': {},
-            '_some_other_cache': [],
-            'normal_attribute': 'value',
-            '__cache_info': 'info'
+            "_commands_cache": {},
+            "_some_other_cache": [],
+            "normal_attribute": "value",
+            "__cache_info": "info",
         }
-        
+
         # Simulate what clear_module_caches does
         for key in list(test_dict.keys()):
             if key.startswith("_") and "cache" in key.lower():
                 del test_dict[key]
-        
+
         # Verify cache attributes were cleared
-        assert '_commands_cache' not in test_dict
-        assert '_some_other_cache' not in test_dict
-        assert '__cache_info' not in test_dict
+        assert "_commands_cache" not in test_dict
+        assert "_some_other_cache" not in test_dict
+        assert "__cache_info" not in test_dict
         # Normal attributes should remain
-        assert 'normal_attribute' in test_dict
+        assert "normal_attribute" in test_dict
 
     def test_reload_single_module_not_loaded(self):
         """Test reloading a module that is not loaded."""
-        result, message = reload_manager.reload_single_module('nonexistent_module')
+        result, message = reload_manager.reload_single_module("nonexistent_module")
         assert result is False
-        assert 'not loaded' in message
+        assert "not loaded" in message
 
-    @patch('importlib.reload')
+    @patch("importlib.reload")
     def test_reload_single_module_success(self, mock_reload):
         """Test successful module reload."""
         # Create a mock module
         mock_module = Mock()
-        sys.modules['test_module'] = mock_module
-        
-        result, message = reload_manager.reload_single_module('test_module')
-        
+        sys.modules["test_module"] = mock_module
+
+        result, message = reload_manager.reload_single_module("test_module")
+
         assert result is True
-        assert 'Reloaded test_module' in message
+        assert "Reloaded test_module" in message
         mock_reload.assert_called_once_with(mock_module)
 
-    @patch('importlib.reload')
+    @patch("importlib.reload")
     def test_reload_single_module_failure(self, mock_reload):
         """Test module reload failure."""
         mock_reload.side_effect = Exception("Import error")
-        
+
         # Create a mock module
         mock_module = Mock()
-        sys.modules['test_module'] = mock_module
-        
-        result, message = reload_manager.reload_single_module('test_module')
-        
-        assert result is False
-        assert 'Failed to reload test_module' in message
+        sys.modules["test_module"] = mock_module
 
-    @patch('src.command_registry.get_command_registry')
-    @patch('src.reload_manager.reload_single_module')
+        result, message = reload_manager.reload_single_module("test_module")
+
+        assert result is False
+        assert "Failed to reload test_module" in message
+
+    @patch("src.command_registry.get_command_registry")
+    @patch("src.reload_manager.reload_single_module")
     def test_reload_all_commands_success(self, mock_reload_single, mock_get_registry):
         """Test successful reload of all commands."""
         # Mock the registry
         mock_registry = Mock()
-        mock_registry._commands = {'cmd1': Mock(), 'cmd2': Mock()}
+        mock_registry._commands = {"cmd1": Mock(), "cmd2": Mock()}
         mock_registry.clear_all = Mock()
         mock_get_registry.return_value = mock_registry
-        
+
         # Mock successful reloads
         mock_reload_single.return_value = (True, "Reloaded module")
-        
+
         # Mock loaded modules
-        with patch('sys.modules', {'command_registry': Mock()}):
+        with patch("sys.modules", {"command_registry": Mock()}):
             result, message = reload_manager.reload_all_commands()
-        
+
         assert result is True
-        assert 'Reloaded' in message
-        assert 'modules' in message
+        assert "Reloaded" in message
+        assert "modules" in message
         mock_registry.clear_all.assert_called_once()
 
-    @patch('src.command_registry.get_command_registry')
-    @patch('src.reload_manager.reload_single_module')
-    def test_reload_all_commands_with_failures(self, mock_reload_single, mock_get_registry):
+    @patch("src.command_registry.get_command_registry")
+    @patch("src.reload_manager.reload_single_module")
+    def test_reload_all_commands_with_failures(
+        self, mock_reload_single, mock_get_registry
+    ):
         """Test reload with some module failures."""
         # Mock the registry
         mock_registry = Mock()
-        mock_registry._commands = {'cmd1': Mock()}
+        mock_registry._commands = {"cmd1": Mock()}
         mock_registry.clear_all = Mock()
         mock_get_registry.return_value = mock_registry
-        
+
         # Mock some failures - make sure at least one module fails
         def side_effect(module_name):
-            if module_name == 'command_registry':
+            if module_name == "command_registry":
                 return False, f"Failed to reload {module_name}"
             return True, f"Reloaded {module_name}"
-        
-        mock_reload_single.side_effect = side_effect
-        
-        # Mock loaded modules
-        with patch('sys.modules', {'command_registry': Mock()}):
-            result, message = reload_manager.reload_all_commands()
-        
-        assert result is False
-        assert 'errors' in message
-        assert 'Failed' in message
 
-    @patch('reload_manager.reload_single_module')
+        mock_reload_single.side_effect = side_effect
+
+        # Mock loaded modules
+        with patch("sys.modules", {"command_registry": Mock()}):
+            result, message = reload_manager.reload_all_commands()
+
+        assert result is False
+        assert "errors" in message
+        assert "Failed" in message
+
+    @patch("reload_manager.reload_single_module")
     def test_reload_specific_module_success(self, mock_reload_single):
         """Test successful reload of specific module."""
         mock_reload_single.return_value = (True, "Reloaded module")
-        
-        result, message = reload_manager.reload_specific_module('command_registry')
-        
+
+        result, message = reload_manager.reload_specific_module("command_registry")
+
         assert result is True
-        assert 'Reloaded command_registry' in message
+        assert "Reloaded command_registry" in message
 
     def test_reload_specific_module_unknown(self):
         """Test reload of unknown module."""
-        result, message = reload_manager.reload_specific_module('unknown_module')
-        
+        result, message = reload_manager.reload_specific_module("unknown_module")
+
         assert result is False
-        assert 'Unknown reloadable module' in message
+        assert "Unknown reloadable module" in message
 
     def test_get_reload_status(self):
         """Test getting reload status."""
         status = reload_manager.get_reload_status()
-        
-        assert isinstance(status, dict)
-        assert 'available_modules' in status
-        assert 'available_services' in status
-        assert 'loaded_modules' in status
-        assert 'loaded_services' in status
-        assert 'loaded_count' in status
-        assert 'service_count' in status
-        assert 'command_count' in status
 
-    @patch('src.command_registry.get_command_registry')
+        assert isinstance(status, dict)
+        assert "available_modules" in status
+        assert "available_services" in status
+        assert "loaded_modules" in status
+        assert "loaded_services" in status
+        assert "loaded_count" in status
+        assert "service_count" in status
+        assert "command_count" in status
+
+    @patch("src.command_registry.get_command_registry")
     def test_verify_critical_commands_all_present(self, mock_get_registry):
         """Test verification when all critical commands are present."""
         mock_registry = Mock()
-        mock_registry.get_handler.side_effect = lambda cmd: Mock() if cmd in ['help', 'ping'] else None
+        mock_registry.get_handler.side_effect = lambda cmd: (
+            Mock() if cmd in ["help", "ping"] else None
+        )
         mock_get_registry.return_value = mock_registry
-        
+
         missing = reload_manager.verify_critical_commands()
-        
+
         assert missing == []
 
-    @patch('src.command_registry.get_command_registry')
+    @patch("src.command_registry.get_command_registry")
     def test_verify_critical_commands_missing(self, mock_get_registry):
         """Test verification when critical commands are missing."""
         mock_registry = Mock()
         mock_registry.get_handler.return_value = None
         mock_get_registry.return_value = mock_registry
-        
+
         missing = reload_manager.verify_critical_commands()
-        
-        assert 'help' in missing
-        assert 'ping' in missing
+
+        assert "help" in missing
+        assert "ping" in missing
 
     def test_reload_lock_prevents_concurrent_access(self):
         """Test that reload lock prevents concurrent reloads."""
         # This is a basic test - in practice you'd need more sophisticated
         # testing with threading to verify the lock actually works
-        assert hasattr(reload_manager, '_reload_lock')
+        assert hasattr(reload_manager, "_reload_lock")
         assert isinstance(reload_manager._reload_lock, threading.Lock)
 
     def test_reloadable_modules_list(self):
         """Test that reloadable modules list is properly defined."""
         assert isinstance(reload_manager.RELOADABLE_MODULES, list)
         assert len(reload_manager.RELOADABLE_MODULES) > 0
-        assert 'command_registry' in reload_manager.RELOADABLE_MODULES
-        assert 'command_loader' in reload_manager.RELOADABLE_MODULES
+        assert "command_registry" in reload_manager.RELOADABLE_MODULES
+        assert "command_loader" in reload_manager.RELOADABLE_MODULES
 
     def test_service_modules_list(self):
         """Test that service modules list is properly defined."""
         assert isinstance(reload_manager.SERVICE_MODULES, list)
         assert len(reload_manager.SERVICE_MODULES) > 0
-        assert 'services.youtube_service' in reload_manager.SERVICE_MODULES
+        assert "services.youtube_service" in reload_manager.SERVICE_MODULES
 
     def test_word_tracking_modules_list(self):
         """Test that word tracking modules list is properly defined."""
         assert isinstance(reload_manager.WORD_TRACKING_MODULES, list)
         assert len(reload_manager.WORD_TRACKING_MODULES) > 0
-        assert 'word_tracking.data_manager' in reload_manager.WORD_TRACKING_MODULES
+        assert "word_tracking.data_manager" in reload_manager.WORD_TRACKING_MODULES
 
     def test_core_modules_list(self):
         """Test that core modules list is properly defined."""
         assert isinstance(reload_manager.CORE_MODULES, list)
         assert len(reload_manager.CORE_MODULES) > 0
-        assert 'config' in reload_manager.CORE_MODULES
+        assert "config" in reload_manager.CORE_MODULES

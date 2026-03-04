@@ -20,6 +20,8 @@ RELOADABLE_MODULES: List[str] = [
     "command_loader",
     # Backward compatibility modules
     "commands",
+    # commands_admin contains reload_command and reload_status_command - must be loaded before cmd_modules.admin
+    "commands_admin",
     # cmd_modules subpackages (modular command structure)
     "cmd_modules.basic",
     "cmd_modules.admin",
@@ -171,6 +173,25 @@ def reload_all_commands() -> Tuple[bool, str]:
                         reloaded_modules.append(module_name)
                     else:
                         failed_modules.append(module_name)
+
+            # CRITICAL: Re-register all commands after reload
+            # importlib.reload() doesn't re-trigger @command decorators,
+            # so we need to reload cmd_modules to re-register all commands
+            try:
+                # Remove cmd_modules from sys.modules to force re-import
+                for mod in list(sys.modules.keys()):
+                    if mod.startswith("cmd_modules.") or mod == "cmd_modules":
+                        del sys.modules[mod]
+                
+                # Also remove the old 'commands' module if it exists
+                if "commands" in sys.modules:
+                    del sys.modules["commands"]
+                
+                # Re-import cmd_modules to trigger @command decorators
+                import cmd_modules  # noqa: F401
+                logger.debug("ReloadManager: Re-registered commands from cmd_modules")
+            except Exception as e:
+                logger.warning(f"ReloadManager: Failed to re-register commands: {e}")
 
             # Reinitialize services through ServiceManager
             try:
