@@ -682,6 +682,8 @@ class ConsoleManager:
             "server_manager": self.server_manager,
             "server": active_server,  # Add active server for commands that need it
             "service_manager": self.service_manager,  # Add service_manager for reload command
+            # Services
+            "dream_service": self.service_manager.get_service("dream") if self.service_manager else None,
             "send_weather": lambda irc, channel, location: self._console_weather(
                 location
             ),
