@@ -279,24 +279,37 @@ def exit_command(context: CommandContext, bot_functions):
     if not context.is_console:
         return  # Exit command only works from console/TUI
 
-    # If quit message provided, set it
-    if context.args:
-        quit_message = " ".join(context.args)
+    # Get quit message from args if provided
+    quit_message = " ".join(context.args) if context.args else ""
+
+    # If quit message provided, set it on servers first
+    if quit_message:
         set_quit_message = bot_functions.get("set_quit_message")
         if set_quit_message:
             set_quit_message(quit_message)
 
-    # Try to get the stop event from bot functions and trigger it
+    # Try to get bot_manager from bot functions and call its stop method
+    # This ensures QUIT is sent to IRC servers before shutdown
+    bot_manager = bot_functions.get("bot_manager")
+    if bot_manager and hasattr(bot_manager, "stop"):
+        logger.info(f"{context.server_name} !{context.command} command received")
+        logger.log(
+            f"🛑 Shutting down bot with quit message: '{quit_message or 'default'}'",
+            "INFO",
+            fallback_text=f"[STOP] Shutting down bot with quit message: '{quit_message or 'default'}'",
+        )
+        # Call bot_manager.stop which properly sends QUIT to servers
+        bot_manager.stop(quit_message if quit_message else None)
+        return "🛑 Bot shutdown initiated..."
+
+    # Fallback: try to use stop_event directly if bot_manager not available
     stop_event = bot_functions.get("stop_event")
     if stop_event:
         logger.info(f"{context.server_name} !{context.command} command received")
-        quit_message = (
-            " ".join(context.args) if context.args else "default quit message"
-        )
         logger.log(
-            f"🛑 Shutting down bot with quit message: '{quit_message}'",
+            f"🛑 Shutting down bot with quit message: '{quit_message or 'default'}'",
             "INFO",
-            fallback_text=f"[STOP] Shutting down bot with quit message: '{quit_message}'",
+            fallback_text=f"[STOP] Shutting down bot with quit message: '{quit_message or 'default'}'",
         )
         stop_event.set()
         return "🛑 Bot shutdown initiated..."
@@ -307,3 +320,16 @@ def exit_command(context: CommandContext, bot_functions):
 
 # Aliases for backwards compatibility
 k_command = countdown_command
+
+
+@command(
+    "quit",
+    description="Quit IRC and shutdown the bot (alias for !exit)",
+    usage="!quit [message]",
+    examples=["!quit", "!quit Bye bye!"],
+    scope=CommandScope.CONSOLE_ONLY,
+)
+def quit_command(context: CommandContext, bot_functions):
+    """Quit IRC and shutdown the bot (alias for !exit)."""
+    # Reuse exit_command logic
+    return exit_command(context, bot_functions)
