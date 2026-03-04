@@ -182,13 +182,14 @@ def reload_all_commands() -> Tuple[bool, str]:
                 for mod in list(sys.modules.keys()):
                     if mod.startswith("cmd_modules.") or mod == "cmd_modules":
                         del sys.modules[mod]
-                
+
                 # Also remove the old 'commands' module if it exists
                 if "commands" in sys.modules:
                     del sys.modules["commands"]
-                
+
                 # Re-import cmd_modules to trigger @command decorators
                 import cmd_modules  # noqa: F401
+
                 logger.debug("ReloadManager: Re-registered commands from cmd_modules")
             except Exception as e:
                 logger.warning(f"ReloadManager: Failed to re-register commands: {e}")
