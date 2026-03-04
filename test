@@ -60,8 +60,11 @@ def main():
     cmd = [sys.executable, '-m', 'pytest', '-p', 'no:warnings'] + extra_args + sys.argv[1:]
 
     try:
-        result = subprocess.run(cmd, check=True)
+        result = subprocess.run(cmd)
         return result.returncode
+    except subprocess.CalledProcessError as e:
+        # pytest returns non-zero on test failures - that's expected, not an error
+        return e.returncode
     finally:
         # Clean up test files after tests finish (regardless of exit status)
         cleanup_test_files()

@@ -2,6 +2,7 @@
 source =
     .
     services
+    cmd_modules
 
 [report]
 omit =

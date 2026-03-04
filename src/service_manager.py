@@ -106,13 +106,6 @@ class ServiceManager:
             from services.electricity_service import create_electricity_service
 
             electricity_api_key = get_api_key("ELECTRICITY_API_KEY")
-            logger.info(
-                f"DEBUG: ELECTRICITY_API_KEY from get_api_key: '{electricity_api_key}' (length: {len(electricity_api_key) if electricity_api_key else 0})"
-            )
-            logger.info(
-                f"DEBUG: os.environ.get('ELECTRICITY_API_KEY'): '{os.environ.get('ELECTRICITY_API_KEY', 'NOT_SET')}'"
-            )
-
             if electricity_api_key:
                 logger.info("DEBUG: API key found, attempting to create service...")
                 try:
@@ -132,14 +125,6 @@ class ServiceManager:
                         f"Service creation traceback: {traceback.format_exc()}"
                     )
                     self.services["electricity"] = None
-            else:
-                logger.warning(
-                    "⚠️  No electricity API key found. Electricity price commands will not work."
-                )
-                self.services["electricity"] = None
-                logger.info(
-                    f"DEBUG: services dict after setting to None: {list(self.services.keys())}"
-                )
         except ImportError as e:
             logger.warning(f"Electricity service not available: {e}")
             self.services["electricity"] = None
@@ -150,23 +135,12 @@ class ServiceManager:
             logger.error(f"Initialization traceback: {traceback.format_exc()}")
             self.services["electricity"] = None
 
-        logger.info(f"DEBUG: Final services dict: {list(self.services.keys())}")
-        logger.info(
-            f"DEBUG: electricity service value: {self.services.get('electricity')}"
-        )
-
     def _initialize_youtube_service(self):
         """Initialize YouTube service if API key is available."""
         try:
             from services.youtube_service import create_youtube_service
 
             youtube_api_key = get_api_key("YOUTUBE_API_KEY")
-            logger.info(
-                f"DEBUG: YOUTUBE_API_KEY from get_api_key: '{youtube_api_key}' (length: {len(youtube_api_key) if youtube_api_key else 0})"
-            )
-            logger.info(
-                f"DEBUG: os.environ.get('YOUTUBE_API_KEY'): '{os.environ.get('YOUTUBE_API_KEY', 'NOT_SET')}'"
-            )
 
             if youtube_api_key:
                 self.services["youtube"] = create_youtube_service(youtube_api_key)

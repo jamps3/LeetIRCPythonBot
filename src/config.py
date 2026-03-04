@@ -567,7 +567,7 @@ def get_api_key(key_name: str, default: str = "") -> str:
             f"API key '{key_name}' loaded successfully (length: {len(api_key)})"
         )
     else:
-        logger.warning(f"API key '{key_name}' not found, using default value")
+        logger.debug(f"API key '{key_name}' not found, using default value")
 
     return api_key
 
