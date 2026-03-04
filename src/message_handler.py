@@ -1141,7 +1141,11 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             "server": server,
             "server_name": context["server_name"],
             "bot_name": server.bot_name,
-            "dream_service": self.service_manager.get_service("dream") if self.service_manager else None,
+            "dream_service": (
+                self.service_manager.get_service("dream")
+                if self.service_manager
+                else None
+            ),
             "latency_start": lambda: getattr(self, "_latency_start", 0),
             "set_latency_start": lambda value: setattr(self, "_latency_start", value),
             "notice_message": lambda msg, irc=None, target=None: self._send_response(

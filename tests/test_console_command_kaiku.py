@@ -77,13 +77,14 @@ class TestConsoleVsKaikuWeatherCommand:
         assert result is None or hasattr(result, "message")  # Could be CommandResponse
         mock_send_weather.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_kaiku_routes_command_with_proper_bot_functions(self):
+    def test_kaiku_routes_command_with_proper_bot_functions(self):
         """
         Test that when !kaiku !s is used, the nested command gets proper bot_functions.
 
         This test verifies that kaiku command passes proper bot_functions to nested commands.
         """
+        import asyncio
+
         from cmd_modules.misc import echo_command
         from command_registry import CommandContext
 
@@ -106,12 +107,13 @@ class TestConsoleVsKaikuWeatherCommand:
             "irc": MagicMock(),
         }
 
-        # The echo command is async, so we need to await it
-        result = await echo_command(context, bot_functions)
+        # The echo command is async, so we need to use asyncio.run to call it
+        result = asyncio.run(echo_command(context, bot_functions))
 
-        # The result should be None (echo returns None when sending to channel)
-        # or a string when it's a simple echo
-        assert result is None or isinstance(result, str)
+        # The result should be a string since it's not a channel echo
+        # (first arg "!s" doesn't start with #)
+        assert isinstance(result, str)
+        assert "testuser" in result or "!s Helsinki" in result
 
 
 class TestConsoleCommandsBotFunctions:
