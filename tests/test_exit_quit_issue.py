@@ -9,8 +9,16 @@ which properly sends QUIT to IRC servers before shutting down.
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from dotenv import load_dotenv
 
-from command_loader import process_console_command
+from command_loader import ensure_commands_loaded, process_console_command
+
+# Load environment variables for testing
+load_dotenv()
+
+
+# Ensure commands are loaded once before all tests
+ensure_commands_loaded()
 
 
 class TestExitCommandQUIT:

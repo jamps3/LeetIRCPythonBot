@@ -704,6 +704,7 @@ class ElectricityService:
 
         # Get current hour for highlighting
         from datetime import datetime
+
         current_hour = datetime.now(self.timezone).hour
 
         # Convert prices to snt/kWh and create time-price pairs
