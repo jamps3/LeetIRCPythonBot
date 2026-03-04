@@ -14,8 +14,8 @@ Modules:
 
 # Import submodules to trigger @command decorators
 # Order matters: dependencies first
-from cmd_modules import basic  # noqa: E402, F401
 from cmd_modules import admin  # noqa: E402, F401
+from cmd_modules import basic  # noqa: E402, F401
 from cmd_modules import games  # noqa: E402, F401
 from cmd_modules import misc  # noqa: E402, F401
 from cmd_modules import services  # noqa: E402, F401

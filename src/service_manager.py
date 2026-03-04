@@ -46,6 +46,7 @@ class ServiceManager:
             self._initialize_leet_detector()
             self._initialize_fmi_warning_service()
             self._initialize_otiedote_service()
+            self._initialize_dream_service()
 
             logger.info("Service manager initialization complete")
         except Exception as e:
@@ -255,6 +256,22 @@ class ServiceManager:
             logger.warning(f"Otiedote service not available: {e}")
             self.services["otiedote"] = None
 
+    def _initialize_dream_service(self):
+        """Initialize Dream service."""
+        try:
+            from config import get_config
+            from services.dream_service import create_dream_service
+
+            config = get_config()
+            data_manager = config.data_manager
+            gpt_service = self.services.get("gpt")
+
+            self.services["dream"] = create_dream_service(data_manager, gpt_service)
+            logger.info("🌙 Dream service initialized.")
+        except ImportError as e:
+            logger.warning(f"Dream service not available: {e}")
+            self.services["dream"] = None
+
     def get_service(self, service_name: str) -> Optional[Any]:
         """
         Get a service instance by name.
@@ -325,6 +342,7 @@ class ServiceManager:
             ("leet_detector", self._initialize_leet_detector),
             ("fmi_warning", self._initialize_fmi_warning_service),
             ("otiedote", self._initialize_otiedote_service),
+            ("dream", self._initialize_dream_service),
         ]
 
         # Service module names for reloading
@@ -339,6 +357,7 @@ class ServiceManager:
             "services.leet_detector",
             "services.fmi_warning_service",
             "services.otiedote_json_service",
+            "services.dream_service",
         ]
 
         # Reload service modules

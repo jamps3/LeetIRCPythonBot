@@ -10,7 +10,10 @@ import sys
 
 # Import the functions used by the !muunnos command
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-from cmd_modules.word_tracking import _find_first_syllable, transform_phrase  # noqa: E402
+from cmd_modules.word_tracking import (  # noqa: E402
+    _find_first_syllable,
+    transform_phrase,
+)
 
 
 def main():

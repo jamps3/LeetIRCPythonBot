@@ -51,6 +51,11 @@ class CommandContext:
         """Get arguments as a single string."""
         return " ".join(self.args)
 
+    @args_text.setter
+    def args_text(self, value: str):
+        """Set arguments from a single string (splits on whitespace)."""
+        self.args = value.split() if value else []
+
     @property
     def is_admin_context(self) -> bool:
         """Check if this is an admin context (private message or console)."""

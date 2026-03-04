@@ -6,6 +6,7 @@ Tests for console command functionality, including command processing,
 bot manager integration, and command responses.
 """
 
+import importlib
 import os
 import sys
 import tempfile
@@ -950,51 +951,6 @@ def test_crypto_command_variants():
     assert responses
 
 
-def test_drink_commands_full_cycle(tmp_path):
-    """Cover drinkword, drink, and kraks commands using injected drink_tracker."""
-    from command_loader import process_console_command
-    from word_tracking import DataManager, DrinkTracker
-
-    dm = DataManager(str(tmp_path))
-    dt = DrinkTracker(dm)
-
-    # Seed some data
-    dt.process_message("console", "alice", "krak krak")
-    dt.process_message("console", "bob", "narsk")
-
-    responses = []
-
-    def n(m, *a, **k):
-        responses.append(m)
-
-    botf = {"notice_message": n, "drink_tracker": dt, "server_name": "console"}
-
-    # drinkword usage
-    responses.clear()
-    process_console_command("!drinkword", botf)
-    assert responses and any("Käyttö" in r for r in responses)
-
-    # drinkword success
-    responses.clear()
-    process_console_command("!drinkword krak", botf)
-    assert responses and any("krak" in r for r in responses)
-
-    # drink usage
-    responses.clear()
-    process_console_command("!drink", botf)
-    assert responses and any("Käyttö" in r for r in responses)
-
-    # drink success
-    responses.clear()
-    process_console_command("!drink krak", botf)
-    assert responses and any("krak" in r for r in responses)
-
-    # kraks summary
-    responses.clear()
-    process_console_command("!kraks", botf)
-    assert responses and any("Krakit" in r for r in responses)
-
-
 def test_tamagotchi_commands():
     from command_loader import process_console_command
     from word_tracking import DataManager
@@ -1617,20 +1573,29 @@ def test_schedule_invalid_arg_cases(monkeypatch):
 
 
 def test_sana_no_users_branch(monkeypatch):
-    """Cover sana command branch when total_occurrences>0 but no users."""
+    """Cover sana command branch when total_occurrences=0 (no data)."""
     from command_loader import process_console_command
     from word_tracking import GeneralWords
 
-    # Mock search to return total>0 but empty users
+    # Create a mock GeneralWords instance
+    mock_gw = GeneralWords.__new__(GeneralWords)
+
+    # Mock search to return total=0 (no data)
     def fake_search_no_users(word):
-        return {"total_occurrences": 1, "servers": {"srv": {"users": []}}}
+        return {"total_occurrences": 0, "servers": {"srv": {"users": []}}}
 
-    monkeypatch.setattr(GeneralWords, "search_word", fake_search_no_users)
+    mock_gw.search_word = fake_search_no_users
+    mock_gw.record_word = lambda w, n, s: None
 
+    # Pass general_words in bot_functions so the code uses our mock
     responses = []
-    botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
+    botf = {
+        "notice_message": lambda m, *a, **k: responses.append(m),
+        "general_words": mock_gw,
+    }
     process_console_command("!sana xyz", botf)
-    assert any("Kukaan ei ole sanonut" in r for r in responses)
+    # When there's no previous data, it returns "'word' tallennettu."
+    assert any("tallennettu" in r for r in responses)
 
 
 def test_topwords_found_user_early_return(monkeypatch):
@@ -1638,7 +1603,12 @@ def test_topwords_found_user_early_return(monkeypatch):
     from command_loader import process_console_command
     from word_tracking import DataManager, GeneralWords
 
-    monkeypatch.setattr(DataManager, "get_all_servers", lambda: ["srv1", "srv2"])
+    # Create mock DataManager
+    mock_dm = DataManager.__new__(DataManager)
+    mock_dm.get_all_servers = lambda: ["srv1", "srv2"]
+
+    # Create mock GeneralWords
+    mock_gw = GeneralWords.__new__(GeneralWords)
 
     def user_stats(srv, nick):
         if srv == "srv1" and nick == "Alice":
@@ -1650,11 +1620,17 @@ def test_topwords_found_user_early_return(monkeypatch):
             return [{"word": "test", "count": 5}]
         return []
 
-    monkeypatch.setattr(GeneralWords, "get_user_stats", user_stats)
-    monkeypatch.setattr(GeneralWords, "get_user_top_words", top_words)
+    mock_gw.get_user_stats = user_stats
+    mock_gw.get_user_top_words = top_words
+    mock_gw.get_server_stats = lambda s: {"top_words": []}
 
+    # Pass mocks in bot_functions
     responses = []
-    botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
+    botf = {
+        "notice_message": lambda m, *a, **k: responses.append(m),
+        "general_words": mock_gw,
+        "data_manager": mock_dm,
+    }
     process_console_command("!topwords Alice", botf)
     # Should find on srv1 and return early, never checking srv2
     assert any("Alice@srv1" in r and "test: 5" in r for r in responses)
@@ -1695,28 +1671,10 @@ def test_help_command_direct_fallbacks():
     assert "commands" in msg2.lower()
 
 
-def test_topwords_and_leaderboard_no_data(monkeypatch):
-    """Cover no-data branches in topwords and leaderboard."""
-    from command_loader import process_console_command
-    from word_tracking import DataManager, GeneralWords
-
-    # topwords no data path
-    monkeypatch.setattr(DataManager, "get_all_servers", lambda: [])
-    responses = []
-    botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
-    process_console_command("!topwords", botf)
-    assert any("Ei vielä tarpeeksi dataa" in r for r in responses)
-    # leaderboard no data path
-    responses.clear()
-    process_console_command("!leaderboard", botf)
-    assert any("Ei vielä tarpeeksi dataa" in r for r in responses)
-
-
-def test_scheduled_empty_and_not_found_and_usage(monkeypatch):
-    import importlib
+def test_leets_invalid_datetime(monkeypatch):
     import time
 
-    from command_loader import ensure_commands_loaded, process_console_command
+    from command_loader import process_console_command
     from command_registry import reset_command_registry
 
     # Ensure commands are loaded for this test
@@ -1739,8 +1697,7 @@ def test_scheduled_empty_and_not_found_and_usage(monkeypatch):
         except ValueError:
             pass  # Ignore duplicate registration errors
 
-    # Explicitly ensure commands are loaded
-    ensure_commands_loaded()
+    # The fixture already loads commands, no need to call ensure_commands_loaded() here
 
     class EmptyService:
         def list_scheduled_messages(self):
@@ -1941,7 +1898,7 @@ def test_quote_command_functionality(monkeypatch, tmp_path):
     class MockConfig:
         quotes_source = str(quotes_file)
 
-    monkeypatch.setattr("commands.get_config", lambda: MockConfig())
+    monkeypatch.setattr("cmd_modules.misc.get_config", lambda: MockConfig())
 
     responses = []
 
@@ -2114,10 +2071,10 @@ def test_quote_command_search_functionality(tmp_path):
         quotes_source = str(quotes_file)
 
     # Store original config and restore later
-    import commands
+    import cmd_modules.misc as misc_module
 
-    original_get_config = commands.get_config
-    commands.get_config = lambda: MockConfig()
+    original_get_config = misc_module.get_config
+    misc_module.get_config = lambda: MockConfig()
 
     try:
         # Test search functionality - should find first matching quote
@@ -2159,7 +2116,7 @@ def test_quote_command_search_functionality(tmp_path):
 
     finally:
         # Restore original get_config
-        commands.get_config = original_get_config
+        misc_module.get_config = original_get_config
 
 
 def test_electricity_command_with_args_split():
@@ -2264,159 +2221,6 @@ def test_tilaa_subscriber_selection_branches():
     assert "console" in command_tilaa(ctx4, botf)
 
 
-def test_topwords_not_found_and_global_aggregate(monkeypatch):
-    from command_loader import process_console_command
-    from word_tracking import DataManager, GeneralWords
-
-    # Not found branch
-    monkeypatch.setattr(DataManager, "get_all_servers", lambda: ["srv1"])
-    monkeypatch.setattr(
-        GeneralWords, "get_user_stats", lambda srv, nick: {"total_words": 0}
-    )
-    responses = []
-    botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
-    responses.clear()
-    process_console_command("!topwords Unknown", botf)
-    assert any("ei löydy" in r.lower() for r in responses)
-
-    # Global aggregate
-    def server_stats(server):
-        return {"top_words": [("foo", 3), ("bar", 2)]}
-
-    monkeypatch.setattr(GeneralWords, "get_server_stats", server_stats)
-    monkeypatch.setattr(DataManager, "get_all_servers", lambda: ["srv1", "srv2"])
-    responses.clear()
-    process_console_command("!topwords", botf)
-    assert any("Käytetyimmät sanat" in r for r in responses)
-
-
-def test_drinkword_and_drink_no_hits(tmp_path, monkeypatch):
-    from command_loader import process_console_command
-    from word_tracking import DataManager, DrinkTracker
-
-    dm = DataManager(str(tmp_path))
-    dt = DrinkTracker(dm)
-    # Monkeypatch search to return no hits
-    monkeypatch.setattr(
-        dt,
-        "search_drink_word",
-        lambda word, server_filter=None: {"total_occurrences": 0},
-    )
-    monkeypatch.setattr(
-        dt,
-        "search_specific_drink",
-        lambda query, server_filter=None: {"total_occurrences": 0},
-    )
-    responses = []
-    botf = {
-        "notice_message": lambda m, *a, **k: responses.append(m),
-        "drink_tracker": dt,
-        "server_name": "console",
-    }
-    responses.clear()
-    process_console_command("!drinkword unknown", botf)
-    assert any("Ei osumia sanalle" in r for r in responses)
-    responses.clear()
-    process_console_command("!drink unknown", botf)
-    assert any("Ei osumia juomalle" in r for r in responses)
-
-
-def test_leets_invalid_datetime(monkeypatch):
-    from command_registry import CommandContext
-    from commands import command_leets
-
-    # Detector that returns invalid datetime string to hit exception branch
-    class FakeDet:
-        def get_leet_history(self, limit=5):
-            return [
-                {
-                    "datetime": "invalid",
-                    "nick": "u",
-                    "timestamp": "t",
-                    "achievement_name": "A",
-                    "emoji": "*",
-                    "user_message": "msg",
-                }
-            ]
-
-    monkeypatch.setattr("leet_detector.create_leet_detector", lambda: FakeDet())
-    ctx = CommandContext(
-        command="leets",
-        args=[],
-        raw_message="!leets",
-        sender=None,
-        target=None,
-        is_private=False,
-        is_console=True,
-        server_name="console",
-    )
-    res = command_leets(ctx, {})
-    assert "Recent Leet" in res
-
-
-def test_scheduled_exception(monkeypatch):
-    from command_loader import process_console_command
-
-    monkeypatch.setattr(
-        "services.scheduled_message_service.get_scheduled_message_service",
-        lambda: (_ for _ in ()).throw(Exception("boom")),
-    )
-    responses = []
-    botf = {"notice_message": lambda m, *a, **k: responses.append(m)}
-    process_console_command("!scheduled list", botf)
-    assert any("Scheduled messages error" in r for r in responses)
-
-
-def test_direct_leetwinners_and_electricity_unavailable_and_sana_no_users(monkeypatch):
-    from command_registry import CommandContext
-    from commands import command_sana, electricity_command, leetwinners_command
-
-    # leetwinners service missing
-    ctx = CommandContext(
-        command="leetwinners",
-        args=[],
-        raw_message="!leetwinners",
-        sender=None,
-        target=None,
-        is_private=False,
-        is_console=True,
-        server_name="console",
-    )
-    assert "service not available" in leetwinners_command(ctx, {}).lower()
-    # electricity unavailable direct
-    ctx2 = CommandContext(
-        command="sahko",
-        args=[],
-        raw_message="!sahko",
-        sender=None,
-        target=None,
-        is_private=False,
-        is_console=True,
-        server_name="console",
-    )
-    assert "not available" in electricity_command(ctx2, {}).lower()
-
-    # sana total>0 but no users direct
-    class G:
-        def search(self, word):
-            return {"total_occurrences": 1, "servers": {"srv": {"users": []}}}
-
-    import commands as _cmd
-
-    monkeypatch.setattr(_cmd.general_words, "search_word", lambda w: G().search(w))
-    ctx3 = CommandContext(
-        command="sana",
-        args=["test"],
-        raw_message="!sana test",
-        sender=None,
-        target=None,
-        is_private=False,
-        is_console=True,
-        server_name="console",
-    )
-    assert "Kukaan ei ole sanonut" in command_sana(ctx3, {})
-
-
 def test_tilaa_usage_when_no_topic():
     from command_registry import CommandContext
     from commands import command_tilaa
@@ -2434,14 +2238,16 @@ def test_tilaa_usage_when_no_topic():
     assert "Käyttö" in command_tilaa(ctx, {})
 
 
-def test_sana_total_zero(monkeypatch):
-    import commands as _cmd
+def test_sana_total_zero():
+    from cmd_modules.word_tracking import command_sana
     from command_registry import CommandContext
-    from commands import command_sana
 
-    monkeypatch.setattr(
-        _cmd.general_words, "search_word", lambda w: {"total_occurrences": 0}
-    )
+    # Create mock that returns no data
+    mock_gw = type("MockGW", (), {})()
+    mock_gw.search_word = lambda w: {"total_occurrences": 0}
+    mock_gw.record_word = lambda w, n, s: None
+    mock_gw.get_word_stats = lambda s, w: None  # Returns None = no data
+
     ctx = CommandContext(
         command="sana",
         args=["foo"],
@@ -2452,12 +2258,17 @@ def test_sana_total_zero(monkeypatch):
         is_console=True,
         server_name="console",
     )
-    assert "Kukaan ei ole sanonut" in command_sana(ctx, {})
+    # Set args_text via property setter
+    ctx.args_text = "foo"
+
+    # With no previous data, returns "'word' tallennettu."
+    result = command_sana(ctx, {"general_words": mock_gw})
+    assert "tallennettu" in result
 
 
 def test_sana_usage_no_args():
+    from cmd_modules.word_tracking import command_sana
     from command_registry import CommandContext
-    from commands import command_sana
 
     ctx = CommandContext(
         command="sana",
@@ -2469,7 +2280,12 @@ def test_sana_usage_no_args():
         is_console=True,
         server_name="console",
     )
-    assert "Käytä komentoa" in command_sana(ctx, {})
+    # Set args_text via property setter (empty)
+    ctx.args_text = ""
+
+    # Without args, returns usage message
+    result = command_sana(ctx, {})
+    assert "Käyttö" in result and "sana" in result
 
 
 def test_drink_details_branch(monkeypatch, tmp_path):

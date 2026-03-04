@@ -48,6 +48,9 @@ def reset_command_registry():
     try:
         import importlib
 
+        import cmd_modules.basic
+        import cmd_modules.misc
+        import cmd_modules.services
         import commands
         import commands_admin
 
@@ -60,6 +63,21 @@ def reset_command_registry():
                 raise
         try:
             importlib.reload(commands_admin)
+        except ValueError as e:
+            if "already registered" not in str(e):
+                raise
+        try:
+            importlib.reload(cmd_modules.services)
+        except ValueError as e:
+            if "already registered" not in str(e):
+                raise
+        try:
+            importlib.reload(cmd_modules.basic)
+        except ValueError as e:
+            if "already registered" not in str(e):
+                raise
+        try:
+            importlib.reload(cmd_modules.misc)
         except ValueError as e:
             if "already registered" not in str(e):
                 raise

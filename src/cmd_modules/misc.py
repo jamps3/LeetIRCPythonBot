@@ -282,7 +282,7 @@ def np_command(context: CommandContext, bot_functions):
                             break
 
                     if parts:
-                        return f"Nimipäivät tänään {today_day}.{today_month}.2025: | {' | '.join(parts)}"
+                        return f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: | {' | '.join(parts)}"
                     else:
                         return f"Tänään ({today_day}.{today_month}) on nimipäivä: {', '.join(official)}"
             return "No name day found for today"
@@ -830,3 +830,92 @@ def command_ipfs(context, bot_functions):
 
 
 # For now, these will be imported from commands.py via the fallback mechanism
+
+# =====================
+# Dream Command
+# =====================
+
+
+@command(
+    "dream",
+    description="Generate surreal dream narrative or toggle automatic midnight dreams",
+    usage="!dream [narrative|report|toggle] [surrealist|cyberpunk]",
+    examples=["!dream", "!dream toggle", "!dream narrative cyberpunk", "!dream report"],
+)
+def dream_command(context: CommandContext, bot_functions):
+    """Generate a dream narrative from daily conversation or toggle automatic midnight dreams."""
+    # Get the dream service
+    dream_service = bot_functions.get("dream_service")
+    if not dream_service:
+        return "Dream service is not available."
+
+    # Get server name
+    server_name = (
+        bot_functions.get("server_name")
+        or getattr(context, "server_name", "console")
+        or "console"
+    )
+
+    # Get current channel
+    channel = context.target if context.target else context.sender
+
+    # Parse arguments
+    args = context.args or []
+
+    # Check for toggle command
+    if args and args[0].lower() == "toggle":
+        # Toggle automatic midnight dreams for current channel
+        enabled = dream_service.toggle_dream_channel(channel)
+        status = "enabled" if enabled else "disabled"
+        return f"🌙 Automatic midnight dreams {status} for {channel}"
+
+    # Determine output type and genre
+    output_type = "narrative"  # default
+    genre = "surrealist"  # default
+
+    if args:
+        if args[0].lower() in ["narrative", "report"]:
+            output_type = args[0].lower()
+            if len(args) > 1:
+                genre = args[1].lower()
+        elif args[0].lower() in ["surrealist", "cyberpunk"]:
+            genre = args[0].lower()
+            if len(args) > 1 and args[1].lower() in ["narrative", "report"]:
+                output_type = args[1].lower()
+
+    # Validate genre
+    if genre not in ["surrealist", "cyberpunk"]:
+        genre = "surrealist"
+
+    # Generate dream
+    try:
+        dream_content = dream_service.generate_dream(
+            server_name, channel, genre, output_type
+        )
+
+        # Send to channel if in IRC, otherwise return for console
+        if not context.is_console:
+            notice = bot_functions.get("notice_message")
+            irc = bot_functions.get("irc")
+            if notice and irc:
+                # Split long messages for IRC
+                lines = dream_content.split("\n")
+                for line in lines:
+                    if line.strip():
+                        notice(line, irc, channel)
+                return None  # Don't send additional response
+            else:
+                return dream_content
+        else:
+            return dream_content
+
+    except Exception as e:
+        return f"Dream generation failed: {str(e)}"
+
+
+# Aliases for backwards compatibility with existing tests
+matka_command = driving_distance_osrm
+leets_command = command_leets
+schedule_command = command_schedule
+ipfs_command = command_ipfs
+scheduled_command = command_schedule

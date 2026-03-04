@@ -1266,3 +1266,7 @@ def command_tilaa(context, bot_functions):
         return result
     else:
         return "⚠ Tuntematon tilaustyyppi. Käytä: varoitukset, onnettomuustiedotteet tai list"
+
+
+# Aliases for backwards compatibility with existing tests
+tilaa_command = command_tilaa

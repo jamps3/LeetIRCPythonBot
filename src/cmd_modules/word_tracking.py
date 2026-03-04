@@ -893,7 +893,7 @@ def muunnos_command(context: CommandContext, bot_functions):
     """Finnish word transformation using lookup table and algorithmic fallback."""
     # Load the transformation data
     data_file = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "data", "sananmuunnokset.json"
+        os.path.dirname(__file__), "..", "data", "sananmuunnokset.json"
     )
     try:
         with open(data_file, "r", encoding="utf-8") as f:
@@ -1283,3 +1283,17 @@ def kraksdebug_command(context: CommandContext, bot_functions):
 
             status = "enabled" if kraksdebug_config["nick_notices"] else "disabled"
             return f"✅ Drink word detection notices to nicks are now {status}"
+
+
+# Aliases for backwards compatibility with existing tests
+topwords_command = command_topwords
+leaderboard_command = command_leaderboard
+drinkword_command = command_drinkword
+drink_command = command_drink
+kraks_command = command_kraks
+tamagotchi_command = command_tamagotchi
+feed_command = command_feed
+pet_command = command_pet
+krak_command = command_krak
+sana_command = command_sana
+assoc_command = command_assoc

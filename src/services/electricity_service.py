@@ -21,6 +21,9 @@ class ElectricityService:
 
     def __init__(self, api_key: str, cache_ttl_hours: int = 3):
         self.api_key = api_key
+        self.cache_ttl_hours = cache_ttl_hours
+        self._cache: Dict[str, Any] = {}
+        self._logged_skip_dates: set = set()  # Track logged skip messages to avoid spam
         self.base_url = "https://web-api.tp.entsoe.eu/api"
         self.finland_domain = "10YFI-1--------U"
         self.vat_rate = 1.255  # Finnish VAT 25.5%
@@ -289,11 +292,14 @@ class ElectricityService:
                     dates_found.add(interval_date)
                     # Only include intervals for the requested date
                     if interval_date != requested_date:
-                        log(
-                            f"Skipping price data for {interval_date} (requested {requested_date})",
-                            level="DEBUG",
-                            context="ELECTRICITY",
-                        )
+                        # Log only once per mismatched date to avoid spam
+                        if interval_date not in self._logged_skip_dates:
+                            self._logged_skip_dates.add(interval_date)
+                            log(
+                                f"Skipping price data for {interval_date} (requested {requested_date})",
+                                level="DEBUG",
+                                context="ELECTRICITY",
+                            )
                         continue
                     hour = interval_local.hour
                     minute = interval_local.minute

@@ -14,8 +14,11 @@ from command_registry import (
     command,
 )
 
+# Import scheduled command from commands_admin.py for backwards compatibility
+from commands_admin import scheduled_command
+
 # = functions (====================
-# Helperduplicated from commands.py for modularity)
+# Helper (duplicated from commands.py for modularity)
 # =====================
 
 
@@ -299,3 +302,7 @@ def exit_command(context: CommandContext, bot_functions):
     else:
         # Fallback - just return a quit message
         return "🛑 Exit command received - bot shutting down"
+
+
+# Aliases for backwards compatibility
+k_command = countdown_command

@@ -57,6 +57,10 @@ class ServerManager:
         )
         self.quit_message = os.getenv("QUIT_MESSAGE", "Disconnecting")
 
+        # Midnight scheduler
+        self.midnight_scheduler_thread = None
+        self._scheduler_running = False
+
         # Load server configurations
         self._load_server_configurations()
 
@@ -133,6 +137,9 @@ class ServerManager:
                 f"Server manager started with {len(self.servers)} servers configured (not connected)"
             )
             logger.info("🔌 Use !connect to connect to servers")
+
+        # Start midnight scheduler
+        self._start_midnight_scheduler()
 
         return True
 
@@ -493,6 +500,183 @@ class ServerManager:
         except Exception as e:
             logger.error(f"Error in server manager wait loop: {e}")
 
+    def _start_midnight_scheduler(self):
+        """Start the midnight scheduler thread."""
+        if self._scheduler_running:
+            logger.warning("Midnight scheduler already running")
+            return
+
+        self._scheduler_running = True
+        self.midnight_scheduler_thread = threading.Thread(
+            target=self._midnight_scheduler_loop, name="MidnightScheduler", daemon=True
+        )
+        self.midnight_scheduler_thread.start()
+        logger.info("🌙 Midnight scheduler started")
+
+    def _midnight_scheduler_loop(self):
+        """Main loop for midnight scheduler."""
+        import time
+        from datetime import datetime, timedelta
+
+        while not self.stop_event.is_set() and self._scheduler_running:
+            try:
+                # Check if it's time for lag measurement (1:01:00.010101010 - 1:01:01.010101010)
+                now = datetime.now()
+
+                # Target time: 1:01:01.010101010 AM
+                target_time = now.replace(hour=1, minute=1, second=1, microsecond=10101)
+
+                # If we've passed 1:01:01 today, target tomorrow's 1:01:01
+                if now > target_time:
+                    target_time = target_time + timedelta(days=1)
+
+                # Calculate time until target
+                time_until_target = target_time - now
+
+                # If we're in the 10-second window before target time, measure lag
+                if 0 < time_until_target.total_seconds() <= 10:
+                    self._measure_and_send_dreams()
+
+                # Sleep for 1 second to avoid busy waiting
+                self.stop_event.wait(1)
+
+            except Exception as e:
+                logger.error(f"Error in midnight scheduler: {e}")
+                self.stop_event.wait(1)
+
+    def _measure_and_send_dreams(self):
+        """Measure lag and send dreams at 1:01:01.010101010."""
+        import time
+        from datetime import datetime, timedelta
+
+        try:
+            # Measure lag to each connected server
+            lag_measurements = {}
+            for server_name, server in self.get_connected_servers().items():
+                if server.connected:
+                    lag_ns = self._measure_server_lag(server)
+                    if lag_ns is not None:
+                        lag_measurements[server_name] = lag_ns
+                        logger.debug(f"Lag to {server_name}: {lag_ns:,} ns")
+
+            # Calculate average lag
+            if lag_measurements:
+                avg_lag_ns = sum(lag_measurements.values()) / len(lag_measurements)
+                logger.info(
+                    f"Average lag: {avg_lag_ns:,.0f} ns ({avg_lag_ns/1_000_000:.3f} ms)"
+                )
+            else:
+                avg_lag_ns = 0
+                logger.warning("No lag measurements available")
+
+            # Wait until exactly 1:01:01.010101010 minus average lag
+            now = datetime.now()
+
+            # Target time: 1:01:01.010101010 AM
+            target_time = now.replace(hour=1, minute=1, second=1, microsecond=10101)
+
+            # If we've passed 1:01:01 today, target tomorrow's 1:01:01
+            if now > target_time:
+                target_time = target_time + timedelta(days=1)
+
+            # Calculate optimal send time
+            send_time = target_time - timedelta(seconds=avg_lag_ns / 1_000_000_000)
+
+            # Wait until send time
+            time_until_send = (send_time - datetime.now()).total_seconds()
+            if time_until_send > 0:
+                self.stop_event.wait(time_until_send)
+
+            # Send dreams to enabled channels
+            self._send_midnight_dreams()
+
+        except Exception as e:
+            logger.error(f"Error in dream sending: {e}")
+
+    def _measure_server_lag(self, server):
+        """Measure lag to a specific server."""
+        import time
+
+        try:
+            # Send a simple PING command and measure round-trip time
+            start_time = time.time_ns()
+
+            # Send PING to server
+            if hasattr(server, "send") and callable(getattr(server, "send", None)):
+                ping_msg = f"PING {int(time.time())}\r\n"
+                server.send(ping_msg.encode("utf-8"))
+
+                # For now, we'll use a basic timing approach
+                # In a real implementation, we'd wait for PONG response
+                end_time = time.time_ns()
+                return end_time - start_time
+
+        except Exception as e:
+            logger.warning(f"Failed to measure lag to {server.config.name}: {e}")
+            return None
+
+        return None
+
+    def _send_midnight_dreams(self):
+        """Send dreams to all enabled channels."""
+        try:
+            # Get enabled channels from state
+            from config import get_config
+
+            config = get_config()
+            state = config.data_manager.load_state()
+            enabled_channels = state.get("dream_channels", [])
+
+            if not enabled_channels:
+                logger.debug("No channels have dreams enabled")
+                return
+
+            # Get dream service
+            from services.dream_service import create_dream_service
+
+            dream_service = create_dream_service(config.data_manager)
+
+            # Send dreams to each enabled channel
+            for channel in enabled_channels:
+                try:
+                    # Extract server name from channel (format: #channel@server or #channel)
+                    if "@" in channel:
+                        channel_name, server_name = channel.split("@", 1)
+                    else:
+                        # Use first connected server if no server specified
+                        connected_servers = self.get_connected_servers()
+                        if not connected_servers:
+                            continue
+                        server_name = list(connected_servers.keys())[0]
+                        channel_name = channel
+
+                    # Ensure channel has # prefix
+                    if not channel_name.startswith("#"):
+                        channel_name = f"#{channel_name}"
+
+                    # Generate and send dream
+                    dream_content = dream_service.generate_dream(
+                        server_name, channel_name, "surrealist", "narrative"
+                    )
+
+                    # Send to channel
+                    server = self.servers.get(server_name)
+                    if server and server.connected:
+                        server.send_message(channel_name, dream_content)
+                        logger.info(
+                            f"🌙 Sent midnight dream to {channel_name}@{server_name}"
+                        )
+                    else:
+                        logger.warning(
+                            f"Server {server_name} not connected for {channel_name}"
+                        )
+
+                except Exception as e:
+                    logger.error(f"Failed to send dream to {channel}: {e}")
+
+        except Exception as e:
+            logger.error(f"Error sending midnight dreams: {e}")
+
     def shutdown(self, quit_message: Optional[str] = None):
         """
         Shutdown all servers gracefully.
@@ -501,6 +685,11 @@ class ServerManager:
             quit_message: Optional custom quit message
         """
         logger.info("Shutting down server manager...")
+
+        # Stop midnight scheduler
+        self._scheduler_running = False
+        if self.midnight_scheduler_thread and self.midnight_scheduler_thread.is_alive():
+            self.midnight_scheduler_thread.join(timeout=1.0)
 
         # Disconnect from all servers
         self.disconnect_from_servers(quit_message=quit_message)
