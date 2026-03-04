@@ -702,6 +702,10 @@ class ElectricityService:
         red = "\x034"  # Above average (expensive)
         reset = "\x0f"  # Reset color
 
+        # Get current hour for highlighting
+        from datetime import datetime
+        current_hour = datetime.now(self.timezone).hour
+
         # Convert prices to snt/kWh and create time-price pairs
         # Ensure we have all 96 quarters (24 hours × 4 quarters)
         time_prices = []
@@ -730,13 +734,13 @@ class ElectricityService:
 
         # Create bar graph - one bar per hour (showing hourly average)
         hourly_bars = []
-        current_hour = -1
+        prev_hour = -1
         hour_prices = []
 
         for hour, quarter, price in time_prices:
-            if hour != current_hour:
+            if hour != prev_hour:
                 # Process previous hour if we have data
-                if current_hour >= 0 and hour_prices:
+                if prev_hour >= 0 and hour_prices:
                     # Filter out None values for average calculation
                     valid_prices = [p for p in hour_prices if p is not None]
                     if valid_prices:
@@ -764,8 +768,11 @@ class ElectricityService:
                         else:
                             color = red  # Above average = expensive = red
 
-                        # Create colored bar
-                        bar = f"{color}{bar_symbols[bar_height]}{reset}"
+                        # Create colored bar, wrapping current hour in brackets
+                        if hour == current_hour:
+                            bar = f"[{color}{bar_symbols[bar_height]}{reset}]"
+                        else:
+                            bar = f"{color}{bar_symbols[bar_height]}{reset}"
                     else:
                         # No valid prices for this hour - show empty
                         bar = " "
@@ -773,7 +780,7 @@ class ElectricityService:
                     hourly_bars.append(bar)
 
                 # Start new hour
-                current_hour = hour
+                prev_hour = hour
                 hour_prices = [price]
             else:
                 hour_prices.append(price)
@@ -801,7 +808,11 @@ class ElectricityService:
                 else:
                     color = red
 
-                bar = f"{color}{bar_symbols[bar_height]}{reset}"
+                # Wrap current hour in brackets
+                if prev_hour == current_hour:
+                    bar = f"[{color}{bar_symbols[bar_height]}{reset}]"
+                else:
+                    bar = f"{color}{bar_symbols[bar_height]}{reset}"
             else:
                 # No valid prices for this hour - show empty
                 bar = " "
