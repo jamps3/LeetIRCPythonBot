@@ -176,27 +176,30 @@ class TestReloadManager:
         assert "service_count" in status
         assert "command_count" in status
 
-    @patch("src.command_registry.get_command_registry")
-    def test_verify_critical_commands_all_present(self, mock_get_registry):
+    def test_verify_critical_commands_all_present(self):
         """Test verification when all critical commands are present."""
-        mock_registry = Mock()
-        mock_registry.get_handler.side_effect = lambda cmd: (
-            Mock() if cmd in ["help", "ping"] else None
-        )
-        mock_get_registry.return_value = mock_registry
+        # Import and load commands to ensure they exist
+        from src.command_loader import load_all_commands
 
+        load_all_commands()
+
+        # Now verify - should return empty list
         missing = reload_manager.verify_critical_commands()
 
-        assert missing == []
+        assert missing == [], f"Expected no missing commands, got: {missing}"
 
-    @patch("src.command_registry.get_command_registry")
-    def test_verify_critical_commands_missing(self, mock_get_registry):
+    def test_verify_critical_commands_missing(self):
         """Test verification when critical commands are missing."""
-        mock_registry = Mock()
-        mock_registry.get_handler.return_value = None
-        mock_get_registry.return_value = mock_registry
+        # Create a fresh registry with no commands
+        from src.command_registry import CommandRegistry
 
-        missing = reload_manager.verify_critical_commands()
+        test_registry = CommandRegistry()
+
+        # Patch get_command_registry to return our empty registry
+        with patch(
+            "src.command_registry.get_command_registry", return_value=test_registry
+        ):
+            missing = reload_manager.verify_critical_commands()
 
         assert "help" in missing
         assert "ping" in missing
