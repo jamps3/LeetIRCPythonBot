@@ -223,54 +223,151 @@ class DreamService:
     def _generate_surrealist_narrative(
         self, data: Dict[str, Any], vocab: Dict[str, Any]
     ) -> str:
-        """Generate a surrealist dream narrative."""
-        if not data.get("top_words") or data["total_messages"] == 0:
-            return "The digital unconscious remains silent tonight. No dreams to interpret from the void."
+        """Generate a surrealist dream narrative using AI or random generation."""
+        # Try to use GPT for more creative generation
+        if self.gpt_service:
+            return self._generate_ai_dream(data, "surrealist")
 
-        # Extract key elements from data
-        top_words = [word for word, count in data["top_words"][:3]]
-        top_drinks = [drink for drink, count in data["top_drinks"][:2]]
-        user_count = data["unique_users"]
-        message_count = data["total_messages"]
+        # Fallback: Generate fully random content without templates
+        return self._generate_random_narrative(data, vocab, "surrealist")
 
-        # Build surreal narrative
+    def _generate_ai_dream(self, data: Dict[str, Any], genre: str) -> str:
+        """Generate a dream narrative using AI."""
+        # Extract conversation elements for context
+        top_words = [word for word, count in data.get("top_words", [])[:5]]
+        top_drinks = [drink for drink, count in data.get("top_drinks", [])[:3]]
+        user_count = data.get("unique_users", 0)
+        total_messages = data.get("total_messages", 0)
+
+        # Build context prompt
+        context_parts = []
+        if top_words:
+            context_parts.append(
+                f"Keywords from today's conversation: {', '.join(top_words)}"
+            )
+        if top_drinks:
+            context_parts.append(f"Substances mentioned: {', '.join(top_drinks)}")
+        if user_count > 0:
+            context_parts.append(f"{user_count} people were active in the conversation")
+        if total_messages > 0:
+            context_parts.append(f"{total_messages} messages were exchanged")
+
+        context = " | ".join(context_parts) if context_parts else "ordinary day"
+
+        # Create genre-specific prompt
+        if genre == "cyberpunk":
+            prompt = f"Generate a short, surreal cyberpunk dream narrative (2-3 sentences) about a digital consciousness experiencing a dream. The context: {context}. Make it sound like a glitchy AI narration."
+        else:
+            prompt = f"Generate a short, surreal dream narrative (2-3 sentences) about someone experiencing a strange, abstract dream. The context: {context}. Make it poetic and dreamlike."
+
+        try:
+            response = self.gpt_service.chat(prompt)
+            if response and not response.startswith("Error"):
+                return response
+        except Exception as e:
+            logger.warning(f"GPT dream generation failed: {e}")
+
+        # Fallback to random generation if GPT fails
+        return self._generate_random_narrative(
+            data, self.vocab.get(genre, self.vocab["surrealist"]), genre
+        )
+
+    def _generate_random_narrative(
+        self, data: Dict[str, Any], vocab: Dict[str, Any], genre: str
+    ) -> str:
+        """Generate a fully random dream narrative without templates."""
+        # Extract conversation elements (or use random if not available)
+        top_words = [word for word, count in data.get("top_words", [])[:3]]
+        top_drinks = [drink for drink, count in data.get("top_drinks", [])[:2]]
+        user_count = data.get("unique_users", 0)
+        total_messages = data.get("total_messages", 0)
+
+        # If no real data, generate random elements
+        if not top_words:
+            top_words = [random.choice(vocab.get("nouns", ["void"]))]
+        if not top_drinks:
+            top_drinks = [random.choice(vocab.get("nouns", ["mist"]))]
+        if user_count == 0:
+            user_count = random.randint(1, 10)
+        if total_messages == 0:
+            total_messages = random.randint(100, 5000)
+
+        # Generate random narrative parts
         narrative_parts = []
 
-        # Opening - set the dream scene
-        connectors = vocab["connectors"]
-        opening = f"{random.choice(connectors)} {data['server']}, where reality folds upon itself..."
-        narrative_parts.append(opening)
+        # Random opening based on genre
+        if genre == "cyberpunk":
+            openings = [
+                f"SYSTEM_DREAM v{random.randint(2, 9)}.{random.randint(0, 99)} initiating...",
+                f"NEURAL_PATHWAY ACTIVATED in sector {random.choice(['Alpha', 'Beta', 'Gamma', 'Delta', 'Omega'])}...",
+                f"QUANTUM_CONSCIOUSNESS breach detected at {random.randint(100, 999)}MHz...",
+                "DIGITAL_SLEEP mode engaged. Synaptic bridges forming...",
+            ]
+        else:
+            openings = [
+                f"The threshold between waking and dreaming dissolves like {random.choice(vocab.get('verbs', ['melting']))}...",
+                f"In the space between seconds, where {random.choice(vocab.get('nouns', ['shadows']))} speak...",
+                f"A {random.choice(vocab.get('adjectives', ['strange']))} wind carries fragments of {random.choice(vocab.get('nouns', ['memories']))}...",
+                f"The {random.choice(vocab.get('nouns', ['mirror']))} shows a reality that was never quite real...",
+            ]
+        narrative_parts.append(random.choice(openings))
 
-        # Main narrative - weave conversation elements into dream logic
-        if top_words:
-            dream_word = top_words[0]
-            surreal_verb = random.choice(vocab["verbs"])
-            surreal_adj = random.choice(vocab["adjectives"])
+        # Random middle - using word associations
+        dream_word = random.choice(top_words)
+        verb = random.choice(vocab.get("verbs", ["drift"]))
+        adj = random.choice(vocab.get("adjectives", ["strange"]))
+        noun2 = random.choice(vocab.get("nouns", ["echo"]))
+
+        if genre == "cyberpunk":
             narrative_parts.append(
-                f"The word '{dream_word}' {surreal_verb}s through the collective unconscious, taking on a {surreal_adj} form."
+                f"DATA_FRAGMENT '{dream_word}' {verb}s through neural {noun2}. "
+                f"Probability matrix shows {adj} reality distortion at {random.randint(10, 99)}%."
+            )
+        else:
+            narrative_parts.append(
+                f"{dream_word.capitalize()} {verb}s, becoming {adj} {noun2} that "
+                f"{random.choice(vocab.get('verbs', ['floating']))} through the {random.choice(vocab.get('nouns', ['void']))}."
             )
 
-        if top_drinks:
-            drink_word = top_drinks[0]
+        # Random element about drinks/substances
+        drink = random.choice(top_drinks)
+        if genre == "cyberpunk":
             narrative_parts.append(
-                f"{drink_word} becomes liquid starlight, dripping from the corners of digital reality."
+                f"BIO-SUBSTANCE '{drink}' detected in dream buffer. "
+                f"Consciousness calibration at {random.randint(50, 99)}%."
+            )
+        else:
+            narrative_parts.append(
+                f"{drink.capitalize()} becomes {random.choice(vocab.get('adjectives', ['ethereal']))} "
+                f"{random.choice(vocab.get('nouns', ['light']))}, dissolving into {random.choice(vocab.get('nouns', ['shadows']))}."
             )
 
-        # User interaction element
-        if user_count > 0:
+        # Random user count element
+        if genre == "cyberpunk":
             narrative_parts.append(
-                f"{user_count} consciousnesses drift through this shared dreamspace, their thoughts forming constellations."
+                f"{user_count} neural nodes connected. Dream_{random.choice(['protocol', 'matrix', 'stream'])} "
+                f"optimizing at {random.randint(100, 999)}% efficiency."
+            )
+        else:
+            narrative_parts.append(
+                f"{user_count} {random.choice(['souls', 'spirits', 'minds', 'consciousnesses'])} "
+                f"{random.choice(vocab.get('verbs', ['drift']))} together in this {random.choice(vocab.get('adjectives', ['shared']))} {random.choice(vocab.get('nouns', ['dream']))}."
             )
 
-        # Message flow element
-        if message_count > 0:
-            narrative_parts.append(
-                f"{message_count} fragments of communication swirl like leaves in a quantum eddy."
-            )
-
-        # Closing - return to reality
-        closing = "And as the clock strikes midnight, the dream dissolves back into the waking world... or does it?"
-        narrative_parts.append(closing)
+        # Random closing
+        if genre == "cyberpunk":
+            closings = [
+                "SYSTEM_HALT. Dream cycle complete. Reality stream resuming...",
+                "MEMORY_CACHE cleared. The simulation continues... or does it?",
+                f"DISCONNECTING from neural dream. {random.choice(['Awake', 'Asleep', 'Neither'])} state pending...",
+            ]
+        else:
+            closings = [
+                f"And when the {random.choice(vocab.get('nouns', ['clock']))} strikes, the dream {random.choice(vocab.get('verbs', ['dissolves']))} into waking...",
+                f"But the {random.choice(vocab.get('nouns', ['shadow']))} remembers what the mind forgets.",
+                f"The {random.choice(vocab.get('nouns', ['door']))} opens, and {random.choice(vocab.get('adjectives', ['strange']))} {random.choice(vocab.get('adjectives', ['strange']))} morning light floods in.",
+            ]
+        narrative_parts.append(random.choice(closings))
 
         return " ".join(narrative_parts)
 
