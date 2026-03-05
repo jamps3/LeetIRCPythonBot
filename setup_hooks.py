@@ -51,8 +51,14 @@ echo "Using Python: $PYTHON_CMD"
 
 # Run isort if available, fail if not found
 if $PYTHON_CMD -m isort --version >/dev/null 2>&1; then
-  echo "$PYTHON_CMD -m isort ."
-  $PYTHON_CMD -m isort .
+  # Get list of staged Python files to only format those
+  STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.py$' | tr '\\n' ' ')
+  if [ -n "$STAGED_FILES" ]; then
+    echo "$PYTHON_CMD -m isort $STAGED_FILES"
+    $PYTHON_CMD -m isort $STAGED_FILES
+  else
+    echo "No staged Python files to sort"
+  fi
 else
   echo "ERROR: isort not found. Install with: pip install isort"
   exit 1
@@ -60,15 +66,21 @@ fi
 
 # Run black if available, fail if not found
 if $PYTHON_CMD -m black --version >/dev/null 2>&1; then
-  echo "$PYTHON_CMD -m black ."
-  $PYTHON_CMD -m black .
+  # Get list of staged Python files to only format those
+  STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.py$' | tr '\\n' ' ')
+  if [ -n "$STAGED_FILES" ]; then
+    echo "$PYTHON_CMD -m black $STAGED_FILES"
+    $PYTHON_CMD -m black $STAGED_FILES
+    # Re-stage only the originally staged files that were modified
+    echo "Re-staging formatted files..."
+    git add $STAGED_FILES
+  else
+    echo "No staged Python files to format"
+  fi
 else
   echo "ERROR: black not found. Install with: pip install black"
   exit 1
 fi
-
-# Note: We don't auto-stage files here to avoid accidentally committing
-# unintended changes. Run 'git add <files>' manually before commit.
 
 # Run flake8 if available, fail if not found
 if $PYTHON_CMD -m flake8 --version >/dev/null 2>&1; then
@@ -110,7 +122,7 @@ if os.path.exists(version_file):
         exit(0)
 
     # Parse version components (major.minor.patch)
-    version_match = re.match(r'([0-9]+)\\\\.([0-9]+)\\\\.([0-9]+)$', current_version)
+    version_match = re.match(r'([0-9]+)\\.([0-9]+)\\.([0-9]+)$', current_version)
     if version_match:
         major, minor, patch = version_match.groups()
         minor = int(minor)
@@ -148,38 +160,42 @@ else:
     print('VERSION file not found, skipping version increment')
 "
 
-# Stage the version change
-git add VERSION
+# Stage the VERSION file if it was modified
+if git diff --quiet VERSION 2>/dev/null; then
+    echo "VERSION file unchanged, skipping stage"
+else
+    echo "Staging VERSION file..."
+    git add VERSION
+fi
 
 echo "All checks passed! Proceeding with commit."
 exit 0
 """
 
 
-def setup_hooks():
+def install_hook():
     """Install the pre-commit hook."""
-    # Get the directory where this script is located
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Ensure .git/hooks directory exists
-    hooks_dir = os.path.join(script_dir, ".git", "hooks")
-    os.makedirs(hooks_dir, exist_ok=True)
-
-    hook_path = os.path.join(hooks_dir, "pre-commit")
-
-    # Generate and write the hook content
     hook_content = get_hook_content()
+    hook_path = os.path.join(".git", "hooks", "pre-commit")
+
+    # Create .git/hooks directory if it doesn't exist
+    hooks_dir = os.path.dirname(hook_path)
+    if not os.path.exists(hooks_dir):
+        os.makedirs(hooks_dir)
+
+    # Write the hook file
     with open(hook_path, "w", encoding="utf-8") as f:
         f.write(hook_content)
 
-    # Make it executable
+    # Make the hook executable
     os.chmod(
         hook_path,
-        os.stat(hook_path).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH,
+        stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH,
     )
 
-    print(f"Hook installed to: {hook_path}")
+    print(f"Pre-commit hook installed at: {hook_path}")
+    print("The hook will run isort, black and flake8 before each commit.")
 
 
 if __name__ == "__main__":
-    setup_hooks()
+    install_hook()

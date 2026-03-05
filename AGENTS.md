@@ -2,28 +2,25 @@
 
 This file provides guidance to WARP (warp.dev) and other agents when working with code in this repository.
 
-Project: LeetIRCPythonBot v2.3.17 (Python IRC bot with multi-server support, services, and a modern command system)
+Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, services, and a modern command system)
 
 - Shell: pwsh (Windows). Adapt Linux/macOS variants where noted.
 
 1. Common commands
 
 - First-time setup (Windows PowerShell):
-
   - python -m venv venv
   - .\venv\Scripts\Activate.ps1
   - pip install --upgrade pip
   - if (Test-Path requirements.txt) { pip install -r requirements.txt }
 
 - First-time setup (bash/zsh):
-
   - python3 -m venv venv
   - source venv/bin/activate
   - pip install --upgrade pip
   - [ -f requirements.txt ] && pip install -r requirements.txt
 
 - Run the bot locally:
-
   - pwsh: python .\main.py
   - bash/zsh: python3 main.py
   - Useful flags:
@@ -32,7 +29,6 @@ Project: LeetIRCPythonBot v2.3.17 (Python IRC bot with multi-server support, ser
     - python main.py -api # show API keys in logs
 
 - Environment config (.env): copy .env.sample to .env and set at least one server and any API keys you intend to use.
-
   - For local test parity with CI, a minimal .env can include:
     BOT_NAME=TestBot,
     IRC_NICKNAME=test_bot,
@@ -46,14 +42,12 @@ Project: LeetIRCPythonBot v2.3.17 (Python IRC bot with multi-server support, ser
   - Optional API keys: OPENAI_API_KEY, WEATHER_API_KEY, ELECTRICITY_API_KEY, YOUTUBE_API_KEY
 
 - Linting & formatting:
-
   - Isort (imports): isort --profile black .
   - Black (format): black .
   - Flake8 (lint): flake8 .
   - Pre-commit setup (runs isort + Black before commit)
 
 - CI reference (GitHub Actions):
-
   - Installs: python-dotenv pytest (and optionally requirements.txt)
   - Runs tests via: python -m pytest -v
   - Lint job uses: black --check, isort --check-only, flake8
@@ -72,13 +66,11 @@ Project: LeetIRCPythonBot v2.3.17 (Python IRC bot with multi-server support, ser
 2. High-level architecture
 
 - Entrypoint (main.py):
-
   - Parses CLI flags (log level, nickname, API-key print mask)
   - Loads .env via config.load*env_file(), validates at least one SERVERx*\* block
   - Initializes and starts BotManager, then waits for shutdown
 
 - Bot orchestration (bot_manager.BotManager):
-
   - Reads environment-driven server configs via get_server_configs()
   - Constructs Server instances (server.Server) for each configured server
   - Registers callbacks for: message, notice, join, part, quit
@@ -100,7 +92,6 @@ Project: LeetIRCPythonBot v2.3.17 (Python IRC bot with multi-server support, ser
   - Shutdown: propagates quit_message to servers; joins threads with timeouts
 
 - Command processing pipeline (high-level):
-
   - IRC message callback (\_handle_message):
     1. Nanoleet detection with max-precision timestamp (leet_detector)
     2. Word tracking (drink/general), Tamagotchi response if enabled
@@ -116,13 +107,11 @@ Project: LeetIRCPythonBot v2.3.17 (Python IRC bot with multi-server support, ser
     - Centralizes parsing, routing, and response shaping (including splitting long responses when needed)
 
 - IRC stack:
-
   - server.Server: encapsulates a single IRC connection lifecycle, channels, send_message/notice
   - irc_client.py and irc_processor.py: low-level IRC protocol handling and parsing utilities
   - USE_NOTICES toggle controls whether replies are NOTICE or PRIVMSG
 
 - Services (services/\*):
-
   - alko_service.py: Search Alko product information
   - crypto_service.py: Crypto price fetch (CoinGecko)
   - digitraffic_service.py: Departing and arriving trains
@@ -139,13 +128,12 @@ Project: LeetIRCPythonBot v2.3.17 (Python IRC bot with multi-server support, ser
   - youtube_service.py: YouTube ID extraction, metadata fetch
 
 - URL title fetching:
-
   - BotManager.\_fetch_title: requests + BeautifulSoup; skips blacklisted domains/extensions (env-configurable)
 
 - Configuration and logging:
   - config.py: .env loading, server config parsing, helper getters
   - logger.py: get_logger(name) used across components; respects LOG_LEVEL
-  - Notable env toggles: TAMAGOTCHI_ENABLED, USE_NOTICES
+  - Notable env toggles: TAMAGOTCHI_ENABLED, USE_NOTICES, FOUR_TWENTY_ENABLED
 
 3. Testing guidance
 
@@ -162,7 +150,7 @@ Project: LeetIRCPythonBot v2.3.17 (Python IRC bot with multi-server support, ser
 
 3. Focus files when modifying behavior
 
-- Adding/modifying commands: command modules (command_loader.py, command_registry.py, commands.py, commands_admin.py, commands_basic.py, commands_irc.py, commands_services.py)
+- Adding/modifying commands: command modules (command_loader.py, command_registry.py, commands.py, commands_admin.py, commands_basic.py, cmd_modules/irc.py, cmd_modules/services.py, cmd_modules/admin.py, cmd_modules/basic.py, cmd_modules/games.py, cmd_modules/misc.py, cmd_modules/word_tracking.py)
 - Message handling behavior: bot_manager.BotManager.\_handle_message and subsequent helpers
 - Services: services/<service>\_service.py and the corresponding wiring in BotManager.
 - Server/IRC protocol details: server.py, irc_client.py, irc_processor.py
