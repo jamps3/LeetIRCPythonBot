@@ -9,6 +9,7 @@ import os
 import random
 
 from command_registry import CommandContext, CommandResponse, CommandType, command
+from paths import SANANMUUNNOKSET_FILE
 from tamagotchi import TamagotchiBot
 
 # Import lazy getters from word_tracking module directly
@@ -892,9 +893,7 @@ def _send_muunnos_response(context: CommandContext, bot_functions, result: str):
 def muunnos_command(context: CommandContext, bot_functions):
     """Finnish word transformation using lookup table and algorithmic fallback."""
     # Load the transformation data
-    data_file = os.path.join(
-        os.path.dirname(__file__), "..", "..", "data", "sananmuunnokset.json"
-    )
+    data_file = SANANMUUNNOKSET_FILE
     try:
         with open(data_file, "r", encoding="utf-8") as f:
             transformations = json.load(f)

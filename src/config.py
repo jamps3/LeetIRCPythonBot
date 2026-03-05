@@ -8,12 +8,14 @@ from typing import Dict, List, Optional, Tuple
 from dotenv import load_dotenv
 
 import logger
-
-# Get project root directory (parent of src/)
-_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
-# Resolve default data file paths relative to project root
-_DEFAULT_DATA_DIR = os.path.join(_PROJECT_ROOT, "data")
+from paths import (
+    CONVERSATION_HISTORY_FILE,
+    DATA_DIR,
+    EKAVIKA_FILE,
+    GENERAL_WORDS_FILE,
+    STATE_FILE,
+    SUBSCRIBERS_FILE,
+)
 
 
 def _read_version_from_file() -> str:
@@ -89,11 +91,11 @@ class BotConfig:
     log_level: str = "INFO"
 
     # File paths
-    history_file: str = os.path.join(_DEFAULT_DATA_DIR, "conversation_history.json")
-    ekavika_file: str = os.path.join(_DEFAULT_DATA_DIR, "ekavika.json")
-    words_file: str = os.path.join(_DEFAULT_DATA_DIR, "general_words.json")
-    subscribers_file: str = os.path.join(_DEFAULT_DATA_DIR, "subscribers.json")
-    state_file: str = os.path.join(_DEFAULT_DATA_DIR, "state.json")
+    history_file: str = CONVERSATION_HISTORY_FILE
+    ekavika_file: str = EKAVIKA_FILE
+    words_file: str = GENERAL_WORDS_FILE
+    subscribers_file: str = SUBSCRIBERS_FILE
+    state_file: str = STATE_FILE
 
     # Connection settings
     reconnect_delay: int = 60
@@ -206,19 +208,10 @@ class ConfigManager:
             # Logging
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             # File paths
-            history_file=os.getenv(
-                "HISTORY_FILE",
-                os.path.join(_DEFAULT_DATA_DIR, "conversation_history.json"),
-            ),
-            ekavika_file=os.getenv(
-                "EKAVIKA_FILE", os.path.join(_DEFAULT_DATA_DIR, "ekavika.json")
-            ),
-            words_file=os.getenv(
-                "WORDS_FILE", os.path.join(_DEFAULT_DATA_DIR, "general_words.json")
-            ),
-            subscribers_file=os.getenv(
-                "SUBSCRIBERS_FILE", os.path.join(_DEFAULT_DATA_DIR, "subscribers.json")
-            ),
+            history_file=os.getenv("HISTORY_FILE", CONVERSATION_HISTORY_FILE),
+            ekavika_file=os.getenv("EKAVIKA_FILE", EKAVIKA_FILE),
+            words_file=os.getenv("WORDS_FILE", GENERAL_WORDS_FILE),
+            subscribers_file=os.getenv("SUBSCRIBERS_FILE", SUBSCRIBERS_FILE),
             state_file=state_file,
             # Connection settings
             reconnect_delay=int(os.getenv("RECONNECT_DELAY", "60")),

@@ -14,14 +14,9 @@ from openai import OpenAI
 from openai import RateLimitError as OpenAIRateLimitError
 
 from logger import get_logger
+from paths import CONVERSATION_HISTORY_FILE
 
 logger = get_logger("GPTService")
-
-# Resolve data file paths relative to project root
-_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-_DEFAULT_HISTORY_FILE = os.path.join(_PROJECT_ROOT, "data", "conversation_history.json")
-
-# Note: .env is loaded by config.py before services are initialized
 
 
 # Custom exception classes that properly inherit from Exception
@@ -66,7 +61,7 @@ class GPTService:
         self.client = OpenAI(api_key=self.api_key)
         self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
         self.history_file = (
-            history_file if history_file is not None else _DEFAULT_HISTORY_FILE
+            history_file if history_file is not None else CONVERSATION_HISTORY_FILE
         )
         self.history_limit = history_limit
 

@@ -17,6 +17,7 @@ import requests
 import bot_manager  # noqa: F401 - needed for schedule command
 from command_registry import CommandContext, CommandType, command
 from config import get_config
+from paths import DATA_DIR
 
 # =====================
 # 420 Command
@@ -446,13 +447,14 @@ def quote_command(context: CommandContext, bot_functions):
     config_obj = get_config()
 
     # Get quotes source from environment, default to data/quotes.txt
-    quotes_source = getattr(config_obj, "quotes_source", "data/quotes.txt")
+    quotes_source = getattr(
+        config_obj, "quotes_source", os.path.join(DATA_DIR, "quotes.txt")
+    )
 
     # Make sure we have an absolute path for file operations
     if not os.path.isabs(quotes_source):
         # Make relative paths resolve from project root
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        quotes_source = os.path.join(project_root, quotes_source)
+        quotes_source = os.path.join(DATA_DIR, quotes_source)
 
     try:
         # Check if this is an "add" command
