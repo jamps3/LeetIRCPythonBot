@@ -893,7 +893,7 @@ def muunnos_command(context: CommandContext, bot_functions):
     """Finnish word transformation using lookup table and algorithmic fallback."""
     # Load the transformation data
     data_file = os.path.join(
-        os.path.dirname(__file__), "..", "data", "sananmuunnokset.json"
+        os.path.dirname(__file__), "..", "..", "data", "sananmuunnokset.json"
     )
     try:
         with open(data_file, "r", encoding="utf-8") as f:
