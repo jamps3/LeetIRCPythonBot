@@ -1756,8 +1756,12 @@ class TUIManager:
 
     def _handle_tab_completion(self):
         """Handle tab key for command completion."""
-        current_text = self.input_field.get_edit_text()
-        cursor_pos = self.input_field.get_edit_pos()
+        try:
+            current_text = self.input_field.get_edit_text()
+            cursor_pos = self.input_field.get_edit_pos()
+        except AttributeError:
+            # Some urwid versions don't have these methods
+            return
 
         # If text changed or no completion in progress, start new completion
         if current_text != self._last_completion_text:
