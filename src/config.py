@@ -9,6 +9,12 @@ from dotenv import load_dotenv
 
 import logger
 
+# Get project root directory (parent of src/)
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# Resolve default data file paths relative to project root
+_DEFAULT_DATA_DIR = os.path.join(_PROJECT_ROOT, "data")
+
 
 def _read_version_from_file() -> str:
     """
@@ -83,11 +89,11 @@ class BotConfig:
     log_level: str = "INFO"
 
     # File paths
-    history_file: str = "data/conversation_history.json"
-    ekavika_file: str = "data/ekavika.json"
-    words_file: str = "data/general_words.json"
-    subscribers_file: str = "data/subscribers.json"
-    state_file: str = "state.json"
+    history_file: str = os.path.join(_DEFAULT_DATA_DIR, "conversation_history.json")
+    ekavika_file: str = os.path.join(_DEFAULT_DATA_DIR, "ekavika.json")
+    words_file: str = os.path.join(_DEFAULT_DATA_DIR, "general_words.json")
+    subscribers_file: str = os.path.join(_DEFAULT_DATA_DIR, "subscribers.json")
+    state_file: str = os.path.join(_DEFAULT_DATA_DIR, "state.json")
 
     # Connection settings
     reconnect_delay: int = 60
@@ -200,10 +206,19 @@ class ConfigManager:
             # Logging
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             # File paths
-            history_file=os.getenv("HISTORY_FILE", "data/conversation_history.json"),
-            ekavika_file=os.getenv("EKAVIKA_FILE", "data/ekavika.json"),
-            words_file=os.getenv("WORDS_FILE", "data/general_words.json"),
-            subscribers_file=os.getenv("SUBSCRIBERS_FILE", "data/subscribers.json"),
+            history_file=os.getenv(
+                "HISTORY_FILE",
+                os.path.join(_DEFAULT_DATA_DIR, "conversation_history.json"),
+            ),
+            ekavika_file=os.getenv(
+                "EKAVIKA_FILE", os.path.join(_DEFAULT_DATA_DIR, "ekavika.json")
+            ),
+            words_file=os.getenv(
+                "WORDS_FILE", os.path.join(_DEFAULT_DATA_DIR, "general_words.json")
+            ),
+            subscribers_file=os.getenv(
+                "SUBSCRIBERS_FILE", os.path.join(_DEFAULT_DATA_DIR, "subscribers.json")
+            ),
             state_file=state_file,
             # Connection settings
             reconnect_delay=int(os.getenv("RECONNECT_DELAY", "60")),

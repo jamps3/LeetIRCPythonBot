@@ -17,6 +17,10 @@ from logger import get_logger
 
 logger = get_logger("GPTService")
 
+# Resolve data file paths relative to project root
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_DEFAULT_HISTORY_FILE = os.path.join(_PROJECT_ROOT, "data", "conversation_history.json")
+
 # Note: .env is loaded by config.py before services are initialized
 
 
@@ -54,14 +58,16 @@ class GPTService:
     def __init__(
         self,
         api_key: str = "",
-        history_file: str = "data/conversation_history.json",
+        history_file: str = None,
         history_limit: int = 100,
     ):
         # Prefer explicitly provided key; fall back to environment (.env)
         self.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
         self.client = OpenAI(api_key=self.api_key)
         self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
-        self.history_file = history_file
+        self.history_file = (
+            history_file if history_file is not None else _DEFAULT_HISTORY_FILE
+        )
         self.history_limit = history_limit
 
         self.default_history = [
@@ -182,6 +188,6 @@ class GPTService:
 
 
 def create_gpt_service(
-    api_key: str, history_file="data/conversation_history.json", history_limit=100
+    api_key: str, history_file=None, history_limit=100
 ) -> GPTService:
     return GPTService(api_key, history_file, history_limit)

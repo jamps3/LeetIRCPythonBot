@@ -81,7 +81,9 @@ class ServiceManager:
             from services.gpt_service import GPTService
 
             openai_api_key = get_api_key("OPENAI_API_KEY")
-            history_file = os.getenv("HISTORY_FILE", "data/conversation_history.json")
+            history_file = os.getenv(
+                "HISTORY_FILE"
+            )  # Will use default in GPTService if None
             history_limit = int(os.getenv("GPT_HISTORY_LIMIT", "100"))
 
             if openai_api_key:
