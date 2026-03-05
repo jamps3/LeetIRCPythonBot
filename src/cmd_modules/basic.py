@@ -151,12 +151,16 @@ def ping_command(context: CommandContext, bot_functions):
 
 def _get_irc_connection(bot_functions):
     """Get IRC connection from bot_functions."""
-    server_manager = bot_functions.get("server_manager")
-    if server_manager:
-        if hasattr(server_manager, "servers") and server_manager.servers:
-            for server in server_manager.servers.values():
-                if server and hasattr(server, "irc_client") and server.irc_client:
-                    return server.irc_client
+    # First try direct 'irc' key (set by process_irc_command)
+    irc = bot_functions.get("irc")
+    if irc:
+        return irc
+
+    # Fall back to server.irc_client
+    server = bot_functions.get("server")
+    if server and hasattr(server, "irc_client"):
+        return server.irc_client
+
     return None
 
 
@@ -179,15 +183,8 @@ def lag_command(context: CommandContext, bot_functions):
 
     target_nick = context.args[0]
 
-    # Get server_manager for lag tracking
-    server_manager = bot_functions.get("server_manager")
-    if not server_manager:
-        return "Server manager not available"
-
-    # Get the latency tracker
+    # Get the latency tracker if available
     latency_tracker = bot_functions.get("latency_tracker")
-    if not latency_tracker:
-        return "Latency tracker not available"
 
     # Get server name
     server_name = bot_functions.get("server_name", "unknown")
@@ -202,8 +199,9 @@ def lag_command(context: CommandContext, bot_functions):
     # Send CTCP PING
     irc.send_raw(f"PRIVMSG {target_nick} :\x01PING {timestamp}\x01")
 
-    # Store the pending ping for later response matching
-    latency_tracker._store_lag(server_name, target_nick, timestamp)
+    # Store the pending ping for later response matching if tracker available
+    if latency_tracker and hasattr(latency_tracker, "_store_lag"):
+        latency_tracker._store_lag(server_name, target_nick, timestamp)
 
     return f"Pinging {target_nick} to measure lag..."
 
