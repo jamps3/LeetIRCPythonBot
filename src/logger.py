@@ -41,7 +41,7 @@ def get_log_files(log_file: str = "data/leet.log"):
     return files
 
 
-def rotate_logs(log_file: str = "data/leet.log", max_count: int = 10):
+def rotate_logs(log_file: str = "data/leet.log", max_count: int = 5):
     """Rotate log files, keeping maximum of max_count files."""
     # Ensure data directory exists
     os.makedirs(os.path.dirname(log_file), exist_ok=True)

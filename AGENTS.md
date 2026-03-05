@@ -135,7 +135,26 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
   - logger.py: get_logger(name) used across components; respects LOG_LEVEL
   - Notable env toggles: TAMAGOTCHI_ENABLED, USE_NOTICES, FOUR_TWENTY_ENABLED
 
-3. Testing guidance
+3. Command System Architecture
+
+- Modular Command Structure:
+  - commands.py: Backward compatibility layer and lazy getters
+  - cmd_modules/: Modular command packages (basic, admin, games, misc, services, word_tracking)
+  - command_registry.py: Central command registration and routing
+  - command_loader.py: Command loading and processing
+
+- Command Reload System:
+  - reload_manager.py: Hot-reload commands without restart
+  - Supports atomic reload with rollback on failure
+  - Usage: !reload (IRC) or !reload (console)
+
+- Timing and Lag Compensation:
+  - message_handler.py: Lag storage and measurement
+  - commands_irc.py: !lag and !sexact commands for precise timing
+  - scheduled_message_service.py: Lag-compensated scheduled messages
+  - Usage: !lag <nick> to measure, !sexact <nick> <time> <message> for exact timing
+
+4. Testing guidance
 
 - Pytest is the standard. (see tests/!TEST_SUMMARY.md for context).
 - Some tests intentionally skip external integrations; CI installs only minimal deps and relies on mocks/importorskip where needed.
@@ -148,7 +167,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
   - Crypto service: python -m pytest tests/test_service_crypto\*.py -v
   - Flood protection: python -m pytest tests/test_server_flood_protection.py -v
 
-3. Focus files when modifying behavior
+5. Focus files when modifying behavior
 
 - Adding/modifying commands: command modules (command_loader.py, command_registry.py, commands.py, commands_admin.py, commands_basic.py, cmd_modules/irc.py, cmd_modules/services.py, cmd_modules/admin.py, cmd_modules/basic.py, cmd_modules/games.py, cmd_modules/misc.py, cmd_modules/word_tracking.py)
 - Message handling behavior: bot_manager.BotManager.\_handle_message and subsequent helpers
@@ -156,12 +175,14 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 - Server/IRC protocol details: server.py, irc_client.py, irc_processor.py
 - Word tracking/persistence: word_tracking/
 - Configuration shape: config.py and .env.sample, .env when running
+- Command reloading: reload_manager.py (hot-reload commands without restart)
+- Lag measurement and timing: message_handler.py (lag storage), commands_irc.py (!lag, !sexact commands), scheduled_message_service.py (lag compensation)
 
-4. Notes and conventions
+6. Notes and conventions
 
 - Console protection features in BotManager are intentionally disabled to avoid hangs in some terminals
 - Some modules (lemmatizer, subscriptions, etc.) are optional; code guards against missing deps
 
-5. Git hygiene
+7. Git hygiene
 
 - Commit early and often (project rule). Prefer small commits with clear messages
