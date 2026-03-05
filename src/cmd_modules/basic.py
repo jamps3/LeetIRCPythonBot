@@ -149,6 +149,96 @@ def ping_command(context: CommandContext, bot_functions):
     return f"Pong! 🏓 | Nykyinen aika: {formatted_time}{lag_text}"
 
 
+def _get_irc_connection(bot_functions):
+    """Get IRC connection from bot_functions."""
+    server_manager = bot_functions.get("server_manager")
+    if server_manager:
+        if hasattr(server_manager, "servers") and server_manager.servers:
+            for server in server_manager.servers.values():
+                if server and hasattr(server, "irc_client") and server.irc_client:
+                    return server.irc_client
+    return None
+
+
+# =====================
+# Lag Command - measure network lag
+# =====================
+
+
+@command(
+    "lag",
+    description="Measure network lag to a user (sends timestamped ping)",
+    usage="!lag <nick>",
+    examples=["!lag TestUser"],
+    scope=CommandScope.IRC_AND_CONSOLE,
+)
+def lag_command(context: CommandContext, bot_functions):
+    """Measure network lag to a user by sending a timestamped ping."""
+    if not context.args:
+        return "Usage: !lag <nick>"
+
+    target_nick = context.args[0]
+
+    # Get server_manager for lag tracking
+    server_manager = bot_functions.get("server_manager")
+    if not server_manager:
+        return "Server manager not available"
+
+    # Get the latency tracker
+    latency_tracker = bot_functions.get("latency_tracker")
+    if not latency_tracker:
+        return "Latency tracker not available"
+
+    # Get server name
+    server_name = bot_functions.get("server_name", "unknown")
+
+    # Send a CTCP PING to measure lag
+    irc = _get_irc_connection(bot_functions)
+    if not irc:
+        return "Not connected to any IRC server"
+
+    timestamp = int(time.time() * 1000)  # milliseconds
+
+    # Send CTCP PING
+    irc.send_raw(f"PRIVMSG {target_nick} :\x01PING {timestamp}\x01")
+
+    # Store the pending ping for later response matching
+    latency_tracker._store_lag(server_name, target_nick, timestamp)
+
+    return f"Pinging {target_nick} to measure lag..."
+
+
+# =====================
+# Sexact Command - send timestamped message for exact timing
+# =====================
+
+
+@command(
+    "sexact",
+    description="Send a timestamped message for exact timing measurement",
+    usage="!sexact <nick> <time> <message>",
+    examples=["!sexact TestUser 1234567890 Hello"],
+    scope=CommandScope.IRC_AND_CONSOLE,
+)
+def sexact_command(context: CommandContext, bot_functions):
+    """Send a timestamped message for exact timing measurement."""
+    if len(context.args) < 3:
+        return "Usage: !sexact <nick> <time> <message>"
+
+    target_nick = context.args[0]
+    timestamp = context.args[1]
+    message = " ".join(context.args[2:])
+
+    irc = _get_irc_connection(bot_functions)
+    if not irc:
+        return "Not connected to any IRC server"
+
+    # Send the message with timestamp in a way that can be correlated
+    irc.send_raw(f"PRIVMSG {target_nick} :[{timestamp}] {message}")
+
+    return f"Sent timed message to {target_nick}"
+
+
 # =====================
 # Version Command
 # =====================
