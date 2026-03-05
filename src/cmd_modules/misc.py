@@ -16,8 +16,7 @@ import requests
 
 import bot_manager  # noqa: F401 - needed for schedule command
 from command_registry import CommandContext, CommandType, command
-from config import get_config
-from paths import DATA_DIR
+from config import DATA_DIR, get_config
 
 # =====================
 # 420 Command

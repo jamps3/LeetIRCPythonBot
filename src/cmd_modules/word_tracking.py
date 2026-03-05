@@ -9,7 +9,7 @@ import os
 import random
 
 from command_registry import CommandContext, CommandResponse, CommandType, command
-from paths import SANANMUUNNOKSET_FILE
+from config import SANANMUUNNOKSET_FILE
 from tamagotchi import TamagotchiBot
 
 # Import lazy getters from word_tracking module directly
