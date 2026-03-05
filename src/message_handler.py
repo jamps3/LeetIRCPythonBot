@@ -171,20 +171,24 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             if sender.lower() != server.bot_name.lower():
                 self._check_nanoleet_achievement(context)
 
-            # 🌿 Check for 420 special leet in message content
-            if sender.lower() != server.bot_name.lower() and self.four_twenty_enabled:
-                self._check_420_leet_achievement(context)
-
-            # Process commands FIRST (before AI chat) to ensure commands are handled properly
-            await self._process_commands(context)
-
-            # 🌿 Check for 420 auto-response (but not for commands or bot itself)
+            # 🌿 Check for 420 auto-response (only if not a command)
+            # NOTE: This handles both leet detection and auto-response to avoid double responses
             if (
                 sender.lower() != server.bot_name.lower()
                 and not text.strip().startswith("!")
-                and self.four_twenty_enabled
             ):
-                self._handle_420_response(context)
+                # Check current enabled state from data manager for each message
+                try:
+                    state = self.data_manager.load_state()
+                    four_twenty_enabled = state.get("420_enabled", True)
+                except Exception:
+                    four_twenty_enabled = True
+
+                if four_twenty_enabled:
+                    self._handle_420_response(context)
+
+            # Process commands FIRST (before AI chat) to ensure commands are handled properly
+            await self._process_commands(context)
 
             # Track words if not from the bot itself (but skip if this was a command)
             if (
@@ -608,14 +612,6 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         if user_message.strip().startswith("!"):
             return
 
-        # Check current enabled state from data manager (not cached)
-        try:
-            state = self.data_manager.load_state()
-            if not state.get("420_enabled", True):
-                return  # 420 responses are disabled
-        except Exception:
-            pass  # If we can't load state, allow response
-
         try:
             leet_detector = self.service_manager.get_service("leet_detector")
             if not leet_detector:
@@ -657,28 +653,60 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
     ]
 
     def _handle_420_response(self, context: Dict[str, Any]):
-        """Respond to 420 mentions in chat."""
+        """Respond to 420 mentions in chat.
+
+        This handles both the 420 auto-response AND the 420 leet achievement detection
+        to avoid sending duplicate responses.
+        """
         import random
         import re
 
         text = context["text"]
-        server = context["server"]
         target = context["target"]
+
+        # Only check in channels, not private messages
+        if not target.startswith("#"):
+            return
 
         # Check if message contains "420" as a standalone number
         # Match 420 surrounded by word boundaries or whitespace
-        if re.search(r"\b420\b", text, re.IGNORECASE):
-            # Check current enabled state from data manager (not cached)
-            try:
-                state = self.data_manager.load_state()
-                if not state.get("420_enabled", True):
-                    return  # 420 responses are disabled
-            except Exception:
-                pass  # If we can't load state, allow response
+        if not re.search(r"\b420\b", text, re.IGNORECASE):
+            return
 
-            response = random.choice(self._420_AUTO_RESPONSES)
-            self._send_response(server, target, response)
-            logger.debug(f"420 auto-response triggered in {target}")
+        # Check current enabled state from data manager (not cached)
+        try:
+            state = self.data_manager.load_state()
+            if not state.get("420_enabled", True):
+                return  # 420 responses are disabled
+        except Exception:
+            pass  # If we can't load state, allow response
+
+        # Check for 420 leet achievement in message AND timestamp
+        try:
+            sender = context["sender"]
+            server = context["server"]
+            leet_detector = self.service_manager.get_service("leet_detector")
+
+            if leet_detector:
+                timestamp = leet_detector.get_timestamp_with_nanoseconds()
+                result = leet_detector.check_420_leet(sender, text, timestamp)
+
+                if result:
+                    # Send the special leet achievement message
+                    achievement_message, achievement_level = result
+                    self._send_response(server, target, achievement_message)
+                    logger.info(
+                        f"420 leet: {achievement_level} for {sender} in {target} at {timestamp}"
+                    )
+                    # Don't also send auto-response - leet achievement is special
+                    return
+        except Exception as e:
+            logger.error(f"Error checking 420 leet achievement: {e}")
+
+        # If no leet achievement, send regular auto-response
+        response = random.choice(self._420_AUTO_RESPONSES)
+        self._send_response(server, target, response)
+        logger.debug(f"420 auto-response triggered in {target}")
 
     def _track_words(self, context: Dict[str, Any]):
         """Track words for statistics and drink tracking."""

@@ -28,8 +28,9 @@ class CommandScope(Enum):
     """Where a command can be executed."""
 
     IRC_ONLY = "irc"  # Only in IRC channels/private messages
+    IRC_AND_CONSOLE = "irc_and_console"  # Both IRC and console (can be used in both)
     CONSOLE_ONLY = "console"  # Only in console
-    BOTH = "both"  # Both IRC and console
+    BOTH = "both"  # Both IRC and console (alias for IRC_AND_CONSOLE)
 
 
 @dataclass
@@ -135,6 +136,7 @@ class CommandHandler(ABC):
             return False, "This command is not available in console mode"
         elif self.info.scope == CommandScope.CONSOLE_ONLY and not context.is_console:
             return False, "This command is only available in console mode"
+        # IRC_AND_CONSOLE and BOTH allow execution in both modes, so no check needed
 
         # Admin commands: enforcement is handled inside the command function (e.g., password checks).
         # Do not restrict by context here so admin commands can be executed from IRC as well.
