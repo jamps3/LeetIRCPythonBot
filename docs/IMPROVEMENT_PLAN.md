@@ -303,3 +303,25 @@ The refactoring is essentially done. commands.py now serves only as a backward-c
    - TestLeetsCommand, TestIpfsCommand
 
 **Status:** COMPLETED ✅
+
+---
+
+## AI Teachings Feature - COMPLETED ✅
+
+The AI Teachings feature allows users to teach the bot persistent knowledge that is included in AI responses.
+
+### Implementation:
+
+1. **Data Storage** (`src/word_tracking/data_manager.py`)
+   - Added `ai_teachings` section to existing `state.json`
+   - Methods: `add_teaching()`, `remove_teaching()`, `get_teachings()`, `get_teaching_by_id()`, `get_teachings_for_context()`
+   - 50-item limit enforced
+
+2. **Commands** (`src/cmd_modules/services.py`)
+   - `!teach <content>` - Add new teaching
+   - `!teach` - List all teachings
+   - `!unlearn <id>` - Remove teaching (admin only)
+
+3. **GPT Integration** (`src/services/gpt_service.py`)
+   - `_get_teachings_context()` loads teachings for AI context
+   - Included in responses (max 100 items combined with history)
