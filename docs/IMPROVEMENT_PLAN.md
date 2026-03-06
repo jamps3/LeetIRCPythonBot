@@ -2,6 +2,30 @@
 
 Generated: 2026-02-22
 
+## v2.4.91 Update - Test Coverage (2026-03-06)
+
+### Current Test Coverage: 82%
+
+See [TEST_PLAN.md](../TEST_PLAN.md) for detailed coverage improvement plan.
+
+### Priority Files Needing Tests:
+
+| File                                  | Current Coverage | Target |
+| ------------------------------------- | ---------------- | ------ |
+| services/otiedote_service.py          | 24%              | 70%    |
+| lemmatizer.py                         | 26%              | 50%    |
+| services/ipfs_service.py              | 34%              | 50%    |
+| command_loader.py                     | 51%              | 70%    |
+| services/scheduled_message_service.py | 58%              | 70%    |
+
+### Recent Fixes:
+
+- Fixed import issues that prevented tests from running
+- Added SERVICE to CommandType enum
+- Created test_service_availability.py with sanity checks
+
+---
+
 ## Overview
 
 This document outlines the planned improvements, optimizations, and simplifications for the LeetIRCPythonBot project. Items are prioritized by criticality and can be tracked as they are implemented.
