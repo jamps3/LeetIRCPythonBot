@@ -15,7 +15,12 @@ from datetime import datetime
 import requests
 
 import bot_manager  # noqa: F401 - needed for schedule command
-from command_registry import CommandContext, CommandType, command
+from command_registry import (
+    CommandContext,
+    CommandType,
+    command,
+    process_command_message,
+)
 from config import DATA_DIR, get_config
 
 # =====================
@@ -195,8 +200,41 @@ async def echo_command(context: CommandContext, bot_functions):
 
         # Simple echo to channel
         message = " ".join(context.args[1:])
-        server.send_message(first_arg, message)
-        return None  # type: ignore
+
+        # Check if message starts with ! - treat as command to execute
+        if message.startswith("!"):
+            # Create a new context for the subcommand
+            sub_context = CommandContext(
+                command="",
+                args=[],
+                raw_message=message,
+                sender=context.sender,
+                target=first_arg,  # Send result to the specified channel
+                server_name=context.server_name,
+                is_console=False,
+            )
+            # Execute the subcommand
+            result = await process_command_message(message, sub_context, bot_functions)
+            if result:
+                # Send command result to channel - handle CommandResponse or string
+                if hasattr(result, "message"):
+                    # It's a CommandResponse object
+                    response_text = result.message
+                else:
+                    # It's already a string
+                    response_text = str(result)
+                if response_text:
+                    # Check if we should use notices (like the original command would)
+                    use_notices = get_config().use_notices
+                    if use_notices and hasattr(server, "send_notice"):
+                        server.send_notice(first_arg, response_text)
+                    else:
+                        server.send_message(first_arg, response_text)
+            return None  # Command executed, don't echo the raw message
+        else:
+            # Regular echo - just send the message as-is
+            server.send_message(first_arg, message)
+            return None  # type: ignore
     else:
         # Regular echo mode
         if context.is_console:

@@ -73,6 +73,9 @@ class BotManager:
         self.logger.info("🚀 Initializing service manager...")
         self.service_manager = create_service_manager()
 
+        # Set bot_manager reference for service callbacks
+        self.service_manager.set_bot_manager(self)
+
         # Get data manager from service manager (it has the word tracking components)
         config = get_config()
         data_manager = DataManager(state_file=config.state_file)
@@ -501,6 +504,54 @@ class BotManager:
 
     def _handle_otiedote_release(self, *args, **kwargs):
         return self.message_handler._handle_otiedote_release(*args, **kwargs)
+
+    def handle_otiedote_release(self, release):
+        """Handle new otiedote release - announce to subscribed channels."""
+        from config import get_config
+
+        config = get_config()
+
+        # Load subscriptions from state
+        state_file = config.state_file
+        import json
+        import os
+
+        subscriptions = []
+        if os.path.exists(state_file):
+            try:
+                with open(state_file, "r", encoding="utf-8") as f:
+                    state = json.load(f)
+                    subscriptions = state.get("otiedote", {}).get("subscriptions", [])
+            except Exception:
+                pass
+
+        if not subscriptions:
+            self.logger.info(
+                f"New Otiedote #{release['id']} but no subscriptions: {release.get('title', 'Unknown')}"
+            )
+            return
+
+        # Format the announcement
+        title = release.get("title", "Unknown")
+        location = release.get("location", "")
+        url = release.get("url", "")
+
+        announcement = f"📢 Uusi Onnettomuustiedote! #{release['id']}: {title}"
+        if location:
+            announcement += f" | Paikka: {location}"
+        if url:
+            announcement += f" | {url}"
+
+        # Announce to all subscribed servers/channels
+        for server_name in self.servers:
+            server = self.servers[server_name]
+            for channel in subscriptions:
+                # Check if bot is on this channel
+                if hasattr(server, "channels") and channel in server.channels:
+                    server.send_message(channel, announcement)
+                    self.logger.info(
+                        f"Announced Otiedote #{release['id']} to {channel} on {server_name}"
+                    )
 
     def _handle_fmi_warnings(self, *args, **kwargs):
         return self.message_handler._handle_fmi_warnings(*args, **kwargs)

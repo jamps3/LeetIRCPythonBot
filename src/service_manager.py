@@ -27,6 +27,7 @@ class ServiceManager:
 
     def __init__(self):
         """Initialize the service manager."""
+        self._bot_manager = None
         try:
             # Make sure config is loaded first (which loads .env)
             from config import get_config
@@ -56,6 +57,13 @@ class ServiceManager:
             logger.error(f"Traceback: {traceback.format_exc()}")
             # Initialize empty services dict to prevent further errors
             self.services = {}
+
+    def set_bot_manager(self, bot_manager):
+        """Set the bot manager reference for callbacks."""
+        self._bot_manager = bot_manager
+        # Re-initialize otiedote service with the callback now that bot_manager is available
+        if "otiedote" in self.services and self.services["otiedote"] is not None:
+            self._initialize_otiedote_service()
 
     def _initialize_weather_service(self):
         """Initialize weather service if API key is available."""
@@ -223,11 +231,33 @@ class ServiceManager:
             from services.otiedote_json_service import create_otiedote_service
 
             config = get_config()
+
+            # Get the bot_manager reference for callback
+            bot_manager = getattr(self, "_bot_manager", None)
+
+            # Create callback that handles new releases
+            def otiedote_callback(release):
+                if bot_manager:
+                    bot_manager.handle_otiedote_release(release)
+
             self.services["otiedote"] = create_otiedote_service(
-                callback=lambda title, url, description: None,  # Will be set by message handler
+                callback=otiedote_callback,
                 state_file=config.state_file,
             )
-            logger.info("📢 Otiedote monitoring service initialized.")
+
+            # Start the background monitor
+            import asyncio
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.create_task(self.services["otiedote"].start())
+                else:
+                    loop.run_until_complete(self.services["otiedote"].start())
+            except Exception as e:
+                logger.warning(f"Could not start otiedote monitor: {e}")
+
+            logger.info("📢 Otiedote monitoring service initialized and started.")
         except ImportError as e:
             logger.warning(f"Otiedote service not available: {e}")
             self.services["otiedote"] = None
