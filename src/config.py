@@ -25,6 +25,16 @@ OTIEDOTE_FILE = os.path.join(DATA_DIR, "otiedote.json")
 SANANMUUNNOKSET_FILE = os.path.join(DATA_DIR, "sananmuunnokset.json")
 QUOTES_FILE = os.path.join(DATA_DIR, "quotes.txt")
 
+# Log rotation defaults
+LOG_ROTATION_SIZE = 10485760  # 10MB in bytes
+LOG_ROTATION_COUNT = 10  # Maximum number of log files to keep
+LOG_ROTATION_INTERVAL = (
+    ""  # Time-based rotation: minute, hour, day, week, month, year (optional)
+)
+LOG_ROTATION_TIME = (
+    "00:00"  # Time of day for daily/weekly/monthly rotation (HH:MM format)
+)
+
 
 def _read_version_from_file() -> str:
     """

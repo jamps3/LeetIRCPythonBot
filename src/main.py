@@ -73,12 +73,19 @@ def setup_file_logging(log_file: str = "data/leet.log"):
         except ValueError:
             return default
 
-    max_size = parse_env_int("LOG_ROTATION_SIZE", 10485760)  # 10MB default
-    max_count = parse_env_int("LOG_ROTATION_COUNT", 10)  # 10 files default
+    from config import (
+        LOG_ROTATION_COUNT,
+        LOG_ROTATION_INTERVAL,
+        LOG_ROTATION_SIZE,
+        LOG_ROTATION_TIME,
+    )
+
+    max_size = parse_env_int("LOG_ROTATION_SIZE", LOG_ROTATION_SIZE)
+    max_count = parse_env_int("LOG_ROTATION_COUNT", LOG_ROTATION_COUNT)
     interval = os.getenv(
-        "LOG_ROTATION_INTERVAL", ""
+        "LOG_ROTATION_INTERVAL", LOG_ROTATION_INTERVAL
     ).lower()  # minute, hour, day, week, month, year
-    rotation_time = os.getenv("LOG_ROTATION_TIME", "00:00")  # HH:MM format
+    rotation_time = os.getenv("LOG_ROTATION_TIME", LOG_ROTATION_TIME)  # HH:MM format
 
     # Rotate logs on startup
     rotate_logs(log_file, max_count)
