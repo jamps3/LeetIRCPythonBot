@@ -13,6 +13,8 @@ from typing import Any, Dict, Optional
 
 import requests
 
+from config import TITLE_BLACKLIST_DOMAINS, TITLE_BLACKLIST_EXTENSIONS
+
 # Import handlers mixins
 from handlers.latency_tracker import LatencyTrackerMixin
 from handlers.url_handler import UrlHandlerMixin
@@ -1790,12 +1792,12 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
         blacklisted_domains = os.getenv(
             "TITLE_BLACKLIST_DOMAINS",
-            "youtube.com,youtu.be,facebook.com,fb.com,instagram.com,tiktok.com,discord.com,reddit.com,imgur.com",
+            TITLE_BLACKLIST_DOMAINS,
         ).split(",")
 
         blacklisted_extensions = os.getenv(
             "TITLE_BLACKLIST_EXTENSIONS",
-            ".jpg,.jpeg,.png,.gif,.mp4,.webm,.pdf,.zip,.rar,.mp3,.wav,.flac",
+            TITLE_BLACKLIST_EXTENSIONS,
         ).split(",")
 
         url_lower = url.lower()

@@ -20,7 +20,7 @@ from unittest.mock import Mock
 import requests
 
 import logger
-from config import get_api_key, get_config
+from config import AUTO_CONNECT, get_api_key, get_config
 
 # Expose Lemmatizer at module level for tests that patch bot_manager.Lemmatizer
 from lemmatizer import Lemmatizer
@@ -112,7 +112,9 @@ class BotManager:
         self.otiedote_service = self.service_manager.get_service("otiedote")
 
         # Initialize test properties
-        self._auto_connect = os.getenv("AUTO_CONNECT", "false").lower() == "true"
+        self._auto_connect = (
+            os.getenv("AUTO_CONNECT", str(AUTO_CONNECT)).lower() == "true"
+        )
         self._active_channel = None
         self._active_server = None
 

@@ -27,13 +27,47 @@ QUOTES_FILE = os.path.join(DATA_DIR, "quotes.txt")
 
 # Log rotation defaults
 LOG_ROTATION_SIZE = 10485760  # 10MB in bytes
-LOG_ROTATION_COUNT = 10  # Maximum number of log files to keep
+LOG_ROTATION_COUNT = 5  # Maximum number of log files to keep
 LOG_ROTATION_INTERVAL = (
     ""  # Time-based rotation: minute, hour, day, week, month, year (optional)
 )
 LOG_ROTATION_TIME = (
     "00:00"  # Time of day for daily/weekly/monthly rotation (HH:MM format)
 )
+
+# Bot Configuration Settings
+BOT_NAME = "LeetIRCBot"  # Bot nickname
+LOG_LEVEL = "INFO"  # Logging level
+RECONNECT_DELAY = 60  # Seconds to wait before reconnecting
+QUIT_MESSAGE = "🍺 Nähdään! 🍺"  # Quit message
+
+# TUI Configuration
+LOG_BUFFER_SIZE = 1000  # Maximum number of log entries to keep in memory
+AUTO_CONNECT = True  # Automatically connect to servers on startup
+
+# Message Output Settings
+USE_NOTICES = (
+    True  # Send all channel responses as IRC NOTICEs instead of regular messages
+)
+
+# Tamagotchi Settings
+TAMAGOTCHI_ENABLED = True  # Enable tamagotchi responses to trigger words
+
+# Ops Command Settings
+OPS_ALLOWED_CHANNELS = (
+    ""  # Channels where the !ops command is allowed (comma-separated)
+)
+
+# Title Fetching Blacklist Settings
+TITLE_BLACKLIST_DOMAINS = "youtube.com,youtu.be,facebook.com,fb.com,x.com,twitter.com,instagram.com,tiktok.com,discord.com,reddit.com,imgur.com"
+TITLE_BLACKLIST_EXTENSIONS = (
+    ".jpg,.jpeg,.png,.gif,.mp4,.webm,.pdf,.zip,.rar,.mp3,.wav,.flac"
+)
+TITLE_BANNED_TEXTS = "Bevor Sie zu Google Maps weitergehen;Just a moment...;403 Forbidden;404 Not Found;Access Denied;Ennen kuin jatkat Google Mapsiin"
+
+# GPT Service Settings
+OPENAI_MODEL = "gpt-5-mini"  # Model for the Responses API
+GPT_HISTORY_LIMIT = 100  # Maximum number of messages to keep in conversation history
 
 
 def _read_version_from_file() -> str:
@@ -232,13 +266,13 @@ class ConfigManager:
             subscribers_file=os.getenv("SUBSCRIBERS_FILE", SUBSCRIBERS_FILE),
             state_file=state_file,
             # Connection settings
-            reconnect_delay=int(os.getenv("RECONNECT_DELAY", "60")),
-            quit_message=os.getenv("QUIT_MESSAGE", "🍺 Nähdään! 🍺"),
+            reconnect_delay=int(os.getenv("RECONNECT_DELAY", str(RECONNECT_DELAY))),
+            quit_message=os.getenv("QUIT_MESSAGE", QUIT_MESSAGE),
             # Security
             admin_password=os.getenv("ADMIN_PASSWORD", "changeme"),
             # Channel restrictions
             ops_allowed_channels=parse_comma_separated_values(
-                os.getenv("OPS_ALLOWED_CHANNELS", "")
+                os.getenv("OPS_ALLOWED_CHANNELS", OPS_ALLOWED_CHANNELS)
             ),
             # API Keys
             weather_api_key=os.getenv("WEATHER_API_KEY", ""),
@@ -247,18 +281,24 @@ class ConfigManager:
             youtube_api_key=os.getenv("YOUTUBE_API_KEY", ""),
             eurojackpot_api_key=os.getenv("EUROJACKPOT_API_KEY", ""),
             # Feature toggles
-            use_notices=os.getenv("USE_NOTICES", "false").lower()
+            use_notices=os.getenv("USE_NOTICES", str(USE_NOTICES)).lower()
             in ("true", "1", "yes", "on"),
-            tamagotchi_enabled=os.getenv("TAMAGOTCHI_ENABLED", "true").lower()
+            tamagotchi_enabled=os.getenv(
+                "TAMAGOTCHI_ENABLED", str(TAMAGOTCHI_ENABLED)
+            ).lower()
             in ("true", "1", "yes", "on"),
             four_twenty_enabled=os.getenv("420_ENABLED", "true").lower()
             in ("true", "1", "yes", "on"),
             # X (Twitter) API settings
             x_bearer_token=os.getenv("X_BEARER_TOKEN", ""),
             # URL title fetching settings
-            title_blacklist_domains=os.getenv("TITLE_BLACKLIST_DOMAINS", ""),
-            title_blacklist_extensions=os.getenv("TITLE_BLACKLIST_EXTENSIONS", ""),
-            title_banned_texts=os.getenv("TITLE_BANNED_TEXTS", ""),
+            title_blacklist_domains=os.getenv(
+                "TITLE_BLACKLIST_DOMAINS", TITLE_BLACKLIST_DOMAINS
+            ),
+            title_blacklist_extensions=os.getenv(
+                "TITLE_BLACKLIST_EXTENSIONS", TITLE_BLACKLIST_EXTENSIONS
+            ),
+            title_banned_texts=os.getenv("TITLE_BANNED_TEXTS", TITLE_BANNED_TEXTS),
             # Server configurations
             servers=self._load_server_configs(),
         )

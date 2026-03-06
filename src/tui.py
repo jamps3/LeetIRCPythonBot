@@ -14,6 +14,7 @@ from datetime import datetime
 import urwid
 
 import logger
+from config import AUTO_CONNECT, LOG_BUFFER_SIZE
 
 # Suppress urwid deprecation warnings globally for this module
 warnings.filterwarnings("ignore", category=DeprecationWarning, module=".*urwid.*")
@@ -1285,7 +1286,7 @@ class TUIManager:
         self.bot_manager = bot_manager
 
         # Always initialize basic attributes
-        self.log_buffer_size = int(os.getenv("LOG_BUFFER_SIZE", "1000"))
+        self.log_buffer_size = int(os.getenv("LOG_BUFFER_SIZE", str(LOG_BUFFER_SIZE)))
         self.log_entries = deque(maxlen=self.log_buffer_size)
         self.command_history = []
         self.history_index = 0
@@ -2352,7 +2353,9 @@ Tips:
 
         if self.bot_manager:
             # Report connection status (auto-connect is handled by bot manager)
-            auto_connect_enabled = os.getenv("AUTO_CONNECT", "false").lower() == "true"
+            auto_connect_enabled = (
+                os.getenv("AUTO_CONNECT", str(AUTO_CONNECT)).lower() == "true"
+            )
             if auto_connect_enabled:
                 self.add_log_entry(
                     datetime.now(),

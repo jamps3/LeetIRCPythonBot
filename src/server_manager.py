@@ -9,7 +9,7 @@ import os
 import threading
 from typing import Dict, List, Optional
 
-from config import get_config
+from config import AUTO_CONNECT, get_config
 from logger import get_logger
 from server import Server
 
@@ -49,7 +49,7 @@ class ServerManager:
         )  # server_name -> list of channels
 
         # Connection settings
-        self.auto_connect = os.getenv("AUTO_CONNECT", "false").lower() in (
+        self.auto_connect = os.getenv("AUTO_CONNECT", str(AUTO_CONNECT)).lower() in (
             "true",
             "1",
             "yes",
