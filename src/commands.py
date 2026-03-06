@@ -15,18 +15,26 @@ All commands have been moved to cmd_modules/ package:
 Use command_loader.load_all_commands() to load all commands.
 """
 
-import logger
-from command_registry import (
+import os
+import sys
+
+# Add project root to path for imports
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+import logger  # noqa: E402
+from command_registry import (  # noqa: E402
     CommandContext,
     CommandResponse,
     CommandScope,
     CommandType,
     command,
 )
-from config import get_config
-from server import Server
-from tamagotchi import TamagotchiBot
-from word_tracking import DataManager, DrinkTracker, GeneralWords
+from config import get_config  # noqa: E402
+from server import Server  # noqa: E402
+from tamagotchi import TamagotchiBot  # noqa: E402
+from word_tracking import DataManager, DrinkTracker, GeneralWords  # noqa: E402
 
 # =====================
 # Lazy-initialized singletons

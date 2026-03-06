@@ -35,9 +35,14 @@ import sys
 import time
 from datetime import datetime
 
-import logger
-from bot_manager import BotManager
-from config import load_env_file
+# Add project root to path for imports
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+import logger  # noqa: E402
+from bot_manager import BotManager  # noqa: E402
+from config import load_env_file  # noqa: E402
 
 # Import log rotation functions from logger
 from logger import check_log_rotation, rotate_logs

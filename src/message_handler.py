@@ -7,13 +7,19 @@ and related functionality extracted from bot_manager.py.
 
 import os
 import re
+import sys
 import threading
 import time
 from typing import Any, Dict, Optional
 
-import requests
+# Add project root to path for imports
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
-from config import TITLE_BLACKLIST_DOMAINS, TITLE_BLACKLIST_EXTENSIONS
+import requests  # noqa: E402
+
+from config import TITLE_BLACKLIST_DOMAINS, TITLE_BLACKLIST_EXTENSIONS  # noqa: E402
 
 # Import handlers mixins
 from handlers.latency_tracker import LatencyTrackerMixin

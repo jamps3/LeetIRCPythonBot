@@ -22,6 +22,7 @@ class CommandType(Enum):
     ADMIN = "admin"  # Requires admin password
     CONSOLE = "console"  # Console-only commands
     ALL = "all"  # Available everywhere
+    SERVICE = "service"  # Service commands (weather, etc.)
 
 
 class CommandScope(Enum):

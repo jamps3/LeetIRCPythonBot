@@ -15,6 +15,8 @@ from dotenv import load_dotenv  # noqa: E402
 
 from src.logger import get_logger  # noqa: E402
 
+logger = get_logger("Config")
+
 # Project root directory (parent of src/)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 

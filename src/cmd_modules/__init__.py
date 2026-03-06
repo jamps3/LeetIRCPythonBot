@@ -12,6 +12,14 @@ Modules:
 - word_tracking.py: drink, kraks, drinkword, krakstats, sana, tilaa, topwords, leaderboard, tamagotchi, feed, pet, krak, muunnos, kraksdebug
 """
 
+import os
+import sys
+
+# Add project root to path for imports
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
 # Import submodules to trigger @command decorators
 # Order matters: dependencies first
 from cmd_modules import admin  # noqa: E402, F401

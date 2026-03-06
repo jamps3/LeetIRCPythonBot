@@ -133,7 +133,7 @@ class WeatherService:
 
             return {
                 "error": False,
-                "location": location,
+                "location": data.get("name", location),
                 "country": country,
                 "description": description,
                 "temperature": temp,
