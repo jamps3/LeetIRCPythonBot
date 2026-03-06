@@ -10,7 +10,7 @@ from collections import Counter
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-import logger
+from src.logger import get_logger
 
 from .data_manager import DataManager
 
@@ -28,7 +28,7 @@ class DrinkTracker:
         """
         self.data_manager = data_manager
         self.alko_service = alko_service
-        self.logger = logger.get_logger("DrinkTracker")
+        self.logger = get_logger("DrinkTracker")
 
         # Define drink words to track
         self.drink_words = {

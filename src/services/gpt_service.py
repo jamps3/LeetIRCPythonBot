@@ -13,8 +13,8 @@ from openai import AuthenticationError as OpenAIAuthenticationError
 from openai import OpenAI
 from openai import RateLimitError as OpenAIRateLimitError
 
-from config import CONVERSATION_HISTORY_FILE
-from logger import get_logger
+from src.config import CONVERSATION_HISTORY_FILE
+from src.logger import get_logger
 
 logger = get_logger("GPTService")
 
@@ -88,7 +88,7 @@ class GPTService:
                 ):
                     return history
             except Exception as e:
-                logger.error(f"Error loading conversation history: {e}")
+                get_logger(__name__).error(f"Error loading conversation history: {e}")
         return self.default_history.copy()
 
     def _save_conversation_history(self):
@@ -103,13 +103,19 @@ class GPTService:
             with open(self.history_file, "w", encoding="utf-8") as f:
                 json.dump(self.conversation_history, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            logger.error(f"Error saving conversation history: {e}")
+            get_logger(__name__).error(f"Error saving conversation history: {e}")
 
     def _build_transcript(self, latest_user: Dict[str, str]) -> str:
         parts: List[str] = []
         for msg in self.conversation_history:
             if msg["role"] == "system":
                 parts.append(f"System: {msg['content']}")
+
+        # Add teachings context if available (max 100 items total with conversation history)
+        teachings_context = self._get_teachings_context(max_items=100)
+        if teachings_context:
+            parts.append(teachings_context)
+
         for msg in [
             m for m in self.conversation_history if m["role"] in ("user", "assistant")
         ][-15:]:
@@ -122,6 +128,20 @@ class GPTService:
             "Assistant: (Keep answers concise for IRC. Use multiple short lines separated by newlines. Aim for each line to be under ~450 characters. Avoid markdown.)"
         )
         return "\n".join(parts)
+
+    def _get_teachings_context(self, max_items: int = 100) -> str:
+        """Get teachings formatted for AI context."""
+        try:
+            from word_tracking.data_manager import get_data_manager
+
+            data_manager = get_data_manager()
+            teachings = data_manager.get_teachings_for_context(max_items)
+            if teachings:
+                return "Teachings:\n" + "\n".join(teachings)
+            return ""
+        except Exception as e:
+            get_logger(__name__).error(f"Error loading teachings for context: {e}")
+            return ""
 
     def chat(self, message: str, sender: str = "user") -> str:
         user_message = {
@@ -148,10 +168,10 @@ class GPTService:
         except AuthenticationError:
             return "Authentication error with AI service."
         except APIError as e:
-            logger.error(f"OpenAI API error: {e}")
+            get_logger(__name__).error(f"OpenAI API error: {e}")
             return f"Sorry, AI service error: {e}"
         except Exception as e:
-            logger.error(f"Unexpected error: {e}")
+            get_logger(__name__).error(f"Unexpected error: {e}")
             return f"Sorry, something went wrong: {e}"
 
     def reset_conversation(self) -> str:

@@ -12,7 +12,7 @@ import socket
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import logger
+from src.logger import get_logger
 
 
 class DataManager:
@@ -81,6 +81,12 @@ class DataManager:
                 "latest_release": 0,
             },
             "drink_tracking_opt_out": {},
+            "ai_teachings": {
+                "next_id": 1,
+                "teachings": [],
+                "last_updated": datetime.now().isoformat(),
+                "version": "1.0.0",
+            },
         }
 
         # Create files if they don't exist
@@ -111,10 +117,10 @@ class DataManager:
             with open(file_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError) as e:
-            logger.error(f"Error loading {file_path}: {e}")
+            get_logger(__name__).error(f"Error loading {file_path}: {e}")
             return {}
         except Exception as e:
-            logger.error(f"Unexpected error loading {file_path}: {e}")
+            get_logger(__name__).error(f"Unexpected error loading {file_path}: {e}")
             return {}
 
     def save_json(self, file_path: str, data: Dict[str, Any], backup: bool = True):
@@ -156,7 +162,7 @@ class DataManager:
             temp_path = None  # consumed
 
         except Exception as e:
-            logger.error(f"Error saving {file_path}: {e}")
+            get_logger(__name__).error(f"Error saving {file_path}: {e}")
             # Clean up temporary file if it exists
             try:
                 if temp_path and os.path.exists(temp_path):
@@ -439,3 +445,121 @@ class DataManager:
         """
         data = self.load_general_words_data()
         return list(data.get("servers", {}).keys())
+
+    # AI Teachings methods
+    def load_ai_teachings(self) -> Dict[str, Any]:
+        """Load AI teachings data from merged state.json."""
+        state_data = self.load_json(self.state_file)
+        return state_data.get("ai_teachings", {})
+
+    def save_ai_teachings(self, data: Dict[str, Any]):
+        """Save AI teachings data to merged state.json."""
+        # Load the full state file
+        state_data = self.load_json(self.state_file)
+        if not state_data:
+            # Initialize with default structure if file is empty or corrupted
+            state_data = {
+                "tamagotchi": {},
+                "subscriptions": {},
+                "fmi_warnings": {"seen_hashes": [], "seen_data": []},
+                "otiedote": {"latest_release": 0},
+                "drink_tracking_opt_out": {},
+            }
+
+        # Update the ai_teachings section
+        state_data["ai_teachings"] = data
+
+        # Save the full state file
+        self.save_json(self.state_file, state_data)
+
+    def add_teaching(self, content: str, added_by: str) -> int:
+        """
+        Add a new teaching to the AI knowledge base.
+
+        Args:
+            content: The teaching content
+            added_by: Who added this teaching
+
+        Returns:
+            The ID of the new teaching, or -1 if failed (limit reached)
+        """
+        teachings_data = self.load_ai_teachings()
+        teachings = teachings_data.get("teachings", [])
+        next_id = teachings_data.get("next_id", 1)
+
+        # Check 50-item limit
+        if len(teachings) >= 50:
+            return -1
+
+        # Add new teaching
+        new_teaching = {
+            "id": next_id,
+            "content": content.strip(),
+            "added_by": added_by,
+            "timestamp": datetime.now().isoformat(),
+        }
+        teachings.append(new_teaching)
+
+        # Update data
+        teachings_data["teachings"] = teachings
+        teachings_data["next_id"] = next_id + 1
+        teachings_data["last_updated"] = datetime.now().isoformat()
+
+        # Save
+        self.save_ai_teachings(teachings_data)
+        return next_id
+
+    def remove_teaching(self, teaching_id: int) -> bool:
+        """
+        Remove a teaching by its ID.
+
+        Args:
+            teaching_id: The ID of the teaching to remove
+
+        Returns:
+            True if removed, False if not found
+        """
+        teachings_data = self.load_ai_teachings()
+        teachings = teachings_data.get("teachings", [])
+
+        # Find and remove teaching
+        original_count = len(teachings)
+        teachings = [t for t in teachings if t.get("id") != teaching_id]
+
+        if len(teachings) == original_count:
+            return False  # Not found
+
+        # Update and save
+        teachings_data["teachings"] = teachings
+        teachings_data["last_updated"] = datetime.now().isoformat()
+        self.save_ai_teachings(teachings_data)
+        return True
+
+    def get_teachings(self) -> List[Dict[str, Any]]:
+        """Get all teachings sorted by ID."""
+        teachings_data = self.load_ai_teachings()
+        teachings = teachings_data.get("teachings", [])
+        return sorted(teachings, key=lambda x: x.get("id", 0))
+
+    def get_teaching_by_id(self, teaching_id: int) -> Optional[Dict[str, Any]]:
+        """Get a specific teaching by ID."""
+        teachings = self.get_teachings()
+        for teaching in teachings:
+            if teaching.get("id") == teaching_id:
+                return teaching
+        return None
+
+    def get_teachings_for_context(self, max_items: int = 100) -> List[str]:
+        """
+        Get teachings formatted for AI context, limited by max_items.
+
+        Args:
+            max_items: Maximum number of teachings to return
+
+        Returns:
+            List of teaching strings formatted as "ID: content"
+        """
+        teachings = self.get_teachings()
+        # Format teachings for context
+        formatted_teachings = [f"{t['id']}: {t['content']}" for t in teachings]
+        return formatted_teachings[:max_items]

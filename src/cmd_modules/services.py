@@ -1270,3 +1270,94 @@ def command_tilaa(context, bot_functions):
 
 # Aliases for backwards compatibility with existing tests
 tilaa_command = command_tilaa
+
+
+@command(
+    "teach",
+    description="Teach the bot new information or list teachings",
+    usage="!teach <content> or !teach (list)",
+    examples=["!teach The capital of Finland is Helsinki", "!teach"],
+    command_type=CommandType.SERVICE,
+    scope=CommandScope.IRC_ONLY,
+)
+def teach_command(context: CommandContext, bot_functions):
+    """Teach the bot new information or list all teachings."""
+    from word_tracking.data_manager import get_data_manager
+
+    data_manager = get_data_manager()
+
+    if not context.args_text:
+        # List all teachings
+        teachings = data_manager.get_teachings()
+        if not teachings:
+            return "📚 No teachings stored yet. Use '!teach <content>' to add one."
+
+        # Format teachings for display (limit to 10 items per message to avoid flooding)
+        lines = []
+        for teaching in teachings:
+            content = teaching.get("content", "")
+            added_by = teaching.get("added_by", "")
+            teaching_str = f"{teaching['id']}: {content}"
+            if added_by:
+                teaching_str += f" (by {added_by})"
+            lines.append(teaching_str)
+
+        if len(lines) > 10:
+            return f"📚 {len(lines)} teachings stored. Showing first 10:\n" + "\n".join(
+                lines[:10]
+            )
+
+        return "📚 Teachings:\n" + "\n".join(lines)
+
+    # Add new teaching
+    content = context.args_text.strip()
+    if not content:
+        return "📚 Usage: !teach <content>"
+
+    # Content validation
+    if len(content) > 500:
+        return "📚 Teaching content too long (max 500 characters)."
+
+    # Add teaching
+    teaching_id = data_manager.add_teaching(content, context.sender)
+    if teaching_id == -1:
+        return "📚 Cannot add teaching: limit of 50 teachings reached."
+
+    return f"📚 Added teaching #{teaching_id}: {content}"
+
+
+@command(
+    "unlearn",
+    description="Remove a teaching by its ID",
+    usage="!unlearn <id>",
+    examples=["!unlearn 5"],
+    command_type=CommandType.SERVICE,
+    scope=CommandScope.IRC_ONLY,
+    admin_only=True,
+)
+def unlearn_command(context: CommandContext, bot_functions):
+    """Remove a teaching by its ID."""
+    from word_tracking.data_manager import get_data_manager
+
+    data_manager = get_data_manager()
+
+    if not context.args:
+        return "📚 Usage: !unlearn <id>"
+
+    try:
+        teaching_id = int(context.args[0])
+    except ValueError:
+        return "📚 Invalid teaching ID. Use a number."
+
+    # Check if teaching exists
+    teaching = data_manager.get_teaching_by_id(teaching_id)
+    if not teaching:
+        return f"📚 Teaching #{teaching_id} not found."
+
+    # Remove teaching
+    success = data_manager.remove_teaching(teaching_id)
+    if success:
+        content = teaching.get("content", "")
+        return f"📚 Removed teaching #{teaching_id}: {content}"
+    else:
+        return f"📚 Failed to remove teaching #{teaching_id}."

@@ -6,10 +6,16 @@ This includes weather, GPT, electricity, YouTube, crypto, Alko, Otiedote, and FM
 """
 
 import os
+import sys
 from typing import Any, Dict, Optional
 
-from config import get_api_key
-from logger import get_logger
+# Add project root to path for imports before any src.* imports
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+from config import get_api_key  # noqa: E402
+from logger import get_logger  # noqa: E402
 
 logger = get_logger("ServiceManager")
 

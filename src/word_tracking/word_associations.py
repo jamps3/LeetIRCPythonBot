@@ -12,7 +12,7 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import logger
+from src.logger import get_logger
 
 # Regex pattern to match "word (thing)" format
 # Captures the word before parentheses and the thing inside parentheses
@@ -53,7 +53,7 @@ class WordAssociations:
         try:
             return self.data_manager.load_json(self.associations_file)
         except Exception as e:
-            logger.warning(f"Failed to load word associations: {e}")
+            get_logger(__name__).warning(f"Failed to load word associations: {e}")
             return {"associations": {}, "last_updated": datetime.now().isoformat()}
 
     def _save_associations(self, data: Dict[str, Any]):
@@ -106,7 +106,7 @@ class WordAssociations:
             if association_clean not in existing:
                 existing.append(association_clean)
                 found_associations.append((word_lower, association_clean))
-                logger.debug(
+                get_logger(__name__).debug(
                     f"New association stored: '{word_lower}' -> '{association_clean}'"
                 )
 
@@ -189,14 +189,16 @@ class WordAssociations:
         if association is None:
             # Delete all associations for this word
             del associations[word_lower]
-            logger.info(f"Deleted all associations for word: '{word_lower}'")
+            get_logger(__name__).info(
+                f"Deleted all associations for word: '{word_lower}'"
+            )
         else:
             # Delete specific association
             assoc_list = associations[word_lower]
             association_clean = association.strip()
             if association_clean in assoc_list:
                 assoc_list.remove(association_clean)
-                logger.info(
+                get_logger(__name__).info(
                     f"Deleted association: '{word_lower}' -> '{association_clean}'"
                 )
                 if not assoc_list:

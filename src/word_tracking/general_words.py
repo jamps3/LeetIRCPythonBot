@@ -10,7 +10,7 @@ from collections import Counter
 from datetime import datetime
 from typing import Any, Dict, List
 
-import logger as log
+from src.logger import get_logger as log
 
 from .data_manager import DataManager
 
@@ -59,7 +59,7 @@ class GeneralWords:
                     text, server_name=server, source_id=target or nick
                 )
             except Exception as e:
-                log.error(f"Error in lemmatizer processing: {e}")
+                log().error(f"Error in lemmatizer processing: {e}")
 
     def _update_word_stats(
         self, server: str, nick: str, words: List[str], target: str = None

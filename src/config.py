@@ -1,13 +1,19 @@
 import json
 import os
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from dotenv import load_dotenv
+# Add project root to path for imports before any src.* imports
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
-import logger
+from dotenv import load_dotenv  # noqa: E402
+
+from src.logger import get_logger  # noqa: E402
 
 # Project root directory (parent of src/)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -85,12 +91,12 @@ def _read_version_from_file() -> str:
             if version and re.match(r"^\d+\.\d+\.\d+$", version):
                 return version
             else:
-                logger.warning(
+                logger.warning(  # noqa: F821
                     f"Invalid version format in {version_file}: {version}, using default"
                 )
                 return "1.0.1"
     except (FileNotFoundError, IOError) as e:
-        logger.warning(
+        logger.warning(  # noqa: F821
             f"Could not read version from {version_file}: {e}, using default"
         )
         return "1.0.1"
@@ -554,7 +560,7 @@ def get_server_configs() -> List[ServerConfig]:
 
     # If no server configs were found, create a default one
     if not server_configs:
-        logger.warning(
+        logger.warning(  # noqa: F821
             "Warning: No server configurations found in .env file. Using defaults."
         )
         server_configs.append(
@@ -629,11 +635,13 @@ def get_api_key(key_name: str, default: str = "") -> str:
 
     # Log the result for debugging (but don't log the actual key value)
     if api_key:
-        logger.debug(
+        logger.debug(  # noqa: F821
             f"API key '{key_name}' loaded successfully (length: {len(api_key)})"
         )
     else:
-        logger.debug(f"API key '{key_name}' not found, using default value")
+        logger.debug(  # noqa: F821
+            f"API key '{key_name}' not found, using default value"
+        )
 
     return api_key
 
