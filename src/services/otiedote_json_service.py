@@ -7,6 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 
 import logger
+from config import OTIEDOTE_FILE, STATE_FILE
 
 BASE_URL = "https://otiedote.fi/"
 RELEASE_URL_TEMPLATE = "https://otiedote.fi/release_view/{}"
@@ -17,19 +18,17 @@ JSON_FILE = os.path.normpath(
         os.path.dirname(__file__),
         "..",
         "..",
-        "data",
-        os.getenv("OTIEDOTE_FILE", "otiedote.json"),
+        OTIEDOTE_FILE,
     )
 )
 
 # Where latest processed ID is stored
-STATE_FILE = os.path.normpath(
+CONFIG_STATE_FILE = os.path.normpath(
     os.path.join(
         os.path.dirname(__file__),
         "..",
         "..",
-        "data",
-        os.getenv("STATE_FILE", "state.json"),
+        STATE_FILE,
     )
 )
 
@@ -160,7 +159,7 @@ class OtiedoteService:
         self,
         callback: Callable[[dict], None],
         check_interval: int = DEFAULT_CHECK_INTERVAL,
-        state_file: str = STATE_FILE,
+        state_file: str = CONFIG_STATE_FILE,
         json_file: str = JSON_FILE,
     ):
         self.callback = callback
@@ -502,6 +501,6 @@ class OtiedoteService:
 
 # Factory
 def create_otiedote_service(
-    callback, check_interval=CHECK_INTERVAL, state_file=STATE_FILE
+    callback, check_interval=CHECK_INTERVAL, state_file=CONFIG_STATE_FILE
 ):
     return OtiedoteService(callback, check_interval, state_file)

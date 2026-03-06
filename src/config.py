@@ -21,6 +21,7 @@ EKAVIKA_FILE = os.path.join(DATA_DIR, "ekavika.json")
 GENERAL_WORDS_FILE = os.path.join(DATA_DIR, "general_words.json")
 SUBSCRIBERS_FILE = os.path.join(DATA_DIR, "subscribers.json")
 STATE_FILE = os.path.join(DATA_DIR, "state.json")
+OTIEDOTE_FILE = os.path.join(DATA_DIR, "otiedote.json")
 SANANMUUNNOKSET_FILE = os.path.join(DATA_DIR, "sananmuunnokset.json")
 QUOTES_FILE = os.path.join(DATA_DIR, "quotes.txt")
 
@@ -204,7 +205,7 @@ class ConfigManager:
         Load configuration from environment variables.
         """
         # Prepare state_file with data directory
-        state_file = os.getenv("STATE_FILE", "state.json")
+        state_file = os.getenv("STATE_FILE", STATE_FILE)
         if not state_file.startswith(("data/", "data\\")):
             state_file = os.path.join("data", state_file)
 
