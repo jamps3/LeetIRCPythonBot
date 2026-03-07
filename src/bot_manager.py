@@ -509,25 +509,12 @@ class BotManager:
 
     def handle_otiedote_release(self, release):
         """Handle new otiedote release - announce to subscribed channels."""
-        from config import get_config
+        from subscriptions import get_subscribers
 
-        config = get_config()
+        # Load subscriptions for onnettomuustiedotteet topic from subscriptions.py
+        subscribers = get_subscribers("onnettomuustiedotteet")
 
-        # Load subscriptions from state
-        state_file = config.state_file
-        import json
-        import os
-
-        subscriptions = []
-        if os.path.exists(state_file):
-            try:
-                with open(state_file, "r", encoding="utf-8") as f:
-                    state = json.load(f)
-                    subscriptions = state.get("otiedote", {}).get("subscriptions", [])
-            except Exception:
-                pass
-
-        if not subscriptions:
+        if not subscribers:
             self.logger.info(
                 f"New Otiedote #{release['id']} but no subscriptions: {release.get('title', 'Unknown')}"
             )
@@ -545,15 +532,27 @@ class BotManager:
             announcement += f" | {url}"
 
         # Announce to all subscribed servers/channels
-        for server_name in self.servers:
+        for nick_or_channel, server_name in subscribers:
+            # Find the server
+            if server_name not in self.servers:
+                continue
+
             server = self.servers[server_name]
-            for channel in subscriptions:
-                # Check if bot is on this channel
-                if hasattr(server, "channels") and channel in server.channels:
-                    server.send_message(channel, announcement)
+
+            # Send to channel or nick
+            if nick_or_channel.startswith("#"):
+                # It's a channel - check if bot is on it
+                if hasattr(server, "channels") and nick_or_channel in server.channels:
+                    server.send_message(nick_or_channel, announcement)
                     self.logger.info(
-                        f"Announced Otiedote #{release['id']} to {channel} on {server_name}"
+                        f"Announced Otiedote #{release['id']} to {nick_or_channel} on {server_name}"
                     )
+            else:
+                # It's a nick
+                server.send_message(nick_or_channel, announcement)
+                self.logger.info(
+                    f"Announced Otiedote #{release['id']} to {nick_or_channel} on {server_name}"
+                )
 
     def _handle_fmi_warnings(self, *args, **kwargs):
         return self.message_handler._handle_fmi_warnings(*args, **kwargs)

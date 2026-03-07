@@ -172,6 +172,107 @@ class OtiedoteService:
 
         self.latest_release = self._load_latest_release()
 
+    # ---------------- Subscription management ----------------
+
+    def _get_default_state(self) -> dict:
+        """Return default state structure."""
+        return {
+            "otiedote": {
+                "latest_release": 0,
+                "filters": {},
+                "subscribers": [],
+            }
+        }
+
+    def _load_subscribers(self) -> list:
+        """Load subscribers list from state.json."""
+        state = self._load_state()
+        return state.get("otiedote", {}).get("subscribers", [])
+
+    def subscribe(self, nick: str) -> bool:
+        """
+        Add a subscriber to otiedote notifications.
+
+        Args:
+            nick: IRC nick to subscribe
+
+        Returns:
+            True if newly subscribed, False if already subscribed
+        """
+        nick = nick.lower().strip()
+        subscribers = self._load_subscribers()
+
+        if nick in subscribers:
+            return False
+
+        subscribers.append(nick)
+        self._save_subscribers(subscribers)
+        return True
+
+    def unsubscribe(self, nick: str) -> bool:
+        """
+        Remove a subscriber from otiedote notifications.
+
+        Args:
+            nick: IRC nick to unsubscribe
+
+        Returns:
+            True if unsubscribed, False if not subscribed
+        """
+        nick = nick.lower().strip()
+        subscribers = self._load_subscribers()
+
+        if nick not in subscribers:
+            return False
+
+        subscribers.remove(nick)
+        self._save_subscribers(subscribers)
+        return True
+
+    def get_subscribers(self) -> list:
+        """Get list of current subscribers."""
+        return self._load_subscribers().copy()
+
+    def _save_subscribers(self, subscribers: list) -> None:
+        """Save subscribers list to state.json."""
+        data = {}
+
+        # Load existing state if present
+        if os.path.exists(self.state_file):
+            try:
+                with open(self.state_file, "r", encoding="utf8") as f:
+                    data = json.load(f)
+            except Exception:
+                data = {}
+
+        data.setdefault("otiedote", {})
+        data["otiedote"]["subscribers"] = subscribers
+
+        # Atomic write with temporary file
+        import tempfile
+        from datetime import datetime
+
+        temp_path = None
+        try:
+            target_dir = os.path.dirname(self.state_file) or "."
+            os.makedirs(target_dir, exist_ok=True)
+
+            data["last_updated"] = datetime.now().isoformat()
+
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf8", dir=target_dir, delete=False, suffix=".json"
+            ) as temp_file:
+                json.dump(data, temp_file, ensure_ascii=False, indent=2)
+                temp_path = temp_file.name
+
+            os.replace(temp_path, self.state_file)
+        except Exception:
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except Exception:
+                    pass
+
     # ---------------- State handling ----------------
     def _load_latest_release(self) -> int:
         """Load last processed ID from state.json."""
