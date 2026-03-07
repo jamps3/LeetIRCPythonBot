@@ -150,7 +150,7 @@ def solarwind_command(context: CommandContext, bot_functions):
 @command(
     "otiedote",
     description="Get accident reports (Onnettomuustiedotteet) from local JSON",
-    usage="!otiedote [N | #N | seuraava | set <number> | filter #channel <organization> <field> | filter list | init]",
+    usage="!otiedote [N | #N | seuraava | set <number> | filter #channel <organization> <field> | filter list | init | simulate [text]]",
     examples=[
         "!otiedote",
         "!otiedote 2",
@@ -159,6 +159,8 @@ def solarwind_command(context: CommandContext, bot_functions):
         "!otiedote filter #joensuu Pohjois-Karjalan pelastuslaitos organization",
         "!otiedote filter list",
         "!otiedote init",
+        "!otiedote simulate",
+        "!otiedote simulate Test viesti",
         "Fields: id, title, date, location, organization, content, units, url or * for all",
     ],
 )
@@ -209,11 +211,12 @@ def otiedote_command(context: CommandContext, bot_functions):
             except Exception as e:
                 return f"❌ Error fetching otiedote data: {e}"
 
-    # Check again if we have data now (skip for init/set/filter which handle their own data)
+    # Check again if we have data now (skip for init/set/filter/simulate which handle their own data)
     is_special_command = context.args and context.args[0].lower() in [
         "init",
         "set",
         "filter",
+        "simulate",
     ]
     if not otiedote_list and not is_special_command:
         return "❌ No otiedote data available."
@@ -434,6 +437,38 @@ def otiedote_command(context: CommandContext, bot_functions):
             return f"✅ Added filter for {channel}: {organization} (field: {field})"
         except Exception as e:
             return f"❌ Failed to save filter: {e}"
+
+    # Handle "simulate" subcommand - simulate sending to subscribers
+    if context.args and context.args[0].lower() == "simulate":
+        # Get bot_manager from bot_functions
+        bot_manager = bot_functions.get("bot_manager")
+        if not bot_manager:
+            return "❌ Bot manager not available for simulation"
+
+        # Get the simulated release data
+        simulate_text = None
+        if len(context.args) > 1:
+            # Use provided text as the simulation message
+            simulate_text = " ".join(context.args[1:])
+        else:
+            # Use latest release
+            if not otiedote_list:
+                return "❌ No otiedote data available for simulation"
+            latest = max(otiedote_list, key=lambda x: x["id"])
+            simulate_text = latest.get("title", "Test announcement")
+
+        # Create a simulated release dict
+        simulated_release = {
+            "id": otiedote_service.latest_release,
+            "title": simulate_text,
+            "location": "",
+            "url": "https://otiedote.fi/",
+        }
+
+        # Call handle_otiedote_release to send to subscribers
+        bot_manager.handle_otiedote_release(simulated_release)
+
+        return f"✅ Simulated otiedote announcement sent: {simulate_text}"
 
     # Current number (#) simply returns latest ID
     if context.args_text and context.args_text.strip() == "#":
