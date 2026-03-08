@@ -2,6 +2,32 @@
 
 Generated: 2026-02-22
 
+## v2.4.92 Update - Nameday Scraping Challenge (2026-03-08)
+
+### Hevonen and Historiallinen Namedays Scraping
+
+**Status**: Completed ✓
+
+**Solution**: Used Playwright browser automation to iterate through all 365 days with the correct website flow provided by user.
+
+**Website Flow** (via user guidance):
+
+1. Load `https://almanakka.helsinki.fi/fi/nimipaivat`
+2. Click `.namedays-btn` to enter search mode
+3. Click the "Päivä" tab button with `data-tab="date"`
+4. Fill date input widget (e.g., "1.1", "1.2")
+5. Extract names from `.namedays-result-card` elements
+
+**Results**:
+
+- Hevonen: 355 days with names
+- Historiallinen: 342 days with names
+- Data merged into `data/nimipaivat_others.json`
+
+**Scraper Script**: `src/debug/scrape_nimipaivat-hevonen-historiallinen.py`
+
+---
+
 ## v2.4.91 Update - Test Coverage (2026-03-06)
 
 ### Current Test Coverage: 82%
