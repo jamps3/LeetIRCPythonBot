@@ -1,0 +1,3707 @@
+{
+  "symbol_definitions": {
+    "■": "Väriaineet (Colorants)",
+    "●": "Happamuudensäätäjät (Acidity regulators)",
+    "✜": "Paakkuuntumisenestoaineet (Anti-caking agents)",
+    "◆": "Hapot ja happamuudensäätöaineet (Acids and acidity regulators)",
+    "★": "Hapettumisenestoaineet (Antioxidants)",
+    "✖": "Pakkauskaasut ja ponneaineet (Packaging gases and propellants)",
+    "♣": "Jauhonparanteet (Flour treatment agents)",
+    "♠": "Emulgointiaineet, kiinteyttämisaineet, kosteudensäilyttäjät, täyteaineet, hyytelöimisaineet, sakeuttamisaineet, muunnetut tärkkelykset ja stabilointiaineet",
+    "✿": "Kantaja-aineet",
+    "▲": "Sulatesuolat",
+    "✪": "Pintakäsittelyaineet",
+    "✧": "Vaahdonestoaineet ja vaahdotusaineet",
+    "✠": "Nostatusaineet",
+    "❖": "Makeutusaineet"
+  },
+  "indicator_definitions": {
+    "A": "Atsoväriaineet (Azo dyes)",
+    "V": "Varmasti eläinperäinen (Definitely animal-derived)",
+    "e": "Mahdollisesti eläinperäinen (Possibly animal-derived)",
+    "y": "Epäillään aiheuttavan yliherkkyysoireita (Suspected to cause hypersensitivity)"
+  },
+  "ecodes": {
+    "E153": {
+      "categories": [
+        "■"
+      ],
+      "name": "lääkehiili, kasvihiili",
+      "indicators": [
+        "Kasviperäinen"
+      ],
+      "additional_info": null,
+      "description": null,
+      "ADI": []
+    },
+    "E154": {
+      "categories": [
+        "■"
+      ],
+      "name": "Ruskea FK",
+      "indicators": [
+        "A"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E155": {
+      "categories": [
+        "■"
+      ],
+      "name": "Ruskea HT",
+      "indicators": [
+        "A"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E160a": {
+      "categories": [
+        "■"
+      ],
+      "name": "Karotenoidit / Beta-karoteeni",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E160b": {
+      "categories": [
+        "■"
+      ],
+      "name": "Annatto, biksiini, norbiksiini",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E160c": {
+      "categories": [
+        "■"
+      ],
+      "name": "Paprikauute, kapsantiini, kapsorubiini",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E160d": {
+      "categories": [
+        "■"
+      ],
+      "name": "Lykopeeni",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E160e": {
+      "categories": [
+        "■"
+      ],
+      "name": "Beta-apo-8'-karotenaali (C30)",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E160f": {
+      "categories": [
+        "■"
+      ],
+      "name": "Beta-apo-8'-karoteenihapon etyyliesteri (C30)",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E161b": {
+      "categories": [
+        "■"
+      ],
+      "name": "Luteoliini, luteiini",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E161g": {
+      "categories": [
+        "■"
+      ],
+      "name": "Kantaksantiini",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E162": {
+      "categories": [
+        "■"
+      ],
+      "name": "Punajuuriväri, betalaiini, betaniini",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E163": {
+      "categories": [
+        "■"
+      ],
+      "name": "Antosyaanit",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E170": {
+      "categories": [
+        "✜",
+        "◆"
+      ],
+      "name": "Kalsiumkarbonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E171": {
+      "categories": [
+        "■"
+      ],
+      "name": "Titaanidioksidi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E172": {
+      "categories": [
+        "■"
+      ],
+      "name": "Rautaoksidit ja -hydroksidit",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E173": {
+      "categories": [
+        "■"
+      ],
+      "name": "Alumiini",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E174": {
+      "categories": [
+        "■"
+      ],
+      "name": "Hopea",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E175": {
+      "categories": [
+        "■"
+      ],
+      "name": "Kulta",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E180": {
+      "categories": [
+        "■"
+      ],
+      "name": "Litolirubiini BK",
+      "indicators": [
+        "A"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E200": {
+      "categories": [
+        "●"
+      ],
+      "name": "Sorbiinihappo",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E202": {
+      "categories": [
+        "●"
+      ],
+      "name": "Kaliumsorbaatti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E203": {
+      "categories": [
+        "●"
+      ],
+      "name": "Kalsiumsorbaatti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E210": {
+      "categories": [
+        "●"
+      ],
+      "name": "Bentsoehappo",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": [
+        "käytetään yleisesti säilöntäaineena myös kotisäilönnässä",
+        "Valmistetaan usein kemiallisesti",
+        "esiintyy luontaisesti marjoissa, erityisesti puolukoissa, karpaloissa ja lakoissa",
+        "Saa käyttää mm",
+        "Enimmäismäärärajoituksia"
+      ],
+      "ADI": [
+        "E210-E213 yhteismäärälle  5 mg/kg/vrk Siirry sivulle E212 ",
+        "5 mg/kg/vrk",
+        "5 mg/kg"
+      ],
+      "description": [
+        "Valmistetaan usein kemiallisesti"
+      ]
+    },
+    "E211": {
+      "categories": [
+        "●"
+      ],
+      "name": "Natriumbentsoaatti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E212": {
+      "categories": [
+        "●"
+      ],
+      "name": "Kaliumbentsoaatti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": [
+        "käytetään yleisesti säilöntäaineena myös kotisäilönnässä",
+        "Valmistetaan usein kemiallisesti",
+        "esiintyy luontaisesti marjoissa, erityisesti puolukoissa, karpaloissa ja lakoissa",
+        "Saa käyttää mm",
+        "Enimmäismäärärajoituksia"
+      ],
+      "ADI": [
+        "E210-E213 yhteismäärälle  5 mg/kg/vrk Siirry sivulle E212 ",
+        "5 mg/kg/vrk",
+        "5 mg/kg"
+      ],
+      "description": [
+        "Valmistetaan usein kemiallisesti"
+      ]
+    },
+    "E213": {
+      "categories": [
+        "●"
+      ],
+      "name": "Kalsiumbentsoaatti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E214": {
+      "categories": [
+        "●"
+      ],
+      "name": "Etyyli-p-hydroksibentsoaatti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E215": {
+      "categories": [
+        "●"
+      ],
+      "name": "Natriumetyyli-p-hydroksibentsoaatti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E216": {
+      "categories": [
+        "●"
+      ],
+      "name": "Propyyli-p-hydroksibentsoaatti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E217": {
+      "categories": [
+        "●"
+      ],
+      "name": "Natriumpropyyli-phydroksibentsoaatti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E218": {
+      "categories": [
+        "●"
+      ],
+      "name": "Metyyli-p-hydroksibentsoaatti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E219": {
+      "categories": [
+        "●"
+      ],
+      "name": "Natriummetyylip-hydroksibentsoaatti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E220": {
+      "categories": [
+        "●",
+        "★"
+      ],
+      "name": "Rikkidioksidi",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": [
+        "Saa käyttää mm",
+        "Enimmäismäärärajoituksia"
+      ],
+      "ADI": [
+        "E220-E228 yhteismäärälle 0,7 mg/kg/vrk Siirry sivulle E224 ",
+        "7 mg/kg/vrk",
+        "7 mg/kg"
+      ],
+      "description": [
+        "Sulfiitit ovat säilöntäaineina vanhoja  ja erityisen tehokkaita bakteereja vastaan"
+      ]
+    },
+    "E221": {
+      "categories": [
+        "●",
+        "★"
+      ],
+      "name": "Natriumsulfiitti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E222": {
+      "categories": [
+        "●",
+        "★"
+      ],
+      "name": "Natriumvetysulfiitti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E223": {
+      "categories": [
+        "●",
+        "★"
+      ],
+      "name": "Natriumdisulfiitti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E224": {
+      "categories": [
+        "●",
+        "★"
+      ],
+      "name": "Kaliumdisulfiitti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": [
+        "Saa käyttää mm",
+        "Enimmäismäärärajoituksia"
+      ],
+      "ADI": [
+        "E220-E228 yhteismäärälle 0,7 mg/kg/vrk Siirry sivulle E224 ",
+        "7 mg/kg/vrk",
+        "7 mg/kg"
+      ],
+      "description": [
+        "Sulfiitit ovat säilöntäaineina vanhoja  ja erityisen tehokkaita bakteereja vastaan"
+      ]
+    },
+    "E226": {
+      "categories": [
+        "●",
+        "★"
+      ],
+      "name": "Kalsiumsulfiitti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E227": {
+      "categories": [
+        "●",
+        "★"
+      ],
+      "name": "Kalsiumvetysulfiitti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E228": {
+      "categories": [
+        "●",
+        "★"
+      ],
+      "name": "Kaliumvetysulfiitti",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E230": {
+      "categories": [
+        "●"
+      ],
+      "name": "Bifenyyli, difenyyli",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E231": {
+      "categories": [
+        "●"
+      ],
+      "name": "Ortofenyylifenoli",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E232": {
+      "categories": [
+        "●"
+      ],
+      "name": "Natriumortofenyylifenoli",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E234": {
+      "categories": [
+        "●"
+      ],
+      "name": "Nisiini",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E235": {
+      "categories": [
+        "●"
+      ],
+      "name": "Natamysiini",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E239": {
+      "categories": [
+        "●"
+      ],
+      "name": "Heksametyleenitetramiini",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E242": {
+      "categories": [
+        "●"
+      ],
+      "name": "Dimetyylidikarbonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E249": {
+      "categories": [
+        "●"
+      ],
+      "name": "Kaliumnitriitti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E250": {
+      "categories": [
+        "●"
+      ],
+      "name": "Natriumnitriitti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E251": {
+      "categories": [
+        "●"
+      ],
+      "name": "Natriumnitraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E252": {
+      "categories": [
+        "●"
+      ],
+      "name": "Kaliumnitraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E260": {
+      "categories": [
+        "●",
+        "◆"
+      ],
+      "name": "Etikkahappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E261": {
+      "categories": [
+        "●",
+        "◆"
+      ],
+      "name": "Kaliumasetaatti",
+      "indicators": [],
+      "additional_info": [
+        "Käytetään sekä säilöntäaineena että happamuudensäätöaineena, säilövä vaikutus perustuu lähinnä pH:n alenemiseen",
+        "esiintyy luontaisesti ja sitä voidaan valmistaa sokereista tai viinistä käymisen avulla tai kemiallisesti",
+        "Saa käyttää lähes kaikkiin elintarvikkeisiin, joihin saa käyttää lisäaineita",
+        "enimmäismäärärajoituksia",
+        "Ei enimmäismäärärajoituksia"
+      ],
+      "ADI": [
+        "Ei ole tarpeen Siirry sivulle E261 ",
+        "Ei ole tarpeen Siirry sivulle E261 "
+      ],
+      "description": [
+        "Asetaatit ovat etikkahapon suoloja"
+      ]
+    },
+    "E262": {
+      "categories": [
+        "●",
+        "◆"
+      ],
+      "name": "Natriumasetaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E262a": {
+      "categories": [
+        "●",
+        "◆"
+      ],
+      "name": "Natriumvetyasetaatti (natriumdiasetaatti)",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E263": {
+      "categories": [
+        "●",
+        "◆"
+      ],
+      "name": "Kalsiumasetaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E270": {
+      "categories": [
+        "●",
+        "◆"
+      ],
+      "name": "Maitohappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E280": {
+      "categories": [
+        "●",
+        "◆"
+      ],
+      "name": "Propionihappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E281": {
+      "categories": [
+        "●",
+        "◆"
+      ],
+      "name": "Natriumpropionaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E282": {
+      "categories": [
+        "●",
+        "◆"
+      ],
+      "name": "Kalsiumpropionaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E283": {
+      "categories": [
+        "●",
+        "◆"
+      ],
+      "name": "Kaliumpropionaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E284": {
+      "categories": [
+        "●"
+      ],
+      "name": "Boorihappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E285": {
+      "categories": [
+        "●"
+      ],
+      "name": "Natriumtetraboraatti (booraksi)",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E290": {
+      "categories": [
+        "●",
+        "✖"
+      ],
+      "name": "Hiilidioksidi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E296": {
+      "categories": [
+        "●",
+        "◆"
+      ],
+      "name": "Omenahappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E297": {
+      "categories": [
+        "●",
+        "◆"
+      ],
+      "name": "Fumaarihappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E300": {
+      "categories": [
+        "★",
+        "◆",
+        "♣"
+      ],
+      "name": "Askorbiinihappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E301": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Natriumaskorbaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E302": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Kalsiumaskorbaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E304a": {
+      "categories": [
+        "★"
+      ],
+      "name": "Askorbyylipalmitaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E304b": {
+      "categories": [
+        "★"
+      ],
+      "name": "Askorbyylistearaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E306": {
+      "categories": [
+        "★"
+      ],
+      "name": "Tokoferoliuute",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E307": {
+      "categories": [
+        "★"
+      ],
+      "name": "Alfatokoferoli",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E308": {
+      "categories": [
+        "★"
+      ],
+      "name": "Gamma-tokoferoli",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E309": {
+      "categories": [
+        "★"
+      ],
+      "name": "Delta-tokoferoli",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E310": {
+      "categories": [
+        "★"
+      ],
+      "name": "Propyyligallaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E311": {
+      "categories": [
+        "★"
+      ],
+      "name": "Oktyyligallaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E312": {
+      "categories": [
+        "★"
+      ],
+      "name": "Dodekyyligallaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E315": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Erytorbiinihappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E316": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Natriumerytorbaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E319": {
+      "categories": [
+        "★"
+      ],
+      "name": "Tert-butyylihydroksikinoni (TBHQ)",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E320": {
+      "categories": [
+        "★"
+      ],
+      "name": "Butyylihydroksianisoli (BHA)",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E321": {
+      "categories": [
+        "★"
+      ],
+      "name": "Butyylihydroksitolueeni (BHT)",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E322": {
+      "categories": [
+        "★",
+        "♠",
+        "✿"
+      ],
+      "name": "Lesitiinit (useimmiten peräisin soijasta)",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E325": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Natriumlaktaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E326": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Kaliumlaktaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E327": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Kalsiumlaktaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E330": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Sitruunahappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E331a": {
+      "categories": [
+        "★",
+        "◆",
+        "▲"
+      ],
+      "name": "Mononatriumsitraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E331b": {
+      "categories": [
+        "★",
+        "◆",
+        "▲"
+      ],
+      "name": "Dinatriumsitraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E331c": {
+      "categories": [
+        "★",
+        "◆",
+        "▲"
+      ],
+      "name": "Trinatriumsitraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E332a": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Monokaliumsitraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E332b": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Trikaliumsitraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E333a": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Monokalsiumsitraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E333b": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Dikalsiumsitraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E333c": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Trikalsiumsitraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E334": {
+      "categories": [
+        "★",
+        "◆",
+        "✠"
+      ],
+      "name": "L-Viinihappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E335a": {
+      "categories": [
+        "★",
+        "◆",
+        "✠"
+      ],
+      "name": "Mononatriumtartraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E335b": {
+      "categories": [
+        "★",
+        "◆",
+        "✠"
+      ],
+      "name": "Dinatriumtartraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E336a": {
+      "categories": [
+        "★",
+        "◆",
+        "✠"
+      ],
+      "name": "Monokaliumtartraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E336b": {
+      "categories": [
+        "★",
+        "◆",
+        "✠"
+      ],
+      "name": "Dikaliumtartraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E337": {
+      "categories": [
+        "★",
+        "◆",
+        "✠"
+      ],
+      "name": "Natriumkaliumtartraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E338": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Fosforihappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E339a": {
+      "categories": [
+        "★",
+        "◆",
+        "▲"
+      ],
+      "name": "Mononatriumfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E339b": {
+      "categories": [
+        "★",
+        "◆",
+        "▲"
+      ],
+      "name": "Dinatriumfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E339c": {
+      "categories": [
+        "★",
+        "◆",
+        "▲"
+      ],
+      "name": "Trinatriumfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E340a": {
+      "categories": [
+        "★",
+        "◆",
+        "▲"
+      ],
+      "name": "Monokaliumfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E340b": {
+      "categories": [
+        "★",
+        "◆",
+        "▲"
+      ],
+      "name": "Dikaliumfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E340c": {
+      "categories": [
+        "★",
+        "◆",
+        "▲"
+      ],
+      "name": "Trikaliumfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E341a": {
+      "categories": [
+        "★",
+        "◆",
+        "♣",
+        "▲"
+      ],
+      "name": "Monokalsiumfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E341b": {
+      "categories": [
+        "★",
+        "◆",
+        "♣",
+        "▲"
+      ],
+      "name": "Dikalsiumfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E341c": {
+      "categories": [
+        "★",
+        "◆",
+        "♣",
+        "▲"
+      ],
+      "name": "Trikalsiumfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E343a": {
+      "categories": [
+        "★",
+        "◆",
+        "▲"
+      ],
+      "name": "Monomagnesiumfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E343b": {
+      "categories": [
+        "★",
+        "◆",
+        "▲"
+      ],
+      "name": "Dimagnesiumfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E350": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Natriummalaatti / Natriumvetymalaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E351": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Kaliummalaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E352a": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Kalsiummalaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E352b": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Kalsiumvetymalaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E353": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Metaviinihappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E354": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Kalsiumtartraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E355": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Adipiinihappo",
+      "indicators": [],
+      "additional_info": [
+        "Saa käyttää vain joihinkin jälkiruokiin, kakkujen täytteisiin ja koristeisiin ja juomajauheisiin",
+        "Enimmäismäärärajoituksia"
+      ],
+      "ADI": [
+        "E355-E357 yhteismäärälle 5 mg/kg/vrk Siirry sivulle E357 ",
+        "5 mg/kg/vrk",
+        "5 mg/kg"
+      ],
+      "description": [
+        "Adipiinihapon suola"
+      ]
+    },
+    "E356": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Natriumadipaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E357": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Kaliumadipaatti",
+      "indicators": [],
+      "additional_info": [
+        "Saa käyttää vain joihinkin jälkiruokiin, kakkujen täytteisiin ja koristeisiin ja juomajauheisiin",
+        "Enimmäismäärärajoituksia"
+      ],
+      "ADI": [
+        "E355-E357 yhteismäärälle 5 mg/kg/vrk Siirry sivulle E357  E402, Kaliumalginaatti  Lisäaineryhmä:  Emulgointi, stabilointi- ja sakeuttamisaineet Kuvaus:Valmistetaan eräistä Phaeophyceae -ruskolevistä",
+        "Ei ole määritelty Siirry sivulle E402  E555, Kaliumalumiinisilikaatti  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Paakkuuntumisenestoaine ja kiillotusaine",
+        "Ei ole määritelty Siirry sivulle E555  E261, Kaliumasetaatti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Asetaatit ovat etikkahapon suoloja",
+        "Ei ole tarpeen Siirry sivulle E261  E212, Kaliumbentsoaatti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Valmistetaan usein kemiallisesti",
+        "E210-E213 yhteismäärälle  5 mg/kg/vrk Siirry sivulle E212  E224, Kaliumdisulfiitti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Sulfiitit ovat säilöntäaineina vanhoja  ja erityisen tehokkaita bakteereja vastaan",
+        "E220-E228 yhteismäärälle 0,7 mg/kg/vrk Siirry sivulle E224  E536, Kaliumferrosyanidi  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Valmistetaan kemiallisesti",
+        "E535-E538 yhteismäärälle  0,025 mg/kg/vrk Siirry sivulle E536  E340, Kaliumfosfaatit  Lisäaineryhmä:  Hapettumisenestoaineet Kuvaus:Valmistetaan luonnossa esiintyvistä mineraaleista",
+        "E338-E343 ja E450-E452 yhteismäärälle 40 mg fosforia/kg/vrk Siirry sivulle E340  E577, Kaliumglukonaatti  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Glukonihapon suola",
+        "Ei ole määritelty Siirry sivulle E577  E525, Kaliumhydroksidi  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Vahva emäs, valmistetaan kemiallisesti",
+        "Ei ole määritelty Siirry sivulle E525    ",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "5 mg/kg/vrk",
+        "5 mg/kg/vrk",
+        "7 mg/kg/vrk",
+        "025 mg/kg/vrk",
+        "5 mg/kg",
+        "5 mg/kg",
+        "7 mg/kg",
+        "025 mg/kg",
+        "E355-E357 yhteismäärälle 5 mg/kg/vrk Siirry sivulle E357  E402, Kaliumalginaatti  Lisäaineryhmä:  Emulgointi, stabilointi- ja sakeuttamisaineet Kuvaus:Valmistetaan eräistä Phaeophyceae -ruskolevistä",
+        "Ei ole määritelty Siirry sivulle E402  E555, Kaliumalumiinisilikaatti  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Paakkuuntumisenestoaine ja kiillotusaine",
+        "Ei ole määritelty Siirry sivulle E555  E261, Kaliumasetaatti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Asetaatit ovat etikkahapon suoloja",
+        "Ei ole tarpeen Siirry sivulle E261  E212, Kaliumbentsoaatti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Valmistetaan usein kemiallisesti",
+        "E210-E213 yhteismäärälle  5 mg/kg/vrk Siirry sivulle E212  E224, Kaliumdisulfiitti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Sulfiitit ovat säilöntäaineina vanhoja  ja erityisen tehokkaita bakteereja vastaan",
+        "E220-E228 yhteismäärälle 0,7 mg/kg/vrk Siirry sivulle E224  E536, Kaliumferrosyanidi  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Valmistetaan kemiallisesti",
+        "E535-E538 yhteismäärälle  0,025 mg/kg/vrk Siirry sivulle E536  E340, Kaliumfosfaatit  Lisäaineryhmä:  Hapettumisenestoaineet Kuvaus:Valmistetaan luonnossa esiintyvistä mineraaleista",
+        "E338-E343 ja E450-E452 yhteismäärälle 40 mg fosforia/kg/vrk Siirry sivulle E340  E577, Kaliumglukonaatti  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Glukonihapon suola",
+        "Ei ole määritelty Siirry sivulle E577  E525, Kaliumhydroksidi  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Vahva emäs, valmistetaan kemiallisesti",
+        "Ei ole määritelty Siirry sivulle E525    ",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "5 mg/kg/vrk",
+        "5 mg/kg/vrk",
+        "7 mg/kg/vrk",
+        "025 mg/kg/vrk",
+        "5 mg/kg",
+        "5 mg/kg",
+        "7 mg/kg",
+        "025 mg/kg",
+        "E355-E357 yhteismäärälle 5 mg/kg/vrk Siirry sivulle E357  E402, Kaliumalginaatti  Lisäaineryhmä:  Emulgointi, stabilointi- ja sakeuttamisaineet Kuvaus:Valmistetaan eräistä Phaeophyceae -ruskolevistä",
+        "Ei ole määritelty Siirry sivulle E402  E555, Kaliumalumiinisilikaatti  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Paakkuuntumisenestoaine ja kiillotusaine",
+        "Ei ole määritelty Siirry sivulle E555  E261, Kaliumasetaatti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Asetaatit ovat etikkahapon suoloja",
+        "Ei ole tarpeen Siirry sivulle E261  E212, Kaliumbentsoaatti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Valmistetaan usein kemiallisesti",
+        "E210-E213 yhteismäärälle  5 mg/kg/vrk Siirry sivulle E212  E224, Kaliumdisulfiitti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Sulfiitit ovat säilöntäaineina vanhoja  ja erityisen tehokkaita bakteereja vastaan",
+        "E220-E228 yhteismäärälle 0,7 mg/kg/vrk Siirry sivulle E224  E536, Kaliumferrosyanidi  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Valmistetaan kemiallisesti",
+        "E535-E538 yhteismäärälle  0,025 mg/kg/vrk Siirry sivulle E536  E340, Kaliumfosfaatit  Lisäaineryhmä:  Hapettumisenestoaineet Kuvaus:Valmistetaan luonnossa esiintyvistä mineraaleista",
+        "E338-E343 ja E450-E452 yhteismäärälle 40 mg fosforia/kg/vrk Siirry sivulle E340  E577, Kaliumglukonaatti  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Glukonihapon suola",
+        "Ei ole määritelty Siirry sivulle E577  E525, Kaliumhydroksidi  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Vahva emäs, valmistetaan kemiallisesti",
+        "Ei ole määritelty Siirry sivulle E525  ",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "5 mg/kg/vrk",
+        "5 mg/kg/vrk",
+        "7 mg/kg/vrk",
+        "025 mg/kg/vrk",
+        "5 mg/kg",
+        "5 mg/kg",
+        "7 mg/kg",
+        "025 mg/kg",
+        "E355-E357 yhteismäärälle 5 mg/kg/vrk Siirry sivulle E357  E402, Kaliumalginaatti  Lisäaineryhmä:  Emulgointi, stabilointi- ja sakeuttamisaineet Kuvaus:Valmistetaan eräistä Phaeophyceae -ruskolevistä",
+        "Ei ole määritelty Siirry sivulle E402  E555, Kaliumalumiinisilikaatti  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Paakkuuntumisenestoaine ja kiillotusaine",
+        "Ei ole määritelty Siirry sivulle E555  E261, Kaliumasetaatti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Asetaatit ovat etikkahapon suoloja",
+        "Ei ole tarpeen Siirry sivulle E261  E212, Kaliumbentsoaatti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Valmistetaan usein kemiallisesti",
+        "E210-E213 yhteismäärälle  5 mg/kg/vrk Siirry sivulle E212  E224, Kaliumdisulfiitti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Sulfiitit ovat säilöntäaineina vanhoja  ja erityisen tehokkaita bakteereja vastaan",
+        "E220-E228 yhteismäärälle 0,7 mg/kg/vrk Siirry sivulle E224  E536, Kaliumferrosyanidi  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Valmistetaan kemiallisesti",
+        "E535-E538 yhteismäärälle  0,025 mg/kg/vrk Siirry sivulle E536  E340, Kaliumfosfaatit  Lisäaineryhmä:  Hapettumisenestoaineet Kuvaus:Valmistetaan luonnossa esiintyvistä mineraaleista",
+        "E338-E343 ja E450-E452 yhteismäärälle 40 mg fosforia/kg/vrk Siirry sivulle E340  E577, Kaliumglukonaatti  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Glukonihapon suola",
+        "Ei ole määritelty Siirry sivulle E577  E525, Kaliumhydroksidi  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Vahva emäs, valmistetaan kemiallisesti",
+        "Ei ole määritelty Siirry sivulle E525 ",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "5 mg/kg/vrk",
+        "5 mg/kg/vrk",
+        "7 mg/kg/vrk",
+        "025 mg/kg/vrk",
+        "5 mg/kg",
+        "5 mg/kg",
+        "7 mg/kg",
+        "025 mg/kg",
+        "E355-E357 yhteismäärälle 5 mg/kg/vrk Siirry sivulle E357  E402, Kaliumalginaatti  Lisäaineryhmä:  Emulgointi, stabilointi- ja sakeuttamisaineet Kuvaus:Valmistetaan eräistä Phaeophyceae -ruskolevistä",
+        "Ei ole määritelty Siirry sivulle E402  E555, Kaliumalumiinisilikaatti  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Paakkuuntumisenestoaine ja kiillotusaine",
+        "Ei ole määritelty Siirry sivulle E555  E261, Kaliumasetaatti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Asetaatit ovat etikkahapon suoloja",
+        "Ei ole tarpeen Siirry sivulle E261  E212, Kaliumbentsoaatti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Valmistetaan usein kemiallisesti",
+        "E210-E213 yhteismäärälle  5 mg/kg/vrk Siirry sivulle E212  E224, Kaliumdisulfiitti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Sulfiitit ovat säilöntäaineina vanhoja  ja erityisen tehokkaita bakteereja vastaan",
+        "E220-E228 yhteismäärälle 0,7 mg/kg/vrk Siirry sivulle E224  E536, Kaliumferrosyanidi  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Valmistetaan kemiallisesti",
+        "E535-E538 yhteismäärälle  0,025 mg/kg/vrk Siirry sivulle E536  E340, Kaliumfosfaatit  Lisäaineryhmä:  Hapettumisenestoaineet Kuvaus:Valmistetaan luonnossa esiintyvistä mineraaleista",
+        "E338-E343 ja E450-E452 yhteismäärälle 40 mg fosforia/kg/vrk Siirry sivulle E340  E577, Kaliumglukonaatti  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Glukonihapon suola",
+        "Ei ole määritelty Siirry sivulle E577  E525, Kaliumhydroksidi  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Vahva emäs, valmistetaan kemiallisesti",
+        "Ei ole määritelty Siirry sivulle E525 ",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "5 mg/kg/vrk",
+        "5 mg/kg/vrk",
+        "7 mg/kg/vrk",
+        "025 mg/kg/vrk",
+        "5 mg/kg",
+        "5 mg/kg",
+        "7 mg/kg",
+        "025 mg/kg",
+        "E355-E357 yhteismäärälle 5 mg/kg/vrk Siirry sivulle E357  E402, Kaliumalginaatti  Lisäaineryhmä:  Emulgointi, stabilointi- ja sakeuttamisaineet Kuvaus:Valmistetaan eräistä Phaeophyceae -ruskolevistä",
+        "Ei ole määritelty Siirry sivulle E402  E555, Kaliumalumiinisilikaatti  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Paakkuuntumisenestoaine ja kiillotusaine",
+        "Ei ole määritelty Siirry sivulle E555  E261, Kaliumasetaatti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Asetaatit ovat etikkahapon suoloja",
+        "Ei ole tarpeen Siirry sivulle E261  E212, Kaliumbentsoaatti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Valmistetaan usein kemiallisesti",
+        "E210-E213 yhteismäärälle  5 mg/kg/vrk Siirry sivulle E212  E224, Kaliumdisulfiitti  Lisäaineryhmä:  Säilöntäaineet Kuvaus:Sulfiitit ovat säilöntäaineina vanhoja  ja erityisen tehokkaita bakteereja vastaan",
+        "E220-E228 yhteismäärälle 0,7 mg/kg/vrk Siirry sivulle E224  E536, Kaliumferrosyanidi  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Valmistetaan kemiallisesti",
+        "E535-E538 yhteismäärälle  0,025 mg/kg/vrk Siirry sivulle E536  E340, Kaliumfosfaatit  Lisäaineryhmä:  Hapettumisenestoaineet Kuvaus:Valmistetaan luonnossa esiintyvistä mineraaleista",
+        "E338-E343 ja E450-E452 yhteismäärälle 40 mg fosforia/kg/vrk Siirry sivulle E340  E577, Kaliumglukonaatti  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Glukonihapon suola",
+        "Ei ole määritelty Siirry sivulle E577  E525, Kaliumhydroksidi  Lisäaineryhmä:  Muut lisäaineet Kuvaus:Vahva emäs, valmistetaan kemiallisesti",
+        "Ei ole määritelty Siirry sivulle E525 ",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "Ei ole määritelty",
+        "5 mg/kg/vrk",
+        "5 mg/kg/vrk",
+        "7 mg/kg/vrk",
+        "025 mg/kg/vrk",
+        "5 mg/kg",
+        "5 mg/kg",
+        "7 mg/kg",
+        "025 mg/kg",
+        "E355-E357 yhteismäärälle 5 mg/kg/vrk Siirry sivulle E357 ",
+        "5 mg/kg/vrk",
+        "5 mg/kg"
+      ],
+      "description": [
+        "Adipiinihapon suola"
+      ]
+    },
+    "E363": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Meripihkahappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E380": {
+      "categories": [
+        "★",
+        "◆"
+      ],
+      "name": "Triammoniumsitraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E385": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Kalsiumdinatriumetyleenidiamiinitetra-asetaatti (Kalsiumdinatrium EDTA)",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E400": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Algiinihappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E401": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Natriumalginaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E402": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Kaliumalginaatti",
+      "indicators": [],
+      "additional_info": [
+        "Valmistetaan eräistä Phaeophyceae -ruskolevistä",
+        "Saa käyttää lähes kaikkiin elintarvikkeisiin, joihin saa käyttää lisäaineita, ei kuitenkaan minipikariin pakattuihin hyytelömakeisiin"
+      ],
+      "ADI": [
+        "Ei ole määritelty Siirry sivulle E402 ",
+        "Ei ole määritelty",
+        "Ei ole määritelty Siirry sivulle E402 ",
+        "Ei ole määritelty"
+      ],
+      "description": [
+        "Valmistetaan eräistä Phaeophyceae -ruskolevistä"
+      ]
+    },
+    "E403": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Ammoniumalginaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E404": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Kalsiumalginaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E405": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Propyleeniglykolialginaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E406": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Agar",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E407": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Karrageeni",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E407a": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Käsitelty Eucheuma-levä",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E410": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Johanneksenleipäpuujauhe",
+      "indicators": [],
+      "additional_info": [
+        "Valmistetaan palkokasveihin kuuluvan johanneksenleipäpuun (Ceratonia siliqua) siemenistä",
+        "Saa käyttää lähes kaikkiin elintarvikkeisiin, joihin saa käyttää lisäaineita, ei kuitenkaan kuiviin elintarvikkeisiin, joihin lisätään vettä nauttimisen yhteydessä eikä minipikariin pakattuihin hyytelömakeisiin",
+        "Enimmäismäärärajoituksia"
+      ],
+      "ADI": [
+        "Ei ole määritelty"
+      ],
+      "description": [
+        "Valmistetaan palkokasveihin kuuluvan johanneksenleipäpuun (Ceratonia siliqua) siemenistä"
+      ]
+    },
+    "E412": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Guarkumi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E413": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Tragantti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E414": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Arabikumi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E415": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Ksantaanikumi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E416": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Karaijakumi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E417": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Tarakumi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E418": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Gellaanikumi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E420a": {
+      "categories": [
+        "♠",
+        "❖"
+      ],
+      "name": "Sorbitoli",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E420b": {
+      "categories": [
+        "♠",
+        "❖"
+      ],
+      "name": "Sorbitolisiirappi",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E421": {
+      "categories": [
+        "♠",
+        "❖"
+      ],
+      "name": "Mannitoli",
+      "indicators": [
+        "y"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E422": {
+      "categories": [
+        "♠",
+        "❖"
+      ],
+      "name": "Glyseroli",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E425a": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Konjak-hartsi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E425b": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Konjak-glukomannaani",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E426": {
+      "categories": [
+        "♠",
+        "✜"
+      ],
+      "name": "Soijapapuhemiselluloosa",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E431": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Polyoksietyleeni(40)-stearaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E432": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Polyoksietyleenisorbitaanimonolauraatti (polysorbaatti 20)",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E433": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Polyoksietyleenisorbitaanimono-oleaatti (polysorbaatti 80)",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E434": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Polyoksietyleenisorbitaanimonopalmitaatti (polysorbaatti 40)",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E435": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Polyoksietyleenisorbitaanimonostearaatti (polysorbaatti 60)",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E436": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Polyoksietyleenisorbitaanitristearaatti (polysorbaatti 65)",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E440a": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Pektiini",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E440b": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Amidoitu pektiini",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E442": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Ammoniumfosfatidit",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E444": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Sakkaroosiasetaatti-isobutyraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E445": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Puuhartsien glyseroliesterit",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E450a": {
+      "categories": [
+        "♠",
+        "✠",
+        "▲"
+      ],
+      "name": "Dinatriumdifosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E450b": {
+      "categories": [
+        "♠",
+        "✠",
+        "▲"
+      ],
+      "name": "Trinatriumdifosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E450c": {
+      "categories": [
+        "♠",
+        "✠",
+        "▲"
+      ],
+      "name": "Tetranatriumdifosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E450d": {
+      "categories": [
+        "♠",
+        "✠",
+        "▲"
+      ],
+      "name": "Dikaliumdifosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E450e": {
+      "categories": [
+        "♠",
+        "✠",
+        "▲"
+      ],
+      "name": "Tetrakaliumdifosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E450f": {
+      "categories": [
+        "♠",
+        "✠",
+        "▲"
+      ],
+      "name": "Dikalsiumdifosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E450g": {
+      "categories": [
+        "♠",
+        "✠",
+        "▲"
+      ],
+      "name": "Monokalsiumdifosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E451a": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Pentanatriumtrifosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E451b": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Pentakaliumtrifosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E452a": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Natriumpolyfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E452b": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Kaliumpolyfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E452c": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Natriumkalsiumpolyfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E452d": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Kalsiumpolyfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E459": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Betasyklodekstriini",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E460a": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Mikrokiteinen selluloosa",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E460b": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Selluloosajauhe",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E461": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Metyyliselluloosa",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E462": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Etyyliselluloosa",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E463": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Hydroksipropyyliselluloosa",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E464": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Hydroksipropyylimetyyliselluloosa",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E465": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Metyylietyyliselluloosa",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E466": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Karboksimetyyliselluloosa (CMC), natriumkarboksimetyyliselluloosa",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E468": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Silloitettu natriumkarboksimetyyliselluloosa",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E469": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Entsymaattisesti hydrolysoitu karboksimetyyliselluloosa",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E470a": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Rasvahappojen natrium-, kalium- ja kalsiumsuolat",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E470b": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Rasvahappojen magnesiumsuolat",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E471": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Rasvahappojen mono- ja diglyseridit",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E472a": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Rasvahappojen mono- ja diglyseridien etikkahappoesterit",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E472b": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Rasvahappojen mono- ja diglyseridien maitohappoesterit",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E472c": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Rasvahappojen mono- ja diglyseridien sitruunahappoesterit",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E472d": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Rasvahappojen mono- ja diglyseridien viinihappoesterit",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E472e": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Rasvahappojen mono- ja diglyseridien mono- ja diasetyyliviinihappoesterit",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E472f": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Rasvahappojen mono- ja diglyseridien etikka- ja viinihappoesterien seokset",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E473": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Rasvahappojen sakkaroosiesterit",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E474": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Sokeriglyseridit",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E475": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Rasvahappojen polyglyseroliesterit",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E476": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Polyglyserolipolyrisiinioleaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E477": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Rasvahappojen 1,2-propyleeniglykoliesterit",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E479b": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Termisesti hapetettu ja polymeroitu soijaöljy",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E481": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Natriumstearoyyli2-laktylaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E482": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Kalsiumstearoyyli2-laktylaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E483": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Stearyylitartraatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E491": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Sorbitaanimonostearaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E492": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Sorbitaanitristearaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E493": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Sorbitaanimonolauraatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E494": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Sorbitaanimono-oleaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E495": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Sorbitaanimonopalmitaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E500a": {
+      "categories": [
+        "✠",
+        "◆"
+      ],
+      "name": "Natriumkarbonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E500b": {
+      "categories": [
+        "✠",
+        "◆"
+      ],
+      "name": "Natriumvetykarbonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E500c": {
+      "categories": [
+        "✠",
+        "◆"
+      ],
+      "name": "Natriumseskvikarbonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E501a": {
+      "categories": [
+        "✠",
+        "◆"
+      ],
+      "name": "Kaliumkarbonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E501b": {
+      "categories": [
+        "✠",
+        "◆"
+      ],
+      "name": "Kaliumvetykarbonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E503a": {
+      "categories": [
+        "✠"
+      ],
+      "name": "Ammoniumkarbonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E503b": {
+      "categories": [
+        "✠"
+      ],
+      "name": "Ammoniumvetykarbonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E504a": {
+      "categories": [
+        "◆",
+        "♣"
+      ],
+      "name": "Magnesiumkarbonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E504b": {
+      "categories": [
+        "◆",
+        "♣"
+      ],
+      "name": "Magnesiumvetykarbonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E507": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Suolahappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E508": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Kaliumkloridi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E509": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Kalsiumkloridi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E511": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Magnesiumkloridi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E512": {
+      "categories": [
+        "★"
+      ],
+      "name": "Tinakloridi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E513": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Rikkihappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E514a": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Natriumsulfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E514b": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Natriumvetysulfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E515a": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Kaliumsulfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E515b": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Kaliumvetysulfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E516": {
+      "categories": [
+        "◆",
+        "♠",
+        "♣"
+      ],
+      "name": "Kalsiumsulfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E517": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Ammoniumsulfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E520": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Alumiinisulfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E521": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Alumiininatriumsulfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E522": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Alumiinikaliumsulfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E523": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Alumiiniammoniumsulfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E524": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Natriumhydroksidi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E525": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Kaliumhydroksidi",
+      "indicators": [],
+      "additional_info": [
+        "valmistetaan kemiallisesti",
+        "Saa käyttää lähes kaikkiin elintarvikkeisiin, joihin saa käyttää lisäaineita",
+        "Enimmäismäärärajoituksia"
+      ],
+      "ADI": [
+        "Ei ole määritelty Siirry sivulle E525 ",
+        "Ei ole määritelty",
+        "Ei ole määritelty Siirry sivulle E525 ",
+        "Ei ole määritelty"
+      ],
+      "description": [
+        "Vahva emäs, valmistetaan kemiallisesti"
+      ]
+    },
+    "E526": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Kalsiumhydroksidi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E527": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Ammoniumhydroksidi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E528": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Magnesiumhydroksidi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E529": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Kalsiumoksidi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E530": {
+      "categories": [
+        "◆",
+        "✿"
+      ],
+      "name": "Magnesiumoksidi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E535": {
+      "categories": [
+        "♣"
+      ],
+      "name": "Natriumferrosyanidi",
+      "indicators": [],
+      "additional_info": [
+        "Valmistetaan kemiallisesti",
+        "Saa käyttää paakkuuntumisenestoaineena vain ruokasuolaan ja ruokasuolavalmisteisiin"
+      ],
+      "ADI": [
+        "E535-E538 yhteismäärälle  0,025 mg/kg/vrk Siirry sivulle E536 ",
+        "025 mg/kg/vrk",
+        "025 mg/kg"
+      ],
+      "description": [
+        "Valmistetaan kemiallisesti"
+      ]
+    },
+    "E536": {
+      "categories": [
+        "♣"
+      ],
+      "name": "Kaliumferrosyanidi",
+      "indicators": [],
+      "additional_info": [
+        "Valmistetaan kemiallisesti",
+        "Saa käyttää paakkuuntumisenestoaineena vain ruokasuolaan ja ruokasuolavalmisteisiin"
+      ],
+      "ADI": [
+        "E535-E538 yhteismäärälle  0,025 mg/kg/vrk Siirry sivulle E536 ",
+        "025 mg/kg/vrk",
+        "025 mg/kg"
+      ],
+      "description": [
+        "Valmistetaan kemiallisesti"
+      ]
+    },
+    "E538": {
+      "categories": [
+        "♣"
+      ],
+      "name": "Kalsiumferrosyanidi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E541": {
+      "categories": [
+        "✠"
+      ],
+      "name": "Natriumalumiinifosfaatti, hapan",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E551": {
+      "categories": [
+        "✜",
+        "✪"
+      ],
+      "name": "Piidioksidi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E552": {
+      "categories": [
+        "✜",
+        "✪"
+      ],
+      "name": "Kalsiumsilikaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E553a": {
+      "categories": [
+        "✜",
+        "✪"
+      ],
+      "name": "Magnesiumsilikaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E553b": {
+      "categories": [
+        "✜",
+        "✪"
+      ],
+      "name": "Talkki",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E554": {
+      "categories": [
+        "✜"
+      ],
+      "name": "Natriumalumiinisilikaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E555": {
+      "categories": [
+        "✜"
+      ],
+      "name": "Kaliumalumiinisilikaatti",
+      "indicators": [],
+      "additional_info": [
+        "Saa käyttää joidenkin värien kantaja-aineena",
+        "Enimmäismäärärajoituksia"
+      ],
+      "ADI": [
+        "Ei ole määritelty Siirry sivulle E555 ",
+        "Ei ole määritelty",
+        "Ei ole määritelty Siirry sivulle E555 ",
+        "Ei ole määritelty"
+      ],
+      "description": [
+        "Paakkuuntumisenestoaine ja kiillotusaine"
+      ]
+    },
+    "E556": {
+      "categories": [
+        "✜"
+      ],
+      "name": "Kalsiumalumiinisilikaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E558": {
+      "categories": [
+        "✜"
+      ],
+      "name": "Bentoniitti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E559": {
+      "categories": [
+        "✜"
+      ],
+      "name": "Alumiinisilikaatti (kaoliini)",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E570": {
+      "categories": [
+        "✿"
+      ],
+      "name": "Rasvahapot",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E574": {
+      "categories": [
+        "✠",
+        "◆"
+      ],
+      "name": "Glukonihappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E575": {
+      "categories": [
+        "✠",
+        "◆"
+      ],
+      "name": "Glukonodeltalaktoni",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E576": {
+      "categories": [
+        "✠",
+        "◆"
+      ],
+      "name": "Natriumglukonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E577": {
+      "categories": [
+        "✠",
+        "◆"
+      ],
+      "name": "Kaliumglukonaatti",
+      "indicators": [],
+      "additional_info": [
+        "käytetään nostatusaineina, happamuudensäätöaineina ja lihavalmisteiden värin stabilointiaineina",
+        "Saa käyttää lähes kaikkiin elintarvikkeisiin, joihin saa käyttää lisäaineita",
+        "enimmäismäärärajoituksia",
+        "Ei enimmäismäärärajoituksia"
+      ],
+      "ADI": [
+        "Ei ole määritelty Siirry sivulle E577 ",
+        "Ei ole määritelty",
+        "Ei ole määritelty Siirry sivulle E577 ",
+        "Ei ole määritelty"
+      ],
+      "description": [
+        "Glukonihapon suola"
+      ]
+    },
+    "E578": {
+      "categories": [
+        "✠",
+        "◆"
+      ],
+      "name": "Kalsiumglukonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E579": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Ferroglukonaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E585": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Ferrolaktaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E586": {
+      "categories": [
+        "★"
+      ],
+      "name": "4-heksyyliresorsinoli",
+      "indicators": [],
+      "additional_info": "Valmistetaan kemiallisesti. Käytetään estämään mustien pilkkujen (melaniini) muodostumista jäähdytetyissä ja pakastetuissa äyriäisissä.",
+      "ADI": [
+        "Ei ole määritelty"
+      ]
+    },
+    "E620": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Glutamiinihappo",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E621": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Mononatriumglutamaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E622": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Monokaliumglutamaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E623": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Kalsiumdiglutamaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E624": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Monoammoniumglutamaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E625": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Magnesiumdiglutamaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E626": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Guanyylihappo",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E627": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Dinatriumguanylaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E628": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Dikaliumguanylaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E629": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Kalsiumguanylaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E630": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Inosiinihappo",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E631": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Dinatriuminosinaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E632": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Dikaliuminosinaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E633": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Kalsiuminosinaatti",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E634": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Kalsium-5'-ribonukleotit",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E635": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Dinatrium-5'-ribonukleotit",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E640": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Glysiini ja natriumsuola",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E650": {
+      "categories": [
+        "❤"
+      ],
+      "name": "Sinkkiasetaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E900": {
+      "categories": [
+        "✧"
+      ],
+      "name": "Dimetyylipolysiloksaani",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E901": {
+      "categories": [
+        "✪"
+      ],
+      "name": "Mehiläisvaha, valkoinen ja keltainen",
+      "indicators": [
+        "V"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E902": {
+      "categories": [
+        "✪"
+      ],
+      "name": "Kandelillavaha",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E903": {
+      "categories": [
+        "✪"
+      ],
+      "name": "Karnaubavaha",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E904": {
+      "categories": [
+        "✪"
+      ],
+      "name": "Sellakka",
+      "indicators": [
+        "V"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E905": {
+      "categories": [
+        "✪"
+      ],
+      "name": "Mikrokiteinen vaha",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E907": {
+      "categories": [
+        "✪"
+      ],
+      "name": "Vetykäsitelty poly-1-dekeeni",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E912": {
+      "categories": [
+        "✪"
+      ],
+      "name": "Montaanahapon esterit",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E914": {
+      "categories": [
+        "✪"
+      ],
+      "name": "Hapetettu polyeteenivaha",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E920": {
+      "categories": [
+        "♣"
+      ],
+      "name": "L-kysteiini",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E927b": {
+      "categories": [
+        "◆"
+      ],
+      "name": "Karbamidi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E938": {
+      "categories": [
+        "●",
+        "✖"
+      ],
+      "name": "Argon",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E939": {
+      "categories": [
+        "●",
+        "✖"
+      ],
+      "name": "Helium",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E941": {
+      "categories": [
+        "●",
+        "✖"
+      ],
+      "name": "Typpi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E942": {
+      "categories": [
+        "●",
+        "✖"
+      ],
+      "name": "Typpimonoksidi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E943a": {
+      "categories": [
+        "✖"
+      ],
+      "name": "Butaani",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E943b": {
+      "categories": [
+        "✖"
+      ],
+      "name": "Isobutaani",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E944": {
+      "categories": [
+        "✖"
+      ],
+      "name": "Propaani",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E948": {
+      "categories": [
+        "●",
+        "✖"
+      ],
+      "name": "Happi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E949": {
+      "categories": [
+        "●",
+        "✖"
+      ],
+      "name": "Vety",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E950": {
+      "categories": [
+        "❖",
+        "❤"
+      ],
+      "name": "Asesulfaami K",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E951": {
+      "categories": [
+        "❖"
+      ],
+      "name": "Aspartaami",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E952": {
+      "categories": [
+        "❖"
+      ],
+      "name": "Syklaamihappo ja sen Na- ja Ca-suolat",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E953": {
+      "categories": [
+        "❖"
+      ],
+      "name": "Isomalti, isomaltitoli",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E954": {
+      "categories": [
+        "❖"
+      ],
+      "name": "Sakariini ja sen Na-, K- ja Ca-suolat",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E955": {
+      "categories": [
+        "❖"
+      ],
+      "name": "Sukraloosi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E957": {
+      "categories": [
+        "❖"
+      ],
+      "name": "Taumatiini",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E959": {
+      "categories": [
+        "❖"
+      ],
+      "name": "Neohesperidiini DC",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E962": {
+      "categories": [
+        "❖"
+      ],
+      "name": "Aspartaamiasesulfaamisuola",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E965": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Maltitoli",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E965a": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Maltitolisiirappi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E966": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Laktitoli",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E967": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Ksylitoli",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E968": {
+      "categories": [
+        "❖"
+      ],
+      "name": "Erytritoli",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E999": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Kvillauute",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1103": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Invertaasi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1105": {
+      "categories": [
+        "●"
+      ],
+      "name": "Lysotsyymi V",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1200": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Polydekstroosi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1201": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Polyvinyylipyrrolidoni",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1202": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Polyvinyylipolypyrrolidoni",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1204": {
+      "categories": [
+        "✪"
+      ],
+      "name": "Pullulaani",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1404": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Hapetettu tärkkelys",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1410": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Monotärkkelysfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1412": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Ditärkkelysfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1413": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Fosfatoitu ditärkkelysfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1414": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Asetyloitu ditärkkelysfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1420": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Tärkkelysasetaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1422": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Asetyloitu ditärkkelysadipaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1440": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Hydroksipropyylitärkkelys",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1442": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Hydroksipropyyliditärkkelysfosfaatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1450": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Natriumoktenyylisukkinaattitärkkelys",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1451": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Asetyloitu hapetettu tärkkelys",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1452": {
+      "categories": [
+        "✜"
+      ],
+      "name": "Alumiiinioktenyylisukkinaattitärkkelys",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1505": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Trietyylisitraatti",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1517": {
+      "categories": [
+        "✿"
+      ],
+      "name": "Glyseryylidiasetaatti (diasetiini)",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1518": {
+      "categories": [
+        "♠"
+      ],
+      "name": "Glyserolitriasetaatti (triasetiini)",
+      "indicators": [
+        "e"
+      ],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1519": {
+      "categories": [
+        "✿"
+      ],
+      "name": "Bentsyylialkoholi",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E1520": {
+      "categories": [
+        "✿"
+      ],
+      "name": "Propaani-1,2-dioli (propyleeniglykoli)",
+      "indicators": [],
+      "additional_info": null,
+      "ADI": []
+    },
+    "E340": {
+      "categories": [],
+      "name": "",
+      "indicators": [],
+      "additional_info": [
+        "Valmistetaan luonnossa esiintyvistä mineraaleista",
+        "esiintyy kehon normaalissa aineenvaihdunnassa ja kalsiumfosfaattia on mm",
+        "saa käyttää samoin kuin polyfosfaatteja (E 450 - 452) mm",
+        "Enimmäismäärärajoituksia"
+      ],
+      "ADI": [
+        "E338-E343 ja E450-E452 yhteismäärälle 40 mg fosforia/kg/vrk Siirry sivulle E340 "
+      ],
+      "description": [
+        "Valmistetaan luonnossa esiintyvistä mineraaleista"
+      ]
+    },
+    "E450": {
+      "categories": [],
+      "name": "",
+      "indicators": [],
+      "additional_info": [
+        "Valmistetaan luonnossa esiintyvistä mineraaleista",
+        "esiintyy kehon normaalissa aineenvaihdunnassa ja kalsiumfosfaattia on mm",
+        "saa käyttää samoin kuin polyfosfaatteja (E 450 - 452) mm",
+        "Enimmäismäärärajoituksia"
+      ],
+      "ADI": [
+        "E338-E343 ja E450-E452 yhteismäärälle 40 mg fosforia/kg/vrk Siirry sivulle E340 "
+      ],
+      "description": [
+        "Valmistetaan luonnossa esiintyvistä mineraaleista"
+      ]
+    }
+  }
+}
