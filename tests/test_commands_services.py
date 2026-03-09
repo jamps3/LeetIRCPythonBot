@@ -233,3 +233,13 @@ class TestTilaaCommand:
         from cmd_modules.services import tilaa_command
 
         assert callable(tilaa_command)
+
+
+class TestEcodeCommand:
+    """Tests for the !ecode (E-codes) command."""
+
+    def test_ecode_command_exists(self):
+        """Test ecode command is registered."""
+        from commands_services import ecode_command
+
+        assert callable(ecode_command)
