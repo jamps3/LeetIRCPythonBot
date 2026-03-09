@@ -125,6 +125,44 @@ class TestElectricityService(unittest.TestCase):
         out = self.service._create_long_price_bar_graph(interval_prices, palette=1)
         self.assertEqual(len(out), 96)
 
+    def test_bar_graph_has_exactly_one_current_hour_bracket(self):
+        """Test that the bar graph has exactly one pair of brackets for the current hour."""
+        # Create test data with prices for all hours
+        interval_prices = {}
+        for hour in range(24):
+            for quarter in range(1, 5):
+                # Create a price that increases with hour to make bars different heights
+                price_eur_mwh = 10.0 + (hour * 2.0)  # 10 to 58 EUR/MWh
+                interval_prices[(hour, quarter)] = price_eur_mwh
+
+        # Generate the bar graph
+        bar_graph = self.service._create_price_bar_graph(
+            interval_prices, avg_price_snt=20.0
+        )
+
+        # Count brackets
+        opening_brackets = bar_graph.count("[")
+        closing_brackets = bar_graph.count("]")
+
+        # Verify exactly one pair of brackets (for current hour only)
+        self.assertEqual(
+            opening_brackets,
+            1,
+            f"Expected exactly 1 opening bracket, got {opening_brackets}. Bar graph: {bar_graph}",
+        )
+        self.assertEqual(
+            closing_brackets,
+            1,
+            f"Expected exactly 1 closing bracket, got {closing_brackets}. Bar graph: {bar_graph}",
+        )
+
+        # Verify the brackets are properly paired (opening before closing)
+        self.assertGreater(
+            bar_graph.index("]"),
+            bar_graph.index("["),
+            f"Closing bracket should come after opening bracket in: {bar_graph}",
+        )
+
 
 class TestElectricityServiceIntegration(unittest.TestCase):
     """

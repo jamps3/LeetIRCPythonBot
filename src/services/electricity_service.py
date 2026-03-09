@@ -735,64 +735,25 @@ class ElectricityService:
 
         # Create bar graph - one bar per hour (showing hourly average)
         hourly_bars = []
-        prev_hour = -1
-        hour_prices = []
+        current_hour_prices = []
 
-        for hour, quarter, price in time_prices:
-            if hour != prev_hour:
-                # Process previous hour if we have data
-                if prev_hour >= 0 and hour_prices:
-                    # Filter out None values for average calculation
-                    valid_prices = [p for p in hour_prices if p is not None]
-                    if valid_prices:
-                        avg_hour_price = sum(valid_prices) / len(valid_prices)
-
-                        # Calculate bar height based on palette size
-                        if price_range > 0:
-                            height_ratio = (avg_hour_price - min_price) / price_range
-                            max_height = len(bar_symbols) - 1
-                            bar_height = min(
-                                max_height, int(height_ratio * (max_height + 1))
-                            )
-                        else:
-                            bar_height = (
-                                len(bar_symbols) // 2
-                            )  # Middle height if all prices are same
-
-                        # Choose color based on comparison to average
-                        if (
-                            abs(avg_hour_price - avg_price_snt) < 0.01
-                        ):  # Essentially equal
-                            color = yellow
-                        elif avg_hour_price < avg_price_snt:
-                            color = green  # Below average = good = green
-                        else:
-                            color = red  # Above average = expensive = red
-
-                        # Create colored bar, wrapping current hour in brackets
-                        if hour == current_hour:
-                            bar = f"[{color}{bar_symbols[bar_height]}{reset}]"
-                        else:
-                            bar = f"{color}{bar_symbols[bar_height]}{reset}"
-                    else:
-                        # No valid prices for this hour - show empty
-                        bar = " "
-
-                    hourly_bars.append(bar)
-
-                # Start new hour
-                prev_hour = hour
-                hour_prices = [price]
-            else:
+        for hour in range(24):
+            # Collect all prices for this hour
+            hour_prices = []
+            for quarter in range(1, 5):
+                price = None
+                for h, q, p in time_prices:
+                    if h == hour and q == quarter:
+                        price = p
+                        break
                 hour_prices.append(price)
 
-        # Process the last hour
-        if hour_prices:
             # Filter out None values for average calculation
             valid_prices = [p for p in hour_prices if p is not None]
             if valid_prices:
                 avg_hour_price = sum(valid_prices) / len(valid_prices)
 
+                # Calculate bar height based on palette size
                 if price_range > 0:
                     height_ratio = (avg_hour_price - min_price) / price_range
                     max_height = len(bar_symbols) - 1
@@ -802,15 +763,16 @@ class ElectricityService:
                         len(bar_symbols) // 2
                     )  # Middle height if all prices are same
 
-                if abs(avg_hour_price - avg_price_snt) < 0.01:
+                # Choose color based on comparison to average
+                if abs(avg_hour_price - avg_price_snt) < 0.01:  # Essentially equal
                     color = yellow
                 elif avg_hour_price < avg_price_snt:
-                    color = green
+                    color = green  # Below average = good = green
                 else:
-                    color = red
+                    color = red  # Above average = expensive = red
 
-                # Wrap current hour in brackets
-                if prev_hour == current_hour:
+                # Create colored bar, wrapping current hour in brackets
+                if hour == current_hour:
                     bar = f"[{color}{bar_symbols[bar_height]}{reset}]"
                 else:
                     bar = f"{color}{bar_symbols[bar_height]}{reset}"
