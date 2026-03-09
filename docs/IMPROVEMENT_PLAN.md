@@ -2,6 +2,34 @@
 
 Generated: 2026-02-22
 
+## v2.5.3 Update - Test Fixes Needed (2026-03-09)
+
+### Known Test Failures: 49 tests
+
+**Status**: Needs refactoring
+
+**Issue**: The test file `test_commands_services_comprehensive.py` uses incorrect mock paths. Tests patch `cmd_modules.services.X` but the actual code imports things locally inside functions from `services.X`, `config.X`, etc.
+
+**Affected Tests**:
+
+- 44 failing tests in `test_commands_services_comprehensive.py`
+- 5 failing tests in `test_sanaketju.py`
+
+**Root Cause**:
+
+- Functions in `cmd_modules/services.py` import modules locally (e.g., `from config import get_api_key` inside functions)
+- Tests try to patch `cmd_modules.services.get_api_key` but the import isn't in that namespace
+
+**Solution Options**:
+
+1. **Fix test patches**: Change patches from `cmd_modules.services.X` to `config.X`, `services.Y`, etc.
+2. **Add module-level imports**: Add commonly-mocked imports at top of `cmd_modules/services.py` for test compatibility
+3. **Skip tests**: Mark failing tests with `@pytest.mark.skip` until fixed
+
+**Current Test Results**: 952 passed, 49 failed, 4 skipped
+
+---
+
 ## v2.4.92 Update - Nameday Scraping Challenge (2026-03-08)
 
 ### Hevonen and Historiallinen Namedays Scraping
@@ -106,7 +134,12 @@ All commands have been successfully moved from the monolithic `commands.py` to m
 
 The commands.py file is NOT actively used for command registration - all @command decorated functions in commands.py are duplicates of those in cmd_modules/ and are skipped due to the idempotent registration in the command registry.
 
-Tests: 740 passed, 26 failed, 4 skipped
+Tests: 952 passed, 49 failed, 4 skipped (2026-03-09)
+
+**Current Test Issues:**
+
+- 44 failing tests in `test_commands_services_comprehensive.py` - incorrect mock paths (patching `cmd_modules.services.X` but imports done locally)
+- 5 failing tests in `test_sanaketju.py` - game module mocking issues
 
 Note: Some legacy tests fail due to API changes (record_word, etc.) - these tests need updating to use the new cmd_modules/ API
 

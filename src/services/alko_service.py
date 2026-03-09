@@ -893,6 +893,45 @@ class AlkoService:
             "cache_file": str(self.cache_file),
         }
 
+    def find_cheapest_by_value(self, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Find the cheapest drinks by value (alcohol content per euro).
+
+        Args:
+            limit: Maximum number of results to return
+
+        Returns:
+            List of products sorted by best value (highest alcohol grams per euro)
+        """
+        if not self.products_cache:
+            return []
+
+        # Filter out non-alcoholic products (alcohol_grams = 0) and products without price
+        alcoholic_products = [
+            product
+            for product in self.products_cache
+            if product.get("alcohol_grams", 0) > 0
+            and product.get("price") is not None
+            and product.get("price") > 0
+        ]
+
+        # Calculate value ratio (alcohol grams per euro) for each product
+        products_with_value = []
+        for product in alcoholic_products:
+            alcohol_grams = product.get("alcohol_grams", 0)
+            price = product.get("price", 0)
+
+            if price > 0:
+                value_ratio = alcohol_grams / price
+                products_with_value.append({**product, "value_ratio": value_ratio})
+
+        # Sort by value ratio (highest first) and return top N
+        sorted_products = sorted(
+            products_with_value, key=lambda x: x["value_ratio"], reverse=True
+        )
+
+        return sorted_products[:limit]
+
 
 def create_alko_service() -> AlkoService:
     """

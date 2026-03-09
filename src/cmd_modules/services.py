@@ -1027,20 +1027,96 @@ def command_eurojackpot(context, bot_functions):
 
 @command(
     "alko",
-    description="Search Alko product information",
-    usage="!alko <drink name> [bottle size] or <product number>",
-    examples=["!alko karhu", "!alko lapin kulta", "!alko gambina 0.75", "!alko 319027"],
+    description="Search Alko product information or find cheapest by value",
+    usage="!alko <drink name> [bottle size] or <product number> or !alko halvin [limit]",
+    examples=[
+        "!alko karhu",
+        "!alko lapin kulta",
+        "!alko gambina 0.75",
+        "!alko 319027",
+        "!alko halvin",
+        "!alko halvin 3",
+    ],
     requires_args=True,
 )
 def alko_command(context: CommandContext, bot_functions):
-    """Search for drink information from Alko product database."""
+    """Search for drink information from Alko product database or find cheapest by value."""
     if not context.args_text:
-        return "Usage: !alko <drink name or product number>"
+        return "Usage: !alko <drink name or product number> or !alko halvin [limit]"
 
     query = context.args_text.strip()
     if not query:
-        return "Usage: !alko <drink name or product number>"
+        return "Usage: !alko <drink name or product number> or !alko halvin [limit]"
 
+    # Check for "halvin" command (Finnish for "cheapest")
+    if query.lower().startswith("halvin"):
+        # Parse limit parameter
+        parts = query.split()
+        limit = 5  # default limit
+
+        if len(parts) > 1:
+            try:
+                limit = int(parts[1])
+                if limit < 1 or limit > 10:
+                    return "🍺 Limit must be between 1 and 10"
+            except ValueError:
+                return "🍺 Invalid limit. Usage: !alko halvin [limit]"
+
+        # Get the Alko service from bot functions or create directly
+        get_alko_service = bot_functions.get("get_alko_service")
+        if not get_alko_service:
+            # Create service directly
+            from services.alko_service import AlkoService
+
+            alko_service = AlkoService()
+        else:
+            alko_service = get_alko_service()
+
+        try:
+            cheapest_products = alko_service.find_cheapest_by_value(limit)
+
+            if not cheapest_products:
+                return "🍺 No alcoholic products found in database"
+
+            # Format results
+            results = []
+            for i, product in enumerate(cheapest_products, 1):
+                name = product.get("name", "Unknown")
+                price = product.get("price", 0)
+                alcohol_grams = product.get("alcohol_grams", 0)
+                value_ratio = product.get("value_ratio", 0)
+
+                # Format bottle size
+                bottle_size_raw = product.get("bottle_size_raw")
+                if bottle_size_raw:
+                    size_info = f" {bottle_size_raw}"
+                else:
+                    bottle_size = product.get("bottle_size")
+                    size_info = f" {bottle_size} l" if bottle_size else ""
+
+                # Format alcohol content
+                alcohol_percent = product.get("alcohol_percent")
+                if alcohol_percent and alcohol_percent > 0:
+                    alcohol_info = f" {alcohol_percent}% ({alcohol_grams}g)"
+                else:
+                    alcohol_info = ""
+
+                # Format value ratio
+                results.append(
+                    f"{i}. {name}{size_info}{alcohol_info} - {price:.2f}€ "
+                    f"(arvo: {value_ratio:.2f}g/€)"
+                )
+
+            return "🍺 Halvimmat juomat arvoltaan:\n" + "\n".join(results)
+
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in alko halvin command: {e}")
+            return f"🍺 Error finding cheapest products: {str(e)}"
+
+    # Regular product search
     # Get the Alko service from bot functions
     get_alko_product = bot_functions.get("get_alko_product")
     if not get_alko_product:
