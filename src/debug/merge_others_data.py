@@ -2,22 +2,7 @@
 Merge scraped nameday data with existing nimipaivat_others.json
 Usage: python merge_others_data.py
 
-The scraped data has format:
-{
-  "2026-01-02": {
-    "swedish": [...],
-    "sami": [...],
-    "orthodox": [...]
-  }
-}
-
-The existing file has format:
-{
-  "hevonen": {"2026-01-02": [...]},
-  "historiallinen": {"2026-01-02": [...]}
-}
-
-This script converts and merges properly.
+Can also be used to just sort the existing file.
 """
 
 import json
@@ -45,54 +30,77 @@ def merge_data():
         print(f"Existing categories: {list(existing.keys())}")
     else:
         print("No existing file found, starting fresh")
+        return
 
-    # Load temp data
-    if not os.path.exists(temp_file):
-        print(f"ERROR: Temp file not found: {temp_file}")
-        sys.exit(1)
+    # Try to load temp data if it exists
+    temp_data = None
+    if os.path.exists(temp_file):
+        with open(temp_file, "r", encoding="utf-8") as f:
+            temp_data = json.load(f)
+        print(f"\nTemp data has {len(temp_data)} days")
+        print(
+            f"Temp data categories in first entry: {list(list(temp_data.values())[0].keys()) if temp_data else 'none'}"
+        )
 
-    with open(temp_file, "r", encoding="utf-8") as f:
-        temp_data = json.load(f)
+        # Convert temp data format to match existing format
+        # Temp: {"2026-01-02": {"swedish": [...], "sami": [...], "orthodox": [...]}}
+        # Target: {"ruotsi": {"2026-01-02": [...]}, "saame": {"2026-01-02": [...]}, "ortodoksi": {"2026-01-02": [...]}}
 
-    print(f"\nTemp data has {len(temp_data)} days")
-    print(
-        f"Temp data categories in first entry: {list(list(temp_data.values())[0].keys()) if temp_data else 'none'}"
-    )
+        converted = {
+            "ruotsi": {},
+            "saame": {},
+            "ortodoksi": {},
+        }  # Swedish # Sami # Orthodox
 
-    # Convert temp data format to match existing format
-    # Temp: {"2026-01-02": {"swedish": [...], "sami": [...], "orthodox": [...]}}
-    # Target: {"ruotsi": {"2026-01-02": [...]}, "saame": {"2026-01-02": [...]}, "ortod": {"2026-01-02": [...]}}
+        for date_key, categories in temp_data.items():
+            if "swedish" in categories and categories["swedish"]:
+                converted["ruotsi"][date_key] = categories["swedish"]
+            if "sami" in categories and categories["sami"]:
+                converted["saame"][date_key] = categories["sami"]
+            if "orthodox" in categories and categories["orthodox"]:
+                converted["ortodoksi"][date_key] = categories["orthodox"]
 
-    converted = {"ruotsi": {}, "saame": {}, "ortod": {}}  # Swedish  # Sami  # Orthodox
+        print(f"\nConverted data:")
+        for cat, days in converted.items():
+            print(f"  {cat}: {len(days)} days")
 
-    for date_key, categories in temp_data.items():
-        if "swedish" in categories and categories["swedish"]:
-            converted["ruotsi"][date_key] = categories["swedish"]
-        if "sami" in categories and categories["sami"]:
-            converted["saame"][date_key] = categories["sami"]
-        if "orthodox" in categories and categories["orthodox"]:
-            converted["ortod"][date_key] = categories["orthodox"]
+        # Merge with existing - also handle renaming ortod to ortodoksi
+        # First, rename ortod to ortodoksi if it exists
+        if "ortod" in existing:
+            existing["ortodoksi"] = existing.pop("ortod")
 
-    print(f"\nConverted data:")
-    for cat, days in converted.items():
-        print(f"  {cat}: {len(days)} days")
+        for category, days in converted.items():
+            if category not in existing:
+                existing[category] = {}
+            for date_key, names in days.items():
+                existing[category][date_key] = names
+    else:
+        # Just sort existing data - rename ortod to ortodoksi if needed
+        if "ortod" in existing:
+            existing["ortodoksi"] = existing.pop("ortod")
+        print("\nNo temp file - just sorting existing data")
 
-    # Merge with existing
-    for category, days in converted.items():
-        if category not in existing:
-            existing[category] = {}
-        for date_key, names in days.items():
-            existing[category][date_key] = names
+    # Save - sort categories in specific order
+    category_order = ["ruotsi", "saame", "ortodoksi", "historiallinen", "hevonen"]
 
-    # Save
+    # Reorder existing dict by category_order
+    sorted_existing = {}
+    for cat in category_order:
+        if cat in existing:
+            sorted_existing[cat] = existing[cat]
+    # Add any remaining categories not in the order list
+    for cat in existing:
+        if cat not in sorted_existing:
+            sorted_existing[cat] = existing[cat]
+
     with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(existing, f, ensure_ascii=False, indent=2)
+        json.dump(sorted_existing, f, ensure_ascii=False, indent=2)
 
     print(f"\nMerged data saved to: {output_file}")
-    print(f"Final categories: {list(existing.keys())}")
+    print(f"Final categories: {list(sorted_existing.keys())}")
 
     # Summary
-    for cat, days in existing.items():
+    for cat, days in sorted_existing.items():
         print(f"  {cat}: {len(days)} days")
 
 
