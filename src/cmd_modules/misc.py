@@ -305,18 +305,24 @@ def np_command(context: CommandContext, bot_functions):
                     if cats and cats != [": -"]:
                         parts.append(f"Kissat: {', '.join(cats)}")
 
-                    # Add other name days (Swedish, Sami, Orthodox)
+                    # Add other name days (Swedish, Sami, Orthodox, Hevonen, Historiallinen)
                     for others_date_str, others_entry in others_data.items():
                         if others_date_str.endswith(month_day_key):
                             swedish = others_entry.get("swedish", [])
                             sami = others_entry.get("sami", [])
                             orthodox = others_entry.get("orthodox", [])
+                            hevonen = others_entry.get("hevonen", [])
+                            historiallinen = others_entry.get("historiallinen", [])
                             if swedish:
                                 parts.append(f"Ruotsiksi: {', '.join(swedish)}")
                             if sami:
                                 parts.append(f"Saameksi: {', '.join(sami)}")
                             if orthodox:
                                 parts.append(f"Ortodoksit: {', '.join(orthodox)}")
+                            if hevonen:
+                                parts.append(f"Hevoset: {', '.join(hevonen)}")
+                            if historiallinen:
+                                parts.append(f"Historialliset: {', '.join(historiallinen)}")
                             break
 
                     if parts:
