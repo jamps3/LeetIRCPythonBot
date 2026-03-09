@@ -149,13 +149,19 @@ def command_leaderboard(context, bot_functions):
 
     # Get trackers from bot_functions or use lazy getters
     if board_type == "words":
-        words = bot_functions.get("general_words") or _get_general_words()
+        words = _get_from_bot_functions(
+            bot_functions, "general_words", _get_general_words
+        )
+        dm = _get_from_bot_functions(bot_functions, "data_manager", _get_data_manager)
     else:
         # Default to drink tracker
-        drink = bot_functions.get("drink_tracker") or _get_drink_tracker()
+        drink = _get_from_bot_functions(
+            bot_functions, "drink_tracker", _get_drink_tracker
+        )
+        dm = _get_from_bot_functions(bot_functions, "data_manager", _get_data_manager)
 
     # Get all servers
-    servers = data_manager.get_all_servers()
+    servers = dm.get_all_servers()
 
     if board_type == "words":
         # Word leaderboard
