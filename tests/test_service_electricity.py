@@ -163,6 +163,69 @@ class TestElectricityService(unittest.TestCase):
             f"Closing bracket should come after opening bracket in: {bar_graph}",
         )
 
+    def test_bar_graph_has_exactly_one_bracket_for_each_hour(self):
+        """Test that for every hour, exactly one pair of brackets appears when that hour is current."""
+        # Create test data with prices for all hours
+        interval_prices = {}
+        for hour in range(24):
+            for quarter in range(1, 5):
+                # Create a price that increases with hour to make bars different heights
+                price_eur_mwh = 10.0 + (hour * 2.0)  # 10 to 58 EUR/MWh
+                interval_prices[(hour, quarter)] = price_eur_mwh
+
+        # Test each hour as the "current" hour by mocking datetime.now
+        import datetime as dt_module
+        from unittest.mock import patch
+
+        for target_hour in range(24):
+            with self.subTest(current_hour=target_hour):
+                # Mock datetime.now to return the target hour
+                def mock_now(tz=None):
+                    return datetime(
+                        2026, 3, 9, target_hour, 30, 0, tzinfo=self.service.timezone
+                    )
+
+                with patch.object(dt_module, "datetime") as mock_datetime:
+                    mock_datetime.now = mock_now
+
+                    # Generate the bar graph
+                    bar_graph = self.service._create_price_bar_graph(
+                        interval_prices, avg_price_snt=20.0
+                    )
+
+                    # Count brackets
+                    opening_brackets = bar_graph.count("[")
+                    closing_brackets = bar_graph.count("]")
+
+                    # Verify exactly one pair of brackets (for current hour only)
+                    self.assertEqual(
+                        opening_brackets,
+                        1,
+                        f"Hour {target_hour}: Expected exactly 1 opening bracket, got {opening_brackets}. Bar graph: {bar_graph}",
+                    )
+                    self.assertEqual(
+                        closing_brackets,
+                        1,
+                        f"Hour {target_hour}: Expected exactly 1 closing bracket, got {closing_brackets}. Bar graph: {bar_graph}",
+                    )
+
+                    # Verify the brackets are properly paired (opening before closing)
+                    self.assertGreater(
+                        bar_graph.index("]"),
+                        bar_graph.index("["),
+                        f"Hour {target_hour}: Closing bracket should come after opening bracket in: {bar_graph}",
+                    )
+
+                    # Verify the bracket is at the correct position (target_hour * 4 characters per hour)
+                    # Each hour is represented by 4 characters (one for each quarter) in the bar graph
+                    bracket_position = bar_graph.index("[")
+                    expected_position = target_hour * 4
+                    self.assertEqual(
+                        bracket_position,
+                        expected_position,
+                        f"Hour {target_hour}: Bracket should be at position {expected_position}, got {bracket_position}. Bar graph: {bar_graph}",
+                    )
+
 
 class TestElectricityServiceIntegration(unittest.TestCase):
     """
