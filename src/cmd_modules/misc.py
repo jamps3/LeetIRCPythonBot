@@ -335,13 +335,17 @@ def np_command(context: CommandContext, bot_functions):
                         parts.append(f"Viralliset: {', '.join(official)}")
 
                     if parts:
-                        # Use single line format, but add newlines if too long for IRC
+                        # Use pipe separators on single line, split to two IRC messages if too long
                         single_line = f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: | {' | '.join(parts)}"
-                        # IRC message limit is typically ~400 chars, add newlines if needed
+                        # IRC message limit is ~400 chars, split into two messages if needed
                         if len(single_line) > 400:
+                            # Split parts roughly in half
+                            mid = len(parts) // 2
+                            part1 = parts[:mid]
+                            part2 = parts[mid:]
                             return (
-                                f"Nimipäivät tänään {today_day}.{today_month}.{now.year}:\n"
-                                + "\n".join(parts)
+                                f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: | {' | '.join(part1)}\n"
+                                f"| {' | '.join(part2)}"
                             )
                         return single_line
                     else:
