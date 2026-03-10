@@ -330,6 +330,10 @@ def np_command(context: CommandContext, bot_functions):
                                         )
                                     break
 
+                    # Ensure we always have at least the official names
+                    if not parts and official:
+                        parts.append(f"Viralliset: {', '.join(official)}")
+
                     if parts:
                         # Use single line format, but add newlines if too long for IRC
                         single_line = f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: | {' | '.join(parts)}"
