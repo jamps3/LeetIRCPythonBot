@@ -86,11 +86,9 @@ def scrape_category_namedays(playwright, year, category_filter):
             date_str = f"{day}.{month}"
 
             # Clear the input
-            page.evaluate(
-                """
+            page.evaluate("""
                 document.getElementById('namedays-date-input-widget_1772634673724').value = '';
-            """
-            )
+            """)
 
             # Fill the date
             date_input.fill(date_str)
@@ -101,48 +99,69 @@ def scrape_category_namedays(playwright, year, category_filter):
             # Look for the category section (Hevonen or Historiallinen)
             category_names = []
 
-            # Find all section titles
-            section_titles = page.query_selector_all("h3.namedays-section-title")
+            # Map category to CSS class suffix
+            category_class_map = {
+                "Hevonen": "namedays-type-hevonen",
+                "Historiallinen": "namedays-type-historiallinen",
+            }
 
-            for title in section_titles:
-                title_text = title.inner_text().strip()
+            class_suffix = category_class_map.get(
+                category_filter, f"namedays-type-{category_filter.lower()}"
+            )
 
-                # Check if this is the category we're looking for
-                if category_filter.lower() in title_text.lower():
-                    # Find the parent or sibling with result cards
-                    # Look for result cards after this title
-                    parent = title.evaluate_handle("el => el.parentElement")
-                    if parent:
-                        # Look for result-name divs
-                        result_names = parent.query_selector_all(
-                            ".namedays-result-name"
-                        )
-                        for rn in result_names:
-                            name = rn.inner_text().strip()
+            # Method 1: Look for result cards with the exact type class
+            result_cards = page.query_selector_all(f".namedays-result-card")
+            for card in result_cards:
+                # Check if this card has the correct type class
+                type_div = card.query_selector(".namedays-result-type")
+                if type_div:
+                    # Check if the type div has the class we want
+                    if class_suffix in type_div.get_attribute("class"):
+                        name_div = card.query_selector(".namedays-result-name")
+                        if name_div:
+                            name = name_div.inner_text().strip()
                             if name:
                                 category_names.append(name)
 
-            # Alternative: look for all result cards of the specific type
+            # Method 2: If no cards found with class, try section title approach
             if not category_names:
-                result_cards = page.query_selector_all(".namedays-result-card")
-                for card in result_cards:
-                    # Check if this card is of the right type
-                    type_div = card.query_selector(".namedays-result-type")
-                    if type_div:
-                        type_text = type_div.inner_text().strip()
-                        if category_filter.lower() in type_text.lower():
-                            name_div = card.query_selector(".namedays-result-name")
-                            if name_div:
-                                name = name_div.inner_text().strip()
-                                if name:
-                                    category_names.append(name)
+                section_titles = page.query_selector_all("h3.namedays-section-title")
+
+                for title in section_titles:
+                    title_text = title.inner_text().strip()
+
+                    # Exact match for title
+                    if title_text.lower() == category_filter.lower():
+                        # Get all siblings after this title until the next title or section
+                        parent = title.evaluate_handle("el => el.parentElement")
+                        if parent:
+                            siblings = page.evaluate(
+                                """
+                                (titleEl) => {
+                                    const result = [];
+                                    let current = titleEl.nextElementSibling;
+                                    while (current) {
+                                        if (current.tagName === 'H3') break;
+                                        const names = current.querySelectorAll('.namedays-result-name');
+                                        names.forEach(el => result.push(el.innerText.trim()));
+                                        current = current.nextElementSibling;
+                                    }
+                                    return result;
+                                }
+                                """,
+                                title,
+                            )
+                            category_names.extend(siblings)
+                        break
 
             # Remove duplicates
             category_names = list(set(category_names))
 
             if category_names:
-                namedays[current.isoformat()] = category_names
-                # print(f"{current.isoformat()}: {category_names}")
+                # Save as month-day only (no year needed - namedays repeat yearly)
+                month_day = f"{current.month:02d}-{current.day:02d}"
+                namedays[month_day] = category_names
+                print(f"{month_day} ({category_filter}): {category_names}")
 
         except Exception as e:
             print(f"Exception for {current.isoformat()}: {e}")
@@ -154,23 +173,53 @@ def scrape_category_namedays(playwright, year, category_filter):
 
 
 if __name__ == "__main__":
+    import sys
+
     year = date.today().year
     print(f"Starting scraping for {year}...")
     print(f"Base URL: {BASE_URL}")
+
+    # Parse command line arguments
+    category = None
+    if len(sys.argv) > 1:
+        category = sys.argv[1]
+        # Validate category
+        valid_categories = ["hevonen", "historiallinen", "both"]
+        if category.lower() not in valid_categories:
+            print(f"Error: Invalid category '{category}'")
+            print(f"Usage: python {sys.argv[0]} [hevonen|historiallinen|both]")
+            print(f"       Without arguments, scrapes both categories")
+            sys.exit(1)
+
+    # Map category name to display name
+    category_map = {"hevonen": "Hevonen", "historiallinen": "Historiallinen"}
 
     # Ensure data directory exists
     os.makedirs(data_dir, exist_ok=True)
 
     with sync_playwright() as p:
-        # Scrape horse names
-        print("\n=== Scraping horse (hevonen) namedays ===")
-        horse_data = scrape_category_namedays(p, year, "Hevonen")
-        print(f"Horse names: {len(horse_data)} days found")
+        horse_data = {}
+        historical_data = {}
 
-        # Scrape historical names
-        print("\n=== Scraping historical (historiallinen) namedays ===")
-        historical_data = scrape_category_namedays(p, year, "Historiallinen")
-        print(f"Historical names: {len(historical_data)} days found")
+        # Scrape horse names if requested or if no category specified (default is both)
+        if (
+            category is None
+            or category.lower() == "both"
+            or category.lower() == "hevonen"
+        ):
+            print("\n=== Scraping horse (hevonen) namedays ===")
+            horse_data = scrape_category_namedays(p, year, "Hevonen")
+            print(f"Horse names: {len(horse_data)} days found")
+
+        # Scrape historical names if requested or if no category specified (default is both)
+        if (
+            category is None
+            or category.lower() == "both"
+            or category.lower() == "historiallinen"
+        ):
+            print("\n=== Scraping historical (historiallinen) namedays ===")
+            historical_data = scrape_category_namedays(p, year, "Historiallinen")
+            print(f"Historical names: {len(historical_data)} days found")
 
     # Combine into one structure
     combined_data = {

@@ -16,7 +16,7 @@ if os.path.basename(project_root) == "src":
     project_root = os.path.dirname(project_root)
 data_dir = os.path.join(project_root, "data")
 
-temp_file = os.path.join(data_dir, "nimipaivat_others_temp.json")
+temp_file = os.path.join(data_dir, "nimipaivat_hevonen_historiallinen_temp.json")
 output_file = os.path.join(data_dir, "nimipaivat_others.json")
 
 
@@ -43,8 +43,8 @@ def merge_data():
         )
 
         # Convert temp data format to match existing format
-        # Temp: {"2026-01-02": {"swedish": [...], "sami": [...], "orthodox": [...]}}
-        # Target: {"ruotsi": {"2026-01-02": [...]}, "saame": {"2026-01-02": [...]}, "ortodoksi": {"2026-01-02": [...]}}
+        # Temp: {"01-02": {"swedish": [...], "sami": [...], "orthodox": [...]}}
+        # Target: {"ruotsi": {"01-02": [...]}, "saame": {"01-02": [...]}, "ortodoksi": {"01-02": [...]}}
 
         converted = {
             "ruotsi": {},
@@ -59,6 +59,23 @@ def merge_data():
                 converted["saame"][date_key] = categories["sami"]
             if "orthodox" in categories and categories["orthodox"]:
                 converted["ortodoksi"][date_key] = categories["orthodox"]
+
+        # Also check for hevonen-historiallinen temp file
+        hevonen_file = os.path.join(
+            data_dir, "nimipaivat_hevonen_historiallinen_temp.json"
+        )
+        if os.path.exists(hevonen_file):
+            with open(hevonen_file, "r", encoding="utf-8") as f:
+                hevonen_data = json.load(f)
+            print(f"\nFound hevonen-historiallinen temp file!")
+            if "hevonen" in hevonen_data:
+                converted["hevonen"] = hevonen_data["hevonen"]
+                print(f"  Added hevonen: {len(hevonen_data['hevonen'])} days")
+            if "historiallinen" in hevonen_data:
+                converted["historiallinen"] = hevonen_data["historiallinen"]
+                print(
+                    f"  Added historiallinen: {len(hevonen_data['historiallinen'])} days"
+                )
 
         print(f"\nConverted data:")
         for cat, days in converted.items():

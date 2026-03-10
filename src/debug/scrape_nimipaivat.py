@@ -44,7 +44,7 @@ def scrape_namedays(year):
                 unofficial = [s.get_text(strip=True) for s in strongs]
                 print(f"{current.isoformat()}: Epäviralliset nimipäivät: {unofficial}")
 
-            namedays[current.isoformat()] = {
+            namedays[f"{current.month:02d}-{current.day:02d}"] = {
                 "official": official,
                 "unofficial": unofficial,
             }

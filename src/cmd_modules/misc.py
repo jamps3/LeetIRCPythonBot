@@ -283,33 +283,33 @@ def np_command(context: CommandContext, bot_functions):
         except Exception:
             pass  # Silently skip if file can't be loaded
 
-    # Handle new dict format: {"2025-01-01": {"official": [...], ...}}
+    # Handle new dict format: {"03-10": {"official": [...], ...}}
     if isinstance(nimipaivat, dict):
-        # Build date key for today (search by month-day ignoring year)
-        month_day_key = f"-{today_month:02d}-{today_day:02d}"
+        # Build date key for today (now just "MM-DD")
+        month_day_key = f"{today_month:02d}-{today_day:02d}"
 
         if not context.args:
-            # Show today's name days - search by month-day
-            for date_str, entry in nimipaivat.items():
-                if date_str.endswith(month_day_key):
-                    # Build detailed response with all name categories
-                    official = entry.get("official", [])
-                    unofficial = entry.get("unofficial", [])
-                    dogs = entry.get("dogs", [])
-                    cats = entry.get("cats", [])
+            # Show today's name days - direct lookup
+            if month_day_key in nimipaivat:
+                entry = nimipaivat[month_day_key]
+                # Build detailed response with all name categories
+                official = entry.get("official", [])
+                unofficial = entry.get("unofficial", [])
+                dogs = entry.get("dogs", [])
+                cats = entry.get("cats", [])
 
-                    parts = []
-                    if official:
-                        parts.append(f"Viralliset: {', '.join(official)}")
-                    if unofficial:
-                        parts.append(f"Epäviralliset: {', '.join(unofficial)}")
-                    if dogs and dogs != [": -"]:
-                        parts.append(f"Koirat: {', '.join(dogs)}")
-                    if cats and cats != [": -"]:
-                        parts.append(f"Kissat: {', '.join(cats)}")
+                parts = []
+                if official:
+                    parts.append(f"Viralliset: {', '.join(official)}")
+                if unofficial:
+                    parts.append(f"Epäviralliset: {', '.join(unofficial)}")
+                if dogs and dogs != [": -"]:
+                    parts.append(f"Koirat: {', '.join(dogs)}")
+                if cats and cats != [": -"]:
+                    parts.append(f"Kissat: {', '.join(cats)}")
 
                     # Add other name days (Swedish, Sami, Orthodox, Hevonen, Historiallinen)
-                    # Data structure: {"ruotsi": {"2026-01-02": ["Gerhard"]}, "saame": {...}, ...}
+                    # Data structure: {"ruotsi": {"03-10": ["Gerhard"]}, "saame": {...}, ...}
                     month_day_date = f"{today_month:02d}-{today_day:02d}"
 
                     # Map category keys to display names
@@ -324,14 +324,11 @@ def np_command(context: CommandContext, bot_functions):
                     for category, display_name in category_map.items():
                         if category in others_data:
                             category_dates = others_data[category]
-                            # Find matching date (ignore year)
-                            for other_date_str, names in category_dates.items():
-                                if other_date_str.endswith(f"-{month_day_date}"):
-                                    if names and names != [": -"]:
-                                        parts.append(
-                                            f"{display_name}: {', '.join(names)}"
-                                        )
-                                    break
+                            # Find matching date (now keys are just "MM-DD")
+                            if month_day_date in category_dates:
+                                names = category_dates[month_day_date]
+                                if names and names != [": -"]:
+                                    parts.append(f"{display_name}: {', '.join(names)}")
 
                     # Ensure we always have at least the official names
                     if not parts and official:
@@ -353,7 +350,8 @@ def np_command(context: CommandContext, bot_functions):
                         return single_line
                     else:
                         return f"Tänään ({today_day}.{today_month}) on nimipäivä: {', '.join(official)}"
-            return "No name day found for today"
+            else:
+                return "No name day found for today"
 
         arg = context.args[0].lower()
 

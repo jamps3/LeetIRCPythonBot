@@ -90,13 +90,11 @@ def scrape_category(playwright, year, category_filter, base_url):
             date_str = f"{day}.{month}"
 
             # Clear and fill the date input
-            page.evaluate(
-                """
+            page.evaluate("""
                 const inp = document.getElementById('namedays-date-input-widget_1772634673724') 
                           || document.querySelector('input.namedays-search-input');
                 if (inp) inp.value = '';
-            """
-            )
+            """)
 
             date_input.fill(date_str)
             page.wait_for_timeout(500)
@@ -138,8 +136,9 @@ def scrape_category(playwright, year, category_filter, base_url):
             category_names = list(set(category_names))
 
             if category_names:
-                date_key = current.strftime("%Y-%m-%d")
-                namedays[date_key] = category_names
+                # Save as month-day only (no year needed - namedays repeat yearly)
+                month_day = f"{current.month:02d}-{current.day:02d}"
+                namedays[month_day] = category_names
 
         except Exception as e:
             print(f"Error at {current.strftime('%Y-%m-%d')}: {e}")

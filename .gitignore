@@ -179,8 +179,6 @@ data/leet_detections.json
 data/leet.log*
 data/leet_winners.json
 data/ekavika.json
-data/nimipaivat.json
-data/nimipaivat_others.json
 data/*_words.json
 data/eurojackpot.json
 data/drink_tracking.json
