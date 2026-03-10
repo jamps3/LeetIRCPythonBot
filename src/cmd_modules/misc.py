@@ -312,7 +312,7 @@ def np_command(context: CommandContext, bot_functions):
                     # Map category keys to display names
                     category_map = {
                         "ruotsi": "Ruotsiksi",
-                        "saameksi": "Saameksi",
+                        "saame": "Saameksi",
                         "ortodoksi": "Ortodoksit",
                         "hevonen": "Hevoset",
                         "historiallinen": "Historialliset",
@@ -324,7 +324,7 @@ def np_command(context: CommandContext, bot_functions):
                             # Find matching date (ignore year)
                             for date_str, names in category_dates.items():
                                 if date_str.endswith(f"-{month_day_date}"):
-                                    if names and names != [": -("]:
+                                    if names and names != [": -"]:
                                         parts.append(
                                             f"{display_name}: {', '.join(names)}"
                                         )
