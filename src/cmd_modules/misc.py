@@ -331,7 +331,11 @@ def np_command(context: CommandContext, bot_functions):
                                     break
 
                     if parts:
-                        return f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: | {' | '.join(parts)}"
+                        # Use newlines for IRC splitting - command loader will handle wrapping
+                        return (
+                            f"Nimipäivät tänään {today_day}.{today_month}.{now.year}:\n"
+                            + "\n".join(parts)
+                        )
                     else:
                         return f"Tänään ({today_day}.{today_month}) on nimipäivä: {', '.join(official)}"
             return "No name day found for today"
