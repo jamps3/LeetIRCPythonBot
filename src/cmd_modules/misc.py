@@ -306,26 +306,29 @@ def np_command(context: CommandContext, bot_functions):
                         parts.append(f"Kissat: {', '.join(cats)}")
 
                     # Add other name days (Swedish, Sami, Orthodox, Hevonen, Historiallinen)
-                    for others_date_str, others_entry in others_data.items():
-                        if others_date_str.endswith(month_day_key):
-                            swedish = others_entry.get("swedish", [])
-                            sami = others_entry.get("sami", [])
-                            orthodox = others_entry.get("orthodox", [])
-                            hevonen = others_entry.get("hevonen", [])
-                            historiallinen = others_entry.get("historiallinen", [])
-                            if swedish:
-                                parts.append(f"Ruotsiksi: {', '.join(swedish)}")
-                            if sami:
-                                parts.append(f"Saameksi: {', '.join(sami)}")
-                            if orthodox:
-                                parts.append(f"Ortodoksit: {', '.join(orthodox)}")
-                            if hevonen:
-                                parts.append(f"Hevoset: {', '.join(hevonen)}")
-                            if historiallinen:
-                                parts.append(
-                                    f"Historialliset: {', '.join(historiallinen)}"
-                                )
-                            break
+                    # Data structure: {"ruotsi": {"2026-01-02": ["Gerhard"]}, "saameksi": {...}, ...}
+                    month_day_date = f"{today_month:02d}-{today_day:02d}"
+
+                    # Map category keys to display names
+                    category_map = {
+                        "ruotsi": "Ruotsiksi",
+                        "saameksi": "Saameksi",
+                        "ortodoksi": "Ortodoksit",
+                        "hevonen": "Hevoset",
+                        "historiallinen": "Historialliset",
+                    }
+
+                    for category, display_name in category_map.items():
+                        if category in others_data:
+                            category_dates = others_data[category]
+                            # Find matching date (ignore year)
+                            for date_str, names in category_dates.items():
+                                if date_str.endswith(f"-{month_day_date}"):
+                                    if names and names != [": -("]:
+                                        parts.append(
+                                            f"{display_name}: {', '.join(names)}"
+                                        )
+                                    break
 
                     if parts:
                         return f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: | {' | '.join(parts)}"
