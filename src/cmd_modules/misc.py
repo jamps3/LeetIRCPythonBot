@@ -322,7 +322,9 @@ def np_command(context: CommandContext, bot_functions):
                             if hevonen:
                                 parts.append(f"Hevoset: {', '.join(hevonen)}")
                             if historiallinen:
-                                parts.append(f"Historialliset: {', '.join(historiallinen)}")
+                                parts.append(
+                                    f"Historialliset: {', '.join(historiallinen)}"
+                                )
                             break
 
                     if parts:

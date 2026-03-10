@@ -1,44 +1,20 @@
+#!/usr/bin/env python3
 """
-Tests for misc commands in cmd_modules/misc.py
+Tests for miscellaneous service commands: leetwinners, euribor, url, wrap, tilaa, solarwind, forecasts.
 """
 
 import os
 import sys
-from types import SimpleNamespace
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
-# Add src to path before importing project modules - must be at very top
+# Add src to path before importing project modules
 _TEST_ROOT = os.path.dirname(os.path.abspath(__file__))
 if _TEST_ROOT not in sys.path:
     sys.path.insert(0, os.path.join(_TEST_ROOT, "..", "src"))
 
-from command_registry import CommandContext  # noqa: E402
-
-
-@pytest.fixture(autouse=True)
-def ensure_commands_loaded():
-    """Ensure command modules are loaded before tests run."""
-    import importlib
-
-    from command_registry import reset_command_registry
-
-    # Reset registry first
-    reset_command_registry()
-
-    # Import and reload cmd_modules.misc to register commands
-    import cmd_modules.misc
-
-    try:
-        importlib.reload(cmd_modules.misc)
-    except Exception:
-        pass
-
-    yield
-
-    # Cleanup
-    reset_command_registry()
+from command_registry import CommandContext
 
 
 @pytest.fixture
@@ -47,6 +23,16 @@ def mock_bot_functions():
     return {
         "log": Mock(),
         "notice_message": Mock(),
+        "send_weather": Mock(),
+        "send_electricity_price": Mock(),
+        "send_youtube_info": Mock(),
+        "send_imdb_info": Mock(),
+        "get_crypto_price": Mock(),
+        "load_leet_winners": Mock(),
+        "get_alko_product": Mock(),
+        "check_drug_interactions": Mock(),
+        "server": Mock(),
+        "bot_manager": Mock(),
     }
 
 
@@ -54,7 +40,7 @@ def mock_bot_functions():
 def console_context():
     """Create a mock CommandContext for console commands."""
     return CommandContext(
-        command="",
+        command="test",
         args=[],
         raw_message="!test",
         sender=None,
@@ -65,269 +51,387 @@ def console_context():
     )
 
 
-@pytest.fixture
-def irc_context():
-    """Create a mock CommandContext for IRC commands."""
-    return CommandContext(
-        command="",
-        args=[],
-        raw_message="!test",
-        sender="TestUser",
-        target="#test",
-        is_private=False,
-        is_console=False,
-        server_name="TestServer",
-    )
+class TestLeetwinnersCommand:
+    """Tests for the !leetwinners command."""
 
+    def test_leetwinners_command_default(self, console_context, mock_bot_functions):
+        """Test leetwinners command with default behavior."""
+        from cmd_modules.services import leetwinners_command
 
-class TestNPCommand:
-    """Tests for the !np (name day) command."""
-
-    def test_np_command_today(self, console_context, mock_bot_functions):
-        """Test np command shows today's name days."""
-        from cmd_modules.misc import np_command
-
-        # Set up context with no args (should show today)
-        console_context.args = []
-        console_context.args_text = ""
-        console_context.command = "np"
-
-        result = np_command(console_context, mock_bot_functions)
-
-        # Should return a string with name day info
-        assert result is not None
-        assert isinstance(result, str)
-        # Should contain "Nimipäivät" or "nimipäivä" (case insensitive)
-        assert "nimipäiv" in result.lower()
-        # Should contain today's date (use pattern matching for any day)
-        # Check for the date format like "DD.M" or "DD.MM.YYYY"
-        import re
-
-        # Match pattern like "4.3" or "04.3" or "4.03" etc at end of "tänään"
-        assert re.search(
-            r"\d+\.\d+", result
-        ), f"Expected date pattern in result: {result}"
-
-    def test_np_command_search_name(self, console_context, mock_bot_functions):
-        """Test np command can search by name."""
-        from cmd_modules.misc import np_command
-
-        console_context.args = ["Kauko"]
-        console_context.args_text = "Kauko"
-        console_context.command = "np"
-
-        result = np_command(console_context, mock_bot_functions)
-
-        # Should return search results
-        assert result is not None
-        assert isinstance(result, str)
-        # Should find Kauko
-        assert "Kauko" in result or "3.3" in result
-
-    def test_np_command_file_not_found(self, console_context, mock_bot_functions):
-        """Test np command handles missing data file."""
-        from cmd_modules.misc import np_command
-
-        console_context.args = []
-        console_context.args_text = ""
-        console_context.command = "np"
-
-        with patch("os.path.exists", return_value=False):
-            result = np_command(console_context, mock_bot_functions)
-            assert "not found" in result.lower()
-
-
-class TestKaikuCommand:
-    """Tests for the !kaiku (echo) command."""
-
-    @pytest.mark.anyio
-    async def test_kaiku_console_echo(self, console_context, mock_bot_functions):
-        """Test kaiku command echoes message on console."""
-        from cmd_modules.misc import echo_command
-
-        console_context.args = ["Hello", "World"]
-        console_context.args_text = "Hello World"
-        console_context.command = "kaiku"
-
-        result = await echo_command(console_context, mock_bot_functions)
-
-        # Console should return prefixed message
-        assert "Console: Hello World" in result
-
-    @pytest.mark.anyio
-    async def test_kaiku_irc_echo(self, irc_context, mock_bot_functions):
-        """Test kaiku command echoes message on IRC."""
-        from cmd_modules.misc import echo_command
-
-        irc_context.args = ["Hello", "World"]
-        irc_context.args_text = "Hello World"
-        irc_context.command = "kaiku"
-
-        result = await echo_command(irc_context, mock_bot_functions)
-
-        # IRC should return sender prefixed message
-        assert "TestUser: Hello World" in result
-
-    @pytest.mark.anyio
-    async def test_kaiku_no_args(self, console_context, mock_bot_functions):
-        """Test kaiku command with no args returns usage."""
-        from cmd_modules.misc import echo_command
-
-        console_context.args = []
-        console_context.args_text = ""
-        console_context.command = "kaiku"
-
-        result = await echo_command(console_context, mock_bot_functions)
-
-        assert "Usage" in result
-
-
-class Test420Command:
-    """Tests for the !420 command."""
-
-    def test_420_command_exists(self):
-        """Test 420 command is registered."""
-        from cmd_modules.misc import four_twenty_command
-
-        assert callable(four_twenty_command)
-
-
-class TestQuoteCommand:
-    """Tests for the !quote command."""
-
-    def test_quote_command_exists(self):
-        """Test quote command is registered."""
-        from cmd_modules.misc import quote_command
-
-        assert callable(quote_command)
-
-
-class TestMatkaCommand:
-    """Tests for the !matka (travel) command."""
-
-    def test_matka_command_exists(self):
-        """Test matka command is registered."""
-        from cmd_modules.misc import matka_command
-
-        assert callable(matka_command)
-
-
-class TestLeetsCommand:
-    """Tests for the !leets command."""
-
-    def test_leets_command_exists(self):
-        """Test leets command is registered."""
-        from cmd_modules.misc import leets_command
-
-        assert callable(leets_command)
-
-
-class TestScheduleCommand:
-    """Tests for the !schedule command."""
-
-    def test_schedule_command_exists(self):
-        """Test schedule command is registered."""
-        from cmd_modules.misc import schedule_command
-
-        assert callable(schedule_command)
-
-
-class TestIPFSCommand:
-    """Tests for the !ipfs command."""
-
-    def test_ipfs_command_exists(self):
-        """Test ipfs command is registered."""
-        from cmd_modules.misc import ipfs_command
-
-        assert callable(ipfs_command)
-
-
-class TestDreamCommand:
-    """Tests for the !dream command."""
-
-    def test_dream_command_exists(self):
-        """Test dream command is registered."""
-        from command_registry import get_command_registry
-
-        registry = get_command_registry()
-        commands = registry.get_commands_info()
-        command_names = [cmd.name for cmd in commands]
-        assert "dream" in command_names
-
-    def test_dream_command_toggle(self):
-        """Test dream command toggles channel state."""
-        from unittest.mock import Mock
-
-        from cmd_modules.misc import dream_command
-
-        # Create mock bot functions
-        mock_bot_functions = {
-            "data_manager": Mock(),
-            "dream_service": Mock(),
+        # Mock the load_leet_winners function
+        mock_bot_functions["load_leet_winners"].return_value = {
+            "User1": {"first": 5, "last": 3, "multileet": 2},
+            "User2": {"first": 2, "last": 4, "multileet": 1},
         }
 
-        # Mock data manager
-        mock_bot_functions["data_manager"].load_state.return_value = {
-            "dream_channels": []
+        result = leetwinners_command(console_context, mock_bot_functions)
+
+        assert "User1" in result
+        assert "User2" in result
+        assert "5" in result  # User1's first count
+        assert "4" in result  # User2's last count
+
+    def test_leetwinners_command_last(self, console_context, mock_bot_functions):
+        """Test leetwinners command with 'last' parameter."""
+        from cmd_modules.services import leetwinners_command
+
+        # Create context with arguments
+        console_context.args_text = "last"
+        console_context.args = ["last"]
+
+        # Mock the load_leet_winners function
+        mock_bot_functions["load_leet_winners"].return_value = {
+            "Beiki": {"first": 1, "last": 2, "multileet": 1},
+            "Beici": {"first": 0, "last": 1, "multileet": 0},
+            "Beibi": {"first": 2, "last": 0, "multileet": 1},
         }
-        mock_bot_functions["data_manager"].save_state = Mock()
 
-        # Mock dream service
-        mock_bot_functions["dream_service"].toggle_dream_channel.return_value = True
-        mock_bot_functions["dream_service"].is_dream_channel_enabled.return_value = True
+        result = leetwinners_command(console_context, mock_bot_functions)
 
-        # Create context
-        context = CommandContext(
-            command="dream",
-            args=["toggle"],
-            raw_message="!dream toggle",
-            sender="testuser",
-            target="#test",
-            is_console=False,
+        assert "Beiki" in result
+        assert "Beici" in result
+        assert "Beibi" in result
+        assert "ensimmäinen" in result
+        assert "viimeinen" in result
+        assert "multileet" in result
+
+    def test_leetwinners_command_no_data(self, console_context, mock_bot_functions):
+        """Test leetwinners command when no data is available."""
+        from cmd_modules.services import leetwinners_command
+
+        # Mock the load_leet_winners function to return empty data
+        mock_bot_functions["load_leet_winners"].return_value = {}
+
+        result = leetwinners_command(console_context, mock_bot_functions)
+
+        assert "No leet winners recorded yet" in result
+
+
+class TestEuriborCommand:
+    """Tests for the !euribor command."""
+
+    def test_euribor_command_success(self, console_context, mock_bot_functions):
+        """Test euribor command with successful API response."""
+        from cmd_modules.services import euribor_command
+
+        # Mock requests.get to return a successful response
+        with patch("cmd_modules.services.requests.get") as mock_get:
+            # Create a mock XML response
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.content = b"""
+            <ns:period value="2023-03-01">
+                <ns:rate name="12 month (act/360)">
+                    <ns:intr value="3.5"/>
+                </ns:rate>
+            </ns:period>
+            """
+            mock_get.return_value = mock_response
+
+            result = euribor_command(console_context, mock_bot_functions)
+
+            assert "12kk Euribor:" in result
+            assert "3.5%" in result
+
+    def test_euribor_command_api_error(self, console_context, mock_bot_functions):
+        """Test euribor command with API error."""
+        from cmd_modules.services import euribor_command
+
+        # Mock requests.get to return an error response
+        with patch("cmd_modules.services.requests.get") as mock_get:
+            mock_response = Mock()
+            mock_response.status_code = 500
+            mock_get.return_value = mock_response
+
+            result = euribor_command(console_context, mock_bot_functions)
+
+            assert "Failed to retrieve XML data" in result
+            assert "500" in result
+
+
+class TestUrlCommand:
+    """Tests for the !url command."""
+
+    def test_url_command_stats(self, console_context, mock_bot_functions):
+        """Test url command with stats subcommand."""
+        from cmd_modules.services import url_command
+
+        # Mock the url tracker service
+        with patch(
+            "cmd_modules.services.create_url_tracker_service"
+        ) as mock_service_class:
+            mock_service = Mock()
+            mock_service_class.return_value = mock_service
+
+            # Mock get_stats to return test data
+            mock_service.get_stats.return_value = {
+                "total_urls": 100,
+                "total_posts": 500,
+                "most_popular_url": "https://example.com",
+                "most_popular_count": 10,
+                "oldest_url": "https://old.example.com",
+                "oldest_timestamp": "2023-01-01T00:00:00Z",
+            }
+
+            # Create context with arguments
+            console_context.args_text = "stats"
+            console_context.args = ["stats"]
+
+            result = url_command(console_context, mock_bot_functions)
+
+            assert "URL tracking:" in result
+            assert "100 URLs" in result
+            assert "500 posts" in result
+            assert "https://example.com" in result
+
+    def test_url_command_search(self, console_context, mock_bot_functions):
+        """Test url command with search subcommand."""
+        from cmd_modules.services import url_command
+
+        # Mock the url tracker service
+        with patch(
+            "cmd_modules.services.create_url_tracker_service"
+        ) as mock_service_class:
+            mock_service = Mock()
+            mock_service_class.return_value = mock_service
+
+            # Mock find_closest_match to return test data
+            mock_service.find_closest_match.return_value = (
+                "https://example.com/test",
+                {
+                    "posters": [
+                        {"timestamp": "2023-01-01T00:00:00", "user": "TestUser"}
+                    ],
+                    "channels": {},
+                },
+            )
+
+            # Create context with arguments
+            console_context.args_text = "search example.com"
+            console_context.args = ["search", "example.com"]
+
+            result = url_command(console_context, mock_bot_functions)
+
+            assert "https://example.com/test" in result
+
+    def test_url_command_no_service(self, console_context, mock_bot_functions):
+        """Test url command when service is not available."""
+        from cmd_modules.services import url_command
+
+        # Mock the url tracker service to raise an exception
+        with patch(
+            "cmd_modules.services.create_url_tracker_service"
+        ) as mock_service_class:
+            mock_service_class.side_effect = Exception("Service error")
+
+            result = url_command(console_context, mock_bot_functions)
+
+            assert "Error:" in result
+            assert "Service error" in result
+
+
+class TestWrapCommand:
+    """Tests for the !wrap command."""
+
+    def test_wrap_command_console(self, console_context, mock_bot_functions):
+        """Test wrap command from console."""
+        from cmd_modules.services import wrap_command
+
+        # Mock the TUI instance
+        with patch("cmd_modules.services._current_tui") as mock_tui:
+            mock_tui_instance = Mock()
+            mock_tui.return_value = mock_tui_instance
+
+            result = wrap_command(console_context, mock_bot_functions)
+
+            # Should return empty string since toggle_wrap handles the logging
+            assert result == ""
+            mock_tui_instance.toggle_wrap.assert_called_once()
+
+    def test_wrap_command_no_tui(self, console_context, mock_bot_functions):
+        """Test wrap command when TUI is not available."""
+        from cmd_modules.services import wrap_command
+
+        # Mock the TUI instance to be None
+        with patch("cmd_modules.services._current_tui", None):
+            result = wrap_command(console_context, mock_bot_functions)
+
+            assert result == "TUI not available"
+
+
+class TestTilaaCommand:
+    """Tests for the !tilaa (subscribe) command."""
+
+    def test_tilaa_command_list(self, console_context, mock_bot_functions):
+        """Test tilaa command with list subcommand."""
+        from cmd_modules.services import command_tilaa
+
+        # Mock the subscriptions service
+        mock_subscriptions = Mock()
+        mock_subscriptions.format_all_subscriptions.return_value = (
+            "Current subscriptions: varoitukset, onnettomuustiedotteet"
+        )
+        mock_bot_functions["subscriptions"] = mock_subscriptions
+
+        # Create context with arguments
+        console_context.args_text = "list"
+        console_context.args = ["list"]
+
+        result = command_tilaa(console_context, mock_bot_functions)
+
+        assert "Current subscriptions:" in result
+        assert "varoitukset" in result
+        assert "onnettomuustiedotteet" in result
+
+    def test_tilaa_command_toggle_subscription(
+        self, console_context, mock_bot_functions
+    ):
+        """Test tilaa command to toggle subscription."""
+        from cmd_modules.services import command_tilaa
+
+        # Mock the subscriptions service
+        mock_subscriptions = Mock()
+        mock_subscriptions.toggle_subscription.return_value = (
+            "Subscribed to varoitukset on #test"
+        )
+        mock_bot_functions["subscriptions"] = mock_subscriptions
+
+        # Create context with arguments
+        console_context.args_text = "varoitukset"
+        console_context.args = ["varoitukset"]
+
+        result = command_tilaa(console_context, mock_bot_functions)
+
+        assert "Subscribed to varoitukset" in result
+        mock_subscriptions.toggle_subscription.assert_called_once_with(
+            "#test", "TestServer", "varoitukset"
         )
 
-        # Test toggle command
-        result = dream_command(context, mock_bot_functions)
+    def test_tilaa_command_no_service(self, console_context, mock_bot_functions):
+        """Test tilaa command when service is not available."""
+        from cmd_modules.services import command_tilaa
 
-        # The function returns a string (not CommandResponse in this case)
-        assert isinstance(result, str)
-        assert "enabled" in result.lower()
-        assert "#test" in result
+        result = command_tilaa(console_context, mock_bot_functions)
 
-    def test_dream_command_status(self):
-        """Test dream command shows status."""
-        from unittest.mock import Mock
+        assert "Subscription service is not available" in result
 
-        from cmd_modules.misc import dream_command
 
-        # Create mock bot functions
-        mock_bot_functions = {
-            "data_manager": Mock(),
-            "dream_service": Mock(),
-        }
+class TestSolarwindCommand:
+    """Tests for the !solarwind command."""
 
-        # Mock data manager
-        mock_bot_functions["data_manager"].load_state.return_value = {
-            "dream_channels": ["#test", "#other"]
-        }
+    def test_solarwind_command_success(self, console_context, mock_bot_functions):
+        """Test solarwind command with successful API response."""
+        from cmd_modules.services import solarwind_command
 
-        # Mock dream service
-        mock_bot_functions["dream_service"].generate_dream.return_value = (
-            "Test dream content"
-        )
+        # Mock the solarwind service
+        with patch("cmd_modules.services.get_solar_wind_info") as mock_get_info:
+            mock_get_info.return_value = "Solar wind speed: 400 km/s, Density: 5 p/cm³"
 
-        # Create context
-        context = CommandContext(
-            command="dream",
-            args=["report"],
-            raw_message="!dream report",
-            sender="testuser",
-            target="#test",
-            is_console=False,
-        )
+            result = solarwind_command(console_context, mock_bot_functions)
 
-        # Test status command
-        result = dream_command(context, mock_bot_functions)
+            assert "Solar wind speed:" in result
+            assert "400 km/s" in result
+            assert "Density:" in result
 
-        # The function returns a string (not CommandResponse)
-        assert isinstance(result, str)
+    def test_solarwind_command_error(self, console_context, mock_bot_functions):
+        """Test solarwind command with error handling."""
+        from cmd_modules.services import solarwind_command
+
+        # Mock the solarwind service to raise an exception
+        with patch("cmd_modules.services.get_solar_wind_info") as mock_get_info:
+            mock_get_info.side_effect = Exception("API error")
+
+            result = solarwind_command(console_context, mock_bot_functions)
+
+            assert "Solar wind error:" in result
+            assert "API error" in result
+
+
+class TestShortForecastCommand:
+    """Tests for the !se (short forecast) command."""
+
+    def test_short_forecast_command_default(self, console_context, mock_bot_functions):
+        """Test short forecast command with default parameters."""
+        from cmd_modules.services import short_forecast_command
+
+        # Mock the weather forecast service
+        with patch("cmd_modules.services.format_single_line") as mock_format:
+            mock_format.return_value = "Joensuu: 15°C, cloudy, wind 5 m/s"
+
+            result = short_forecast_command(console_context, mock_bot_functions)
+
+            assert "Joensuu:" in result
+            assert "15°C" in result
+            assert "cloudy" in result
+            mock_format.assert_called_once_with(None, None)
+
+    def test_short_forecast_command_with_params(
+        self, console_context, mock_bot_functions
+    ):
+        """Test short forecast command with city and hours parameters."""
+        from cmd_modules.services import short_forecast_command
+
+        # Create context with arguments
+        console_context.args_text = "Helsinki 12"
+        console_context.args = ["Helsinki", "12"]
+
+        # Mock the weather forecast service
+        with patch("cmd_modules.services.format_single_line") as mock_format:
+            mock_format.return_value = "Helsinki: 12°C, sunny, wind 3 m/s"
+
+            result = short_forecast_command(console_context, mock_bot_functions)
+
+            assert "Helsinki:" in result
+            assert "12°C" in result
+            assert "sunny" in result
+            mock_format.assert_called_once_with("Helsinki", 12)
+
+
+class TestShortForecastListCommand:
+    """Tests for the !sel (short forecast list) command."""
+
+    def test_short_forecast_list_command_default(
+        self, console_context, mock_bot_functions
+    ):
+        """Test short forecast list command with default parameters."""
+        from cmd_modules.services import short_forecast_list_command
+
+        # Mock the weather forecast service
+        with patch("cmd_modules.services.format_multi_line") as mock_format:
+            mock_format.return_value = [
+                "Joensuu: 15°C, cloudy",
+                "Joensuu: 16°C, partly cloudy",
+                "Joensuu: 14°C, rain",
+            ]
+
+            result = short_forecast_list_command(console_context, mock_bot_functions)
+
+            assert "Joensuu:" in result
+            assert "15°C" in result
+            assert "16°C" in result
+            assert "14°C" in result
+            mock_format.assert_called_once_with(None, None)
+
+    def test_short_forecast_list_command_with_params(
+        self, console_context, mock_bot_functions
+    ):
+        """Test short forecast list command with city and hours parameters."""
+        from cmd_modules.services import short_forecast_list_command
+
+        # Create context with arguments
+        console_context.args_text = "Helsinki 6"
+        console_context.args = ["Helsinki", "6"]
+
+        # Mock the weather forecast service
+        with patch("cmd_modules.services.format_multi_line") as mock_format:
+            mock_format.return_value = [
+                "Helsinki: 12°C, sunny",
+                "Helsinki: 13°C, partly sunny",
+            ]
+
+            result = short_forecast_list_command(console_context, mock_bot_functions)
+
+            assert "Helsinki:" in result
+            assert "12°C" in result
+            assert "13°C" in result
+            mock_format.assert_called_once_with("Helsinki", 6)

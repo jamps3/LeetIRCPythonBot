@@ -10,6 +10,90 @@ import os
 import re
 from datetime import datetime
 
+# Module-level imports for test compatibility
+# These allow tests to mock via cmd_modules.services.X paths
+try:
+    from config import get_api_key
+except ImportError:
+    get_api_key = None
+
+try:
+    from word_tracking.data_manager import get_data_manager
+except ImportError:
+    get_data_manager = None
+
+try:
+    from services.weather_forecast_service import format_multi_line, format_single_line
+except ImportError:
+    format_single_line = None
+    format_multi_line = None
+
+try:
+    from services.solarwind_service import get_solar_wind_info
+except ImportError:
+    get_solar_wind_info = None
+
+try:
+    from services.digitraffic_service import (
+        get_arrivals_for_station,
+        get_departures_for_station,
+        get_trains_for_station,
+    )
+except Exception:
+    get_arrivals_for_station = None
+    get_departures_for_station = None
+    get_trains_for_station = None
+
+try:
+    from services.electricity_service import create_electricity_service
+except ImportError:
+    create_electricity_service = None
+
+try:
+    from services.eurojackpot_service import (
+        get_eurojackpot_numbers,
+        get_eurojackpot_results,
+        get_eurojackpot_service,
+    )
+except ImportError:
+    get_eurojackpot_numbers = None
+    get_eurojackpot_results = None
+    get_eurojackpot_service = None
+
+try:
+    from services.alko_service import AlkoService
+except ImportError:
+    AlkoService = None
+
+try:
+    from services.drug_service import create_drug_service
+except ImportError:
+    create_drug_service = None
+
+try:
+    from services.url_tracker_service import create_url_tracker_service
+except ImportError:
+    create_url_tracker_service = None
+
+try:
+    from services.otiedote_json_service import create_otiedote_service
+except ImportError:
+    create_otiedote_service = None
+
+try:
+    from config import get_config
+except ImportError:
+    get_config = None
+
+# For URL fetching and TUI
+try:
+    import requests
+except ImportError:
+    requests = None
+
+# TUI instance (for wrap command)
+_current_tui = None
+
 from command_registry import (
     CommandContext,
     CommandResponse,
@@ -59,10 +143,9 @@ def weather_command(context: CommandContext, bot_functions):
 )
 def short_forecast_command(context: CommandContext, bot_functions):
     """Return a single-line forecast using Meteosource free API."""
-    try:
-        from services.weather_forecast_service import format_single_line
-    except Exception as e:
-        return f"Forecast service not available: {e}"
+    # Use module-level import (may be mocked by tests)
+    if format_single_line is None:
+        return "Forecast service not available"
 
     # Parse args: allow city with spaces and optional trailing integer hours
     text = context.args_text.strip() if context.args_text else ""
@@ -95,10 +178,9 @@ def short_forecast_command(context: CommandContext, bot_functions):
 )
 def short_forecast_list_command(context: CommandContext, bot_functions):
     """Return a multi-line forecast using Meteosource free API."""
-    try:
-        from services.weather_forecast_service import format_multi_line
-    except Exception as e:
-        return f"Forecast service not available: {e}"
+    # Use module-level import (may be mocked by tests)
+    if format_multi_line is None:
+        return "Forecast service not available"
 
     text = context.args_text.strip() if context.args_text else ""
     city = None
@@ -139,9 +221,11 @@ def short_forecast_list_command(context: CommandContext, bot_functions):
 )
 def solarwind_command(context: CommandContext, bot_functions):
     """Get current solar wind information."""
-    try:
-        from services.solarwind_service import get_solar_wind_info
+    # Use module-level import (may be mocked by tests)
+    if get_solar_wind_info is None:
+        return "❌ Solar wind service not available"
 
+    try:
         return get_solar_wind_info()
     except Exception as e:
         return f"❌ Solar wind error: {str(e)}"
@@ -166,10 +250,8 @@ def solarwind_command(context: CommandContext, bot_functions):
 )
 def otiedote_command(context: CommandContext, bot_functions):
     """Handle otiedote commands from local JSON."""
-    try:
-        from config import get_config
-        from services.otiedote_json_service import create_otiedote_service
-    except ImportError:
+    # Use module-level imports (may be mocked by tests)
+    if get_config is None or create_otiedote_service is None:
         return "❌ Otiedote service not available"
 
     config = get_config()
@@ -549,9 +631,9 @@ def electricity_command(context: CommandContext, bot_functions):
 
         # For console mode, we need to handle the response differently
         if context.is_console:
-            # Import and call the service directly for console
-            from config import get_api_key
-            from services.electricity_service import create_electricity_service
+            # Use module-level imports (may be mocked by tests)
+            if create_electricity_service is None:
+                return "Electricity service not available"
 
             api_key = get_api_key("ELECTRICITY_API_KEY")
             if not api_key:
@@ -609,7 +691,9 @@ def euribor_command(context: CommandContext, bot_functions):
     import xml.etree.ElementTree as ElementTree
     from datetime import datetime as _dt
 
-    import requests
+    # Use module-level requests (may be mocked by tests)
+    if requests is None:
+        return "❌ Requests library not available"
 
     try:
         # XML data URL from Suomen Pankki
@@ -666,22 +750,43 @@ def trains_command(context: CommandContext, bot_functions):
 
     Defaults to Joensuu (JNS) when no station is given.
     """
-    try:
-        from services.digitraffic_service import (
-            get_arrivals_for_station,
-            get_trains_for_station,
-        )
+    # Check module-level variables first (may be mocked by tests)
+    # Only import if they're None (meaning no mock and import failed at module load)
+    _get_trains = get_trains_for_station
+    _get_arrivals = get_arrivals_for_station
 
+    if _get_trains is None or _get_arrivals is None:
+        try:
+            from services.digitraffic_service import (
+                get_arrivals_for_station as _get_arrivals_mod,
+            )
+            from services.digitraffic_service import (
+                get_trains_for_station as _get_trains_mod,
+            )
+
+            if _get_trains is None:
+                _get_trains = _get_trains_mod
+            if _get_arrivals is None:
+                _get_arrivals = _get_arrivals_mod
+        except ImportError:
+            pass
+
+    if _get_trains is None or _get_arrivals is None:
+        return "❌ Digitraffic service not available"
+
+    try:
         # Parse subcommand 'saapuvat'
         if context.args and context.args[0].lower() == "saapuvat":
             station = (
                 " ".join(context.args[1:]).strip() if len(context.args) > 1 else None
             )
-            result = get_arrivals_for_station(station)
+            result = _get_arrivals(station)
         else:
             station = context.args_text.strip() if context.args_text else None
-            result = get_trains_for_station(station)
-        # Let the command framework split by newlines for IRC notices
+            result = _get_trains(station)
+        # For console, return string directly; for IRC use CommandResponse
+        if context.is_console:
+            return result
         return CommandResponse.success_msg(result)
     except Exception as e:
         return f"❌ Digitraffic virhe: {str(e)}"
@@ -1323,8 +1428,16 @@ def url_command(context: CommandContext, bot_functions):
 )
 def wrap_command(context: CommandContext, bot_functions):
     """Toggle text wrapping mode in TUI."""
-    # Access the global TUI instance
-    from tui import _current_tui
+    # Use module-level _current_tui (may be mocked by tests)
+    global _current_tui
+    if _current_tui is None:
+        # Try to import from tui if not set
+        try:
+            from tui import _current_tui as tui_instance
+
+            _current_tui = tui_instance
+        except ImportError:
+            pass
 
     if _current_tui is None:
         return "TUI not available"
@@ -1393,7 +1506,9 @@ tilaa_command = command_tilaa
 )
 def teach_command(context: CommandContext, bot_functions):
     """Teach the bot new information or list all teachings."""
-    from word_tracking.data_manager import get_data_manager
+    # Use module-level import (may be mocked by tests)
+    if get_data_manager is None:
+        return "❌ Data manager not available"
 
     data_manager = get_data_manager()
 
@@ -1448,7 +1563,9 @@ def teach_command(context: CommandContext, bot_functions):
 )
 def unlearn_command(context: CommandContext, bot_functions):
     """Remove a teaching by its ID."""
-    from word_tracking.data_manager import get_data_manager
+    # Use module-level import (may be mocked by tests)
+    if get_data_manager is None:
+        return "❌ Data manager not available"
 
     data_manager = get_data_manager()
 
