@@ -306,7 +306,7 @@ def np_command(context: CommandContext, bot_functions):
                         parts.append(f"Kissat: {', '.join(cats)}")
 
                     # Add other name days (Swedish, Sami, Orthodox, Hevonen, Historiallinen)
-                    # Data structure: {"ruotsi": {"2026-01-02": ["Gerhard"]}, "saameksi": {...}, ...}
+                    # Data structure: {"ruotsi": {"2026-01-02": ["Gerhard"]}, "saame": {...}, ...}
                     month_day_date = f"{today_month:02d}-{today_day:02d}"
 
                     # Map category keys to display names
@@ -322,8 +322,8 @@ def np_command(context: CommandContext, bot_functions):
                         if category in others_data:
                             category_dates = others_data[category]
                             # Find matching date (ignore year)
-                            for date_str, names in category_dates.items():
-                                if date_str.endswith(f"-{month_day_date}"):
+                            for other_date_str, names in category_dates.items():
+                                if other_date_str.endswith(f"-{month_day_date}"):
                                     if names and names != [": -"]:
                                         parts.append(
                                             f"{display_name}: {', '.join(names)}"
