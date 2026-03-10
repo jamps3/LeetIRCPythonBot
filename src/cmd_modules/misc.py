@@ -22,6 +22,9 @@ from command_registry import (
     process_command_message,
 )
 from config import DATA_DIR, get_config
+from logger import get_logger
+
+logger = get_logger(__name__)
 
 # =====================
 # 420 Command
