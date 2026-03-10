@@ -331,11 +331,15 @@ def np_command(context: CommandContext, bot_functions):
                                     break
 
                     if parts:
-                        # Use newlines for IRC splitting - command loader will handle wrapping
-                        return (
-                            f"Nimipäivät tänään {today_day}.{today_month}.{now.year}:\n"
-                            + "\n".join(parts)
-                        )
+                        # Use single line format, but add newlines if too long for IRC
+                        single_line = f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: | {' | '.join(parts)}"
+                        # IRC message limit is typically ~400 chars, add newlines if needed
+                        if len(single_line) > 400:
+                            return (
+                                f"Nimipäivät tänään {today_day}.{today_month}.{now.year}:\n"
+                                + "\n".join(parts)
+                            )
+                        return single_line
                     else:
                         return f"Tänään ({today_day}.{today_month}) on nimipäivä: {', '.join(official)}"
             return "No name day found for today"

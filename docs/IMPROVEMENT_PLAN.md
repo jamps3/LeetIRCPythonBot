@@ -2,6 +2,25 @@
 
 Generated: 2026-02-22
 
+## v2.5.6 Update - !np Command Fixes (2026-03-10)
+
+### Fix !np to output all namedays from nimipaivat_others.json
+
+**Status**: COMPLETED ✅
+
+**Issue**: The !np command was not properly reading from nimipaivat_others.json to show all name categories.
+
+**Fixes Applied**:
+
+1. Fixed category key mapping - changed from 'saameksi' to 'saame' (matches JSON structure)
+2. Fixed empty name filter - changed from ': -(' to ': -'
+3. Fixed data structure parsing - nimipaivat_others.json has format `{"ruotsi": {"2026-01-02": ["Names"]}}` not `{"2026-01-02": {"swedish": ["Names"]}}`
+4. Changed output separator from ' | ' to newlines for proper IRC message splitting
+
+**Now outputs all categories**: Viralliset, Epäviralliset, Koirat, Kissat, Ruotsiksi, Saameksi, Ortodoksit, Hevoset, Historialliset
+
+---
+
 ## v2.5.5 Update - Test Files Split (2026-03-10)
 
 ### Split test_commands_services_comprehensive.py
