@@ -10,7 +10,7 @@ but allows URL as parameter (not hardcoded).
 import json
 import os
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from playwright.sync_api import sync_playwright
 
@@ -181,11 +181,15 @@ def main():
             print(f"Got {len(namedays)} days with names for {cat}")
             print()
 
+    # Add timestamp
+    result["_scrape_timestamp"] = datetime.now().isoformat()
+
     # Save to temp file
     with open(temp_output, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
 
     print(f"Saved to: {temp_output}")
+    print(f"Scrape timestamp: {result['_scrape_timestamp']}")
     print("Next step: merge with existing nimipaivat_others.json")
 
 

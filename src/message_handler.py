@@ -90,6 +90,11 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         self._pending_latency_requests = {}
         self._latency_lock = threading.Lock()
 
+        # CTCP PING storage for !lag command
+        # Key: (server_name, nick), Value: {timestamp_ms, channel}
+        self._pending_ctcp_pings = {}
+        self._ctcp_ping_lock = threading.Lock()
+
         # Lag storage: persistent storage for measured lags
         # Key: (server_name, nick), Value: lag_ms (float)
         self._lag_storage: Dict[tuple, float] = {}
@@ -174,6 +179,14 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 "is_private": not target.startswith("#"),
                 "bot_name": server.bot_name,
             }
+
+            # Check for CTCP PONG response (from !lag command)
+            # This should be checked before command processing
+            if sender.lower() != server.bot_name.lower():
+                lag_response = self._check_ctcp_pong_response(server, sender, text)
+                if lag_response:
+                    # Send the lag response to the channel where the command was issued
+                    server.send_message(target, lag_response)
 
             # 🎯 FIRST PRIORITY: Check for nanoleet achievements for maximum timestamp accuracy
             if sender.lower() != server.bot_name.lower():
@@ -1193,6 +1206,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             "server": server,
             "server_name": context["server_name"],
             "bot_name": server.bot_name,
+            "latency_tracker": self,  # Enable CTCP PING lag measurement
             "dream_service": (
                 self.service_manager.get_service("dream")
                 if self.service_manager
@@ -2008,6 +2022,101 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         self._store_lag(server.config.name, sender, rtt_ms)
 
         return f"📡 Latency to {sender}: {rtt_ms:.2f} ms (RTT)"
+
+    def _store_pending_ctcp_ping(
+        self, server_name: str, nick: str, timestamp_ms: int, channel: str
+    ):
+        """
+        Store a pending CTCP PING for lag measurement.
+
+        Args:
+            server_name: Name of the server
+            nick: Nick of the target user
+            timestamp_ms: The timestamp sent in the CTCP PING (milliseconds)
+            channel: The channel where to send the response
+        """
+        import time
+        from datetime import datetime
+
+        with self._ctcp_ping_lock:
+            key = (server_name, nick.lower())
+            self._pending_ctcp_pings[key] = {
+                "timestamp_ms": timestamp_ms,
+                "channel": channel,
+                "send_time": time.time(),
+            }
+            logger.debug(
+                f"Stored pending CTCP PING for {nick} on {server_name}, "
+                f"timestamp={timestamp_ms}, channel={channel}"
+            )
+
+    def _check_ctcp_pong_response(
+        self, server, sender: str, text: str
+    ) -> Optional[str]:
+        """
+        Check if a PRIVMSG is a CTCP PONG response and calculate latency.
+
+        Args:
+            server: The Server instance
+            sender: The nick who sent the PONG (the target of our CTCP PING)
+            text: The message text
+
+        Returns:
+            Formatted lag message if this was a CTCP PONG response, None otherwise
+        """
+        import time
+        from datetime import datetime
+
+        # Check if this is a CTCP PONG (starts and ends with \x01)
+        if not (text.startswith("\x01") and text.endswith("\x01")):
+            return None
+
+        # Extract the timestamp from CTCP PONG (format: \x01PING timestamp\x01)
+        pong_text = text.strip("\x01")
+        if not pong_text.startswith("PING "):
+            return None
+
+        try:
+            ping_timestamp_ms = int(pong_text.split(" ", 1)[1])
+        except (ValueError, IndexError):
+            return None
+
+        # Check if we have a pending CTCP PING for this nick
+        key = (server.config.name, sender.lower())
+        with self._ctcp_ping_lock:
+            pending = self._pending_ctcp_pings.get(key)
+            if pending is None:
+                return None
+
+            # Verify the timestamp matches
+            if pending["timestamp_ms"] != ping_timestamp_ms:
+                logger.debug(
+                    f"CTCP PONG timestamp mismatch: got {ping_timestamp_ms}, "
+                    f"expected {pending['timestamp_ms']}"
+                )
+                return None
+
+            # Remove the pending request
+            channel = pending["channel"]
+            del self._pending_ctcp_pings[key]
+
+        # Calculate round-trip time
+        receive_time_ms = int(time.time() * 1000)
+        rtt_ms = receive_time_ms - ping_timestamp_ms
+
+        # Store the lag for future use
+        self._store_lag(server.config.name, sender, rtt_ms)
+
+        # Generate timestamp in format: ti@vko10_19:07:26
+        now = datetime.now()
+        week_num = now.isocalendar()[1]
+        days_fi = ["ma", "ti", "ke", "to", "pe", "la", "su"]
+        timestamp_str = (
+            f"{days_fi[now.weekday()]}@vko{week_num}_{now.strftime('%H:%M:%S')}"
+        )
+
+        # Return the response with channel info
+        return f"{timestamp_str} -{server.config.name}:{channel}- Lag to {sender}: {rtt_ms}ms"
 
     def _load_lag_storage(self):
         """Load lag storage from data file."""

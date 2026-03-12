@@ -8,6 +8,7 @@ Can also be used to just sort the existing file.
 import json
 import os
 import sys
+from datetime import datetime
 
 # Get project root
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -60,6 +61,11 @@ def merge_data():
             if "orthodox" in categories and categories["orthodox"]:
                 converted["ortodoksi"][date_key] = categories["orthodox"]
 
+        # Preserve timestamp from main temp file if it exists
+        if "_scrape_timestamp" in temp_data:
+            converted["_scrape_timestamp"] = temp_data["_scrape_timestamp"]
+            print(f"  Timestamp: {temp_data['_scrape_timestamp']}")
+
         # Also check for hevonen-historiallinen temp file
         hevonen_file = os.path.join(
             data_dir, "nimipaivat_hevonen_historiallinen_temp.json"
@@ -76,6 +82,10 @@ def merge_data():
                 print(
                     f"  Added historiallinen: {len(hevonen_data['historiallinen'])} days"
                 )
+            # Preserve timestamp if it exists
+            if "_scrape_timestamp" in hevonen_data:
+                converted["_scrape_timestamp"] = hevonen_data["_scrape_timestamp"]
+                print(f"  Timestamp: {hevonen_data['_scrape_timestamp']}")
 
         print(f"\nConverted data:")
         for cat, days in converted.items():
@@ -114,6 +124,8 @@ def merge_data():
         json.dump(sorted_existing, f, ensure_ascii=False, indent=2)
 
     print(f"\nMerged data saved to: {output_file}")
+    if "_scrape_timestamp" in sorted_existing:
+        print(f"Scrape timestamp: {sorted_existing['_scrape_timestamp']}")
     print(f"Final categories: {list(sorted_existing.keys())}")
 
     # Summary

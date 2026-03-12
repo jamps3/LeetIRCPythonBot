@@ -741,6 +741,7 @@ class ConsoleManager:
             "set_latency_start": lambda value: setattr(
                 self.message_handler, "_latency_start", value
             ),
+            "latency_tracker": self.message_handler,  # Enable CTCP PING lag measurement
             "measure_latency": self.message_handler._measure_latency,
             "send_youtube_info": self.message_handler._send_youtube_info,
             "send_imdb_info": self.message_handler._send_imdb_info,

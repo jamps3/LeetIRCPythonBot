@@ -1,5 +1,5 @@
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import requests
 from bs4 import BeautifulSoup
@@ -59,7 +59,11 @@ if __name__ == "__main__":
     year = date.today().year
     data = scrape_namedays(year)
 
+    # Add scrape timestamp
+    data["_scrape_timestamp"] = datetime.now().isoformat()
+
     with open("data/nimipaivat.json", "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
     print(f"Nimipäivät tallennettu data/nimipaivat.json tiedostoon ({year})")
+    print(f"Scrape timestamp: {data['_scrape_timestamp']}")

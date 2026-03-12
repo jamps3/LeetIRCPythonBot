@@ -251,11 +251,19 @@ async def echo_command(context: CommandContext, bot_functions):
 # =====================
 
 
-@command("np", description="Show name day", usage="!np [päivä|nimi]")
+@command("np", description="Show name day", usage="!np [päivä|nimi|date]")
 def np_command(context: CommandContext, bot_functions):
-    """Show name day for today, a given date, or search by name using nimipaivat.json data file."""
+    """Show name day for today, a given date, or search by name using nimipaivat.json data file.
+
+    Usage:
+        !np - Show today's name days
+        !np <day> - Show name days for a specific day number (any month)
+        !np <name> - Search for a name
+        !np date - Show when name days were last scraped
+    """
     import json
     import os
+    from datetime import datetime
 
     # Try to load nimipaivat.json
     np_file = os.path.join("data", "nimipaivat.json")
@@ -267,6 +275,13 @@ def np_command(context: CommandContext, bot_functions):
             nimipaivat = json.load(f)
     except Exception:
         return "Error loading name day data"
+
+    # Handle _scrape_timestamp if present - skip it from the dict for date lookups
+    # This key is used for metadata only
+    timestamps = {}
+    if "_scrape_timestamp" in nimipaivat:
+        timestamps["viralliset"] = nimipaivat["_scrape_timestamp"]
+        del nimipaivat["_scrape_timestamp"]
 
     # Get today's date info
     now = datetime.now()
@@ -280,8 +295,28 @@ def np_command(context: CommandContext, bot_functions):
         try:
             with open(others_file, "r", encoding="utf-8") as f:
                 others_data = json.load(f)
+                # Extract timestamp from others data
+                if "_scrape_timestamp" in others_data:
+                    timestamps["muut"] = others_data["_scrape_timestamp"]
+                    del others_data["_scrape_timestamp"]
         except Exception:
             pass  # Silently skip if file can't be loaded
+
+    # Handle "date" subcommand - show scrape timestamps
+    if context.args and context.args[0].lower() == "date":
+        if timestamps:
+            parts = []
+            for source, ts in timestamps.items():
+                # Parse and format the timestamp nicely
+                try:
+                    dt = datetime.fromisoformat(ts)
+                    formatted = dt.strftime("%Y-%m-%d %H:%M:%S")
+                    parts.append(f"{source}: {formatted}")
+                except ValueError:
+                    parts.append(f"{source}: {ts}")
+            return f"Nimipäivät haettu: {' | '.join(parts)}"
+        else:
+            return "Nimipäivien hakuajankohtaa ei löydy"
 
     # Handle new dict format: {"03-10": {"official": [...], ...}}
     if isinstance(nimipaivat, dict):
@@ -361,6 +396,8 @@ def np_command(context: CommandContext, bot_functions):
             # Show all name days for that day number (any month)
             results = []
             for date_str, entry in nimipaivat.items():
+                if date_str == "_scrape_timestamp":
+                    continue
                 try:
                     _, m, d = date_str.split("-")
                     if int(d) == day:
@@ -377,6 +414,8 @@ def np_command(context: CommandContext, bot_functions):
         search_name = arg
         results = []
         for date_str, entry in nimipaivat.items():
+            if date_str == "_scrape_timestamp":
+                continue
             names = entry.get("official", [])
             for name in names:
                 if search_name in name.lower():

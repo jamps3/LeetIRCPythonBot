@@ -189,21 +189,27 @@ def lag_command(context: CommandContext, bot_functions):
     # Get server name
     server_name = bot_functions.get("server_name", "unknown")
 
-    # Send a CTCP PING to measure lag
-    irc = _get_irc_connection(bot_functions)
-    if not irc:
+    # Get server from bot_functions
+    server = bot_functions.get("server")
+    if not server or not hasattr(server, "send_raw"):
         return "Not connected to any IRC server"
 
     timestamp = int(time.time() * 1000)  # milliseconds
 
     # Send CTCP PING
-    irc.send_raw(f"PRIVMSG {target_nick} :\x01PING {timestamp}\x01")
+    server.send_raw(f"PRIVMSG {target_nick} :\x01PING {timestamp}\x01")
 
     # Store the pending ping for later response matching if tracker available
-    if latency_tracker and hasattr(latency_tracker, "_store_lag"):
-        latency_tracker._store_lag(server_name, target_nick, timestamp)
+    # Store: (server_name, target_nick) -> {timestamp, channel, server_name}
+    if latency_tracker and hasattr(latency_tracker, "_store_pending_ctcp_ping"):
+        # Use the channel from context (where the command was issued)
+        channel = context.target if context.target else ""
+        latency_tracker._store_pending_ctcp_ping(
+            server_name, target_nick, timestamp, channel
+        )
 
-    return f"Pinging {target_nick} to measure lag..."
+    # Return None to suppress output - response will be sent when PONG is received
+    return None
 
 
 # =====================

@@ -2,7 +2,7 @@
 
 import json
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from playwright.sync_api import sync_playwright
 
@@ -227,6 +227,9 @@ if __name__ == "__main__":
         "historiallinen": historical_data,
     }
 
+    # Add timestamp
+    combined_data["_scrape_timestamp"] = datetime.now().isoformat()
+
     # Save to file
     output_file = os.path.join(data_dir, "nimipaivat_hevonen_historiallinen_temp.json")
     with open(output_file, "w", encoding="utf-8") as f:
@@ -234,3 +237,4 @@ if __name__ == "__main__":
 
     print(f"\nData saved to {output_file}")
     print(f"Horse days: {len(horse_data)}, Historical days: {len(historical_data)}")
+    print(f"Scrape timestamp: {combined_data['_scrape_timestamp']}")
