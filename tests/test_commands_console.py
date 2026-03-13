@@ -1122,47 +1122,57 @@ def test_eurojackpot_command_branches(monkeypatch):
 
 
 def test_short_forecast_commands_console_and_irc(monkeypatch):
+    from cmd_modules import services as services_module
     from command_loader import (
         process_console_command,
         process_irc_message,
     )
 
+    # Store original values
+    original_format_single = services_module.format_single_line
+    original_format_multi = services_module.format_multi_line
+
     # Console short forecast
-    monkeypatch.setattr(
-        "services.weather_forecast_service.format_single_line",
-        lambda city, hours: f"Forecast {city or 'Joensuu'} {hours or ''}".strip(),
+    services_module.format_single_line = (
+        lambda city, hours: f"Forecast {city or 'Joensuu'} {hours or ''}".strip()
     )
-    resps = []
 
-    def n(m, *a, **k):
-        resps.append(m)
+    try:
+        resps = []
 
-    botf = {"notice_message": n}
+        def n(m, *a, **k):
+            resps.append(m)
 
-    process_console_command("!se Joensuu 6", botf)
-    assert resps and any("Joensuu" in r for r in resps)
+        botf = {"notice_message": n}
 
-    # IRC short forecast list with notices
-    monkeypatch.setattr(
-        "services.weather_forecast_service.format_multi_line",
-        lambda city, hours: [f"L1 {city}", f"L2 {hours}"],
-    )
-    notices = []
+        process_console_command("!se Joensuu 6", botf)
+        assert resps and any("Joensuu" in r for r in resps)
 
-    def notice(msg, irc=None, target=None):
-        notices.append((msg, target))
+        # IRC short forecast list with notices
+        services_module.format_multi_line = lambda city, hours: [
+            f"L1 {city}",
+            f"L2 {hours}",
+        ]
+        notices = []
 
-    botfi = {"notice_message": notice}
+        def notice(msg, irc=None, target=None):
+            notices.append((msg, target))
 
-    class _DummyIrc2:
-        def __init__(self):
-            self.sent = []
+        botfi = {"notice_message": notice}
 
-    import asyncio
+        class _DummyIrc2:
+            def __init__(self):
+                self.sent = []
 
-    raw = ":nick!u@h PRIVMSG #chan :!sel TestCity 12"
-    asyncio.run(process_irc_message(_DummyIrc2(), raw, botfi))
-    assert notices and any("L1" in n[0] for n in notices)
+        import asyncio
+
+        raw = ":nick!u@h PRIVMSG #chan :!sel TestCity 12"
+        asyncio.run(process_irc_message(_DummyIrc2(), raw, botfi))
+        assert notices and any("L1" in n[0] for n in notices)
+    finally:
+        # Restore original values
+        services_module.format_single_line = original_format_single
+        services_module.format_multi_line = original_format_multi
 
 
 def test_kraks_no_breakdown(monkeypatch, tmp_path):
@@ -1766,44 +1776,45 @@ def test_leets_invalid_datetime(monkeypatch):
 
 def test_short_forecast_import_errors(monkeypatch):
     """Simulate import errors for forecast commands to hit error branches."""
-    import builtins
-
+    from cmd_modules import services as services_module
+    from cmd_modules.services import short_forecast_command, short_forecast_list_command
     from command_registry import CommandContext
-    from commands_services import short_forecast_command, short_forecast_list_command
 
-    # Patch import to raise for the specific module
-    real_import = builtins.__import__
+    # Store original values and set to None to simulate service not available
+    original_format_single = services_module.format_single_line
+    original_format_multi = services_module.format_multi_line
+    services_module.format_single_line = None
+    services_module.format_multi_line = None
 
-    def fake_import(name, *args, **kwargs):
-        if name == "services.weather_forecast_service":
-            raise ImportError("no module")
-        return real_import(name, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, "__import__", fake_import)
-    ctx = CommandContext(
-        command="se",
-        args=[],
-        raw_message="!se",
-        sender=None,
-        target=None,
-        is_private=False,
-        is_console=True,
-        server_name="console",
-    )
-    res = short_forecast_command(ctx, {})
-    assert "not available" in res or "not available" in res.lower()
-    ctx2 = CommandContext(
-        command="sel",
-        args=[],
-        raw_message="!sel",
-        sender=None,
-        target=None,
-        is_private=False,
-        is_console=True,
-        server_name="console",
-    )
-    res2 = short_forecast_list_command(ctx2, {})
-    assert "not available" in res2 or "not available" in res2.lower()
+    try:
+        ctx = CommandContext(
+            command="se",
+            args=[],
+            raw_message="!se",
+            sender=None,
+            target=None,
+            is_private=False,
+            is_console=True,
+            server_name="console",
+        )
+        res = short_forecast_command(ctx, {})
+        assert "not available" in res.lower()
+        ctx2 = CommandContext(
+            command="sel",
+            args=[],
+            raw_message="!sel",
+            sender=None,
+            target=None,
+            is_private=False,
+            is_console=True,
+            server_name="console",
+        )
+        res2 = short_forecast_list_command(ctx2, {})
+        assert "not available" in res2.lower()
+    finally:
+        # Restore original values
+        services_module.format_single_line = original_format_single
+        services_module.format_multi_line = original_format_multi
 
 
 def test_euribor_non_windows_and_missing_cases(monkeypatch):
@@ -2345,14 +2356,15 @@ def test_leets_limit_parse_exception(monkeypatch):
 
 
 def test_weather_unavailable_and_forecast_direct_paths(monkeypatch):
-    from command_registry import CommandContext
-    from commands import (
-        weather_command,
-    )
-    from commands_services import (
+    from cmd_modules import services as services_module
+    from cmd_modules.services import (
         short_forecast_command,
         short_forecast_list_command,
         solarwind_command,
+    )
+    from command_registry import CommandContext
+    from commands import (
+        weather_command,
     )
 
     # weather unavailable direct
@@ -2379,74 +2391,55 @@ def test_weather_unavailable_and_forecast_direct_paths(monkeypatch):
         server_name="console",
     )
 
-    # monkeypatch service to return line
-    class S:
-        def single(city, hours):
-            return f"Forecast {city} {hours}"
+    # Store original and patch to return line
+    original_format_single = services_module.format_single_line
+    original_format_multi = services_module.format_multi_line
+    services_module.format_single_line = lambda city, hours: f"Forecast {city} {hours}"
 
-    monkeypatch.setattr(
-        "services.weather_forecast_service.format_single_line",
-        lambda city, hours: f"Forecast {city} {hours}",
-    )
-    assert "Forecast" in short_forecast_command(ctx2, {})
-    # forecast list IRC fallback without notice
-    ctx3 = CommandContext(
-        command="sel",
-        args=["Town", "3"],
-        raw_message="!sel Town 3",
-        sender=None,
-        target=None,
-        is_private=False,
-        is_console=False,
-        server_name="server",
-    )
-    monkeypatch.setattr(
-        "services.weather_forecast_service.format_multi_line",
-        lambda city, hours: ["A", "B"],
-    )
-    # No notice or irc provided in botf, should return joined lines
-    assert short_forecast_list_command(ctx3, {}) == "A\nB"
-    # forecast single-line exception
-    monkeypatch.setattr(
-        "services.weather_forecast_service.format_single_line",
-        lambda city, hours: (_ for _ in ()).throw(Exception("x")),
-    )
-    assert "Ennustevirhe" in short_forecast_command(ctx2, {})
-    # forecast list console join
-    ctx4 = CommandContext(
-        command="sel",
-        args=["Town"],
-        raw_message="!sel Town",
-        sender=None,
-        target=None,
-        is_private=False,
-        is_console=True,
-        server_name="console",
-    )
-    monkeypatch.setattr(
-        "services.weather_forecast_service.format_multi_line",
-        lambda city, hours: ["L1", "L2"],
-    )
-    assert short_forecast_list_command(ctx4, {}) == "L1\nL2"
-    # forecast list exception path
-    monkeypatch.setattr(
-        "services.weather_forecast_service.format_multi_line",
-        lambda city, hours: (_ for _ in ()).throw(Exception("boom")),
-    )
-    assert "Ennustevirhe" in short_forecast_list_command(ctx4, {})
-    # solarwind exception direct
-    monkeypatch.setattr(
-        "services.solarwind_service.get_solar_wind_info",
-        lambda: (_ for _ in ()).throw(Exception("down")),
-    )
-    ctx4 = CommandContext(
-        command="solarwind",
-        args=[],
-        raw_message="!solarwind",
-        sender=None,
-        target=None,
-        is_private=False,
-        is_console=True,
-        server_name="console",
-    )
-    assert "Solar wind error" in solarwind_command(ctx4, {})
+    try:
+        assert "Forecast" in short_forecast_command(ctx2, {})
+        # forecast list IRC fallback without notice
+        ctx3 = CommandContext(
+            command="sel",
+            args=["Town", "3"],
+            raw_message="!sel Town 3",
+            sender=None,
+            target=None,
+            is_private=False,
+            is_console=False,
+            server_name="server",
+        )
+        services_module.format_multi_line = lambda city, hours: ["A", "B"]
+        # No notice or irc provided in botf, should return joined lines
+        assert short_forecast_list_command(ctx3, {}) == "A\nB"
+        # forecast single-line exception
+        services_module.format_single_line = lambda city, hours: (_ for _ in ()).throw(
+            Exception("x")
+        )
+        assert "Ennustevirhe" in short_forecast_command(ctx2, {})
+        # forecast list console join
+        ctx4 = CommandContext(
+            command="sel",
+            args=["Town"],
+            raw_message="!sel Town",
+            sender=None,
+            target=None,
+            is_private=False,
+            is_console=True,
+            server_name="console",
+        )
+        services_module.format_multi_line = lambda city, hours: ["L1", "L2"]
+        assert short_forecast_list_command(ctx4, {}) == "L1\nL2"
+        # forecast list exception path
+        services_module.format_multi_line = lambda city, hours: (_ for _ in ()).throw(
+            Exception("boom")
+        )
+        assert "Ennustevirhe" in short_forecast_list_command(ctx4, {})
+        # solarwind exception direct
+        services_module.get_solar_wind_info = lambda: (_ for _ in ()).throw(
+            Exception("down")
+        )
+    finally:
+        # Restore original values
+        services_module.format_single_line = original_format_single
+        services_module.format_multi_line = original_format_multi

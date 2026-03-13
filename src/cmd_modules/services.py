@@ -1261,47 +1261,48 @@ def drugs_command(context: CommandContext, bot_functions):
     # If not available, try to create drug service directly
     if not check_drug_interactions:
         try:
-            from services.drug_service import create_drug_service
+            # Use the module-level import of create_drug_service
+            if not create_drug_service:
+                return "💊 Drug service not available. Run src/debug/debug_drugs.py to scrape drug data first."
 
             drug_service = create_drug_service()
-            if drug_service:
-                result = drug_service.check_interactions(drug_names.split())
-                # Format response
-                messages = []
+            if not drug_service:
+                return "💊 Drug service not available. Run src/debug/debug_drugs.py to scrape drug data first."
+            result = drug_service.check_interactions(drug_names.split())
+            # Format response
+            messages = []
 
-                # Add warnings first with emoji and definition
-                if result["warnings"]:
-                    for warning in result["warnings"]:
-                        # Extract the status from the warning (it's in the format: "EMOJI interaction: drug1 + drug2 (status)")
-                        # For now, we'll need to parse this differently since the warnings are pre-formatted
-                        messages.extend(result["warnings"])
+            # Add warnings first with emoji and definition
+            if result["warnings"]:
+                for warning in result["warnings"]:
+                    # Extract the status from the warning (it's in the format: "EMOJI interaction: drug1 + drug2 (status)")
+                    # For now, we'll need to parse this differently since the warnings are pre-formatted
+                    messages.extend(result["warnings"])
 
-                # Add unknown drugs
-                if result["unknown_drugs"]:
-                    unknown_list = ", ".join(result["unknown_drugs"])
-                    messages.append(f"💊 Unknown drugs: {unknown_list}")
+            # Add unknown drugs
+            if result["unknown_drugs"]:
+                unknown_list = ", ".join(result["unknown_drugs"])
+                messages.append(f"💊 Unknown drugs: {unknown_list}")
 
-                # If no interactions or warnings, show basic info for all drugs
-                if (
-                    not result["interactions"]
-                    and not result["warnings"]
-                    and not result["unknown_drugs"]
-                ):
-                    # Show info for all drugs
-                    drug_list = drug_names.split()
-                    for drug_name in drug_list:
-                        drug_info = drug_service.get_drug_info(drug_name)
-                        if drug_info:
-                            messages.append(drug_service.format_drug_info(drug_info))
-                        else:
-                            messages.append(
-                                f"💊 No information found for '{drug_name}'"
-                            )
+            # If no interactions or warnings, show basic info for all drugs
+            if (
+                not result["interactions"]
+                and not result["warnings"]
+                and not result["unknown_drugs"]
+            ):
+                # Show info for all drugs
+                drug_list = drug_names.split()
+                for drug_name in drug_list:
+                    drug_info = drug_service.get_drug_info(drug_name)
+                    if drug_info:
+                        messages.append(drug_service.format_drug_info(drug_info))
+                    else:
+                        messages.append(f"💊 No information found for '{drug_name}'")
 
-                if messages:
-                    return " | ".join(messages)
-                else:
-                    return "💊 No interactions found between the specified drugs."
+            if messages:
+                return " | ".join(messages)
+            else:
+                return "💊 No interactions found between the specified drugs."
         except Exception as e:
             import logging
 

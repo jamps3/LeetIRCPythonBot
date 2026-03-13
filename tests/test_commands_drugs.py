@@ -76,6 +76,7 @@ class TestDrugsCommand:
 
     def test_drugs_command_no_service(self, console_context, mock_bot_functions):
         """Test drugs command when service is not available."""
+        from cmd_modules import services as services_module
         from cmd_modules.services import drugs_command
 
         # Remove check_drug_interactions from bot functions
@@ -85,10 +86,13 @@ class TestDrugsCommand:
         console_context.args_text = "cannabis alcohol"
         console_context.args = ["cannabis", "alcohol"]
 
-        # Also mock create_drug_service to return None (service not available)
-        with patch("cmd_modules.services.create_drug_service") as mock_create_service:
-            mock_create_service.return_value = None
+        # Store original function and patch to return None
+        original_create = services_module.create_drug_service
+        services_module.create_drug_service = lambda: None
 
+        try:
             result = drugs_command(console_context, mock_bot_functions)
-
             assert "Drug service not available" in result
+        finally:
+            # Restore original function
+            services_module.create_drug_service = original_create
