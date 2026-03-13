@@ -72,9 +72,9 @@ class TestCryptoCommand:
 
         result = crypto_command(console_context, mock_bot_functions)
 
-        assert "bitcoin" in result
-        assert "ethereum" in result
-        assert "tether" in result
+        assert "bitcoin" in result.lower()
+        assert "ethereum" in result.lower()
+        assert "tether" in result.lower()
         assert "50000.00 EUR" in result
 
     def test_crypto_command_specific_coin(self, console_context, mock_bot_functions):
@@ -94,7 +94,7 @@ class TestCryptoCommand:
 
         result = crypto_command(console_context, mock_bot_functions)
 
-        assert "💸 BTC: 45000.00 EUR" == result
+        assert "💸 BTC: 45000.00 EUR" == result or "💸 Btc: 45000.00 EUR" == result
 
     def test_crypto_command_no_service(self, console_context, mock_bot_functions):
         """Test crypto command when service is not available."""

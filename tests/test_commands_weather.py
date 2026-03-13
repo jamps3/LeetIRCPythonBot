@@ -80,7 +80,7 @@ class TestWeatherCommand:
 
         # Should return no_response since service handles output
         assert isinstance(result, CommandResponse)
-        assert result.message is None
+        assert result.should_respond is False
         mock_bot_functions["send_weather"].assert_called_once()
 
     def test_weather_command_irc(self, irc_context, mock_bot_functions):
@@ -94,7 +94,7 @@ class TestWeatherCommand:
 
         # Should return no_response since service handles output
         assert isinstance(result, CommandResponse)
-        assert result.message is None
+        assert result.should_respond is False
         mock_bot_functions["send_weather"].assert_called_once()
 
     def test_weather_command_no_service(self, console_context, mock_bot_functions):

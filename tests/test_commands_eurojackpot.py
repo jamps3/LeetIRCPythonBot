@@ -58,17 +58,11 @@ class TestEurojackpotCommand:
         """Test eurojackpot command with default behavior."""
         from cmd_modules.services import command_eurojackpot
 
-        # Mock the eurojackpot service
+        # Mock the eurojackpot functions at the source module
         with patch(
-            "cmd_modules.services.get_eurojackpot_service"
-        ) as mock_service_class:
-            mock_service = Mock()
-            mock_service_class.return_value = mock_service
-
-            # Mock get_eurojackpot_numbers to return test data
-            mock_service.get_eurojackpot_numbers.return_value = (
-                "Next draw: 1, 2, 3, 4, 5 + 1, 2"
-            )
+            "services.eurojackpot_service.get_eurojackpot_numbers"
+        ) as mock_numbers:
+            mock_numbers.return_value = "Next draw: 1, 2, 3, 4, 5 + 1, 2"
 
             result = command_eurojackpot(console_context, mock_bot_functions)
 
@@ -83,17 +77,11 @@ class TestEurojackpotCommand:
         console_context.args_text = "tulokset"
         console_context.args = ["tulokset"]
 
-        # Mock the eurojackpot service
+        # Mock the eurojackpot functions at the source module
         with patch(
-            "cmd_modules.services.get_eurojackpot_service"
-        ) as mock_service_class:
-            mock_service = Mock()
-            mock_service_class.return_value = mock_service
-
-            # Mock get_eurojackpot_results to return test data
-            mock_service.get_eurojackpot_results.return_value = (
-                "Last draw: 1, 2, 3, 4, 5 + 1, 2"
-            )
+            "services.eurojackpot_service.get_eurojackpot_results"
+        ) as mock_results:
+            mock_results.return_value = "Last draw: 1, 2, 3, 4, 5 + 1, 2"
 
             result = command_eurojackpot(console_context, mock_bot_functions)
 
@@ -104,11 +92,11 @@ class TestEurojackpotCommand:
         """Test eurojackpot command with error handling."""
         from cmd_modules.services import command_eurojackpot
 
-        # Mock the eurojackpot service to raise an exception
+        # Mock the eurojackpot function to raise an exception at the source module
         with patch(
-            "cmd_modules.services.get_eurojackpot_service"
-        ) as mock_service_class:
-            mock_service_class.side_effect = Exception("Service error")
+            "services.eurojackpot_service.get_eurojackpot_numbers"
+        ) as mock_numbers:
+            mock_numbers.side_effect = Exception("Service error")
 
             result = command_eurojackpot(console_context, mock_bot_functions)
 

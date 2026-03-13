@@ -950,7 +950,7 @@ def leetwinners_command(context: CommandContext, bot_functions):
                     timestamp = time.time()
                     # Format as 13.37.13,210725312 (similar to the example)
 
-                    dt = datetime.datetime.fromtimestamp(timestamp)
+                    dt = datetime.fromtimestamp(timestamp)
                     time_str = f"{dt.hour:02d}.{dt.minute:02d}.{dt.second:02d},{int(timestamp * 1000000) % 1000000:06d}"
                     winner_lines.append(f"{winner} {cat_str} @ {time_str}")
 

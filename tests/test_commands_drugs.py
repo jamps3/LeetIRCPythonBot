@@ -5,7 +5,7 @@ Tests for the !drugs command.
 
 import os
 import sys
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -81,6 +81,14 @@ class TestDrugsCommand:
         # Remove check_drug_interactions from bot functions
         del mock_bot_functions["check_drug_interactions"]
 
-        result = drugs_command(console_context, mock_bot_functions)
+        # Set args so we get past the usage check
+        console_context.args_text = "cannabis alcohol"
+        console_context.args = ["cannabis", "alcohol"]
 
-        assert "Drug service not available" in result
+        # Also mock create_drug_service to return None (service not available)
+        with patch("cmd_modules.services.create_drug_service") as mock_create_service:
+            mock_create_service.return_value = None
+
+            result = drugs_command(console_context, mock_bot_functions)
+
+            assert "Drug service not available" in result

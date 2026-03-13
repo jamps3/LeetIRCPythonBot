@@ -151,13 +151,18 @@ class TestUnlearnCommand:
         """Test unlearn command with invalid ID."""
         from cmd_modules.services import unlearn_command
 
-        # Create context with invalid ID
-        irc_context.args_text = "abc"
-        irc_context.args = ["abc"]
+        # Mock the data manager
+        with patch("cmd_modules.services.get_data_manager") as mock_get_data_manager:
+            mock_data_manager = Mock()
+            mock_get_data_manager.return_value = mock_data_manager
 
-        result = unlearn_command(irc_context, mock_bot_functions)
+            # Create context with invalid ID
+            irc_context.args_text = "abc"
+            irc_context.args = ["abc"]
 
-        assert "Invalid teaching ID" in result
+            result = unlearn_command(irc_context, mock_bot_functions)
+
+            assert "Invalid teaching ID" in result
 
     def test_unlearn_command_teaching_not_found(self, irc_context, mock_bot_functions):
         """Test unlearn command when teaching is not found."""

@@ -50,85 +50,7 @@ def weather_command(context: CommandContext, bot_functions):
         return "Weather service not available"
 
 
-@command(
-    "se",
-    aliases=["sääennuste"],
-    description="Short forecast (single line)",
-    usage="!se [city] [hours]",
-    examples=["!se", "!se Joensuu", "!se Joensuu 12"],
-)
-def short_forecast_command(context: CommandContext, bot_functions):
-    """Return a single-line forecast using Meteosource free API."""
-    try:
-        from services.weather_forecast_service import format_single_line
-    except Exception as e:
-        return f"Forecast service not available: {e}"
-
-    # Parse args: allow city with spaces and optional trailing integer hours
-    text = context.args_text.strip() if context.args_text else ""
-    city = None
-    hours = None
-    if text:
-        parts = text.split()
-        # If last token is an int, treat as hours
-        try:
-            cand = int(parts[-1])
-            hours = cand if cand > 0 else None
-            parts = parts[:-1]
-        except Exception:
-            pass
-        city = " ".join(parts).strip() if parts else None
-
-    try:
-        line = format_single_line(city, hours)
-    except Exception as e:
-        return f"❌ Ennustevirhe: {e}"
-    return line
-
-
-@command(
-    "sel",
-    aliases=["sääennustelista"],
-    description="Short forecast (multiple lines)",
-    usage="!sel [city] [hours]",
-    examples=["!sel", "!sel Joensuu 12"],
-)
-def short_forecast_list_command(context: CommandContext, bot_functions):
-    """Return a multi-line forecast using Meteosource free API."""
-    try:
-        from services.weather_forecast_service import format_multi_line
-    except Exception as e:
-        return f"Forecast service not available: {e}"
-
-    text = context.args_text.strip() if context.args_text else ""
-    city = None
-    hours = None
-    if text:
-        parts = text.split()
-        try:
-            cand = int(parts[-1])
-            hours = cand if cand > 0 else None
-            parts = parts[:-1]
-        except Exception:
-            pass
-        city = " ".join(parts).strip() if parts else None
-
-    try:
-        lines = format_multi_line(city, hours)
-    except Exception as e:
-        return f"❌ Ennustevirhe: {e}"
-
-    if context.is_console:
-        return "\n".join(lines)
-    # On IRC, send each line as separate notice if available
-    notice = bot_functions.get("notice_message")
-    irc = bot_functions.get("irc")
-    target = context.target or context.sender
-    if notice and irc:
-        for ln in lines:
-            notice(ln, irc, target)
-        return CommandResponse.no_response()
-    return "\n".join(lines)
+# Weather and forecast commands moved to cmd_modules/services.py
 
 
 @command(
@@ -810,7 +732,7 @@ def leetwinners_command(context: CommandContext, bot_functions):
                     timestamp = time.time()
                     # Format as 13.37.13,210725312 (similar to the example)
 
-                    dt = datetime.datetime.fromtimestamp(timestamp)
+                    dt = datetime.fromtimestamp(timestamp)
                     time_str = f"{dt.hour:02d}.{dt.minute:02d}.{dt.second:02d},{int(timestamp * 1000000) % 1000000:06d}"
                     winner_lines.append(f"{winner} {cat_str} @ {time_str}")
 
@@ -990,119 +912,10 @@ def command_eurojackpot(context, bot_functions):
         return f"❌ Eurojackpot error: {str(e)}"
 
 
-@command(
-    "alko",
-    description="Search Alko product information",
-    usage="!alko <drink name> [bottle size] or <product number>",
-    examples=["!alko karhu", "!alko lapin kulta", "!alko gambina 0.75", "!alko 319027"],
-    requires_args=True,
-)
-def alko_command(context: CommandContext, bot_functions):
-    """Search for drink information from Alko product database."""
-    if not context.args_text:
-        return "Usage: !alko <drink name or product number>"
-
-    query = context.args_text.strip()
-    if not query:
-        return "Usage: !alko <drink name or product number>"
-
-    # Get the Alko service from bot functions
-    get_alko_product = bot_functions.get("get_alko_product")
-    if not get_alko_product:
-        return "🍺 Alko service not available"
-
-    try:
-        # Search for the product
-        result = get_alko_product(query)
-        return result
-    except Exception as e:
-        import logging
-
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error in alko command: {e}")
-        return f"🍺 Error searching for product: {str(e)}"
+# Alko command moved to cmd_modules/services.py (newer version with more features)
 
 
-@command(
-    "drugs",
-    description="Check drug interactions and information",
-    usage="!drugs <drug1> <drug2> ...",
-    examples=["!drugs cannabis alcohol", "!drugs mdma caffeine nicotine"],
-    requires_args=True,
-)
-def drugs_command(context: CommandContext, bot_functions):
-    """Check drug interactions using TripSit data."""
-    if not context.args_text:
-        return "💊 Usage: !drugs <drug1> <drug2> ... (e.g., !drugs cannabis alcohol)"
-
-    drug_names = context.args_text.strip()
-    if not drug_names:
-        return "💊 Usage: !drugs <drug1> <drug2> ... (e.g., !drugs cannabis alcohol)"
-
-    # Try to get the drug interaction function from bot functions first
-    check_drug_interactions = bot_functions.get("check_drug_interactions")
-
-    # If not available, try to create drug service directly
-    if not check_drug_interactions:
-        try:
-            from services.drug_service import create_drug_service
-
-            drug_service = create_drug_service()
-            if drug_service:
-                result = drug_service.check_interactions(drug_names.split())
-                # Format response
-                messages = []
-
-                # Add warnings first with emoji and definition
-                if result["warnings"]:
-                    for warning in result["warnings"]:
-                        # Extract the status from the warning (it's in the format: "EMOJI interaction: drug1 + drug2 (status)")
-                        # For now, we'll need to parse this differently since the warnings are pre-formatted
-                        messages.extend(result["warnings"])
-
-                # Add unknown drugs
-                if result["unknown_drugs"]:
-                    unknown_list = ", ".join(result["unknown_drugs"])
-                    messages.append(f"💊 Unknown drugs: {unknown_list}")
-
-                # If no interactions or warnings, show basic info for all drugs
-                if (
-                    not result["interactions"]
-                    and not result["warnings"]
-                    and not result["unknown_drugs"]
-                ):
-                    # Show info for all drugs
-                    drug_list = drug_names.split()
-                    for drug_name in drug_list:
-                        drug_info = drug_service.get_drug_info(drug_name)
-                        if drug_info:
-                            messages.append(drug_service.format_drug_info(drug_info))
-                        else:
-                            messages.append(
-                                f"💊 No information found for '{drug_name}'"
-                            )
-
-                if messages:
-                    return " | ".join(messages)
-                else:
-                    return "💊 No interactions found between the specified drugs."
-        except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error creating drug service directly: {e}")
-            return "💊 Drug service not available. Run src/debug/debug_drugs.py to scrape drug data first."
-
-    try:
-        # Check drug interactions using the bot functions method
-        result = check_drug_interactions(drug_names)
-        return result
-    except Exception as e:
-        import logging
-
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error in drugs command: {e}")
-        return f"💊 Error checking drug interactions: {str(e)}"
+# Drugs command moved to cmd_modules/services.py
 
 
 @command(

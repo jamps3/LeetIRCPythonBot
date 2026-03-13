@@ -76,10 +76,12 @@ class TestElectricityCommand:
         """Test electricity command from console with no arguments."""
         from cmd_modules.services import electricity_command
 
-        # Mock the electricity service
+        # Mock the electricity service - patch the module-level import
         with patch(
-            "services.electricity_service.create_electricity_service"
-        ) as mock_service_class, patch("config.get_api_key") as mock_get_api_key:
+            "cmd_modules.services.create_electricity_service"
+        ) as mock_service_class, patch(
+            "cmd_modules.services.get_api_key"
+        ) as mock_get_api_key:
 
             mock_get_api_key.return_value = "test_api_key"
             mock_service = Mock()
@@ -119,8 +121,10 @@ class TestElectricityCommand:
         console_context.args = ["huomenna", "15"]
 
         with patch(
-            "services.electricity_service.create_electricity_service"
-        ) as mock_service_class, patch("config.get_api_key") as mock_get_api_key:
+            "cmd_modules.services.create_electricity_service"
+        ) as mock_service_class, patch(
+            "cmd_modules.services.get_api_key"
+        ) as mock_get_api_key:
 
             mock_get_api_key.return_value = "test_api_key"
             mock_service = Mock()
@@ -163,7 +167,7 @@ class TestElectricityCommand:
 
         # Should return no_response since service handles output
         assert isinstance(result, CommandResponse)
-        assert result.message is None
+        assert result.should_respond is False
         mock_bot_functions["send_electricity_price"].assert_called_once()
 
     def test_electricity_command_no_api_key(self, console_context, mock_bot_functions):
