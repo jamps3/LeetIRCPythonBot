@@ -532,15 +532,23 @@ def command_pet(context, bot_functions):
 @command(
     name="krak",
     command_type=CommandType.PUBLIC,
-    description="Show personal krak count",
-    usage="!krak",
+    description="Set BAC calculation profile parameters or view current BAC",
+    usage="!krak [weight_kg m/f] or !krak [burn_rate] or !krak [nickname] or !krak",
     admin_only=False,
 )
 def command_krak(context, bot_functions):
-    """Show personal krak count."""
-    drink = bot_functions.get("drink_tracker") or _get_drink_tracker()
-    if not drink:
-        return "Drink tracker ei ole käytettävissä."
+    """Set BAC calculation profile parameters or view current BAC.
+
+    Usage:
+    - !krak weight_kg m/f : Set weight and sex for personalized BAC calculation
+    - !krak burn_rate : Set custom burn rate in ‰ per hour
+    - !krak nickname : View another user's BAC information
+    - !krak : View current BAC information
+    """
+    # Get the BAC tracker
+    bac_tracker = bot_functions.get("bac_tracker")
+    if not bac_tracker:
+        return "❌ BAC tracker not available"
 
     # Derive server name
     server_name = (
@@ -549,23 +557,106 @@ def command_krak(context, bot_functions):
         or "console"
     )
 
-    nick = context.sender
+    # Check if arguments are provided for setting profile
+    setting_message = None
+    if context.args:
+        # Try to parse profile settings
+        if len(context.args) == 2:
+            # Two args: weight_kg sex
+            try:
+                weight_kg = float(context.args[0])
+                sex = context.args[1].lower()
+                if sex in ["m", "f"]:
+                    bac_tracker.set_user_profile(
+                        server_name, context.sender, weight_kg=weight_kg, sex=sex
+                    )
+                    setting_message = f"✅ Set profile: {weight_kg}kg, {sex.upper()}"
+                else:
+                    return "❌ Invalid sex. Use 'm' or 'f'"
+            except ValueError:
+                return "❌ Invalid weight. Use a number for weight in kg"
+        elif len(context.args) == 1:
+            # One arg: could be burn_rate or nickname
+            try:
+                burn_rate = float(context.args[0])
+                # Validate burn rate range
+                if 0.05 <= burn_rate <= 1.0:
+                    bac_tracker.set_user_profile(
+                        server_name, context.sender, burn_rate=burn_rate
+                    )
+                    setting_message = f"✅ Set burn rate: {burn_rate}‰/h"
+                else:
+                    return "❌ Burn rate must be between 0.05 and 1.0 ‰/h"
+            except ValueError:
+                # Not a number, treat as nickname
+                pass  # Will be handled below
+        else:
+            return "❌ Too many arguments. Use: !krak [weight_kg sex] or !krak [burn_rate] or !krak [nickname]"
 
-    # Get user stats
-    user_stats = drink.get_user_stats(server_name, nick)
-    total = user_stats.get("total_drink_words", 0)
+    # Determine the target user (default to sender)
+    target_nick = context.sender
 
-    if total == 0:
-        return f"{nick}: Ei krakkauksia vielä."
+    # Check if we have a nickname argument (single non-numeric argument)
+    if context.args and len(context.args) == 1:
+        potential_nick = context.args[0]
+        try:
+            float(potential_nick)
+            # It's a number, already handled above
+        except ValueError:
+            if potential_nick.lower() not in ["m", "f"]:
+                # Not a number and not sex, treat as nickname
+                target_nick = potential_nick
 
-    # Get top drink words
-    drink_words = user_stats.get("drink_words", {})
-    if drink_words:
-        top = max(drink_words.keys(), key=lambda w: drink_words[w].get("count", 0))
-        top_count = drink_words[top].get("count", 0)
-        return f"{nick}: {total} krakkausta (top: {top}:{top_count})"
-    else:
-        return f"{nick}: {total} krakkausta"
+    # Show BAC information
+    bac_info = bac_tracker.get_user_bac(server_name, target_nick)
+    profile = bac_tracker.get_user_profile(server_name, target_nick)
+
+    # Get last drink grams from stored data
+    bac_data = bac_tracker._load_bac_data()
+    user_key = f"{server_name}:{target_nick}"
+    user_data = bac_data.get(user_key, {})
+    last_drink_grams = user_data.get("last_drink_grams")
+
+    # Show whose BAC we're displaying if it's not the sender
+    display_name = f"{target_nick}'s" if target_nick != context.sender else ""
+
+    if bac_info["current_bac"] == 0.0 and not any(profile.values()):
+        response = f"🍺 {display_name} No BAC data yet."
+        # Include last drink alcohol content even when no profile
+        if last_drink_grams:
+            response += f" | Last: {last_drink_grams:.1f}g"
+        if setting_message:
+            response = f"{setting_message}\n{response}"
+        return response
+
+    response_parts = []
+
+    # Add setting confirmation if we set something
+    if setting_message:
+        response_parts.append(setting_message)
+
+    # Show current BAC if any
+    if bac_info["current_bac"] > 0.0:
+        sober_time = bac_info.get("sober_time", "Unknown")
+        driving_time = bac_info.get("driving_time")
+        response_parts.append(
+            f"🍺 {display_name} Promilles: {bac_info['current_bac']:.2f}‰"
+        )
+
+        # Include last drink alcohol content if available
+        if last_drink_grams:
+            response_parts.append(f"Last: {last_drink_grams:.1f}g")
+
+        if sober_time:
+            response_parts.append(f"Sober: ~{sober_time}")
+
+        if driving_time:
+            response_parts.append(f"Driving: ~{driving_time}")
+
+    # Show burn rate only
+    response_parts.append(f"Burn rate: {profile['burn_rate']}‰/h")
+
+    return " | ".join(response_parts)
 
 
 # =====================
