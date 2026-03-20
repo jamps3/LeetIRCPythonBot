@@ -212,10 +212,18 @@ def test_parse_csv_variants():
 
 
 def test_get_server_configs_parsing_and_defaults(monkeypatch, capsys):
-    # Clear env of SERVER vars
-    for k in list(os.environ.keys()):
-        if k.startswith("SERVER"):
-            monkeypatch.delenv(k, raising=False)
+    # We need to mock load_dotenv to prevent .env from being reloaded
+    # This allows us to control the environment variables in the test
+    from unittest.mock import patch
+
+    with patch.object(cfg, "load_env_file", return_value=True):
+        # Clear all SERVER variables first
+        for k in list(os.environ.keys()):
+            if k.startswith("SERVER"):
+                monkeypatch.delenv(k, raising=False)
+
+        # No servers -> default with warning
+        servers = cfg.get_server_configs()
 
     # No servers -> default with warning
     servers = cfg.get_server_configs()
@@ -261,10 +269,14 @@ def test_get_server_configs_parsing_and_defaults(monkeypatch, capsys):
 
 
 def test_get_server_config_by_name_and_channel_keys(monkeypatch):
-    # Clear any existing SERVER1 environment variables from .env file
-    for key in list(os.environ.keys()):
-        if key.startswith("SERVER1_"):
-            monkeypatch.delenv(key, raising=False)
+    from unittest.mock import patch
+
+    # Mock load_dotenv to prevent .env from being reloaded during test
+    with patch.object(cfg, "load_env_file", return_value=True):
+        # Clear any existing SERVER1 environment variables from .env file
+        for key in list(os.environ.keys()):
+            if key.startswith("SERVER1_"):
+                monkeypatch.delenv(key, raising=False)
 
     # Prepare env for a server
     monkeypatch.setenv("SERVER1_HOST", "h")
