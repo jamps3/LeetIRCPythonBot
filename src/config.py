@@ -499,6 +499,9 @@ def get_server_configs() -> List[ServerConfig]:
     Returns:
         List of ServerConfig objects
     """
+    # Ensure .env file is loaded first
+    load_env_file()
+
     server_configs = []
 
     # Find all SERVER*_HOST variables to identify server configurations

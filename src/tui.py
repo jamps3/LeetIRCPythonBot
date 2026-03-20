@@ -1548,6 +1548,15 @@ class TUIManager:
             self.command_history.append(text)
         self.history_index = len(self.command_history)
 
+        # Instant save command history to file
+        try:
+            history_file = "data/.command_history"
+            os.makedirs(os.path.dirname(history_file), exist_ok=True)
+            with open(history_file, "w", encoding="utf-8") as f:
+                f.write("\n".join(self.command_history))
+        except Exception:
+            pass  # Ignore errors saving
+
         # Handle TUI-specific commands first
         if text.lower().startswith("filter:"):
             # Filter command

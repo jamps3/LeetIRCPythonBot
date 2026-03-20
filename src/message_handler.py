@@ -1926,7 +1926,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 all_prices = []
                 for h in range(24):
                     price_data = electricity_service.get_electricity_price(
-                        hour=h, date=parsed_args["date"]
+                        hour=h, date=parsed_args["date"], fetch_next_day=False
                     )
                     if price_data.get("error"):
                         all_prices.append({"hour": h, "error": price_data["message"]})

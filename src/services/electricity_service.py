@@ -24,6 +24,15 @@ class ElectricityService:
         self.cache_ttl_hours = cache_ttl_hours
         self._cache: Dict[str, Any] = {}
         self._logged_skip_dates: set = set()  # Track logged skip messages to avoid spam
+        self._pending_fetches: Dict[str, Any] = (
+            {}
+        )  # Track ongoing fetches to prevent duplicates
+        self._last_incomplete_fetch: Dict[str, datetime] = (
+            {}
+        )  # Track last incomplete fetch attempt
+        self._incomplete_fetch_cooldown = timedelta(
+            minutes=5
+        )  # Don't refetch incomplete data within 5 minutes
         self.base_url = "https://web-api.tp.entsoe.eu/api"
         self.finland_domain = "10YFI-1--------U"
         self.vat_rate = 1.255  # Finnish VAT 25.5%
@@ -39,10 +48,18 @@ class ElectricityService:
         hour: Optional[int] = None,
         quarter: Optional[int] = None,
         date: Optional[datetime] = None,
+        fetch_next_day: bool = True,
     ) -> Dict[str, Any]:
         """
         Get electricity price for a specific hour and quarter (15-min interval).
         Returns prices with VAT included in snt/kWh.
+
+        Args:
+            hour: Hour of the day (0-23)
+            quarter: Quarter hour (1-4) for 15-min intervals
+            date: Date to get prices for
+            fetch_next_day: If True, also fetch next day's prices for comparison.
+                           Set to False when looping to avoid redundant API calls.
         """
         try:
             now = datetime.now(self.timezone)
@@ -106,49 +123,53 @@ class ElectricityService:
                 "include_tomorrow": True,
             }
 
-            # Tomorrow's data if available
-            tomorrow_data = self.get_daily_prices(date + timedelta(days=1))
-            # Check if we got valid data: no error AND interval_prices exists AND is not empty
-            if (
-                not tomorrow_data.get("error")
-                and tomorrow_data.get("interval_prices")
-                and len(tomorrow_data.get("interval_prices", {})) > 0
-            ):
-                interval_prices_tomorrow: Dict[tuple[int, int], float] = tomorrow_data[
-                    "interval_prices"
-                ]
-                hourly_prices_tomorrow: Dict[int, Dict[str, Any]] = {}
-                for (h, q), price in interval_prices_tomorrow.items():
-                    if h not in hourly_prices_tomorrow:
-                        hourly_prices_tomorrow[h] = {
-                            "quarter_prices": {},
-                            "avg_hour_eur_mwh": 0,
+            # Tomorrow's data if available (skip if fetch_next_day is False)
+            if not fetch_next_day:
+                result["tomorrow_price"] = None
+                result["tomorrow_available"] = False
+            else:
+                tomorrow_data = self.get_daily_prices(date + timedelta(days=1))
+                # Check if we got valid data: no error AND interval_prices exists AND is not empty
+                if (
+                    not tomorrow_data.get("error")
+                    and tomorrow_data.get("interval_prices")
+                    and len(tomorrow_data.get("interval_prices", {})) > 0
+                ):
+                    interval_prices_tomorrow: Dict[tuple[int, int], float] = (
+                        tomorrow_data["interval_prices"]
+                    )
+                    hourly_prices_tomorrow: Dict[int, Dict[str, Any]] = {}
+                    for (h, q), price in interval_prices_tomorrow.items():
+                        if h not in hourly_prices_tomorrow:
+                            hourly_prices_tomorrow[h] = {
+                                "quarter_prices": {},
+                                "avg_hour_eur_mwh": 0,
+                            }
+                        hourly_prices_tomorrow[h]["quarter_prices"][q] = price
+                    for h, data in hourly_prices_tomorrow.items():
+                        q_prices = list(data["quarter_prices"].values())
+                        if q_prices:
+                            data["avg_hour_eur_mwh"] = sum(q_prices) / len(q_prices)
+                    if hour in hourly_prices_tomorrow:
+                        tomorrow_price = hourly_prices_tomorrow[hour]
+                        result["tomorrow_price"] = {
+                            "avg_hour_eur_mwh": tomorrow_price["avg_hour_eur_mwh"],
+                            "hour_avg_snt_kwh": self._convert_price(
+                                tomorrow_price["avg_hour_eur_mwh"]
+                            ),
+                            "quarter_prices": tomorrow_price["quarter_prices"],
+                            "quarter_prices_snt": {
+                                q: self._convert_price(v)
+                                for q, v in tomorrow_price["quarter_prices"].items()
+                            },
                         }
-                    hourly_prices_tomorrow[h]["quarter_prices"][q] = price
-                for h, data in hourly_prices_tomorrow.items():
-                    q_prices = list(data["quarter_prices"].values())
-                    if q_prices:
-                        data["avg_hour_eur_mwh"] = sum(q_prices) / len(q_prices)
-                if hour in hourly_prices_tomorrow:
-                    tomorrow_price = hourly_prices_tomorrow[hour]
-                    result["tomorrow_price"] = {
-                        "avg_hour_eur_mwh": tomorrow_price["avg_hour_eur_mwh"],
-                        "hour_avg_snt_kwh": self._convert_price(
-                            tomorrow_price["avg_hour_eur_mwh"]
-                        ),
-                        "quarter_prices": tomorrow_price["quarter_prices"],
-                        "quarter_prices_snt": {
-                            q: self._convert_price(v)
-                            for q, v in tomorrow_price["quarter_prices"].items()
-                        },
-                    }
-                    result["tomorrow_available"] = True
+                        result["tomorrow_available"] = True
+                    else:
+                        result["tomorrow_price"] = None
+                        result["tomorrow_available"] = False
                 else:
                     result["tomorrow_price"] = None
                     result["tomorrow_available"] = False
-            else:
-                result["tomorrow_price"] = None
-                result["tomorrow_available"] = False
 
             return result
 
@@ -164,6 +185,22 @@ class ElectricityService:
             requested_date = date
         date_key = requested_date.strftime("%Y-%m-%d")
         now = datetime.now(self.timezone)  # Use timezone-aware timestamp
+
+        # Check if there's already a pending fetch for this date - wait for it instead of making another request
+        if date_key in self._pending_fetches:
+            pending_event = self._pending_fetches[date_key]
+            log(
+                f"Waiting for pending fetch for {date_key}",
+                level="DEBUG",
+                context="ELECTRICITY",
+            )
+            # Wait for the pending fetch to complete (with timeout)
+            pending_event.wait(timeout=30)
+            # After waiting, check if we now have cached data
+            cached = self._cache.get(date_key)
+            if cached:
+                return cached["data"]
+            # If still no cache, fall through to fetch
 
         # Check cache
         cached = self._cache.get(date_key)
@@ -188,7 +225,20 @@ class ElectricityService:
                     return cached_data
                 else:
                     # Incomplete cached data (e.g., only hour 0 for tomorrow)
-                    # Remove from cache and fetch fresh data
+                    # Check if we've recently tried to fetch (within cooldown period)
+                    last_attempt = self._last_incomplete_fetch.get(date_key)
+                    if (
+                        last_attempt
+                        and now - last_attempt < self._incomplete_fetch_cooldown
+                    ):
+                        # Use the incomplete data we have instead of refetching
+                        log(
+                            f"Using incomplete cached data for {date_key} ({len(unique_hours)} hours) - cooldown active",
+                            level="DEBUG",
+                            context="ELECTRICITY",
+                        )
+                        return cached_data
+                    # Otherwise, try to fetch fresh data
                     log(
                         f"Incomplete cached data for {date_key} ({len(unique_hours)} hours), fetching fresh",
                         level="DEBUG",
@@ -203,6 +253,12 @@ class ElectricityService:
                     context="ELECTRICITY",
                 )
                 del self._cache[date_key]
+
+        # Create event to signal pending fetch
+        import threading
+
+        fetch_event = threading.Event()
+        self._pending_fetches[date_key] = fetch_event
 
         try:
             local_start = self.timezone.localize(
@@ -345,6 +401,11 @@ class ElectricityService:
                 "interval_prices": interval_prices,
             }
 
+            # Track if we got incomplete data
+            unique_hours = set(h for (h, q) in interval_prices.keys())
+            if len(unique_hours) < 20:
+                self._last_incomplete_fetch[date_key] = now
+
             self._cache[date_key] = {"timestamp": now, "data": result}
             return result
 
@@ -355,6 +416,11 @@ class ElectricityService:
                 context="ELECTRICITY",
             )
             return {"error": True, "message": "Failed to fetch daily prices."}
+        finally:
+            # Signal that fetch is complete and clean up
+            if date_key in self._pending_fetches:
+                self._pending_fetches[date_key].set()
+                del self._pending_fetches[date_key]
 
     # ---------- Helpers ----------
 
@@ -1070,6 +1136,17 @@ class ElectricityService:
         return " | ".join(message_parts)
 
 
+# ---------- Singleton instance ----------
+_electricity_service_singleton: "ElectricityService" = None  # type: ignore
+
+
 # ---------- Factory function ----------
-def create_electricity_service(api_key: str) -> ElectricityService:
-    return ElectricityService(api_key)
+def create_electricity_service(api_key: str) -> "ElectricityService":
+    """Get or create a singleton electricity service instance.
+
+    This ensures all commands share the same service instance with a shared cache.
+    """
+    global _electricity_service_singleton
+    if _electricity_service_singleton is None:
+        _electricity_service_singleton = ElectricityService(api_key)
+    return _electricity_service_singleton
