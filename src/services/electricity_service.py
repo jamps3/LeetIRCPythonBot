@@ -1140,6 +1140,13 @@ class ElectricityService:
 _electricity_service_singleton: "ElectricityService" = None  # type: ignore
 
 
+# ---------- Reset function (for testing) ----------
+def reset_electricity_service_singleton() -> None:
+    """Reset the electricity service singleton. Used for testing."""
+    global _electricity_service_singleton
+    _electricity_service_singleton = None
+
+
 # ---------- Factory function ----------
 def create_electricity_service(api_key: str) -> "ElectricityService":
     """Get or create a singleton electricity service instance.

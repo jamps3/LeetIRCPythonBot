@@ -22,6 +22,14 @@ def reset_command_registry():
     """Reset command registry before each test to avoid conflicts."""
     from command_registry import reset_command_registry
 
+    # Reset electricity service singleton before each test
+    try:
+        from services.electricity_service import reset_electricity_service_singleton
+
+        reset_electricity_service_singleton()
+    except ImportError:
+        pass
+
     reset_command_registry()
 
     # Reset command loader flag so commands get reloaded
