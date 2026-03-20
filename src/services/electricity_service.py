@@ -1103,7 +1103,7 @@ class ElectricityService:
                 date_obj = now.date()
             date_str = date_obj.strftime("%Y-%m-%d")
 
-        message_parts = [f"⚡ {day_label} {date_str} sähkön hinnat:"]
+        message_parts = [f"⚡ {day_label} {date_str}:"]
 
         # Format hours in groups of 6 for better readability
         for group_start in range(0, 24, 6):
@@ -1133,7 +1133,7 @@ class ElectricityService:
         # Add unit information
         message_parts.append("(snt/kWh sis. ALV)")
 
-        return " | ".join(message_parts)
+        return " ".join(message_parts)
 
 
 # ---------- Singleton instance ----------
