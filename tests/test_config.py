@@ -217,55 +217,52 @@ def test_get_server_configs_parsing_and_defaults(monkeypatch, capsys):
     from unittest.mock import patch
 
     with patch.object(cfg, "load_env_file", return_value=True):
-        # Clear all SERVER variables first
+        # Clear all SERVER variables first (they were loaded from .env at module import)
         for k in list(os.environ.keys()):
             if k.startswith("SERVER"):
                 monkeypatch.delenv(k, raising=False)
 
         # No servers -> default with warning
         servers = cfg.get_server_configs()
+        captured = capsys.readouterr()
+        assert any("Warning: No server configurations" in captured.out for _ in [0])
+        assert servers[0].host == "irc.libera.chat"
+        assert servers[0].channels == ["#test"]
 
-    # No servers -> default with warning
-    servers = cfg.get_server_configs()
-    captured = capsys.readouterr()
-    assert any("Warning: No server configurations" in captured.out for _ in [0])
-    assert servers[0].host == "irc.libera.chat"
-    assert servers[0].channels == ["#test"]
+        # Add two servers
+        monkeypatch.setenv("SERVER1_HOST", "h1")
+        monkeypatch.setenv("SERVER1_PORT", "7000")
+        monkeypatch.setenv("SERVER1_CHANNELS", "a,b , #c")
+        monkeypatch.setenv("SERVER1_KEYS", "k1,k2")
+        monkeypatch.setenv("SERVER1_TLS", "yes")
+        monkeypatch.setenv("SERVER1_ALLOW_INSECURE_TLS", "1")
+        monkeypatch.setenv("SERVER1_HOSTNAME", "srv1")
 
-    # Add two servers
-    monkeypatch.setenv("SERVER1_HOST", "h1")
-    monkeypatch.setenv("SERVER1_PORT", "7000")
-    monkeypatch.setenv("SERVER1_CHANNELS", "a,b , #c")
-    monkeypatch.setenv("SERVER1_KEYS", "k1,k2")
-    monkeypatch.setenv("SERVER1_TLS", "yes")
-    monkeypatch.setenv("SERVER1_ALLOW_INSECURE_TLS", "1")
-    monkeypatch.setenv("SERVER1_HOSTNAME", "srv1")
+        monkeypatch.setenv("SERVER2_HOST", "h2")
+        monkeypatch.setenv("SERVER2_PORT", "not-int")  # fallback path
+        monkeypatch.setenv("SERVER2_CHANNELS", "#z")
+        monkeypatch.setenv("SERVER2_TLS", "false")
 
-    monkeypatch.setenv("SERVER2_HOST", "h2")
-    monkeypatch.setenv("SERVER2_PORT", "not-int")  # fallback path
-    monkeypatch.setenv("SERVER2_CHANNELS", "#z")
-    monkeypatch.setenv("SERVER2_TLS", "false")
+        # Add a malformed server with empty host to hit 'continue' branch
+        monkeypatch.setenv("SERVER9_HOST", "")
 
-    # Add a malformed server with empty host to hit 'continue' branch
-    monkeypatch.setenv("SERVER9_HOST", "")
+        servers2 = cfg.get_server_configs()
+        # We don't rely on order, find by host
+        by_host = {s.host: s for s in servers2}
+        s1 = by_host["h1"]
+        s2 = by_host["h2"]
 
-    servers2 = cfg.get_server_configs()
-    # We don't rely on order, find by host
-    by_host = {s.host: s for s in servers2}
-    s1 = by_host["h1"]
-    s2 = by_host["h2"]
+        assert (
+            s1.port == 7000
+            and s1.tls is True
+            and s1.allow_insecure_tls is True
+            and s1.name == "srv1"
+        )
+        assert s1.channels == ["#a", "#b", "#c"]
+        # keys padded to channels
+        assert s1.keys == ["k1", "k2", ""]
 
-    assert (
-        s1.port == 7000
-        and s1.tls is True
-        and s1.allow_insecure_tls is True
-        and s1.name == "srv1"
-    )
-    assert s1.channels == ["#a", "#b", "#c"]
-    # keys padded to channels
-    assert s1.keys == ["k1", "k2", ""]
-
-    assert s2.port == 6667 and s2.tls is False and s2.channels == ["#z"]
+        assert s2.port == 6667 and s2.tls is False and s2.channels == ["#z"]
 
 
 def test_get_server_config_by_name_and_channel_keys(monkeypatch):
@@ -278,27 +275,27 @@ def test_get_server_config_by_name_and_channel_keys(monkeypatch):
             if key.startswith("SERVER1_"):
                 monkeypatch.delenv(key, raising=False)
 
-    # Prepare env for a server
-    monkeypatch.setenv("SERVER1_HOST", "h")
-    monkeypatch.setenv("SERVER1_CHANNELS", "a,b")
-    servers = cfg.get_server_configs()
-    name = servers[0].name
+        # Prepare env for a server
+        monkeypatch.setenv("SERVER1_HOST", "h")
+        monkeypatch.setenv("SERVER1_CHANNELS", "a,b")
+        servers = cfg.get_server_configs()
+        name = servers[0].name
 
-    found = cfg.get_server_config_by_name(name)
-    assert found is not None and found.name == name
+        found = cfg.get_server_config_by_name(name)
+        assert found is not None and found.name == name
 
-    # Not found path
-    assert cfg.get_server_config_by_name("unknown-name") is None
+        # Not found path
+        assert cfg.get_server_config_by_name("unknown-name") is None
 
-    # Channel-key pairs with and without keys
-    pairs_no_keys = cfg.get_channel_key_pairs(found)
-    assert pairs_no_keys == [("#a", ""), ("#b", "")]
+        # Channel-key pairs with and without keys
+        pairs_no_keys = cfg.get_channel_key_pairs(found)
+        assert pairs_no_keys == [("#a", ""), ("#b", "")]
 
-    found.keys = ["k1"]
-    # __post_init__ won't be called here; enforce padding like function does when zipping
-    pairs_with_keys = cfg.get_channel_key_pairs(found)
-    # Since keys shorter, zip truncates, but our function returns zip as-is -> ensure length equals len(found.keys)
-    assert pairs_with_keys == [("#a", "k1")]
+        found.keys = ["k1"]
+        # __post_init__ won't be called here; enforce padding like function does when zipping
+        pairs_with_keys = cfg.get_channel_key_pairs(found)
+        # Since keys shorter, zip truncates, but our function returns zip as-is -> ensure length equals len(found.keys)
+        assert pairs_with_keys == [("#a", "k1")]
 
 
 def test_api_key_and_channel_id_helpers():
