@@ -458,10 +458,16 @@ class YouTubeService:
 
         # Format top results
         result_lines = []
+        show_numbers = (
+            len(results) > 1
+        )  # Only show numbers when there are multiple results
         for i, result in enumerate(results[:3], 1):  # Show top 3 results
             title = result["title"][:50] + ("..." if len(result["title"]) > 50 else "")
             url = result["url"]
-            result_lines.append(f"{i}. '{title}' {url}")
+            if show_numbers:
+                result_lines.append(f"{i}. '{title}' {url}")
+            else:
+                result_lines.append(f"'{title}' {url}")
 
         if len(results) > 3:
             result_lines.append(f"... and {len(results) - 3} more results")
