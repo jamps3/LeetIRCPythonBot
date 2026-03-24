@@ -179,7 +179,7 @@ def countdown_command(context: CommandContext, bot_functions):
     seconds = 0
 
     # Extract time components with their units
-    time_components = re.findall(r"(\d+)(h|min|s)", time_str)
+    time_components = re.findall(r"(\d+)(h|min|m|s)", time_str)
 
     if not time_components:
         # No units specified - check if it's just a number (defaults to minutes)
@@ -193,14 +193,14 @@ def countdown_command(context: CommandContext, bot_functions):
             value = int(value_str)
             if unit == "h":
                 hours = value
-            elif unit == "min":
+            elif unit in ("min", "m"):
                 minutes = value
             elif unit == "s":
                 seconds = value
 
         # If there are leftover digits without units, treat as minutes (for backwards compatibility)
         # This handles cases like "1h30" where "30" has no unit
-        remaining_digits = re.sub(r"\d+(?:h|min|s)", "", time_str).strip()
+        remaining_digits = re.sub(r"\d+(?:h|min|m|s)", "", time_str).strip()
         if remaining_digits and remaining_digits.isdigit():
             minutes = int(remaining_digits)
 
