@@ -1168,6 +1168,7 @@ def test_demo_data_without_api_key_basic(monkeypatch):
 
     monkeypatch.delenv("EUROJACKPOT_API_KEY", raising=False)
     s = EurojackpotService()
+    s.api_key = None  # Force no API key after config loaded
     result = s.get_next_draw_info()
     assert result["success"] is True
     assert "(API ei saatavilla)" in result["message"]

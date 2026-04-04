@@ -10,8 +10,8 @@ import stat
 
 
 def get_hook_content():
-    """Generate the pre-commit hook content."""
-    return """#!/bin/bash
+    r"""Generate the pre-commit hook content."""
+    return r"""#!/bin/bash
 # LeetIRCPythonBot Pre-commit Hook
 # Formats code with isort and black, lints with flake8, then runs quick tests if PRECOMMIT_RUN_TESTS enabled.
 # If any step fails, the commit is aborted.
@@ -52,7 +52,7 @@ echo "Using Python: $PYTHON_CMD"
 # Run isort if available, fail if not found
 if $PYTHON_CMD -m isort --version >/dev/null 2>&1; then
   # Get list of staged Python files to only format those
-  STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.py$' | tr '\\n' ' ')
+  STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | { grep -E '\.py$' || true; } | tr '\n' ' ')
   if [ -n "$STAGED_FILES" ]; then
     echo "$PYTHON_CMD -m isort $STAGED_FILES"
     $PYTHON_CMD -m isort $STAGED_FILES
@@ -67,7 +67,7 @@ fi
 # Run black if available, fail if not found
 if $PYTHON_CMD -m black --version >/dev/null 2>&1; then
   # Get list of staged Python files to only format those
-  STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.py$' | tr '\\n' ' ')
+  STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | { grep -E '\.py$' || true; } | tr '\n' ' ')
   if [ -n "$STAGED_FILES" ]; then
     echo "$PYTHON_CMD -m black $STAGED_FILES"
     $PYTHON_CMD -m black $STAGED_FILES
@@ -122,7 +122,7 @@ if os.path.exists(version_file):
         exit(0)
 
     # Parse version components (major.minor.patch)
-    version_match = re.match(r'([0-9]+)\\.([0-9]+)\\.([0-9]+)$', current_version)
+    version_match = re.match(r'([0-9]+)\.([0-9]+)\.([0-9]+)$', current_version)
     if version_match:
         major, minor, patch = version_match.groups()
         minor = int(minor)
@@ -178,16 +178,13 @@ def install_hook():
     hook_content = get_hook_content()
     hook_path = os.path.join(".git", "hooks", "pre-commit")
 
-    # Create .git/hooks directory if it doesn't exist
     hooks_dir = os.path.dirname(hook_path)
     if not os.path.exists(hooks_dir):
         os.makedirs(hooks_dir)
 
-    # Write the hook file
     with open(hook_path, "w", encoding="utf-8") as f:
         f.write(hook_content)
 
-    # Make the hook executable
     os.chmod(
         hook_path,
         stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH,

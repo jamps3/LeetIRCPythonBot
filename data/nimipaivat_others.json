@@ -222,6 +222,9 @@
       "Immanuel",
       "Manne"
     ],
+    "03-27": [
+      "Torvald"
+    ],
     "03-30": [
       "Guy",
       "Tage"
@@ -1996,7 +1999,6 @@
       "Elmo",
       "Elmer",
       "Helmer",
-      "Malakia",
       "Eenokki",
       "Harmi",
       "Harmo",
@@ -2314,7 +2316,6 @@
       "Likka",
       "Antoinetta",
       "Latzi",
-      "Kiril",
       "Lávrá",
       "Antonius",
       "Laura"
@@ -2357,8 +2358,7 @@
       "Fabianus",
       "Henná",
       "Fabbe",
-      "Tupsu",
-      "Inna"
+      "Tupsu"
     ],
     "01-21": [
       "Aune",
@@ -2731,7 +2731,6 @@
       "Marianne",
       "Armi",
       "Ansgarius",
-      "Kiril",
       "Liekki",
       "Ronja",
       "Lieska",
@@ -2923,7 +2922,6 @@
       "Ystävä",
       "Sigfrid",
       "Voitto",
-      "Kiril",
       "Valentin",
       "Tino",
       "Honey"
@@ -3119,7 +3117,6 @@
       "Torgny",
       "Nessu",
       "Nestor",
-      "Svetlana",
       "Ingvar",
       "Ealjá"
     ],
@@ -3348,7 +3345,6 @@
       "Happy",
       "Francisca",
       "Elvin",
-      "Severi",
       "Edvin"
     ],
     "03-10": [
@@ -3455,7 +3451,6 @@
       "Mechtilde",
       "Zacharias",
       "Matilda",
-      "Pentti",
       "Mette",
       "Tilda",
       "Christiana",
@@ -3518,7 +3513,6 @@
       "Suleima",
       "Eppu",
       "Juliana",
-      "Kiril",
       "Alexander",
       "Milli",
       "Eddie",
@@ -3646,7 +3640,6 @@
       "Kaapo"
     ],
     "03-27": [
-      "Torvald",
       "Saul",
       "Sauli",
       "Rudolf",
@@ -3821,8 +3814,7 @@
       "Theodosia",
       "Wictor",
       "Lötkö",
-      "Peku",
-      "Tiitus"
+      "Peku"
     ],
     "04-03": [
       "Christian",
@@ -3887,7 +3879,6 @@
       "Liam",
       "Celestinus",
       "Wilmer",
-      "Mefodi",
       "Ville",
       "Vilhelmiina",
       "Moses",
@@ -4000,7 +3991,6 @@
       "Hupu",
       "Giđeš",
       "Ulf",
-      "Antippa",
       "Antipas",
       "Hupakko",
       "Foxi",
@@ -4373,7 +4363,6 @@
       "Armo",
       "Theodorus",
       "Laikku",
-      "Jason",
       "Vankka",
       "Voima",
       "Adelward",
@@ -4528,7 +4517,6 @@
       "Frejvid",
       "Ylppö",
       "Bobo",
-      "Job",
       "Protogenes",
       "Ulrik",
       "Freja",
@@ -4856,7 +4844,6 @@
       "Emelie",
       "Amalia",
       "Emilie",
-      "Patrik",
       "Milla",
       "Emmoš",
       "Sara",
@@ -5426,7 +5413,6 @@
       "Primus",
       "Oliivi",
       "Prima",
-      "Kiril",
       "Flavius",
       "Ahkemiella",
       "Börje",
@@ -5481,7 +5467,6 @@
       "Blondi",
       "Hjördis",
       "Immikki",
-      "Perttu",
       "Biergá",
       "Bertil",
       "Nippe",
@@ -5601,7 +5586,6 @@
       "Salama",
       "Muusa",
       "Päivi",
-      "Tiihon",
       "Eugenia"
     ],
     "06-17": [
@@ -6013,7 +5997,6 @@
       "Chilianus",
       "Aqvilla",
       "Tuittu",
-      "Okko",
       "Turo",
       "Turre",
       "Tora",
@@ -6275,7 +6258,6 @@
       "Sarita",
       "Sally",
       "Albinus",
-      "Serafim",
       "Sari",
       "Sara"
     ],
@@ -6512,7 +6494,6 @@
       "Mallu",
       "Mapu",
       "Mikador",
-      "Paraske",
       "Marta",
       "Martha",
       "Anna",
@@ -6732,7 +6713,6 @@
       "Didrik",
       "Lolle",
       "Sanelma",
-      "Nonna",
       "Salme",
       "Gurli",
       "Oswaldus",
@@ -6782,7 +6762,6 @@
       "Cyprianus",
       "Cyriakus",
       "Manteli",
-      "Sosima",
       "Sylvi",
       "Sylvia",
       "Silvá",
@@ -6876,8 +6855,7 @@
       "Okko",
       "Jesse",
       "Sáppá",
-      "Herlack",
-      "Tiihon"
+      "Herlack"
     ],
     "08-14": [
       "Miikka",
@@ -7195,7 +7173,6 @@
       "Romeo",
       "Vilja",
       "Aristillus",
-      "Pimen",
       "Zephyrin",
       "Fonja",
       "Pohto",
@@ -7214,7 +7191,6 @@
       "Gebhard",
       "Augustinus",
       "Hilding",
-      "Mooses",
       "Tarkka",
       "Höpö",
       "Tauno",
@@ -7380,7 +7356,6 @@
       "Serapia",
       "Sesa",
       "Seraphina",
-      "Vassi",
       "Madame",
       "Soilikki",
       "Ebba",
@@ -7399,7 +7374,6 @@
     "09-04": [
       "Ággi",
       "Rapa-Ripa",
-      "Mooses",
       "Roland",
       "Theodosia",
       "Rufus",
@@ -7508,7 +7482,6 @@
     "09-08": [
       "Noita",
       "Göta",
-      "Risto",
       "Nokkela",
       "Göte",
       "Alma",
@@ -7681,7 +7654,6 @@
       "Salomon",
       "Tyllerö",
       "Tyttö",
-      "Arja",
       "Typy",
       "Buohttá",
       "Tyyni",
@@ -7723,7 +7695,6 @@
       "Erna",
       "Agda",
       "Augusta",
-      "Helge",
       "Prisse",
       "Esmeralda",
       "Aurelia",
@@ -7732,7 +7703,6 @@
     "09-21": [
       "Gunlög",
       "Gilda",
-      "Dimitri",
       "Matti",
       "Hippu",
       "Naná",
@@ -7812,8 +7782,7 @@
       "Jeansa",
       "Aston",
       "Kultapoika",
-      "Rubertus",
-      "Tekla"
+      "Rubertus"
     ],
     "09-25": [
       "Siina",
@@ -7888,7 +7857,6 @@
     ],
     "09-28": [
       "Leona",
-      "Hariton",
       "Liinaharja",
       "Liinakko",
       "Arja",
@@ -9229,8 +9197,7 @@
       "Oskari",
       "Osku",
       "Eligius",
-      "Egidius",
-      "Valio"
+      "Egidius"
     ],
     "12-02": [
       "Blondi",
@@ -9296,7 +9263,6 @@
       "Ingeborg",
       "Thelma",
       "Telma",
-      "Savva",
       "Wirgina",
       "Thedoret",
       "Selbmá",
@@ -9469,7 +9435,6 @@
       "Duová"
     ],
     "12-13": [
-      "Lusia",
       "Lucina",
       "Lady",
       "Sáddja",
@@ -9600,7 +9565,6 @@
       "Ábo",
       "Áppo",
       "Abraham",
-      "Sebastian",
       "Nikolai",
       "Cemba",
       "Mooses",
