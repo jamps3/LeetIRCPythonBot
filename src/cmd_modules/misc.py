@@ -10,7 +10,7 @@ import os
 import random
 import re
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import requests
 
@@ -251,6 +251,89 @@ async def echo_command(context: CommandContext, bot_functions):
 # =====================
 
 
+def get_church_holiday(date: datetime) -> str:
+    """Get Finnish church holiday for a given date.
+
+    Based on the Finnish church calendar (Kirkolliset juhlapäivät).
+
+    Returns:
+        Holiday name if date is a church holiday, empty string otherwise.
+    """
+    month = date.month
+    day = date.day
+    year = date.year
+
+    # Fixed holidays (Finnish state church holidays)
+    fixed_holidays = {
+        (1, 1): "Uudenvuodenpäivä",
+        (1, 6): "Loppiaispäivä",
+        (2, 2): "Kynttilänpäivä",
+        (6, 24): "Juhannuspäivä",
+        (6, 29): "Pyhän Henrikin päivä",
+        (8, 15): "Mariana ilmestys",
+        (12, 6): "Pyhä Nikolaos",
+        (12, 25): "Joulupäivä",
+        (12, 26): "Tapaninpäivä",
+    }
+
+    # Check fixed holidays first
+    if (month, day) in fixed_holidays:
+        return fixed_holidays[(month, day)]
+
+    # Calculate Easter for the given year (anonymous algorithm)
+    # Easter Sunday is the first Sunday after the first full moon after March 21
+    # noqa: E741 - 'l' is standard variable name in this algorithm
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7  # noqa: E741
+    m = (a + 11 * h + 22 * l) // 451
+    easter_month = (h + l - 7 * m + 114) // 31
+    easter_day = ((h + l - 7 * m + 114) % 31) + 1
+    easter = datetime(year, easter_month, easter_day)
+
+    # Calculate moveable holidays based on Easter
+    palm_sunday = easter - timedelta(days=7)  # Palmusunnuntai
+    good_friday = easter - timedelta(days=2)  # Suuri perjantai
+    ascension = easter + timedelta(days=39)  # Helatorstai
+    pentecost = easter + timedelta(days=49)  # Helluntai
+
+    # Check moveable holidays
+    check_dates = {
+        (palm_sunday.month, palm_sunday.day): "Palmusunnuntai",
+        (good_friday.month, good_friday.day): "Suuri perjantai",
+        (easter.month, easter.day): "Pääsiäinen",
+        (ascension.month, ascension.day): "Helatorstai",
+        (pentecost.month, pentecost.day): "Helluntai",
+    }
+
+    if (month, day) in check_dates:
+        return check_dates[(month, day)]
+
+    # Annunciation (Mariana ilmestys) - March 25 or nearest Sunday March 22-28
+    if month == 3 and 22 <= day <= 28:
+        return "Mariana ilmestys"
+
+    # Mikkelinpäivä - September 29 or nearest Sunday after
+    if month == 9 and day >= 29:
+        return "Mikkelinpäivä"
+
+    # All Saints' Day (Pyhäinpäivä) - Saturday between Oct 31 - Nov 6
+    if month == 10 and day == 31:
+        return "Pyhäinpäivä"
+    if month == 11 and 1 <= day <= 6:
+        return "Pyhäinpäivä"
+
+    return ""
+
+
 @command("np", description="Show name day", usage="!np [päivä|nimi|date]")
 def np_command(context: CommandContext, bot_functions):
     """Show name day for today, a given date, or search by name using nimipaivat.json data file.
@@ -262,8 +345,6 @@ def np_command(context: CommandContext, bot_functions):
         !np date - Show when name days were last scraped
     """
     import json
-    import os
-    from datetime import datetime
 
     # Try to load nimipaivat.json
     np_file = os.path.join("data", "nimipaivat.json")
@@ -370,8 +451,12 @@ def np_command(context: CommandContext, bot_functions):
                         parts.append(f"Viralliset: {', '.join(official)}")
 
                     if parts:
+                        # Check for church holiday
+                        holiday = get_church_holiday(now)
+                        prefix = f"[{holiday}] " if holiday else ""
+
                         # Use pipe separators on single line, split to two IRC messages if too long
-                        single_line = f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: | {' | '.join(parts)}"
+                        single_line = f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: {prefix}| {' | '.join(parts)}"
                         # IRC message limit is ~400 chars, split into two messages if needed
                         if len(single_line) > 400:
                             # Split parts roughly in half
@@ -379,7 +464,7 @@ def np_command(context: CommandContext, bot_functions):
                             part1 = parts[:mid]
                             part2 = parts[mid:]
                             return (
-                                f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: | {' | '.join(part1)}\n"
+                                f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: {prefix}| {' | '.join(part1)}\n"
                                 f"| {' | '.join(part2)}"
                             )
                         return single_line
@@ -499,8 +584,6 @@ def np_command(context: CommandContext, bot_functions):
 )
 def command_leets(context, bot_functions):
     """Show recent leet detection history."""
-    from datetime import datetime
-
     from leet_detector import create_leet_detector
 
     # Parse optional numeric limit from context.args
