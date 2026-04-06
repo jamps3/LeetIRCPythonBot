@@ -115,6 +115,12 @@ def scrape_website(playwright, year):
             """)
             date_input.fill(date_str)
             page.wait_for_timeout(500)
+            # Trigger input event for autocomplete
+            page.evaluate("""
+                const inp = document.getElementById('namedays-date-input-widget_1772634673724');
+                if (inp) inp.dispatchEvent(new Event('input'));
+            """)
+            page.wait_for_timeout(500)
 
             # Get all result cards
             result_cards = page.query_selector_all(".namedays-result-card")
