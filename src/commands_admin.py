@@ -73,7 +73,7 @@ def admin_quit_command(context: CommandContext, bot_functions):
     usage="!openai <password> [model]",
     examples=["!openai mypass gpt-5-mini", "!openai mypass gpt-5.4", "!openai mypass"],
     admin_only=True,
-    requires_args=True,
+    requires_args=False,
 )
 def openai_command(context: CommandContext, bot_functions):
     """Change or show the OpenAI model used by the GPT service.
