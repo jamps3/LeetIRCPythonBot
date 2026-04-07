@@ -59,7 +59,7 @@ class GPTService:
         # Prefer explicitly provided key; fall back to environment (.env)
         self.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
         self.client = OpenAI(api_key=self.api_key)
-        self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+        self.model = os.getenv("OPENAI_MODEL", "gpt-5.4")
         self.history_file = (
             history_file if history_file is not None else CONVERSATION_HISTORY_FILE
         )

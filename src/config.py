@@ -74,7 +74,7 @@ TITLE_BLACKLIST_EXTENSIONS = (
 TITLE_BANNED_TEXTS = "Bevor Sie zu Google Maps weitergehen;Just a moment...;403 Forbidden;404 Not Found;Access Denied;Ennen kuin jatkat Google Mapsiin"
 
 # GPT Service Settings
-OPENAI_MODEL = "gpt-5-mini"  # Model for the Responses API
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4")  # Model for the Responses API
 GPT_HISTORY_LIMIT = 100  # Maximum number of messages to keep in conversation history
 
 
