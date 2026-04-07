@@ -87,6 +87,10 @@ class BotManager:
         # Set reference to bot_manager for test compatibility
         self.message_handler.bot_manager = self
 
+        # Set model getter/setter in message_handler bot_functions after it's created
+        # This is done lazily since bot_functions is created on first command
+        self._bot_functions_initialized = False
+
         self.logger.info("🌐 Initializing server manager...")
         self.server_manager = create_server_manager(bot_name, self.stop_event)
 
@@ -474,6 +478,13 @@ class BotManager:
             # Update env
             self._update_env_file("OPENAI_MODEL", args[0] if args else "")
         return "Model set" if gpt else "No GPT service"
+
+    # For get_openai_model
+    def get_openai_model(self, *args, **kwargs):
+        gpt = self.service_manager.get_service("gpt")
+        if gpt:
+            return gpt.model
+        return "No GPT service"
 
     # For connected property
     @property

@@ -724,6 +724,7 @@ class ConsoleManager:
             )
             and None,
             "set_openai_model": self._set_openai_model,
+            "get_openai_model": self._get_openai_model,
             "connect": self._console_connect,
             "disconnect": self._console_disconnect,
             "status": self._console_status,
@@ -800,6 +801,17 @@ class ConsoleManager:
         except Exception as e:
             logger.error(f"Error setting OpenAI model: {e}")
             return f"Failed to set OpenAI model: {e}"
+
+    def _get_openai_model(self) -> str:
+        """Get the currently active OpenAI model."""
+        try:
+            gpt_service = self.service_manager.get_service("gpt")
+            if not gpt_service:
+                return "AI chat is not available (no OpenAI API key configured)"
+            return getattr(gpt_service, "model", "unknown")
+        except Exception as e:
+            logger.error(f"Error getting OpenAI model: {e}")
+            return f"Error: {e}"
 
     def _console_weather(self, location: str):
         """Console weather command."""

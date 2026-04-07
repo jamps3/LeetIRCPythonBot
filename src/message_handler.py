@@ -1249,7 +1249,16 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             ),
             "stop_event": None,  # Will be set by bot manager
             "set_quit_message": None,  # Will be set by bot manager
-            "set_openai_model": None,  # Will be set by bot manager
+            "set_openai_model": lambda m: (
+                self.bot_manager.set_openai_model(m)
+                if hasattr(self, "bot_manager") and self.bot_manager
+                else None
+            ),
+            "get_openai_model": lambda: (
+                self.bot_manager.get_openai_model()
+                if hasattr(self, "bot_manager") and self.bot_manager
+                else None
+            ),
             "bot_manager": getattr(self, "bot_manager", None),
         }
 
