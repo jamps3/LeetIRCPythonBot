@@ -82,7 +82,7 @@ def test_init_uses_env_api_key_and_model(tmp_path):
 
 def test_init_model_default_when_env_missing(tmp_path):
     svc, _ = make_service(tmp_path, api_key="ENV_KEY", model_env=None)
-    assert svc.model == "gpt-5-mini"
+    assert svc.model == "gpt-5.4"
 
 
 def test_load_conversation_history_missing_file_falls_back_to_default(tmp_path):
