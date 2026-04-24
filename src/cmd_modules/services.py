@@ -1507,11 +1507,13 @@ tilaa_command = command_tilaa
 )
 def teach_command(context: CommandContext, bot_functions):
     """Teach the bot new information or list all teachings."""
-    # Use module-level import (may be mocked by tests)
-    if get_data_manager is None:
-        return "❌ Data manager not available"
-
-    data_manager = get_data_manager()
+    # Get data_manager from bot_functions (or fallback to module-level import)
+    data_manager = bot_functions.get("data_manager") if bot_functions else None
+    if data_manager is None:
+        # Fallback for tests
+        if get_data_manager is None:
+            return "❌ Data manager not available"
+        data_manager = get_data_manager()
 
     if not context.args_text:
         # List all teachings
@@ -1564,11 +1566,13 @@ def teach_command(context: CommandContext, bot_functions):
 )
 def unlearn_command(context: CommandContext, bot_functions):
     """Remove a teaching by its ID."""
-    # Use module-level import (may be mocked by tests)
-    if get_data_manager is None:
-        return "❌ Data manager not available"
-
-    data_manager = get_data_manager()
+    # Get data_manager from bot_functions (or fallback to module-level import)
+    data_manager = bot_functions.get("data_manager") if bot_functions else None
+    if data_manager is None:
+        # Fallback for tests
+        if get_data_manager is None:
+            return "❌ Data manager not available"
+        data_manager = get_data_manager()
 
     if not context.args:
         return "📚 Usage: !unlearn <id>"
