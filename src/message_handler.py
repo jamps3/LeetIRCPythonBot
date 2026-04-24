@@ -1509,6 +1509,8 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                             cleaned_title = None
 
                     if cleaned_title:
+                        # Remove soft hyphens (U+00AD) but keep regular hyphens (U+002D)
+                        cleaned_title = cleaned_title.replace("\u00ad", "")
                         if self._is_title_banned(cleaned_title):
                             logger.debug(f"Skipping banned title: {cleaned_title}")
                             continue
