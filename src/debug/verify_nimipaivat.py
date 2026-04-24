@@ -108,18 +108,22 @@ def scrape_website(playwright, year):
             date_str = f"{current.day}.{current.month}"
 
             # Clear and fill date
-            page.evaluate("""
+            page.evaluate(
+                """
                 const inp = document.getElementById('namedays-date-input-widget_1772634673724') 
                           || document.querySelector('input.namedays-search-input');
                 if (inp) inp.value = '';
-            """)
+            """
+            )
             date_input.fill(date_str)
             page.wait_for_timeout(500)
             # Trigger input event for autocomplete
-            page.evaluate("""
+            page.evaluate(
+                """
                 const inp = document.getElementById('namedays-date-input-widget_1772634673724');
                 if (inp) inp.dispatchEvent(new Event('input'));
-            """)
+            """
+            )
             page.wait_for_timeout(500)
 
             # Get all result cards
