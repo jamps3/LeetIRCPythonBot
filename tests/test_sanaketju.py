@@ -44,12 +44,10 @@ def test_sanaketju_start_command(mock_bot_functions, mock_data_manager):
         server_name="testserver",
     )
 
-    with patch("cmd_modules.games.get_sanaketju_game") as mock_get_game:
-        mock_game = Mock()
+    with patch("cmd_modules.games._sanaketju_game") as mock_game:
         mock_game._load_state = Mock()  # Mock the _load_state method
         mock_game.active = False  # Mock game not active
         mock_game.start_game.return_value = "testword"
-        mock_get_game.return_value = mock_game
 
         response = sanaketju_command(context, mock_bot_functions)
 
@@ -70,10 +68,8 @@ def test_sanaketju_status_command(mock_bot_functions):
         server_name="testserver",
     )
 
-    with patch("cmd_modules.games.get_sanaketju_game") as mock_get_game:
-        mock_game = Mock()
+    with patch("cmd_modules.games._sanaketju_game") as mock_game:
         mock_game.get_status.return_value = "Game status"
-        mock_get_game.return_value = mock_game
 
         response = sanaketju_command(context, mock_bot_functions)
 
@@ -94,10 +90,8 @@ def test_sanaketju_stop_command(mock_bot_functions, mock_data_manager):
         server_name="testserver",
     )
 
-    with patch("cmd_modules.games.get_sanaketju_game") as mock_get_game:
-        mock_game = Mock()
+    with patch("cmd_modules.games._sanaketju_game") as mock_game:
         mock_game.end_game.return_value = "Game ended"
-        mock_get_game.return_value = mock_game
 
         response = sanaketju_command(context, mock_bot_functions)
 
@@ -118,10 +112,8 @@ def test_sanaketju_add_command(mock_bot_functions):
         server_name="testserver",
     )
 
-    with patch("cmd_modules.games.get_sanaketju_game") as mock_get_game:
-        mock_game = Mock()
+    with patch("cmd_modules.games._sanaketju_game") as mock_game:
         mock_game.toggle_add.return_value = True  # Now added
-        mock_get_game.return_value = mock_game
 
         response = sanaketju_command(context, mock_bot_functions)
 
@@ -142,10 +134,8 @@ def test_sanaketju_add_other_command(mock_bot_functions):
         server_name="testserver",
     )
 
-    with patch("cmd_modules.games.get_sanaketju_game") as mock_get_game:
-        mock_game = Mock()
+    with patch("cmd_modules.games._sanaketju_game") as mock_game:
         mock_game.toggle_add.return_value = True  # Now added
-        mock_get_game.return_value = mock_game
 
         response = sanaketju_command(context, mock_bot_functions)
 
