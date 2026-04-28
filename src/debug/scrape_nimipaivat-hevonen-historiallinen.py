@@ -86,11 +86,9 @@ def scrape_category_namedays(playwright, year, category_filter):
             date_str = f"{day}.{month}"
 
             # Clear the input
-            page.evaluate(
-                """
+            page.evaluate("""
                 document.getElementById('namedays-date-input-widget_1772634673724').value = '';
-            """
-            )
+            """)
 
             # Fill the date
             date_input.fill(date_str)

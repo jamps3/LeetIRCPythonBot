@@ -90,13 +90,11 @@ def scrape_category(playwright, year, category_filter, base_url):
             date_str = f"{day}.{month}"
 
             # Clear and fill the date input
-            page.evaluate(
-                """
+            page.evaluate("""
                 const inp = document.getElementById('namedays-date-input-widget_1772634673724') 
                           || document.querySelector('input.namedays-search-input');
                 if (inp) inp.value = '';
-            """
-            )
+            """)
 
             date_input.fill(date_str)
             page.wait_for_timeout(500)
