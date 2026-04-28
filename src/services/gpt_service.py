@@ -132,9 +132,13 @@ class GPTService:
     def _get_teachings_context(self, max_items: int = 100) -> str:
         """Get teachings formatted for AI context."""
         try:
-            from src.word_tracking.data_manager import get_data_manager
+            # Use data_manager from bot if available, otherwise fallback to singleton
+            data_manager = getattr(self, "data_manager", None)
+            if data_manager is None:
+                from src.word_tracking.data_manager import get_data_manager
 
-            data_manager = get_data_manager()
+                data_manager = get_data_manager()
+
             teachings = data_manager.get_teachings_for_context(max_items)
             if teachings:
                 return "Teachings:\n" + "\n".join(teachings)

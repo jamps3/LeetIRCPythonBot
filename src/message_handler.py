@@ -101,6 +101,11 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         self._lag_storage_lock = threading.Lock()
         self._load_lag_storage()
 
+        # Set data_manager on gpt_service if available
+        gpt_service = self.service_manager.get_service("gpt")
+        if gpt_service:
+            gpt_service.data_manager = self.data_manager
+
         logger.info("Message handler initialized")
 
     def _initialize_lemmatizer(self) -> Optional[Lemmatizer]:

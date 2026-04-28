@@ -2,7 +2,7 @@
 
 Generated: 2026-02-22
 
-## v2.5.7 Update - AI Chat Teachings Integration Fix (2026-04-28)
+## v2.5.7 Update - AI Chat Teachings Integration and !teach Improvements (2026-04-28)
 
 ### Fix AI Chat to Use !teach Teachings in Context
 
@@ -10,19 +10,45 @@ Generated: 2026-02-22
 
 **Issue**: AI chat responses were not using the persistent knowledge stored via !teach commands. When users asked questions about taught information, the bot would respond "I don't know" instead of using the teachings.
 
-**Root Cause**: Missing `get_data_manager()` function in `word_tracking/data_manager.py` caused import failure in `gpt_service.py`, preventing teachings from being loaded into AI context.
+**Root Cause**:
+1. Missing `get_data_manager()` function in `word_tracking/data_manager.py` caused import failure in `gpt_service.py`
+2. GPT service was using singleton data_manager with default state file, while bot used config-specific state file
+3. Teachings were not being loaded into AI context
 
 **Fix Applied**:
 
-1. Added `get_data_manager()` singleton function to `word_tracking/data_manager.py` to provide shared DataManager instance access
-2. Verified teachings are loaded via `_get_teachings_context()` in `gpt_service.py`
-3. Teachings are now included in AI chat transcripts as context, allowing the bot to answer questions using taught knowledge
+1. Added `get_data_manager()` singleton function to `word_tracking/data_manager.py`
+2. Modified message_handler to pass bot's data_manager to gpt_service instance
+3. Updated gpt_service to use bot's data_manager for teachings access
+4. Fixed import path in gpt_service.py to use `src.word_tracking.data_manager`
+5. Teachings are prioritized in AI context (included first after system prompt, before chat history)
 
-**Example**: After teaching "RajatonValta on elänyt ikuisesti", the bot now correctly responds to questions about RajatonValta using this knowledge instead of saying "I don't know".
+**Teachings Prioritization**: Teachings are now always included in full (up to 100 items), with chat history capped to last 15 messages to fit within context limits.
+
+**Example**: After teaching "RajatonValta on elänyt ikuisesti", the bot now correctly responds to questions about RajatonValta using this knowledge.
 
 **Files Modified**:
-- `src/word_tracking/data_manager.py` - Added `get_data_manager()` function
-- `src/services/gpt_service.py` - Already had integration code, now works correctly
+- `src/word_tracking/data_manager.py` - Added `get_data_manager()` singleton
+- `src/services/gpt_service.py` - Fixed import and data_manager access
+- `src/message_handler.py` - Pass data_manager to gpt_service
+
+### Improve !teach Command Help and Add Remove Functionality
+
+**Status**: COMPLETED ✅
+
+**Issue**: !teach command help was misleading (mentioned "(list)" parameter that's not needed), and lacked remove functionality that required password verification.
+
+**Fix Applied**:
+
+1. Updated command description, usage, and examples to accurately reflect functionality
+2. Added "remove" subcommand to !teach with password verification: `!teach remove <id> <password>`
+3. Maintains backward compatibility with existing `!unlearn` admin command
+4. Remove operation requires admin password for security
+
+**New Usage**: `!teach <content>` (add), `!teach` (list), `!teach remove <id> <password>` (remove)
+
+**Files Modified**:
+- `src/cmd_modules/services.py` - Updated teach_command with remove subcommand and improved help text
 
 ---
 

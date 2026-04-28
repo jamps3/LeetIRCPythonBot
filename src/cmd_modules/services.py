@@ -1499,9 +1499,13 @@ tilaa_command = command_tilaa
 
 @command(
     "teach",
-    description="Teach the bot new information or list teachings",
-    usage="!teach <content> or !teach (list)",
-    examples=["!teach The capital of Finland is Helsinki", "!teach"],
+    description="Teach the bot new information, list teachings, or remove teachings",
+    usage="!teach <content> or !teach or !teach remove <id> <password>",
+    examples=[
+        "!teach The capital of Finland is Helsinki",
+        "!teach",
+        "!teach remove 5 mypass",
+    ],
     command_type=CommandType.SERVICE,
     scope=CommandScope.IRC_ONLY,
 )
@@ -1537,6 +1541,39 @@ def teach_command(context: CommandContext, bot_functions):
             )
 
         return "📚 Teachings:\n" + "\n".join(lines)
+
+    # Check for remove subcommand
+    if context.args_text.strip().lower().startswith("remove "):
+        # Parse: remove <id> <password>
+        parts = context.args_text.strip().split(None, 2)
+        if len(parts) < 3:
+            return "📚 Usage: !teach remove <id> <password>"
+
+        try:
+            teaching_id = int(parts[1])
+        except ValueError:
+            return "📚 Invalid teaching ID. Use a number."
+
+        password = parts[2]
+
+        # Verify admin password
+        from commands_admin import verify_admin_password
+
+        if not verify_admin_password([password]):
+            return "❌ Invalid admin password"
+
+        # Check if teaching exists
+        teaching = data_manager.get_teaching_by_id(teaching_id)
+        if not teaching:
+            return f"📚 Teaching #{teaching_id} not found."
+
+        # Remove teaching
+        success = data_manager.remove_teaching(teaching_id)
+        if success:
+            content = teaching.get("content", "")
+            return f"📚 Removed teaching #{teaching_id}: {content}"
+        else:
+            return f"📚 Failed to remove teaching #{teaching_id}."
 
     # Add new teaching
     content = context.args_text.strip()
