@@ -11,5 +11,4 @@ profile = "black"
 [tool.flake8]
 max-line-length = 88
 extend-ignore = ["E203", "E501", "F401", "F841", "E402"]
-max-complexity = 10</content>
-<parameter name="filePath">pyproject.toml
+max-complexity = 10
