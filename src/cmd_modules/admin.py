@@ -8,11 +8,7 @@ import re
 import threading
 
 import logger
-from command_registry import (
-    CommandContext,
-    CommandScope,
-    command,
-)
+from command_registry import CommandContext, CommandScope, command
 
 # Import reload commands from commands_admin.py for backwards compatibility
 # Import scheduled command from commands_admin.py for backwards compatibility

@@ -882,10 +882,7 @@ def test_leetwinners_command_empty_and_with_data():
 
 
 def test_exit_command_console_and_irc():
-    from command_loader import (
-        process_console_command,
-        process_irc_message,
-    )
+    from command_loader import process_console_command, process_irc_message
 
     # Console with stop_event
     responses = []
@@ -1123,10 +1120,7 @@ def test_eurojackpot_command_branches(monkeypatch):
 
 def test_short_forecast_commands_console_and_irc(monkeypatch):
     from cmd_modules import services as services_module
-    from command_loader import (
-        process_console_command,
-        process_irc_message,
-    )
+    from command_loader import process_console_command, process_irc_message
 
     # Store original values
     original_format_single = services_module.format_single_line
@@ -2363,9 +2357,7 @@ def test_weather_unavailable_and_forecast_direct_paths(monkeypatch):
         solarwind_command,
     )
     from command_registry import CommandContext
-    from commands import (
-        weather_command,
-    )
+    from commands import weather_command
 
     # weather unavailable direct
     ctx = CommandContext(

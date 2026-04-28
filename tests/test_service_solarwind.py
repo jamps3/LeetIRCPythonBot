@@ -10,10 +10,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from services.solarwind_service import (
-    SolarWindService,
-    get_solar_wind_info,
-)
+from services.solarwind_service import SolarWindService, get_solar_wind_info
 
 
 @pytest.fixture

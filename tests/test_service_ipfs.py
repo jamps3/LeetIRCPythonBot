@@ -10,11 +10,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from services.ipfs_service import (
-    IPFSService,
-    get_ipfs_service,
-    handle_ipfs_command,
-)
+from services.ipfs_service import IPFSService, get_ipfs_service, handle_ipfs_command
 
 
 @pytest.fixture

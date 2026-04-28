@@ -8,12 +8,7 @@ import re
 import time
 from datetime import datetime
 
-from command_registry import (
-    CommandContext,
-    CommandResponse,
-    CommandScope,
-    command,
-)
+from command_registry import CommandContext, CommandResponse, CommandScope, command
 from config import get_config
 
 # =====================
