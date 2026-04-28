@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from cmd_modules.games import get_sanaketju_game, sanaketju_command
+from cmd_modules.games import sanaketju_command
 from command_registry import CommandContext
 from word_tracking.data_manager import DataManager
 
@@ -44,11 +44,12 @@ def test_sanaketju_start_command(mock_bot_functions, mock_data_manager):
         server_name="testserver",
     )
 
-    with patch("cmd_modules.games._sanaketju_game") as mock_game:
-        mock_game._load_state = Mock()  # Mock the _load_state method
-        mock_game.active = False  # Mock game not active
-        mock_game.start_game.return_value = "testword"
+    mock_game = Mock()
+    mock_game._load_state = Mock()  # Mock the _load_state method
+    mock_game.active = False  # Mock game not active
+    mock_game.start_game.return_value = "testword"
 
+    with patch("cmd_modules.games.get_sanaketju_game", return_value=mock_game):
         response = sanaketju_command(context, mock_bot_functions)
 
         mock_game.start_game.assert_called_once_with("#testchannel", mock_data_manager)
@@ -68,9 +69,10 @@ def test_sanaketju_status_command(mock_bot_functions):
         server_name="testserver",
     )
 
-    with patch("cmd_modules.games._sanaketju_game") as mock_game:
-        mock_game.get_status.return_value = "Game status"
+    mock_game = Mock()
+    mock_game.get_status.return_value = "Game status"
 
+    with patch("cmd_modules.games.get_sanaketju_game", return_value=mock_game):
         response = sanaketju_command(context, mock_bot_functions)
 
         mock_game.get_status.assert_called_once()
@@ -90,9 +92,10 @@ def test_sanaketju_stop_command(mock_bot_functions, mock_data_manager):
         server_name="testserver",
     )
 
-    with patch("cmd_modules.games._sanaketju_game") as mock_game:
-        mock_game.end_game.return_value = "Game ended"
+    mock_game = Mock()
+    mock_game.end_game.return_value = "Game ended"
 
+    with patch("cmd_modules.games.get_sanaketju_game", return_value=mock_game):
         response = sanaketju_command(context, mock_bot_functions)
 
         mock_game.end_game.assert_called_once_with(mock_data_manager)
@@ -112,9 +115,10 @@ def test_sanaketju_add_command(mock_bot_functions):
         server_name="testserver",
     )
 
-    with patch("cmd_modules.games._sanaketju_game") as mock_game:
-        mock_game.toggle_add.return_value = True  # Now added
+    mock_game = Mock()
+    mock_game.toggle_add.return_value = True  # Now added
 
+    with patch("cmd_modules.games.get_sanaketju_game", return_value=mock_game):
         response = sanaketju_command(context, mock_bot_functions)
 
         mock_game.toggle_add.assert_called_once_with("testuser", None)
@@ -134,9 +138,10 @@ def test_sanaketju_add_other_command(mock_bot_functions):
         server_name="testserver",
     )
 
-    with patch("cmd_modules.games._sanaketju_game") as mock_game:
-        mock_game.toggle_add.return_value = True  # Now added
+    mock_game = Mock()
+    mock_game.toggle_add.return_value = True  # Now added
 
+    with patch("cmd_modules.games.get_sanaketju_game", return_value=mock_game):
         response = sanaketju_command(context, mock_bot_functions)
 
         mock_game.toggle_add.assert_called_once_with("testuser", "otheruser")
