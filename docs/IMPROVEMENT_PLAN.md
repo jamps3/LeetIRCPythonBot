@@ -1,6 +1,30 @@
-e# Project Improvement Plan for LeetIRCPythonBot
+# Project Improvement Plan for LeetIRCPythonBot
 
 Generated: 2026-02-22
+
+## v2.5.7 Update - AI Chat Teachings Integration Fix (2026-04-28)
+
+### Fix AI Chat to Use !teach Teachings in Context
+
+**Status**: COMPLETED ✅
+
+**Issue**: AI chat responses were not using the persistent knowledge stored via !teach commands. When users asked questions about taught information, the bot would respond "I don't know" instead of using the teachings.
+
+**Root Cause**: Missing `get_data_manager()` function in `word_tracking/data_manager.py` caused import failure in `gpt_service.py`, preventing teachings from being loaded into AI context.
+
+**Fix Applied**:
+
+1. Added `get_data_manager()` singleton function to `word_tracking/data_manager.py` to provide shared DataManager instance access
+2. Verified teachings are loaded via `_get_teachings_context()` in `gpt_service.py`
+3. Teachings are now included in AI chat transcripts as context, allowing the bot to answer questions using taught knowledge
+
+**Example**: After teaching "RajatonValta on elänyt ikuisesti", the bot now correctly responds to questions about RajatonValta using this knowledge instead of saying "I don't know".
+
+**Files Modified**:
+- `src/word_tracking/data_manager.py` - Added `get_data_manager()` function
+- `src/services/gpt_service.py` - Already had integration code, now works correctly
+
+---
 
 ## v2.5.6 Update - !np Command Fixes (2026-03-10)
 

@@ -563,3 +563,20 @@ class DataManager:
         # Format teachings for context
         formatted_teachings = [f"{t['id']}: {t['content']}" for t in teachings]
         return formatted_teachings[:max_items]
+
+
+# Singleton instance for shared access
+_data_manager_instance = None
+
+
+def get_data_manager() -> DataManager:
+    """
+    Get the singleton DataManager instance.
+
+    Returns:
+        DataManager instance
+    """
+    global _data_manager_instance
+    if _data_manager_instance is None:
+        _data_manager_instance = DataManager()
+    return _data_manager_instance
