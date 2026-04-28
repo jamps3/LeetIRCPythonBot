@@ -58,7 +58,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
   - Lint (check-only):
     - isort --check-only --diff .
     - black --check --diff .
-    - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
   - Security (optional, mirrors CI uploads but local files only):
     - bandit -r . -f json -o bandit-report.json || $true
     - safety check --json --output safety-report.json || $true
