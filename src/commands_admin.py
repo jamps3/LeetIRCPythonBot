@@ -307,6 +307,16 @@ def reload_command(context: CommandContext, bot_functions):
         except Exception as se:
             service_msg = f" (service reload failed: {se})"
 
+        # Reload configuration from environment
+        try:
+            from config import get_config_manager
+
+            config_mgr = get_config_manager()
+            config_mgr.reload_config()
+        except Exception as e:
+            # Don't fail the reload if config reload fails
+            pass
+
         # Refresh BotManager and MessageHandler data_manager instances to use new code
         try:
             from word_tracking.data_manager import get_data_manager
