@@ -67,21 +67,16 @@ class DataManager:
                     "happiness": 50,
                     "hunger": 50,
                     "last_interaction": datetime.now().isoformat(),
-                    "mood": "neutral",
                 },
-                "last_updated": datetime.now().isoformat(),
-                "version": "1.0.0",
             },
             "subscriptions": {},
-            "fmi_warnings": {
-                "seen_hashes": [],
-                "seen_data": [],
-            },
+            "fmi_warnings": {"seen_hashes": [], "seen_data": []},
             "otiedote": {
                 "latest_release": 0,
             },
             "drink_tracking_opt_out": {},
-            "ai_teachings": [],
+            "ai_teachings": {},
+            "command_history": [],
         }
 
         # Create files if they don't exist
@@ -518,6 +513,33 @@ class DataManager:
 
         # Update the teachings for this key
         state_data["ai_teachings"][key] = data
+
+        # Save the updated state
+        self.save_json(self.state_file, state_data)
+
+    def load_command_history(self) -> List[str]:
+        """Load command history from merged state.json."""
+        state_data = self.load_json(self.state_file)
+        return state_data.get("command_history", [])
+
+    def save_command_history(self, history: List[str]):
+        """Save command history to merged state.json."""
+        # Load the full state file
+        state_data = self.load_json(self.state_file)
+        if not state_data:
+            # Initialize with default structure if file is empty or corrupted
+            state_data = {
+                "tamagotchi": {},
+                "subscriptions": {},
+                "fmi_warnings": {"seen_hashes": [], "seen_data": []},
+                "otiedote": {"latest_release": 0},
+                "drink_tracking_opt_out": {},
+                "ai_teachings": {},
+                "command_history": [],
+            }
+
+        # Update the command_history section
+        state_data["command_history"] = history
 
         # Save the updated state
         self.save_json(self.state_file, state_data)

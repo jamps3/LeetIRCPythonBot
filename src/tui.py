@@ -1557,14 +1557,12 @@ class TUIManager:
             self.command_history.append(text)
         self.history_index = len(self.command_history)
 
-        # Instant save command history to file
-        try:
-            history_file = "data/.command_history"
-            os.makedirs(os.path.dirname(history_file), exist_ok=True)
-            with open(history_file, "w", encoding="utf-8") as f:
-                f.write("\n".join(self.command_history))
-        except Exception:
-            pass  # Ignore errors saving
+        # Instant save command history to state.json
+        if self.bot_manager and hasattr(self.bot_manager, "data_manager"):
+            try:
+                self.bot_manager.data_manager.save_command_history(self.command_history)
+            except Exception:
+                pass  # Ignore errors saving
 
         # Handle TUI-specific commands first
         if text.lower().startswith("filter:"):
@@ -2344,15 +2342,15 @@ Tips:
         except Exception:
             pass  # Ignore errors loading buffered logs
 
-        # Load command history from file
-        history_file = "data/.command_history"
-        try:
-            if os.path.exists(history_file):
-                with open(history_file, "r", encoding="utf-8") as f:
-                    self.command_history = [line.strip() for line in f if line.strip()]
+        # Load command history from state.json
+        if self.bot_manager and hasattr(self.bot_manager, "data_manager"):
+            try:
+                self.command_history = (
+                    self.bot_manager.data_manager.load_command_history()
+                )
                 self.history_index = len(self.command_history)
-        except Exception:
-            pass  # Ignore errors loading history
+            except Exception:
+                pass  # Ignore errors loading history
 
         # Add initial log entries
         # Show clipboard status
@@ -2534,14 +2532,14 @@ Tips:
             self._close_log_file()
             # Write TUI log to file before exiting
             self.write_log_to_file()
-            # Save command history to file
-            history_file = "data/.command_history"
-            try:
-                os.makedirs(os.path.dirname(history_file), exist_ok=True)
-                with open(history_file, "w", encoding="utf-8") as f:
-                    f.write("\n".join(self.command_history))
-            except Exception:
-                pass  # Ignore errors saving history
+            # Save command history to state.json
+            if self.bot_manager and hasattr(self.bot_manager, "data_manager"):
+                try:
+                    self.bot_manager.data_manager.save_command_history(
+                        self.command_history
+                    )
+                except Exception:
+                    pass  # Ignore errors saving history
             # Clear the logger hook when TUI exits
             logger.clear_tui_hook()
 
