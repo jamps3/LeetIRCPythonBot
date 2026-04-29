@@ -307,6 +307,20 @@ def reload_command(context: CommandContext, bot_functions):
         except Exception as se:
             service_msg = f" (service reload failed: {se})"
 
+        # Refresh BotManager and MessageHandler data_manager instances to use new code
+        try:
+            from word_tracking.data_manager import get_data_manager
+
+            bot_mgr = bot_functions.get("bot_manager")
+            if bot_mgr:
+                new_dm = get_data_manager()
+                bot_mgr.data_manager = new_dm
+                if hasattr(bot_mgr, "message_handler") and bot_mgr.message_handler:
+                    bot_mgr.message_handler.data_manager = new_dm
+        except Exception as e:
+            # Don't fail the reload if this refresh fails
+            pass
+
         if success:
             # Verify critical commands are present
             missing = verify_critical_commands()

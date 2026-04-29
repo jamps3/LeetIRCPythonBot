@@ -135,11 +135,12 @@ def reload_all_commands() -> Tuple[bool, str]:
             registry.clear_all()
             logger.debug(f"ReloadManager: Cleared {old_count} commands from registry")
 
-            # Reload modules in order
+            # Initialize tracking lists
             reloaded_modules = []
             failed_modules = []
 
-            for module_name in RELOADABLE_MODULES:
+            # Reload core modules first (config, etc.)
+            for module_name in CORE_MODULES:
                 if module_name in sys.modules:
                     success, _ = reload_single_module(module_name)
                     if success:
@@ -147,16 +148,7 @@ def reload_all_commands() -> Tuple[bool, str]:
                     else:
                         failed_modules.append(module_name)
 
-            # Reload service modules
-            for module_name in SERVICE_MODULES:
-                if module_name in sys.modules:
-                    success, _ = reload_single_module(module_name)
-                    if success:
-                        reloaded_modules.append(module_name)
-                    else:
-                        failed_modules.append(module_name)
-
-            # Reload word tracking modules
+            # Reload word tracking submodules (data_manager, drink_tracker, general_words, bac_tracker)
             for module_name in WORD_TRACKING_MODULES:
                 if module_name in sys.modules:
                     success, _ = reload_single_module(module_name)
@@ -165,8 +157,25 @@ def reload_all_commands() -> Tuple[bool, str]:
                     else:
                         failed_modules.append(module_name)
 
-            # Reload core modules (config, etc.)
-            for module_name in CORE_MODULES:
+            # Reload word_tracking package to refresh __init__ imports (DataManager, etc.)
+            if "word_tracking" in sys.modules:
+                success, _ = reload_single_module("word_tracking")
+                if success:
+                    reloaded_modules.append("word_tracking")
+                else:
+                    failed_modules.append("word_tracking")
+
+            # Reload service modules (depend on word_tracking and config)
+            for module_name in SERVICE_MODULES:
+                if module_name in sys.modules:
+                    success, _ = reload_single_module(module_name)
+                    if success:
+                        reloaded_modules.append(module_name)
+                    else:
+                        failed_modules.append(module_name)
+
+            # Reload command modules (command_registry, command_loader, commands, commands_admin, cmd_modules subpackages)
+            for module_name in RELOADABLE_MODULES:
                 if module_name in sys.modules:
                     success, _ = reload_single_module(module_name)
                     if success:
