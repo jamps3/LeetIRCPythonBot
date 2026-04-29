@@ -445,7 +445,15 @@ class DataManager:
     def load_ai_teachings(self) -> List[Dict[str, Any]]:
         """Load AI teachings data from merged state.json."""
         state_data = self.load_json(self.state_file)
-        return state_data.get("ai_teachings", [])
+        ai_teachings = state_data.get("ai_teachings", [])
+        if isinstance(ai_teachings, dict):
+            # Migrate from old format: extract teachings list and save as new format
+            teachings = ai_teachings.get("teachings", [])
+            state_data["ai_teachings"] = teachings
+            self.save_json(self.state_file, state_data)
+            return teachings
+        else:
+            return ai_teachings
 
     def save_ai_teachings(self, data: List[Dict[str, Any]]):
         """Save AI teachings data to merged state.json."""
@@ -484,11 +492,11 @@ class DataManager:
         if len(teachings) >= 50:
             return -1
 
-        # Calculate next_id
-        if teachings:
-            next_id = max(t.get("id", 0) for t in teachings) + 1
-        else:
-            next_id = 1
+        # Calculate next_id: find the smallest missing ID starting from 1
+        existing_ids = {t.get("id", 0) for t in teachings}
+        next_id = 1
+        while next_id in existing_ids:
+            next_id += 1
 
         # Add new teaching
         new_teaching = {
@@ -547,12 +555,11 @@ class DataManager:
             max_items: Maximum number of teachings to return
 
         Returns:
-            List of teaching strings formatted as "ID: content"
+            List of teaching content strings
         """
         teachings = self.get_teachings()
-        # Format teachings for context
-        formatted_teachings = [f"{t['id']}: {t['content']}" for t in teachings]
-        return formatted_teachings[:max_items]
+        # Return just the content, without IDs to save tokens
+        return [t["content"] for t in teachings[:max_items]]
 
 
 # Singleton instance for shared access
