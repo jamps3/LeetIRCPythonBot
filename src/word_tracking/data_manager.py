@@ -81,12 +81,7 @@ class DataManager:
                 "latest_release": 0,
             },
             "drink_tracking_opt_out": {},
-            "ai_teachings": {
-                "next_id": 1,
-                "teachings": [],
-                "last_updated": datetime.now().isoformat(),
-                "version": "1.0.0",
-            },
+            "ai_teachings": [],
         }
 
         # Create files if they don't exist
@@ -447,12 +442,12 @@ class DataManager:
         return list(data.get("servers", {}).keys())
 
     # AI Teachings methods
-    def load_ai_teachings(self) -> Dict[str, Any]:
+    def load_ai_teachings(self) -> List[Dict[str, Any]]:
         """Load AI teachings data from merged state.json."""
         state_data = self.load_json(self.state_file)
-        return state_data.get("ai_teachings", {})
+        return state_data.get("ai_teachings", [])
 
-    def save_ai_teachings(self, data: Dict[str, Any]):
+    def save_ai_teachings(self, data: List[Dict[str, Any]]):
         """Save AI teachings data to merged state.json."""
         # Load the full state file
         state_data = self.load_json(self.state_file)
@@ -483,13 +478,17 @@ class DataManager:
         Returns:
             The ID of the new teaching, or -1 if failed (limit reached)
         """
-        teachings_data = self.load_ai_teachings()
-        teachings = teachings_data.get("teachings", [])
-        next_id = teachings_data.get("next_id", 1)
+        teachings = self.load_ai_teachings()
 
         # Check 50-item limit
         if len(teachings) >= 50:
             return -1
+
+        # Calculate next_id
+        if teachings:
+            next_id = max(t.get("id", 0) for t in teachings) + 1
+        else:
+            next_id = 1
 
         # Add new teaching
         new_teaching = {
@@ -500,13 +499,8 @@ class DataManager:
         }
         teachings.append(new_teaching)
 
-        # Update data
-        teachings_data["teachings"] = teachings
-        teachings_data["next_id"] = next_id + 1
-        teachings_data["last_updated"] = datetime.now().isoformat()
-
         # Save
-        self.save_ai_teachings(teachings_data)
+        self.save_ai_teachings(teachings)
         return next_id
 
     def remove_teaching(self, teaching_id: int) -> bool:
@@ -519,8 +513,7 @@ class DataManager:
         Returns:
             True if removed, False if not found
         """
-        teachings_data = self.load_ai_teachings()
-        teachings = teachings_data.get("teachings", [])
+        teachings = self.load_ai_teachings()
 
         # Find and remove teaching
         original_count = len(teachings)
@@ -529,21 +522,18 @@ class DataManager:
         if len(teachings) == original_count:
             return False  # Not found
 
-        # Update and save
-        teachings_data["teachings"] = teachings
-        teachings_data["last_updated"] = datetime.now().isoformat()
-        self.save_ai_teachings(teachings_data)
+        # Save
+        self.save_ai_teachings(teachings)
         return True
 
     def get_teachings(self) -> List[Dict[str, Any]]:
         """Get all teachings sorted by ID."""
-        teachings_data = self.load_ai_teachings()
-        teachings = teachings_data.get("teachings", [])
+        teachings = self.load_ai_teachings()
         return sorted(teachings, key=lambda x: x.get("id", 0))
 
     def get_teaching_by_id(self, teaching_id: int) -> Optional[Dict[str, Any]]:
         """Get a specific teaching by ID."""
-        teachings = self.get_teachings()
+        teachings = self.load_ai_teachings()
         for teaching in teachings:
             if teaching.get("id") == teaching_id:
                 return teaching
