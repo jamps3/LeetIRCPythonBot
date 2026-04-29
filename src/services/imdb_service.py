@@ -169,6 +169,9 @@ class MovieSearchService:
         elif tmdb_url:
             parts.append(f"- {tmdb_url}")
 
+        # Add source attribution
+        parts.append("(themoviedb.org)")
+
         return " ".join(parts)
 
 
