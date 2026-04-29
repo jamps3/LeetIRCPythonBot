@@ -105,7 +105,12 @@ class GPTService:
                             get_logger(__name__).warning(
                                 f"Invalid history format for {key}, skipping"
                             )
-                    return validated_histories
+                    # If no valid histories found, return default
+                    return (
+                        validated_histories
+                        if validated_histories
+                        else {"global": self.default_history.copy()}
+                    )
             except Exception as e:
                 get_logger(__name__).error(f"Error loading conversation histories: {e}")
 
@@ -113,10 +118,15 @@ class GPTService:
         return {"global": self.default_history.copy()}
 
     def _save_conversation_histories(self):
-        """Save all conversation histories to file."""
+        """Save all conversation histories to file, trimming each history first."""
+        # Trim all histories before saving
+        trimmed_histories = {}
+        for key, history in self.conversation_histories.items():
+            trimmed_histories[key] = self._trim_conversation_history(history)
+
         try:
             with open(self.history_file, "w", encoding="utf-8") as f:
-                json.dump(self.conversation_histories, f, indent=2, ensure_ascii=False)
+                json.dump(trimmed_histories, f, indent=2, ensure_ascii=False)
         except Exception as e:
             get_logger(__name__).error(f"Error saving conversation histories: {e}")
 

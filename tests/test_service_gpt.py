@@ -167,10 +167,10 @@ def test_save_conversation_history_handles_io_error(tmp_path, monkeypatch):
 def test_build_transcript_includes_system_and_last_15_and_prompt(tmp_path):
     svc, _ = make_service(tmp_path)
     # Build history: 1 system + 20 alternating messages
-    svc.conversation_history = [{"role": "system", "content": "SYS"}]
+    svc.conversation_histories["global"] = [{"role": "system", "content": "SYS"}]
     for i in range(20):
         role = "user" if i % 2 == 0 else "assistant"
-        svc.conversation_history.append({"role": role, "content": f"m{i}"})
+        svc.conversation_histories["global"].append({"role": role, "content": f"m{i}"})
 
     transcript = svc._build_transcript({"role": "user", "content": "latest"})
     lines = transcript.split("\n")
@@ -190,7 +190,7 @@ def test_chat_normal_flow_and_reply_formatting(tmp_path):
     out = svc.chat("What up?")
     assert out == "Hello World"  # newline replaced by space
     # History appended and saved
-    assert svc.conversation_history[-1]["role"] == "assistant"
+    assert svc.conversation_histories["global"][-1]["role"] == "assistant"
 
 
 def test_chat_empty_reply_uses_default_error_message(tmp_path):
@@ -263,20 +263,20 @@ def test_chat_unexpected_error(tmp_path, capsys):
 
 def test_reset_conversation(tmp_path):
     svc, _ = make_service(tmp_path)
-    svc.conversation_history.append({"role": "user", "content": "x"})
-    with patch.object(svc, "_save_conversation_history") as sp:
+    svc.conversation_histories["global"].append({"role": "user", "content": "x"})
+    with patch.object(svc, "_save_conversation_histories") as sp:
         res = svc.reset_conversation()
         sp.assert_called_once()
     assert res == "Conversation history has been reset."
     assert (
-        svc.conversation_history[0]["role"] == "system"
-        and len(svc.conversation_history) == 1
+        svc.conversation_histories["global"][0]["role"] == "system"
+        and len(svc.conversation_histories["global"]) == 1
     )
 
 
 def test_get_conversation_stats(tmp_path):
     svc, _ = make_service(tmp_path)
-    svc.conversation_history.extend(
+    svc.conversation_histories["global"].extend(
         [
             {"role": "user", "content": "u1"},
             {"role": "assistant", "content": "a1"},
@@ -292,14 +292,14 @@ def test_set_system_prompt_update_and_insert(tmp_path):
     svc, _ = make_service(tmp_path)
     # Update existing
     msg = svc.set_system_prompt("NEW PROMPT")
-    assert svc.conversation_history[0]["content"] == "NEW PROMPT"
+    assert svc.conversation_histories["global"][0]["content"] == "NEW PROMPT"
     assert msg.startswith("System prompt updated: NEW PROMPT")
 
     # Remove system and test insert
-    svc.conversation_history.pop(0)
+    svc.conversation_histories["global"].pop(0)
     svc.set_system_prompt("AGAIN")
-    assert svc.conversation_history[0]["role"] == "system"
-    assert svc.conversation_history[0]["content"] == "AGAIN"
+    assert svc.conversation_histories["global"][0]["role"] == "system"
+    assert svc.conversation_histories["global"][0]["content"] == "AGAIN"
 
 
 def test_factory_function_returns_service(tmp_path):
@@ -316,7 +316,7 @@ def test_chat_with_sender_parameter(tmp_path):
     out = svc.chat("hello", sender="alice")
     assert out == "response"
     # Check that message was formatted with sender
-    user_msg = svc.conversation_history[-2]  # -1 is assistant, -2 is user
+    user_msg = svc.conversation_histories["global"][-2]  # -1 is assistant, -2 is user
     assert user_msg["content"] == "alice: hello"
 
 
@@ -326,7 +326,7 @@ def test_chat_without_sender_parameter(tmp_path):
     out = svc.chat("hello")  # no sender param, defaults to "user"
     assert out == "response"
     # Check that message was not formatted with sender when sender="user"
-    user_msg = svc.conversation_history[-2]
+    user_msg = svc.conversation_histories["global"][-2]
     assert user_msg["content"] == "hello"
 
 
@@ -334,15 +334,19 @@ def test_load_conversation_history_missing_role_or_content(tmp_path):
     """Test loading history with invalid message structure (missing role/content)"""
     svc, history_file = make_service(tmp_path)[0:2]
     # Write history missing required fields
-    invalid_data = [
-        {"role": "system"},  # missing content
-        {"content": "hello"},  # missing role
-    ]
+    invalid_data = {
+        "global": [
+            {"role": "system"},  # missing content
+            {"content": "hello"},  # missing role
+        ]
+    }
     history_file.write_text(json.dumps(invalid_data), encoding="utf-8")
-    loaded = GPTService(api_key="", history_file=str(history_file)).conversation_history
+    loaded = GPTService(
+        api_key="", history_file=str(history_file)
+    ).conversation_histories
     # Should fallback to default
-    assert loaded[0]["role"] == "system"
-    assert len(loaded) == 1
+    assert loaded["global"][0]["role"] == "system"
+    assert len(loaded["global"]) == 1
 
 
 def test_build_transcript_with_empty_latest_user(tmp_path):
@@ -359,15 +363,16 @@ def test_save_conversation_history_no_trimming_needed(tmp_path):
     """Test save when history is within limit"""
     svc, history_file = make_service(tmp_path, history_limit=10)
     # History is small, no trimming needed
-    svc.conversation_history = [
+    svc.conversation_histories["global"] = [
         {"role": "system", "content": "sys"},
         {"role": "user", "content": "hi"},
     ]
-    svc._save_conversation_history()
+    svc._save_conversation_histories()
     saved = json.loads(history_file.read_text(encoding="utf-8"))
-    assert len(saved) == 2
-    assert saved[0]["role"] == "system"
-    assert saved[1]["content"] == "hi"
+    global_history = saved["global"]
+    assert len(global_history) == 2
+    assert global_history[0]["role"] == "system"
+    assert global_history[1]["content"] == "hi"
 
 
 def test_explicit_api_key_overrides_env(tmp_path):

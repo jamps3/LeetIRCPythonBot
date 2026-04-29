@@ -72,7 +72,7 @@ class TestTeachCommand:
 
             assert "Added teaching #1" in result
             mock_data_manager.add_teaching.assert_called_once_with(
-                "The capital of Finland is Helsinki", "TestUser"
+                "The capital of Finland is Helsinki", "TestUser", "TestServer", "#test"
             )
 
     def test_teach_command_list_teachings(self, irc_context, mock_bot_functions):
