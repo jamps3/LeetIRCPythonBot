@@ -33,7 +33,7 @@ class Server:
 
     Attributes:
         config (ServerConfig): The server configuration object
-        bot_name (str): The nickname for the bot on this server
+        bot_name (str): The nickname for the bot on this server (from config.nick or global bot_name)
         stop_event (threading.Event): Event to signal the server to stop
         callbacks (dict): Dictionary of message handler callbacks
         connected (bool): Flag indicating if the server is connected
@@ -48,12 +48,14 @@ class Server:
 
         Args:
             config (ServerConfig): Server configuration containing host, port, channels, etc.
-            bot_name (str): The nickname for the bot
+            bot_name (str): The default nickname for the bot (used if config.nick is not set)
             stop_event (threading.Event): Event to signal the server to stop
         """
         self.config = config
         self.host = config.host
-        self.bot_name = bot_name
+        self.bot_name = (
+            config.nick or bot_name
+        )  # Use per-server nick if set, else global bot_name
         self.stop_event = stop_event
         self.socket = None
         self.connected = False

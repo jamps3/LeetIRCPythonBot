@@ -116,6 +116,7 @@ class ServerConfig:
         keys: Optional list of channel keys (passwords) matching the channels list
         tls: Enable TLS for secure connection
         name: Unique identifier for this server configuration
+        nick: Optional bot nickname for this server (defaults to global BOT_NAME)
     """
 
     host: str
@@ -125,6 +126,7 @@ class ServerConfig:
     tls: bool = False  # Enable TLS if needed
     allow_insecure_tls: bool = False  # Allow insecure TLS connections
     name: str = ""
+    nick: Optional[str] = None  # Bot nickname for this server
 
     def __post_init__(self):
         # Ensure channel names have # prefix
@@ -542,6 +544,9 @@ def get_server_configs() -> List[ServerConfig]:
             "1",
             "yes",
         )
+        nick = (
+            os.environ.get(f"{prefix}NICK", "").strip() or None
+        )  # Optional per-server nick
 
         channels = parse_comma_separated_values(channels_str)
         keys = parse_comma_separated_values(keys_str) if keys_str else None
@@ -559,6 +564,7 @@ def get_server_configs() -> List[ServerConfig]:
             name=server_name,
             tls=tls,
             allow_insecure_tls=allow_insecure_tls,  # Default to allow insecure TLS connections
+            nick=nick,
         )
 
         server_configs.append(config)
