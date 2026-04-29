@@ -59,11 +59,17 @@ class IMDbService:
                 self.search_url, params=params, headers=headers, timeout=10
             )
 
-            if response.status_code != 200:
+            if response.status_code not in (200, 202):
                 return {
                     "error": True,
                     "message": f"IMDb returned status code {response.status_code}",
                 }
+
+            # Log non-200 status codes for debugging
+            if response.status_code != 200:
+                logger.info(
+                    f"IMDb returned status {response.status_code} for query '{query}'"
+                )
 
             # Parse the results
             return self._parse_search_results(response.text, query)
