@@ -92,13 +92,13 @@ class ServiceManager:
     def _initialize_gpt_service(self):
         """Initialize GPT service if API key is available."""
         try:
+            from config import get_config
             from services.gpt_service import GPTService
 
             openai_api_key = get_api_key("OPENAI_API_KEY")
-            history_file = os.getenv(
-                "HISTORY_FILE"
-            )  # Will use default in GPTService if None
-            history_limit = int(os.getenv("GPT_HISTORY_LIMIT", "100"))
+            config = get_config()
+            history_file = config.history_file
+            history_limit = config.gpt_history_limit
 
             if openai_api_key:
                 self.services["gpt"] = GPTService(
