@@ -28,16 +28,18 @@ class ServerManager:
     - Connection pooling
     """
 
-    def __init__(self, bot_name: str, stop_event: threading.Event):
+    def __init__(self, bot_name: str, stop_event: threading.Event, bot_config=None):
         """
         Initialize the server manager.
 
         Args:
             bot_name: The bot's nickname
             stop_event: Event to signal shutdown
+            bot_config: Global bot configuration
         """
         self.bot_name = bot_name
         self.stop_event = stop_event
+        self.bot_config = bot_config
 
         # Server storage
         self.servers: Dict[str, Server] = {}
@@ -78,7 +80,7 @@ class ServerManager:
 
         # Create Server instances
         for config in server_configs:
-            server = Server(config, self.bot_name, self.stop_event)
+            server = Server(config, self.bot_name, self.stop_event, self.bot_config)
             # Set the quit message
             server.quit_message = self.quit_message
             self.servers[config.name] = server
@@ -262,7 +264,7 @@ class ServerManager:
         )
 
         # Create and register server
-        server = Server(config, self.bot_name, self.stop_event)
+        server = Server(config, self.bot_name, self.stop_event, self.bot_config)
         server.quit_message = self.quit_message
         self.servers[name] = server
         self.joined_channels[name] = []
@@ -702,15 +704,18 @@ class ServerManager:
         logger.info("Server manager shutdown complete")
 
 
-def create_server_manager(bot_name: str, stop_event: threading.Event) -> ServerManager:
+def create_server_manager(
+    bot_name: str, stop_event: threading.Event, bot_config=None
+) -> ServerManager:
     """
     Factory function to create a server manager instance.
 
     Args:
         bot_name: The bot's nickname
         stop_event: Event to signal shutdown
+        bot_config: Global bot configuration
 
     Returns:
         ServerManager instance
     """
-    return ServerManager(bot_name, stop_event)
+    return ServerManager(bot_name, stop_event, bot_config)

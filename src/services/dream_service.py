@@ -261,7 +261,7 @@ class DreamService:
             prompt = f"Generate a short, surreal dream narrative (2-3 sentences) about someone experiencing a strange, abstract dream. The context: {context}. Make it poetic and dreamlike."
 
         try:
-            response = self.gpt_service.chat(prompt)
+            response = self.gpt_service.chat(prompt, "dream_service")
             if response and not response.startswith("Error"):
                 return response
         except Exception as e:

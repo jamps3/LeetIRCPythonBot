@@ -52,6 +52,7 @@ QUIT_MESSAGE = "🍺 Nähdään! 🍺"  # Quit message
 # TUI Configuration
 LOG_BUFFER_SIZE = 1000  # Maximum number of log entries to keep in memory
 AUTO_CONNECT = True  # Automatically connect to servers on startup
+AUTO_RECONNECT = True  # Automatically reconnect if disconnected
 
 # Message Output Settings
 USE_NOTICES = (
@@ -116,6 +117,7 @@ class ServerConfig:
         keys: Optional list of channel keys (passwords) matching the channels list
         tls: Enable TLS for secure connection
         name: Unique identifier for this server configuration
+        nick: Optional bot nickname for this server (defaults to global BOT_NAME)
     """
 
     host: str
@@ -125,6 +127,7 @@ class ServerConfig:
     tls: bool = False  # Enable TLS if needed
     allow_insecure_tls: bool = False  # Allow insecure TLS connections
     name: str = ""
+    nick: Optional[str] = None  # Bot nickname for this server
 
     def __post_init__(self):
         # Ensure channel names have # prefix
@@ -155,6 +158,8 @@ class BotConfig:
     ekavika_file: str = EKAVIKA_FILE
     words_file: str = GENERAL_WORDS_FILE
     subscribers_file: str = SUBSCRIBERS_FILE
+    otiedote_file: str = OTIEDOTE_FILE
+    quotes_source: str = "data/quotes.txt"
     state_file: str = STATE_FILE
 
     # Connection settings
@@ -169,8 +174,10 @@ class BotConfig:
 
     # API Keys
     weather_api_key: str = ""
+    weather_forecast_api_key: str = ""
     electricity_api_key: str = ""
     openai_api_key: str = ""
+    openai_model: str = "gpt-5.4"
     youtube_api_key: str = ""
     eurojackpot_api_key: str = ""
 
@@ -208,6 +215,10 @@ class BotConfig:
     use_notices: bool = False
     tamagotchi_enabled: bool = True
     four_twenty_enabled: bool = True
+    auto_connect: bool = True
+    auto_reconnect: bool = True
+    log_buffer_size: int = 1000
+    gpt_history_limit: int = 100
 
     # X (Twitter) API settings
     x_bearer_token: str = ""
@@ -254,64 +265,239 @@ class ConfigManager:
 
     def _load_config(self) -> BotConfig:
         """
-        Load configuration from environment variables.
+        Load configuration from state.json and environment variables.
         """
         # Prepare state_file with data directory
         state_file = os.getenv("STATE_FILE", STATE_FILE)
         if not state_file.startswith(("data/", "data\\")):
             state_file = os.path.join("data", state_file)
 
+        # Load settings from state.json
+        state_config = self._load_state_config()
+
         config = BotConfig(
             # Bot identification
-            name=os.getenv("BOT_NAME", "jl3b"),
+            name=state_config.get("bot_name", "jl3b"),
             version=os.getenv("BOT_VERSION") or _read_version_from_file(),
             # Logging
-            log_level=os.getenv("LOG_LEVEL", "INFO"),
+            log_level=state_config.get("log_level", "INFO"),
             # File paths
-            history_file=os.getenv("HISTORY_FILE", CONVERSATION_HISTORY_FILE),
-            ekavika_file=os.getenv("EKAVIKA_FILE", EKAVIKA_FILE),
-            words_file=os.getenv("WORDS_FILE", GENERAL_WORDS_FILE),
-            subscribers_file=os.getenv("SUBSCRIBERS_FILE", SUBSCRIBERS_FILE),
+            history_file=state_config.get("history_file", CONVERSATION_HISTORY_FILE),
+            ekavika_file=state_config.get("ekavika_file", EKAVIKA_FILE),
+            words_file=state_config.get("words_file", GENERAL_WORDS_FILE),
+            subscribers_file=state_config.get("subscribers_file", SUBSCRIBERS_FILE),
+            otiedote_file=state_config.get("otiedote_file", OTIEDOTE_FILE),
+            quotes_source=state_config.get("quotes_source", "data/quotes.txt"),
             state_file=state_file,
             # Connection settings
-            reconnect_delay=int(os.getenv("RECONNECT_DELAY", str(RECONNECT_DELAY))),
-            quit_message=os.getenv("QUIT_MESSAGE", QUIT_MESSAGE),
+            reconnect_delay=state_config.get("reconnect_delay", RECONNECT_DELAY),
+            quit_message=state_config.get("quit_message", QUIT_MESSAGE),
             # Security
-            admin_password=os.getenv("ADMIN_PASSWORD", "changeme"),
+            admin_password=state_config.get("admin_password", "changeme"),
             # Channel restrictions
             ops_allowed_channels=parse_comma_separated_values(
-                os.getenv("OPS_ALLOWED_CHANNELS", OPS_ALLOWED_CHANNELS)
+                state_config.get("ops_allowed_channels", OPS_ALLOWED_CHANNELS)
             ),
-            # API Keys
+            # API Keys (still from env)
             weather_api_key=os.getenv("WEATHER_API_KEY", ""),
+            weather_forecast_api_key=os.getenv("WEATHER_FORECAST_API_KEY", ""),
             electricity_api_key=os.getenv("ELECTRICITY_API_KEY", ""),
             openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+            openai_model=os.getenv("OPENAI_MODEL", "gpt-5.4"),
             youtube_api_key=os.getenv("YOUTUBE_API_KEY", ""),
             eurojackpot_api_key=os.getenv("EUROJACKPOT_API_KEY", ""),
             # Feature toggles
-            use_notices=os.getenv("USE_NOTICES", str(USE_NOTICES)).lower()
-            in ("true", "1", "yes", "on"),
-            tamagotchi_enabled=os.getenv(
-                "TAMAGOTCHI_ENABLED", str(TAMAGOTCHI_ENABLED)
-            ).lower()
-            in ("true", "1", "yes", "on"),
-            four_twenty_enabled=os.getenv("420_ENABLED", "true").lower()
-            in ("true", "1", "yes", "on"),
+            use_notices=state_config.get("use_notices", USE_NOTICES),
+            tamagotchi_enabled=state_config.get(
+                "tamagotchi_enabled", TAMAGOTCHI_ENABLED
+            ),
+            four_twenty_enabled=state_config.get("four_twenty_enabled", True),
+            auto_connect=state_config.get("auto_connect", AUTO_CONNECT),
+            auto_reconnect=state_config.get("auto_reconnect", AUTO_RECONNECT),
+            log_buffer_size=state_config.get("log_buffer_size", LOG_BUFFER_SIZE),
+            gpt_history_limit=state_config.get("gpt_history_limit", GPT_HISTORY_LIMIT),
             # X (Twitter) API settings
             x_bearer_token=os.getenv("X_BEARER_TOKEN", ""),
             # URL title fetching settings
-            title_blacklist_domains=os.getenv(
-                "TITLE_BLACKLIST_DOMAINS", TITLE_BLACKLIST_DOMAINS
+            title_blacklist_domains=state_config.get(
+                "title_blacklist_domains", TITLE_BLACKLIST_DOMAINS
             ),
-            title_blacklist_extensions=os.getenv(
-                "TITLE_BLACKLIST_EXTENSIONS", TITLE_BLACKLIST_EXTENSIONS
+            title_blacklist_extensions=state_config.get(
+                "title_blacklist_extensions", TITLE_BLACKLIST_EXTENSIONS
             ),
-            title_banned_texts=os.getenv("TITLE_BANNED_TEXTS", TITLE_BANNED_TEXTS),
-            # Server configurations
-            servers=self._load_server_configs(),
+            title_banned_texts=state_config.get(
+                "title_banned_texts", TITLE_BANNED_TEXTS
+            ),
         )
 
+        # Load server configurations from state.json
+        config.servers = self._load_server_configs_from_state(state_config)
+
         return config
+
+    def _load_state_config(self) -> dict:
+        """
+        Load configuration from state.json file.
+        If file doesn't exist, run interactive setup.
+        """
+        state_file = os.path.join("data", "state.json")
+
+        if not os.path.exists(state_file):
+            logger.info("state.json not found, running interactive setup...")
+            self._run_interactive_setup(state_file)
+
+        if os.path.exists(state_file):
+            try:
+                with open(state_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return data.get("config", {})
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning(f"Failed to load state.json: {e}")
+                return {}
+        else:
+            logger.error("Failed to create state.json during setup")
+            return {}
+
+    def _run_interactive_setup(self, state_file: str) -> None:
+        """
+        Run interactive setup to create initial state.json
+        """
+        print("🤖 LeetIRCPythonBot First-Time Setup")
+        print("=" * 40)
+
+        config = {}
+
+        # Bot Configuration
+        print("\n📝 Bot Configuration:")
+        config["bot_name"] = (
+            input("Bot nickname (LeetIRCBot): ").strip() or "LeetIRCBot"
+        )
+        config["log_level"] = input("Log level (INFO): ").strip().upper() or "INFO"
+        config["admin_password"] = input("Admin password: ").strip() or "changeme"
+
+        # Connection settings
+        print("\n🌐 Connection Settings:")
+        config["reconnect_delay"] = int(
+            input("Reconnect delay in seconds (60): ").strip() or "60"
+        )
+        config["quit_message"] = (
+            input("Quit message (🍺 Nähdään! 🍺): ").strip() or "🍺 Nähdään! 🍺"
+        )
+
+        # Feature toggles
+        print("\n⚙️ Feature Toggles:")
+        config["use_notices"] = input(
+            "Use IRC NOTICEs instead of PRIVMSG? (true): "
+        ).strip().lower() in ("true", "1", "yes", "on", "")
+        config["tamagotchi_enabled"] = input(
+            "Enable tamagotchi responses? (true): "
+        ).strip().lower() in ("true", "1", "yes", "on", "")
+        config["four_twenty_enabled"] = input(
+            "Enable 4:20 time announcements? (true): "
+        ).strip().lower() in ("true", "1", "yes", "on", "")
+        config["auto_connect"] = input(
+            "Auto-connect to servers on startup? (true): "
+        ).strip().lower() in ("true", "1", "yes", "on", "")
+        config["auto_reconnect"] = input(
+            "Auto-reconnect if disconnected? (true): "
+        ).strip().lower() in ("true", "1", "yes", "on", "")
+
+        # Buffer settings
+        print("\n📊 Buffer Settings:")
+        config["log_buffer_size"] = int(
+            input("Max log entries in memory (1000): ").strip() or "1000"
+        )
+        config["gpt_history_limit"] = int(
+            input("Max GPT conversation history (100): ").strip() or "100"
+        )
+
+        # Server configuration
+        print("\n🖥️ Server Configuration:")
+        servers = []
+        while True:
+            add_server = input("Add an IRC server? (y/n): ").strip().lower()
+            if add_server not in ("y", "yes"):
+                break
+
+            server = {}
+            server["host"] = input("Server host: ").strip()
+            if not server["host"]:
+                continue
+            server["port"] = int(input("Server port (6697): ").strip() or "6697")
+            server["tls"] = input("Use TLS? (true): ").strip().lower() in (
+                "true",
+                "1",
+                "yes",
+                "on",
+                "",
+            )
+            server["allow_insecure_tls"] = input(
+                "Allow insecure TLS? (true): "
+            ).strip().lower() in ("true", "1", "yes", "on", "")
+            channels = input(
+                "Channels (comma-separated, e.g. #channel1,#channel2): "
+            ).strip()
+            server["channels"] = [
+                ch.strip() for ch in channels.split(",") if ch.strip()
+            ]
+            server["nick"] = (
+                input(
+                    "Bot nick for this server (optional, defaults to bot_name): "
+                ).strip()
+                or None
+            )
+
+            servers.append(server)
+
+        config["servers"] = servers
+
+        # Create data directory if needed
+        os.makedirs(os.path.dirname(state_file), exist_ok=True)
+
+        # Create state.json with config and empty state
+        state_data = {
+            "config": config,
+            "state": {
+                "last_updated": None,
+                "otiedote": {"latest_release": 0, "filters": {}, "subscribers": []},
+                "ai_teachings": [],
+            },
+        }
+
+        try:
+            with open(state_file, "w", encoding="utf-8") as f:
+                json.dump(state_data, f, indent=2, ensure_ascii=False)
+            print(f"\n✅ Configuration saved to {state_file}")
+            print("🔑 Add your API keys to .env file (see .env.sample)")
+        except Exception as e:
+            print(f"❌ Failed to save configuration: {e}")
+
+    def _load_server_configs_from_state(self, state_config: dict) -> List[ServerConfig]:
+        """
+        Load server configurations from state config dict.
+        """
+        servers = []
+        server_list = state_config.get("servers", [])
+
+        for i, server_data in enumerate(server_list, 1):
+            try:
+                config = ServerConfig(
+                    host=server_data["host"],
+                    port=server_data["port"],
+                    channels=server_data["channels"],
+                    keys=server_data.get("keys"),
+                    tls=server_data.get("tls", False),
+                    allow_insecure_tls=server_data.get("allow_insecure_tls", False),
+                    name=f"Server{i}",
+                    nick=server_data.get("nick"),
+                )
+                servers.append(config)
+            except KeyError as e:
+                logger.warning(
+                    f"Missing required field {e} in server config {i}, skipping"
+                )
+
+        return servers
 
     def _load_server_configs(self) -> List[ServerConfig]:
         """
@@ -542,6 +728,9 @@ def get_server_configs() -> List[ServerConfig]:
             "1",
             "yes",
         )
+        nick = (
+            os.environ.get(f"{prefix}NICK", "").strip() or None
+        )  # Optional per-server nick
 
         channels = parse_comma_separated_values(channels_str)
         keys = parse_comma_separated_values(keys_str) if keys_str else None
@@ -559,6 +748,7 @@ def get_server_configs() -> List[ServerConfig]:
             name=server_name,
             tls=tls,
             allow_insecure_tls=allow_insecure_tls,  # Default to allow insecure TLS connections
+            nick=nick,
         )
 
         server_configs.append(config)

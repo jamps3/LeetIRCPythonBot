@@ -374,7 +374,9 @@ class ConsoleManager:
     def _process_ai_request(self, user_input: str, sender: str):
         """Process AI request in a separate thread to avoid blocking console input."""
         try:
-            response = self.service_manager.get_service("gpt").chat(user_input, sender)
+            response = self.service_manager.get_service("gpt").chat(
+                user_input, sender, "console", "console"
+            )
             if response:
                 logger.log(f"🤖 AI: {response}", "MSG", fallback_text=f"AI: {response}")
             else:
@@ -706,7 +708,9 @@ class ConsoleManager:
             "load_leet_winners": self.message_handler._load_leet_winners,
             "save_leet_winners": self.message_handler._save_leet_winners,
             "chat_with_gpt": lambda msg, sender="Console": (
-                self.service_manager.get_service("gpt").chat(msg, sender)
+                self.service_manager.get_service("gpt").chat(
+                    msg, sender, "console", "console"
+                )
                 if self.service_manager.is_service_available("gpt")
                 else "AI not available"
             ),

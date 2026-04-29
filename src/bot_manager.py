@@ -76,9 +76,11 @@ class BotManager:
         # Set bot_manager reference for service callbacks
         self.service_manager.set_bot_manager(self)
 
+        # Get configuration
+        self.config = get_config()
+
         # Get data manager from service manager (it has the word tracking components)
-        config = get_config()
-        data_manager = DataManager(state_file=config.state_file)
+        data_manager = DataManager(state_file=self.config.state_file)
 
         self.logger.info("📨 Initializing message handler...")
         self.message_handler = create_message_handler(
@@ -92,7 +94,9 @@ class BotManager:
         self._bot_functions_initialized = False
 
         self.logger.info("🌐 Initializing server manager...")
-        self.server_manager = create_server_manager(bot_name, self.stop_event)
+        self.server_manager = create_server_manager(
+            bot_name, self.stop_event, self.config
+        )
 
         # Set remaining dependencies in console manager
         self.console_manager.set_service_manager(self.service_manager)

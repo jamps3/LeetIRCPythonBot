@@ -1149,7 +1149,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             and not text.startswith("!")
             and not contains_drink_words
         ):
-            ai_response = self._chat_with_gpt(text, sender)
+            ai_response = self._chat_with_gpt(text, sender, server.config.name, target)
             if ai_response:
                 reply_target = sender if is_private else target
                 # Send as multiple IRC lines (split by newline, wrap long lines)
@@ -1337,7 +1337,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         except Exception as e:
             logger.error(f"Error sending message to {target}: {e}")
 
-    def _chat_with_gpt(self, message, sender="user"):
+    def _chat_with_gpt(self, message, sender="user", network=None, channel=None):
         """Chat with GPT."""
         gpt_service = self.service_manager.get_service("gpt")
         if not gpt_service:
@@ -1351,7 +1351,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 clean_message = clean_message[len(sender) :].lstrip(":, ")  # noqa: E203
 
             # Get response from GPT service
-            response = gpt_service.chat(clean_message, sender)
+            response = gpt_service.chat(clean_message, sender, network, channel)
             return response
 
         except Exception as e:

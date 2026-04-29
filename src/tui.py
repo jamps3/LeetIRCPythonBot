@@ -14,7 +14,7 @@ from datetime import datetime
 import urwid
 
 import logger
-from config import AUTO_CONNECT, LOG_BUFFER_SIZE
+from config import AUTO_CONNECT, AUTO_RECONNECT, LOG_BUFFER_SIZE
 
 # Suppress urwid deprecation warnings globally for this module
 warnings.filterwarnings("ignore", category=DeprecationWarning, module=".*urwid.*")
@@ -1099,6 +1099,7 @@ class ConfigEditor:
                 ("BOT_NAME", "Bot nickname"),
                 ("LOG_LEVEL", "Logging level (DEBUG, INFO, WARNING, ERROR)"),
                 ("AUTO_CONNECT", "Auto-connect to servers (true/false)"),
+                ("AUTO_RECONNECT", "Auto-reconnect if disconnected (true/false)"),
                 ("LOG_BUFFER_SIZE", "Maximum log entries in memory"),
                 ("USE_NOTICES", "Use IRC NOTICEs instead of PRIVMSG (true/false)"),
                 ("TAMAGOTCHI_ENABLED", "Enable tamagotchi responses (true/false)"),
@@ -1286,7 +1287,9 @@ class TUIManager:
         self.bot_manager = bot_manager
 
         # Always initialize basic attributes
-        self.log_buffer_size = int(os.getenv("LOG_BUFFER_SIZE", str(LOG_BUFFER_SIZE)))
+        self.log_buffer_size = (
+            self.bot_manager.config.log_buffer_size if self.bot_manager else 1000
+        )
         self.log_entries = deque(maxlen=self.log_buffer_size)
         self.command_history = []
         self.history_index = 0
@@ -1331,6 +1334,12 @@ class TUIManager:
         # Initialize channel tracking from bot_manager
         self.joined_channels = self.bot_manager.joined_channels
         self.active_channel = self.bot_manager.active_channel
+
+        # Update log buffer size from config
+        self.log_buffer_size = self.bot_manager.config.log_buffer_size
+        # Recreate log_entries with new maxlen
+        old_entries = list(self.log_entries)
+        self.log_entries = deque(old_entries, maxlen=self.log_buffer_size)
 
         # UI components
         self.header = urwid.Text("")
@@ -2363,7 +2372,7 @@ Tips:
         if self.bot_manager:
             # Report connection status (auto-connect is handled by bot manager)
             auto_connect_enabled = (
-                os.getenv("AUTO_CONNECT", str(AUTO_CONNECT)).lower() == "true"
+                self.bot_manager.config.auto_connect if self.bot_manager else True
             )
             if auto_connect_enabled:
                 self.add_log_entry(
@@ -2379,6 +2388,27 @@ Tips:
                     "Console",
                     "INFO",
                     "AUTO_CONNECT off. Use !connect to connect to IRC servers.",
+                    "SYSTEM",
+                )
+
+            # Report auto-reconnect status
+            auto_reconnect_enabled = (
+                self.bot_manager.config.auto_reconnect if self.bot_manager else True
+            )
+            if auto_reconnect_enabled:
+                self.add_log_entry(
+                    datetime.now(),
+                    "Console",
+                    "INFO",
+                    "AUTO_RECONNECT on. Servers will automatically reconnect if disconnected.",
+                    "SYSTEM",
+                )
+            else:
+                self.add_log_entry(
+                    datetime.now(),
+                    "Console",
+                    "INFO",
+                    "AUTO_RECONNECT off. Servers will not automatically reconnect if disconnected.",
                     "SYSTEM",
                 )
 

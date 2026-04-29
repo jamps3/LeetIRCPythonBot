@@ -14,10 +14,13 @@ import socket  # For TLS support
 import ssl  # For TLS support
 import threading
 import time
-from typing import Callable
+from typing import TYPE_CHECKING, Callable, Optional
 
 import logger
-from config import ServerConfig
+from config import AUTO_RECONNECT, ServerConfig
+
+if TYPE_CHECKING:
+    from config import BotConfig
 
 
 class Server:
@@ -33,7 +36,7 @@ class Server:
 
     Attributes:
         config (ServerConfig): The server configuration object
-        bot_name (str): The nickname for the bot on this server
+        bot_name (str): The nickname for the bot on this server (from config.nick or global bot_name)
         stop_event (threading.Event): Event to signal the server to stop
         callbacks (dict): Dictionary of message handler callbacks
         connected (bool): Flag indicating if the server is connected
@@ -41,19 +44,27 @@ class Server:
     """
 
     def __init__(
-        self, config: ServerConfig, bot_name: str, stop_event: threading.Event
+        self,
+        config: ServerConfig,
+        bot_name: str,
+        stop_event: threading.Event,
+        bot_config: Optional["BotConfig"] = None,
     ):
         """
         Initialize a new Server instance.
 
         Args:
             config (ServerConfig): Server configuration containing host, port, channels, etc.
-            bot_name (str): The nickname for the bot
+            bot_name (str): The default nickname for the bot (used if config.nick is not set)
             stop_event (threading.Event): Event to signal the server to stop
+            bot_config (BotConfig): Global bot configuration
         """
         self.config = config
+        self.bot_config = bot_config
         self.host = config.host
-        self.bot_name = bot_name
+        self.bot_name = (
+            config.nick or bot_name
+        )  # Use per-server nick if set, else global bot_name
         self.stop_event = stop_event
         self.socket = None
         self.connected = False
@@ -659,6 +670,12 @@ class Server:
             # Final check before considering reconnection
             if self.stop_event.is_set():
                 self.log.info("Stop event set, not reconnecting")
+                break
+
+            # Check if auto-reconnect is enabled
+            auto_reconnect = self.bot_config.auto_reconnect if self.bot_config else True
+            if not auto_reconnect:
+                self.log.info("Auto-reconnect disabled, not reconnecting")
                 break
 
             # Only attempt reconnection if stop event is not set

@@ -555,3 +555,71 @@ The AI Teachings feature allows users to teach the bot persistent knowledge that
 3. **GPT Integration** (`src/services/gpt_service.py`)
    - `_get_teachings_context()` loads teachings for AI context
    - Included in responses (max 100 items combined with history)
+
+---
+
+## Configuration Consolidation - COMPLETED ✅ (2026-04-29)
+
+### Refactored .env → state.json with Interactive Setup
+
+**Status**: COMPLETED ✅
+
+**Problem Solved**: Eliminated maintenance of 3 separate config files (.env, .env.sample, state.json) by consolidating bot settings into state.json while keeping API keys secure in .env.
+
+### Implementation:
+
+1. **New state.json Structure**:
+   ```json
+   {
+     "comments": { /* Explanatory text for each setting */ },
+     "config": {
+       "bot_name": "LeetIRCBot",
+       "log_level": "INFO",
+       "servers": [...],
+       "features": {
+         "auto_connect": true,
+         "auto_reconnect": true
+       }
+     },
+     "state": {
+       "subscribers": [],
+       "teachings": [],
+       "latest_releases": {}
+     }
+   }
+   ```
+
+2. **Interactive Setup**: When state.json is missing, prompts user for:
+   - Bot name, log level, admin password
+   - Connection settings (reconnect delay, quit message)
+   - Feature toggles (notices, tamagotchi, auto-connect, etc.)
+   - Server configurations (host, port, channels, TLS, nick)
+
+3. **Security Maintained**: API keys remain in .env (environment variables) for security
+
+### Changes Made:
+
+- **config.py**: Updated `_load_config()` to load settings from state.json instead of env vars
+- **Server classes**: Updated to use config values instead of env vars
+- **Interactive setup**: Added `_run_interactive_setup()` for first-time configuration
+- **state.json**: Created with current settings and comments section
+- **.env**: Reduced to only API keys
+- **.env.sample**: Updated to match
+
+### Benefits Achieved:
+- ✅ Single config file for bot settings
+- ✅ Interactive first-time setup
+- ✅ Clear separation of config vs state
+- ✅ API keys remain secure in environment variables
+- ✅ Comments preserved in JSON structure
+- ✅ Backward compatible (falls back gracefully)
+
+### Files Modified:
+- `src/config.py` - New state.json loading logic
+- `src/server.py` - Use config values instead of env vars
+- `src/tui.py` - Use config values for display
+- `src/server_manager.py` - Pass config to servers
+- `src/bot_manager.py` - Pass config to server manager
+- `.env` - Reduced to API keys only
+- `.env.sample` - Updated to match
+- `data/state.json` - Created with full configuration

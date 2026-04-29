@@ -442,21 +442,54 @@ class DataManager:
         return list(data.get("servers", {}).keys())
 
     # AI Teachings methods
-    def load_ai_teachings(self) -> List[Dict[str, Any]]:
-        """Load AI teachings data from merged state.json."""
-        state_data = self.load_json(self.state_file)
-        ai_teachings = state_data.get("ai_teachings", [])
-        if isinstance(ai_teachings, dict):
-            # Migrate from old format: extract teachings list and save as new format
-            teachings = ai_teachings.get("teachings", [])
-            state_data["ai_teachings"] = teachings
-            self.save_json(self.state_file, state_data)
-            return teachings
-        else:
-            return ai_teachings
+    def load_ai_teachings(
+        self, network: str = None, channel: str = None
+    ) -> List[Dict[str, Any]]:
+        """Load AI teachings data from merged state.json.
 
-    def save_ai_teachings(self, data: List[Dict[str, Any]]):
-        """Save AI teachings data to merged state.json."""
+        Args:
+            network: IRC network (e.g., 'irc.libera.chat')
+            channel: IRC channel (e.g., '#python')
+
+        Returns:
+            List of teachings for the specified network/channel, or global teachings if none specified
+        """
+        state_data = self.load_json(self.state_file)
+        ai_teachings = state_data.get("ai_teachings", {})
+
+        # Handle migration from old list format to new dict format
+        if isinstance(ai_teachings, list):
+            # Migrate old format to new structure under 'global' key
+            migrated = {"global": ai_teachings}
+            state_data["ai_teachings"] = migrated
+            self.save_json(self.state_file, state_data)
+            ai_teachings = migrated
+
+        if network and channel:
+            # Return teachings for specific network/channel
+            key = f"{network}/{channel}"
+            return ai_teachings.get(key, [])
+        elif network:
+            # Return teachings for specific network (across all channels)
+            network_teachings = []
+            for key, teachings in ai_teachings.items():
+                if key.startswith(f"{network}/"):
+                    network_teachings.extend(teachings)
+            return network_teachings
+        else:
+            # Return global teachings (for backward compatibility)
+            return ai_teachings.get("global", [])
+
+    def save_ai_teachings(
+        self, data: List[Dict[str, Any]], network: str = None, channel: str = None
+    ):
+        """Save AI teachings data to merged state.json.
+
+        Args:
+            data: List of teachings to save
+            network: IRC network (optional)
+            channel: IRC channel (optional)
+        """
         # Load the full state file
         state_data = self.load_json(self.state_file)
         if not state_data:
@@ -467,28 +500,46 @@ class DataManager:
                 "fmi_warnings": {"seen_hashes": [], "seen_data": []},
                 "otiedote": {"latest_release": 0},
                 "drink_tracking_opt_out": {},
+                "ai_teachings": {},
             }
 
-        # Update the ai_teachings section
-        state_data["ai_teachings"] = data
+        # Ensure ai_teachings is a dict
+        if "ai_teachings" not in state_data:
+            state_data["ai_teachings"] = {}
+        elif not isinstance(state_data["ai_teachings"], dict):
+            # Migrate old list format
+            state_data["ai_teachings"] = {"global": state_data["ai_teachings"]}
 
-        # Save the full state file
+        # Determine the key for storing teachings
+        if network and channel:
+            key = f"{network}/{channel}"
+        else:
+            key = "global"
+
+        # Update the teachings for this key
+        state_data["ai_teachings"][key] = data
+
+        # Save the updated state
         self.save_json(self.state_file, state_data)
 
-    def add_teaching(self, content: str, added_by: str) -> int:
+    def add_teaching(
+        self, content: str, added_by: str, network: str = None, channel: str = None
+    ) -> int:
         """
         Add a new teaching to the AI knowledge base.
 
         Args:
             content: The teaching content
             added_by: Who added this teaching
+            network: IRC network (optional)
+            channel: IRC channel (optional)
 
         Returns:
             The ID of the new teaching, or -1 if failed (limit reached)
         """
-        teachings = self.load_ai_teachings()
+        teachings = self.load_ai_teachings(network, channel)
 
-        # Check 50-item limit
+        # Check 50-item limit per network/channel
         if len(teachings) >= 50:
             return -1
 
@@ -508,20 +559,24 @@ class DataManager:
         teachings.append(new_teaching)
 
         # Save
-        self.save_ai_teachings(teachings)
+        self.save_ai_teachings(teachings, network, channel)
         return next_id
 
-    def remove_teaching(self, teaching_id: int) -> bool:
+    def remove_teaching(
+        self, teaching_id: int, network: str = None, channel: str = None
+    ) -> bool:
         """
         Remove a teaching by its ID.
 
         Args:
             teaching_id: The ID of the teaching to remove
+            network: IRC network (optional)
+            channel: IRC channel (optional)
 
         Returns:
             True if removed, False if not found
         """
-        teachings = self.load_ai_teachings()
+        teachings = self.load_ai_teachings(network, channel)
 
         # Find and remove teaching
         original_count = len(teachings)
@@ -531,33 +586,41 @@ class DataManager:
             return False  # Not found
 
         # Save
-        self.save_ai_teachings(teachings)
+        self.save_ai_teachings(teachings, network, channel)
         return True
 
-    def get_teachings(self) -> List[Dict[str, Any]]:
+    def get_teachings(
+        self, network: str = None, channel: str = None
+    ) -> List[Dict[str, Any]]:
         """Get all teachings sorted by ID."""
-        teachings = self.load_ai_teachings()
+        teachings = self.load_ai_teachings(network, channel)
         return sorted(teachings, key=lambda x: x.get("id", 0))
 
-    def get_teaching_by_id(self, teaching_id: int) -> Optional[Dict[str, Any]]:
+    def get_teaching_by_id(
+        self, teaching_id: int, network: str = None, channel: str = None
+    ) -> Optional[Dict[str, Any]]:
         """Get a specific teaching by ID."""
-        teachings = self.load_ai_teachings()
+        teachings = self.load_ai_teachings(network, channel)
         for teaching in teachings:
             if teaching.get("id") == teaching_id:
                 return teaching
         return None
 
-    def get_teachings_for_context(self, max_items: int = 100) -> List[str]:
+    def get_teachings_for_context(
+        self, max_items: int = 100, network: str = None, channel: str = None
+    ) -> List[str]:
         """
         Get teachings formatted for AI context, limited by max_items.
 
         Args:
             max_items: Maximum number of teachings to return
+            network: IRC network (optional)
+            channel: IRC channel (optional)
 
         Returns:
             List of teaching content strings
         """
-        teachings = self.get_teachings()
+        teachings = self.get_teachings(network, channel)
         # Return just the content, without IDs to save tokens
         return [t["content"] for t in teachings[:max_items]]
 

@@ -1520,8 +1520,10 @@ def teach_command(context: CommandContext, bot_functions):
         data_manager = get_data_manager()
 
     if not context.args_text:
-        # List all teachings
-        teachings = data_manager.get_teachings()
+        # List all teachings for this network/channel
+        network = context.server_name
+        channel = context.target
+        teachings = data_manager.get_teachings(network, channel)
         if not teachings:
             return "📚 No teachings stored yet. Use '!teach <content>' to add one."
 
@@ -1563,12 +1565,14 @@ def teach_command(context: CommandContext, bot_functions):
             return "❌ Invalid admin password"
 
         # Check if teaching exists
-        teaching = data_manager.get_teaching_by_id(teaching_id)
+        network = context.server_name
+        channel = context.target
+        teaching = data_manager.get_teaching_by_id(teaching_id, network, channel)
         if not teaching:
             return f"📚 Teaching #{teaching_id} not found."
 
         # Remove teaching
-        success = data_manager.remove_teaching(teaching_id)
+        success = data_manager.remove_teaching(teaching_id, network, channel)
         if success:
             content = teaching.get("content", "")
             return f"📚 Removed teaching #{teaching_id}: {content}"
@@ -1585,7 +1589,9 @@ def teach_command(context: CommandContext, bot_functions):
         return "📚 Teaching content too long (max 500 characters)."
 
     # Add teaching
-    teaching_id = data_manager.add_teaching(content, context.sender)
+    network = context.server_name
+    channel = context.target
+    teaching_id = data_manager.add_teaching(content, context.sender, network, channel)
     if teaching_id == -1:
         return "📚 Cannot add teaching: limit of 50 teachings reached."
 

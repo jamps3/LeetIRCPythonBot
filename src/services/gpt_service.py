@@ -76,49 +76,96 @@ class GPTService:
                 ),
             }
         ]
-        self.conversation_history = self._load_conversation_history()
+        self.conversation_histories = self._load_conversation_histories()
 
-    def _load_conversation_history(self) -> List[Dict[str, str]]:
+    def _load_conversation_histories(self) -> Dict[str, List[Dict[str, str]]]:
+        """Load conversation histories from file, supporting both old format and new channel-specific format."""
         if os.path.exists(self.history_file):
             try:
                 with open(self.history_file, "r", encoding="utf-8") as f:
-                    history = json.load(f)
-                if isinstance(history, list) and all(
-                    "role" in m and "content" in m for m in history
-                ):
-                    return history
-            except Exception as e:
-                get_logger(__name__).error(f"Error loading conversation history: {e}")
-        return self.default_history.copy()
+                    data = json.load(f)
 
-    def _save_conversation_history(self):
-        max_total = self.history_limit + 1  # include system prompt
-        if len(self.conversation_history) > max_total:
-            self.conversation_history = [
-                self.conversation_history[0]
-            ] + self.conversation_history[
-                -self.history_limit :  # noqa E203 - Black formatting
-            ]
+                # Handle old single-history format for migration
+                if isinstance(data, list):
+                    # Migrate old format to new format with "global" key
+                    histories = {"global": data}
+                    # Save migrated format
+                    self._save_conversation_histories(histories)
+                    return histories
+                elif isinstance(data, dict):
+                    # New format - validate each history
+                    validated_histories = {}
+                    for key, history in data.items():
+                        if isinstance(history, list) and all(
+                            isinstance(msg, dict) and "role" in msg and "content" in msg
+                            for msg in history
+                        ):
+                            validated_histories[key] = history
+                        else:
+                            get_logger(__name__).warning(
+                                f"Invalid history format for {key}, skipping"
+                            )
+                    return validated_histories
+            except Exception as e:
+                get_logger(__name__).error(f"Error loading conversation histories: {e}")
+
+        # Return default history for global key
+        return {"global": self.default_history.copy()}
+
+    def _save_conversation_histories(self):
+        """Save all conversation histories to file."""
         try:
             with open(self.history_file, "w", encoding="utf-8") as f:
-                json.dump(self.conversation_history, f, indent=2, ensure_ascii=False)
+                json.dump(self.conversation_histories, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            get_logger(__name__).error(f"Error saving conversation history: {e}")
+            get_logger(__name__).error(f"Error saving conversation histories: {e}")
 
-    def _build_transcript(self, latest_user: Dict[str, str]) -> str:
+    def _get_conversation_history(
+        self, network: str = None, channel: str = None
+    ) -> List[Dict[str, str]]:
+        """Get conversation history for specific network/channel."""
+        key = f"{network}/{channel}" if network and channel else "global"
+        return self.conversation_histories.get(key, self.default_history.copy())
+
+    def _set_conversation_history(
+        self, history: List[Dict[str, str]], network: str = None, channel: str = None
+    ):
+        """Set conversation history for specific network/channel."""
+        key = f"{network}/{channel}" if network and channel else "global"
+        # Trim history to fit limits
+        trimmed_history = self._trim_conversation_history(history)
+        self.conversation_histories[key] = trimmed_history
+        self._save_conversation_histories()
+
+    def _trim_conversation_history(
+        self, history: List[Dict[str, str]]
+    ) -> List[Dict[str, str]]:
+        """Trim conversation history to fit within limits."""
+        max_total = self.history_limit + 1  # include system prompt
+        if len(history) > max_total:
+            # Keep system prompt and most recent messages
+            return [history[0]] + history[-(max_total - 1) :]  # noqa: E203
+        return history
+
+    def _build_transcript(
+        self, latest_user: Dict[str, str], network: str = None, channel: str = None
+    ) -> str:
+        # Get the conversation history for this network/channel
+        history = self._get_conversation_history(network, channel)
+
         parts: List[str] = []
-        for msg in self.conversation_history:
+        for msg in history:
             if msg["role"] == "system":
                 parts.append(f"System: {msg['content']}")
 
         # Add teachings context if available (max 100 items total with conversation history)
-        teachings_context = self._get_teachings_context(max_items=100)
+        teachings_context = self._get_teachings_context(
+            max_items=100, network=network, channel=channel
+        )
         if teachings_context:
             parts.append(teachings_context)
 
-        for msg in [
-            m for m in self.conversation_history if m["role"] in ("user", "assistant")
-        ][-15:]:
+        for msg in [m for m in history if m["role"] in ("user", "assistant")][-15:]:
             prefix = "User" if msg["role"] == "user" else "Assistant"
             parts.append(f"{prefix}: {msg['content']}")
         if latest_user:
@@ -129,13 +176,17 @@ class GPTService:
         )
         return "\n".join(parts)
 
-    def _get_teachings_context(self, max_items: int = 100) -> str:
+    def _get_teachings_context(
+        self, max_items: int = 100, network: str = None, channel: str = None
+    ) -> str:
         """Get teachings formatted for AI context."""
         try:
             from src.word_tracking.data_manager import get_data_manager
 
             data_manager = get_data_manager()
-            teachings = data_manager.get_teachings_for_context(max_items)
+            teachings = data_manager.get_teachings_for_context(
+                max_items, network, channel
+            )
             if teachings:
                 return "Teachings:\n" + "\n".join(
                     f"- {content}" for content in teachings
@@ -144,22 +195,31 @@ class GPTService:
             get_logger(__name__).error(f"Error loading teachings for context: {e}")
         return ""
 
-    def chat(self, message: str, sender: str = "user") -> str:
+    def chat(
+        self,
+        message: str,
+        sender: str = "user",
+        network: str = None,
+        channel: str = None,
+    ) -> str:
+        # Get the conversation history for this network/channel
+        history = self._get_conversation_history(network, channel)
+
         user_message = {
             "role": "user",
             "content": f"{sender}: {message}" if sender != "user" else message,
         }
-        self.conversation_history.append(user_message)
+        history.append(user_message)
 
         try:
-            transcript = self._build_transcript(user_message)
+            transcript = self._build_transcript(user_message, network, channel)
             response = self.client.responses.create(model=self.model, input=transcript)
             reply = (response.output_text or "").strip()
             if not reply:
                 reply = "Sorry, I'm having trouble connecting to the AI service."
 
-            self.conversation_history.append({"role": "assistant", "content": reply})
-            self._save_conversation_history()
+            history.append({"role": "assistant", "content": reply})
+            self._set_conversation_history(history, network, channel)
             # Format the reply for IRC
             reply = reply.replace("\n", " ").strip()
             return reply
@@ -175,15 +235,19 @@ class GPTService:
             get_logger(__name__).error(f"Unexpected error: {e}")
             return f"Sorry, something went wrong: {e}"
 
-    def reset_conversation(self) -> str:
-        self.conversation_history = self.default_history.copy()
-        self._save_conversation_history()
+    def reset_conversation(self, network: str = None, channel: str = None) -> str:
+        """Reset conversation history for specific network/channel or global."""
+        self._set_conversation_history(self.default_history.copy(), network, channel)
         return "Conversation history has been reset."
 
-    def get_conversation_stats(self) -> Dict[str, Any]:
-        total = len(self.conversation_history) - 1
-        users = sum(1 for m in self.conversation_history if m["role"] == "user")
-        bots = sum(1 for m in self.conversation_history if m["role"] == "assistant")
+    def get_conversation_stats(
+        self, network: str = None, channel: str = None
+    ) -> Dict[str, Any]:
+        """Get conversation statistics for specific network/channel or global."""
+        history = self._get_conversation_history(network, channel)
+        total = len(history) - 1  # Subtract system message
+        users = sum(1 for m in history if m["role"] == "user")
+        bots = sum(1 for m in history if m["role"] == "assistant")
         return {
             "total_messages": total,
             "user_messages": users,
@@ -191,15 +255,16 @@ class GPTService:
             "history_file": self.history_file,
         }
 
-    def set_system_prompt(self, prompt: str) -> str:
-        if (
-            self.conversation_history
-            and self.conversation_history[0]["role"] == "system"
-        ):
-            self.conversation_history[0]["content"] = prompt
+    def set_system_prompt(
+        self, prompt: str, network: str = None, channel: str = None
+    ) -> str:
+        """Set system prompt for specific network/channel or global."""
+        history = self._get_conversation_history(network, channel)
+        if history and history[0]["role"] == "system":
+            history[0]["content"] = prompt
         else:
-            self.conversation_history.insert(0, {"role": "system", "content": prompt})
-        self._save_conversation_history()
+            history.insert(0, {"role": "system", "content": prompt})
+        self._set_conversation_history(history, network, channel)
         return f"System prompt updated: {prompt[:50]}..."
 
 

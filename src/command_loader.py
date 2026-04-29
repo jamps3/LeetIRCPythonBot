@@ -560,7 +560,9 @@ def process_user_input(user_input: str, bot_manager, source: str = "Console") ->
 def _process_ai_request(bot_manager, user_input: str, sender: str):
     """Process AI request in a separate thread to avoid blocking input."""
     try:
-        response = bot_manager.gpt_service.chat(user_input, sender)
+        response = bot_manager.gpt_service.chat(
+            user_input, sender, "console", "console"
+        )
         if response:
             logger.log(f"🤖 AI: {response}", "MSG", fallback_text=f"AI: {response}")
         else:
