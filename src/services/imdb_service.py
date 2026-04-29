@@ -70,9 +70,16 @@ class IMDbService:
                 logger.info(
                     f"IMDb returned status {response.status_code} for query '{query}'"
                 )
+                logger.debug(f"IMDb 202 response content length: {len(response.text)}")
+                if len(response.text) < 1000:
+                    logger.debug(f"IMDb 202 response content: {response.text[:500]}...")
 
             # Parse the results
-            return self._parse_search_results(response.text, query)
+            result = self._parse_search_results(response.text, query)
+            logger.debug(
+                f"IMDb parsing result for '{query}': error={result.get('error', True)}, message='{result.get('message', '')}'"
+            )
+            return result
 
         except requests.exceptions.Timeout:
             return {"error": True, "message": "IMDb search request timed out"}
@@ -95,6 +102,9 @@ class IMDbService:
         """
         try:
             soup = BeautifulSoup(html, "html.parser")
+            logger.debug(
+                f"Parsing IMDb HTML for '{query}', content length: {len(html)}"
+            )
 
             # Strategy 1: Use regex to find IMDb title links (most reliable)
             logger.debug("Trying Strategy 1: Regex-based parsing")
