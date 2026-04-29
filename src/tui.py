@@ -1107,6 +1107,7 @@ class ConfigEditor:
             "🔑 API Keys": [
                 ("WEATHER_API_KEY", "OpenWeatherMap API key"),
                 ("OPENAI_API_KEY", "OpenAI API key"),
+                ("TMDB_API_KEY", "The Movie Database API key"),
                 ("ELECTRICITY_API_KEY", "Electricity price API key"),
                 ("YOUTUBE_API_KEY", "YouTube Data API key"),
                 ("EUROJACKPOT_API_KEY", "Eurojackpot API key"),

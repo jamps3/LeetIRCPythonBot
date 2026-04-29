@@ -1,31 +1,33 @@
 """
-IMDb Service Module
+Movie Search Service Module
 
-Provides movie search functionality using IMDb website scraping.
+Provides movie search functionality using TMDB API (The Movie Database).
+IMDb scraping has been discontinued due to anti-bot protection.
 """
 
-import re
-from typing import Dict, Optional
+import os
+from typing import Dict
 
 import requests
-from bs4 import BeautifulSoup
 
 from logger import get_logger
 
-logger = get_logger("IMDbService")
+logger = get_logger("MovieSearchService")
 
 
-class IMDbService:
-    """Service for searching movies on IMDb."""
+class MovieSearchService:
+    """Service for searching movies using TMDB API."""
 
     def __init__(self):
-        """Initialize IMDb service."""
-        self.base_url = "https://www.imdb.com"
-        self.search_url = f"{self.base_url}/search/title/"
+        """Initialize movie search service."""
+        self.base_url = "https://api.themoviedb.org/3"
+        self.api_key = os.getenv("TMDB_API_KEY", "")
+        if not self.api_key:
+            logger.warning("TMDB_API_KEY not set - movie search will not work")
 
     def search_movie(self, query: str) -> Dict[str, str]:
         """
-        Search for a movie on IMDb.
+        Search for a movie using TMDB API.
 
         Args:
             query: Movie title to search for
@@ -34,298 +36,106 @@ class IMDbService:
             Dictionary containing movie info or error details
         """
         try:
+            if not self.api_key:
+                return {"error": True, "message": "TMDB API key not configured"}
+
             # Clean and prepare the query
             query = query.strip()
             if not query:
                 return {"error": True, "message": "Empty search query"}
 
-            # Prepare search parameters - use minimal parameters to avoid filtering
+            # TMDB search endpoint
+            search_url = f"{self.base_url}/search/movie"
             params = {
-                "title": query,
+                "api_key": self.api_key,
+                "query": query,
+                "language": "en-US",
+                "page": 1,
             }
 
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
-                "DNT": "1",
-                "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1",
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "same-origin",
-                "Cache-Control": "max-age=0",
-                "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-                "sec-ch-ua-mobile": "?0",
-                "sec-ch-ua-platform": '"Windows"',
-            }
+            response = requests.get(search_url, params=params, timeout=10)
 
-            # Make the search request
-            headers["Referer"] = "https://www.imdb.com/"
-            response = requests.get(
-                self.search_url, params=params, headers=headers, timeout=10
-            )
-
-            if response.status_code not in (200, 202):
+            if response.status_code != 200:
                 return {
                     "error": True,
-                    "message": f"IMDb returned status code {response.status_code}",
+                    "message": f"TMDB API returned status code {response.status_code}",
                 }
 
-            # Log non-200 status codes for debugging
-            if response.status_code != 200:
-                logger.info(
-                    f"IMDb returned status {response.status_code} for query '{query}'"
-                )
-                logger.debug(
-                    f"IMDb {response.status_code} response content length: {len(response.text)}"
-                )
-                # Show more content for debugging
-                content_preview = (
-                    response.text[:1000].replace("\n", " ").replace("\r", " ")
-                )
-                logger.debug(
-                    f"IMDb {response.status_code} response preview: {content_preview}..."
-                )
-                # Check for common indicators
-                if "captcha" in response.text.lower():
-                    logger.warning(
-                        "IMDb response contains captcha - possible bot detection"
-                    )
-                elif (
-                    "redirect" in response.text.lower()
-                    or "location" in response.headers
-                ):
-                    logger.info(
-                        f"IMDb redirect detected, Location: {response.headers.get('location', 'none')}"
-                    )
-                elif "rate limit" in response.text.lower():
-                    logger.warning("IMDb rate limiting detected")
+            data = response.json()
 
-            # Parse the results
-            result = self._parse_search_results(response.text, query)
-            logger.debug(
-                f"IMDb parsing result for '{query}': error={result.get('error', True)}, message='{result.get('message', '')}'"
-            )
-            return result
-
-        except requests.exceptions.Timeout:
-            return {"error": True, "message": "IMDb search request timed out"}
-        except requests.exceptions.RequestException as e:
-            return {"error": True, "message": f"IMDb search request failed: {str(e)}"}
-        except Exception as e:
-            logger.error(f"Unexpected error in IMDb search: {e}")
-            return {"error": True, "message": f"Unexpected error: {str(e)}"}
-
-    def _parse_search_results(self, html: str, query: str) -> Dict[str, str]:
-        """
-        Parse IMDb search results HTML.
-
-        Args:
-            html: Raw HTML from search results page
-            query: Original search query
-
-        Returns:
-            Dictionary containing movie info or error details
-        """
-        try:
-            soup = BeautifulSoup(html, "html.parser")
-            logger.debug(
-                f"Parsing IMDb HTML for '{query}', content length: {len(html)}"
-            )
-
-            # Strategy 1: Use regex to find IMDb title links (most reliable)
-            logger.debug("Trying Strategy 1: Regex-based parsing")
-            title_links = re.findall(
-                r'href="(/title/tt\d+/?[^"]*)"[^>]*>([^<]+)</a>', html, re.IGNORECASE
-            )
-
-            if title_links:
-                logger.debug(f"Found {len(title_links)} title links via regex")
-                for link, title_text in title_links:
-                    title = self._clean_title_text(title_text)
-
-                    if len(title) < 3 or title.lower().startswith(
-                        ("imdb", "home", "search", "advanced")
-                    ):
-                        continue
-
-                    imdb_id_match = re.search(r"/title/(tt\d+)/", link)
-                    if imdb_id_match:
-                        imdb_id = imdb_id_match.group(1)
-
-                        # For queries that include a year, try to find the best match
-                        if re.search(r"\b(19|20)\d{2}\b", query):
-                            # For year queries, fetch the title and check if it contains the year
-                            actual_title = self._fetch_movie_title(imdb_id)
-                            if actual_title and re.search(r"\b(19|20)\d{2}\b", query):
-                                query_year_match = re.search(r"\b(19|20)\d{2}\b", query)
-                                if query_year_match:
-                                    query_year = query_year_match.group(0)
-                                    if query_year in actual_title:
-                                        logger.debug(
-                                            f"Found year-matched result: '{actual_title}' for query year {query_year}"
-                                        )
-                                        return {
-                                            "error": False,
-                                            "title": actual_title,
-                                            "imdb_url": f"https://www.imdb.com/title/{imdb_id}/",
-                                        }
-                            # Continue looking for year match
-                            continue
-                        else:
-                            # No year in query, return first valid result
-                            actual_title = self._fetch_movie_title(imdb_id)
-                            if actual_title:
-                                logger.debug(f"Using fetched title: '{actual_title}'")
-                                return {
-                                    "error": False,
-                                    "title": actual_title,
-                                    "imdb_url": f"https://www.imdb.com/title/{imdb_id}/",
-                                }
-                            else:
-                                # Fallback to parsed title if fetching fails
-                                return {
-                                    "error": False,
-                                    "title": title,
-                                    "imdb_url": f"https://www.imdb.com/title/{imdb_id}/",
-                                }
-
-            # Strategy 2: Fallback to complex BeautifulSoup parsing
-            logger.debug("Trying Strategy 2: BeautifulSoup parsing")
-            results = (
-                soup.select('div[data-testid="search-result"]')
-                or soup.select(".ipc-metadata-list-summary-item")
-                or soup.select(".find-result-item")
-                or soup.select(".lister-item")
-            )
-
-            logger.debug(f"Strategy 2: Found {len(results)} results")
-
-            if results:
-                for result in results:
-                    # Extract title - prefer the official search result title link
-                    title_element = result.select_one(
-                        'a[data-testid="search-result__title-link"]'
-                    ) or result.select_one('a[href*="/title/tt"]')
-
-                    if not title_element:
-                        continue
-
-                    href = title_element.get("href")
-                    title_text = title_element.get_text(strip=True)
-
-                    # Skip if href doesn't contain a valid IMDb ID
-                    if not re.search(r"/title/tt\d+", href):
-                        continue
-
-                    # Extract IMDb ID from the link
-                    imdb_id_match = re.search(r"/title/(tt\d+)/", href)
-                    if imdb_id_match:
-                        imdb_id = imdb_id_match.group(1)
-
-                        # Always fetch the actual title from the movie page for accuracy
-                        actual_title = self._fetch_movie_title(imdb_id)
-                        if actual_title:
-                            return {
-                                "error": False,
-                                "title": actual_title,
-                                "imdb_url": f"https://www.imdb.com/title/{imdb_id}/",
-                            }
-
-            # Strategy 3: Check if we got redirected to a direct title page
-            title_element = (
-                soup.find("h1", {"data-testid": "hero__pageTitle"})
-                or soup.find("h1", class_=re.compile(r"hero__pageTitle"))
-                or soup.find("title")
-            )
-
-            if title_element:
-                title_text = title_element.get_text(strip=True)
-                imdb_id_match = re.search(r"/title/(tt\d+)/", html)
-                if imdb_id_match and title_text and len(title_text) > 3:
-                    return {
-                        "error": False,
-                        "title": title_text,
-                        "imdb_url": f"https://www.imdb.com/title/{imdb_id_match.group(1)}/",
-                    }
-
-            # Check for "no results" indicators
-            if "no results" in html.lower() or "did not match any" in html.lower():
+            if not data.get("results"):
                 return {"error": True, "message": f"No movies found for '{query}'"}
 
-            return {
-                "error": True,
-                "message": f"Could not parse IMDb search results for '{query}'",
-            }
+            # Get the first (best) result
+            movie = data["results"][0]
 
-        except Exception as e:
-            logger.error(f"Error parsing IMDb HTML: {e}")
-            return {"error": True, "message": f"Error parsing search results: {str(e)}"}
+            # Get detailed movie info
+            movie_id = movie["id"]
+            details_url = f"{self.base_url}/movie/{movie_id}"
+            details_params = {"api_key": self.api_key, "language": "en-US"}
 
-    def _fetch_movie_title(self, imdb_id: str) -> Optional[str]:
-        """
-        Fetch the actual movie title from IMDb movie page.
-
-        Args:
-            imdb_id: IMDb ID (e.g., 'tt0133093')
-
-        Returns:
-            Movie title or None if fetch failed
-        """
-        try:
-            movie_url = f"https://www.imdb.com/title/{imdb_id}/"
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.5",
-            }
-
-            response = requests.get(movie_url, headers=headers, timeout=10)
-            if response.status_code != 200:
-                return None
-
-            soup = BeautifulSoup(response.content, "html.parser")
-
-            # Try multiple selectors for the movie title
-            title_element = (
-                soup.find("h1", {"data-testid": "hero__pageTitle"})
-                or soup.find("h1", class_=re.compile(r"hero__primary-text"))
-                or soup.find("title")
+            details_response = requests.get(
+                details_url, params=details_params, timeout=10
             )
 
-            if title_element:
-                title_text = title_element.get_text(strip=True)
+            if details_response.status_code == 200:
+                movie_details = details_response.json()
 
-                # Clean up the title - remove " - IMDb" suffix if present
-                title_text = re.sub(r"\s*-\s*IMDb\s*$", "", title_text)
+                return {
+                    "error": False,
+                    "title": movie_details.get("title", movie.get("title", "Unknown")),
+                    "year": (
+                        movie_details.get("release_date", "")[:4]
+                        if movie_details.get("release_date")
+                        else ""
+                    ),
+                    "imdb_url": (
+                        f"https://www.imdb.com/title/{movie_details.get('imdb_id')}/"
+                        if movie_details.get("imdb_id")
+                        else ""
+                    ),
+                    "tmdb_url": f"https://www.themoviedb.org/movie/{movie_id}",
+                    "overview": (
+                        movie_details.get("overview", "")[:200] + "..."
+                        if len(movie_details.get("overview", "")) > 200
+                        else movie_details.get("overview", "")
+                    ),
+                    "rating": (
+                        f"{movie_details.get('vote_average', 0):.1f}/10"
+                        if movie_details.get("vote_average")
+                        else ""
+                    ),
+                }
+            else:
+                # Fallback to basic search result
+                return {
+                    "error": False,
+                    "title": movie.get("title", "Unknown"),
+                    "year": (
+                        movie.get("release_date", "")[:4]
+                        if movie.get("release_date")
+                        else ""
+                    ),
+                    "tmdb_url": f"https://www.themoviedb.org/movie/{movie_id}",
+                    "overview": (
+                        movie.get("overview", "")[:200] + "..."
+                        if len(movie.get("overview", "")) > 200
+                        else movie.get("overview", "")
+                    ),
+                    "rating": (
+                        f"{movie.get('vote_average', 0):.1f}/10"
+                        if movie.get("vote_average")
+                        else ""
+                    ),
+                }
 
-                # Keep the year in parentheses (don't remove it)
-                return title_text.strip()
-
+        except requests.exceptions.Timeout:
+            return {"error": True, "message": "Movie search request timed out"}
+        except requests.exceptions.RequestException as e:
+            return {"error": True, "message": f"Movie search request failed: {str(e)}"}
         except Exception as e:
-            logger.error(f"Error fetching movie title for {imdb_id}: {e}")
-
-        return None
-
-    def _clean_title_text(self, title_text: str) -> str:
-        """
-        Clean up title text by removing numbering and extra formatting.
-
-        Args:
-            title_text: Raw title text from HTML
-
-        Returns:
-            Cleaned title text
-        """
-        # Remove numbering prefixes like "1. ", "2. ", etc.
-        title = re.sub(r"^\d+\.\s*", "", title_text.strip())
-
-        # Remove any remaining HTML entities or extra whitespace
-        title = re.sub(r"\s+", " ", title).strip()
-
-        return title
+            logger.error(f"Unexpected error in movie search: {e}")
+            return {"error": True, "message": f"Unexpected error: {str(e)}"}
 
     def format_movie_info(self, movie_data: Dict[str, str]) -> str:
         """
@@ -338,19 +148,35 @@ class IMDbService:
             Formatted message string
         """
         if movie_data.get("error"):
-            return f"🎬 IMDb error: {movie_data.get('message', 'Unknown error')}"
+            return (
+                f"🎬 Movie search error: {movie_data.get('message', 'Unknown error')}"
+            )
 
         title = movie_data.get("title", "Unknown title")
+        year = movie_data.get("year", "")
+        rating = movie_data.get("rating", "")
         imdb_url = movie_data.get("imdb_url", "")
+        tmdb_url = movie_data.get("tmdb_url", "")
 
-        return f"🎬 {title} - {imdb_url}"
+        # Build the response
+        parts = [f"🎬 {title}"]
+        if year:
+            parts.append(f"({year})")
+        if rating:
+            parts.append(f"- {rating}")
+        if imdb_url:
+            parts.append(f"- {imdb_url}")
+        elif tmdb_url:
+            parts.append(f"- {tmdb_url}")
+
+        return " ".join(parts)
 
 
-def create_imdb_service() -> IMDbService:
+def create_imdb_service() -> MovieSearchService:
     """
-    Factory function to create an IMDb service instance.
+    Factory function to create a movie search service instance.
 
     Returns:
-        IMDbService instance
+        MovieSearchService instance
     """
-    return IMDbService()
+    return MovieSearchService()
