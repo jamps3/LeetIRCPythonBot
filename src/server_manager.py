@@ -51,13 +51,21 @@ class ServerManager:
         )  # server_name -> list of channels
 
         # Connection settings
-        self.auto_connect = os.getenv("AUTO_CONNECT", str(AUTO_CONNECT)).lower() in (
-            "true",
-            "1",
-            "yes",
-            "on",
-        )
-        self.quit_message = os.getenv("QUIT_MESSAGE", "Disconnecting")
+        if self.bot_config:
+            self.auto_connect = self.bot_config.auto_connect
+        else:
+            self.auto_connect = os.getenv(
+                "AUTO_CONNECT", str(AUTO_CONNECT)
+            ).lower() in (
+                "true",
+                "1",
+                "yes",
+                "on",
+            )
+        if self.bot_config:
+            self.quit_message = self.bot_config.quit_message
+        else:
+            self.quit_message = os.getenv("QUIT_MESSAGE", "Disconnecting")
 
         # Midnight scheduler
         self.midnight_scheduler_thread = None
@@ -73,6 +81,7 @@ class ServerManager:
     def _load_server_configurations(self):
         """Load server configurations from environment."""
         server_configs = get_config().servers
+        logger.info(f"Loading {len(server_configs)} server configurations")
 
         if not server_configs:
             logger.error("No server configurations found!")
@@ -88,6 +97,8 @@ class ServerManager:
             logger.info(
                 f"Loaded server configuration: {config.name} ({config.host}:{config.port})"
             )
+
+        logger.info(f"Server manager auto_connect: {self.auto_connect}")
 
     def register_message_callbacks(self, message_handler):
         """
@@ -124,12 +135,17 @@ class ServerManager:
         Returns:
             True if configurations were loaded successfully, False otherwise
         """
+        logger.info(
+            f"Starting servers, auto_connect={self.auto_connect}, servers={list(self.servers.keys())}"
+        )
+
         if not self.servers:
             logger.error("No servers configured")
             return False
 
         # Only auto-connect if explicitly enabled
         if self.auto_connect:
+            logger.info("Auto-connect enabled, connecting to servers...")
             self.connect_to_servers()
             logger.info(
                 f"Server manager started with {len(self.servers)} servers (auto-connected)"

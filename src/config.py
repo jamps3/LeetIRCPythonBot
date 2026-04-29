@@ -331,14 +331,16 @@ class ConfigManager:
         )
 
         # Load server configurations from state.json
-        config.servers = self._load_server_configs_from_state(state_config)
+        servers = self._load_server_configs_from_state(state_config)
+        logger.info(f"Loaded {len(servers)} servers from state.json")
+        config.servers = servers
 
         return config
 
     def _load_state_config(self) -> dict:
         """
         Load configuration from state.json file.
-        If file doesn't exist, run interactive setup.
+        If file doesn't exist or has no servers, run interactive setup.
         """
         state_file = os.path.join("data", "state.json")
 
@@ -350,9 +352,31 @@ class ConfigManager:
             try:
                 with open(state_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                return data.get("config", {})
+                config = data.get("config", {})
+                # Check if servers are configured
+                servers = config.get("servers", [])
+                if not servers:
+                    logger.info(
+                        "No servers configured in state.json, running interactive setup..."
+                    )
+                    self._run_interactive_setup(state_file)
+                    # Reload after setup
+                    with open(state_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    config = data.get("config", {})
+                return config
             except (json.JSONDecodeError, IOError) as e:
                 logger.warning(f"Failed to load state.json: {e}")
+                logger.info("Running interactive setup due to config loading error...")
+                self._run_interactive_setup(state_file)
+                try:
+                    with open(state_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    return data.get("config", {})
+                except Exception:
+                    return {}
+            except Exception:
+                logger.error("Unexpected error in config loading")
                 return {}
         else:
             logger.error("Failed to create state.json during setup")
@@ -478,9 +502,13 @@ class ConfigManager:
         """
         servers = []
         server_list = state_config.get("servers", [])
+        logger.info(f"Found {len(server_list)} server entries in state config")
 
         for i, server_data in enumerate(server_list, 1):
             try:
+                logger.info(
+                    f"Loading server {i}: {server_data.get('host', 'unknown')}:{server_data.get('port', 'unknown')}"
+                )
                 config = ServerConfig(
                     host=server_data["host"],
                     port=server_data["port"],
@@ -492,11 +520,15 @@ class ConfigManager:
                     nick=server_data.get("nick"),
                 )
                 servers.append(config)
+                logger.info(f"Successfully loaded server {config.name}")
             except KeyError as e:
                 logger.warning(
                     f"Missing required field {e} in server config {i}, skipping"
                 )
+            except Exception as e:
+                logger.warning(f"Error loading server config {i}: {e}, skipping")
 
+        logger.info(f"Total servers loaded: {len(servers)}")
         return servers
 
     def _load_server_configs(self) -> List[ServerConfig]:

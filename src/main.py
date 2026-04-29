@@ -178,20 +178,8 @@ def setup_environment():
     # Validate essential configuration
     bot_name = os.getenv("BOT_NAME", "LeetIRCBot")
 
-    # Check for at least one server configuration
-    has_server_config = any(
-        os.getenv(f"SERVER{i}_HOST")
-        for i in range(1, 10)  # Check SERVER1 through SERVER9
-    )
-
-    if not has_server_config:
-        main_logger.error("ERROR: No server configurations found!")
-        main_logger.error("Please configure at least one server in your .env file:")
-        main_logger.error("  SERVER1_HOST=irc.example.com")
-        main_logger.error("  SERVER1_PORT=6667")
-        main_logger.error("  SERVER1_CHANNELS=#channel1,#channel2")
-        main_logger.error("  SERVER1_KEYS=")
-        return None
+    # Server configuration check is now handled by config loading
+    # The config loader will run interactive setup if no servers are configured
 
     return bot_name
 
