@@ -651,6 +651,18 @@ def imdb_command(context: CommandContext, bot_functions):
 
 
 @command(
+    "tmdb",
+    description="Search for movies on TMDB (alias for !imdb)",
+    usage="!tmdb <movie title>",
+    examples=["!tmdb The Matrix", "!tmdb Inception", "!tmdb Star Wars"],
+    requires_args=True,
+)
+def tmdb_command(context: CommandContext, bot_functions):
+    """Search for movies on TMDB (alias for !imdb)."""
+    return imdb_command(context, bot_functions)
+
+
+@command(
     "crypto",
     description="Get cryptocurrency prices",
     usage="!crypto [coin] [currency]",

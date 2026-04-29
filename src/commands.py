@@ -190,6 +190,7 @@ from cmd_modules.services import (  # noqa: E402
     short_forecast_command,
     short_forecast_list_command,
     solarwind_command,
+    tmdb_command,
     trains_command,
     url_command,
     weather_command,

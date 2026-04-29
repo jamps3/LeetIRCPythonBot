@@ -77,7 +77,10 @@ def test_init_uses_env_api_key_and_model(tmp_path):
     svc, _ = make_service(tmp_path, api_key="ENV_KEY", model_env="my-model")
     assert svc.api_key == "ENV_KEY"
     assert svc.model == "my-model"
-    assert svc.conversation_history and svc.conversation_history[0]["role"] == "system"
+    assert (
+        svc.conversation_histories
+        and svc.conversation_histories["global"][0]["role"] == "system"
+    )
 
 
 def test_init_model_default_when_env_missing(tmp_path):
@@ -86,56 +89,65 @@ def test_init_model_default_when_env_missing(tmp_path):
 
 
 def test_load_conversation_history_missing_file_falls_back_to_default(tmp_path):
-    svc, history_file = make_service(tmp_path)[0:2]
-    assert not os.path.exists(history_file)
-    # On fresh service, conversation_history was loaded in __init__ already
-    assert svc.conversation_history[0]["role"] == "system"
+    svc = GPTService(api_key="")
+    # On fresh service, conversation_histories was loaded in __init__ already
+    assert svc.conversation_histories["global"][0]["role"] == "system"
 
 
 def test_load_conversation_history_valid_file(tmp_path):
     svc, history_file = make_service(tmp_path)[0:2]
-    # Write a valid history
-    data = [
-        {"role": "system", "content": "sys"},
-        {"role": "user", "content": "hi"},
-    ]
+    # Write a valid history in new format
+    data = {
+        "global": [
+            {"role": "system", "content": "sys"},
+            {"role": "user", "content": "hi"},
+        ]
+    }
     history_file.write_text(json.dumps(data), encoding="utf-8")
     # Force reload
-    loaded = GPTService(api_key="", history_file=str(history_file)).conversation_history
+    loaded = GPTService(
+        api_key="", history_file=str(history_file)
+    ).conversation_histories
     assert loaded == data
 
 
 def test_load_conversation_history_corrupt_file(tmp_path):
     svc, history_file = make_service(tmp_path)[0:2]
     history_file.write_text("{", encoding="utf-8")  # invalid JSON
-    # Force reload - should fallback to default
-    loaded = GPTService(api_key="", history_file=str(history_file)).conversation_history
-    assert loaded[0]["role"] == "system"
+    loaded = GPTService(
+        api_key="", history_file=str(history_file)
+    ).conversation_histories
+    # Should fall back to default
+    assert loaded["global"][0]["role"] == "system"
 
 
 def test_load_conversation_history_invalid_structure(tmp_path):
     svc, history_file = make_service(tmp_path)[0:2]
     history_file.write_text(
         json.dumps({"role": "user"}), encoding="utf-8"
-    )  # not a list
-    loaded = GPTService(api_key="", history_file=str(history_file)).conversation_history
-    assert loaded[0]["role"] == "system"
+    )  # not a dict with proper structure
+    loaded = GPTService(
+        api_key="", history_file=str(history_file)
+    ).conversation_histories
+    assert loaded["global"][0]["role"] == "system"
 
 
 def test_save_conversation_history_trims_to_limit(tmp_path):
     svc, history_file = make_service(tmp_path, history_limit=2)
     # Create many messages
-    svc.conversation_history = [
+    svc.conversation_histories["global"] = [
         {"role": "system", "content": "sys"},
     ] + [{"role": "user", "content": f"u{i}"} for i in range(10)]
 
-    svc._save_conversation_history()
+    svc._save_conversation_histories()
 
     saved = json.loads(history_file.read_text(encoding="utf-8"))
+    # Check the global history was trimmed
+    global_history = saved["global"]
     # system + last 2 user messages
-    assert len(saved) == 3
-    assert saved[0]["role"] == "system"
-    assert [m["content"] for m in saved[1:]] == ["u8", "u9"]
+    assert len(global_history) == 3
+    assert global_history[0]["role"] == "system"
+    assert [m["content"] for m in global_history[1:]] == ["u8", "u9"]
 
 
 def test_save_conversation_history_handles_io_error(tmp_path, monkeypatch):
@@ -149,7 +161,7 @@ def test_save_conversation_history_handles_io_error(tmp_path, monkeypatch):
 
     monkeypatch.setattr(builtins, "open", bad_open)
     # Should not raise
-    svc._save_conversation_history()
+    svc._save_conversation_histories()
 
 
 def test_build_transcript_includes_system_and_last_15_and_prompt(tmp_path):

@@ -8,7 +8,7 @@ Modules:
 - basic.py: help, ping, version, servers, status, channels, about
 - games.py: blackjack, sanaketju, noppa, kolikko, ksp, countdown (k)
 - misc.py: 420, kaiku, np, quote, matka, leets, schedule, ipfs
-- services.py: s, se, sel, solarwind, otiedote, sahko, euribor, junat, youtube, imdb, crypto, leetwinners, eurojackpot, alko, drugs, url, wrap
+  - services.py: s, se, sel, solarwind, otiedote, sahko, euribor, junat, youtube, imdb, tmdb, crypto, leetwinners, eurojackpot, alko, drugs, url, wrap
 - word_tracking.py: drink, kraks, drinkword, krakstats, sana, tilaa, topwords, leaderboard, tamagotchi, feed, pet, krak, muunnos, kraksdebug
 """
 
