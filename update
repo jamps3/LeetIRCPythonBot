@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""
+Update script for LeetIRCPythonBot dependencies.
+
+This script upgrades pip and all Python dependencies to their latest versions,
+then updates requirements.txt and requirements-dev.txt with the new versions.
+"""
+
+import subprocess
+import sys
+from pathlib import Path
+
+# Project root (directory containing this script)
+PROJECT_ROOT = Path(__file__).parent.resolve()
+VENV_PYTHON = PROJECT_ROOT / "venv" / "Scripts" / "python.exe"
+
+
+def run_command(cmd, description=""):
+    """Run a shell command and print output."""
+    print(f"\n{'=' * 60}")
+    print(f"Running: {description or cmd}")
+    print(f"{'=' * 60}")
+    result = subprocess.run(cmd, shell=True, capture_output=False, text=True)
+    if result.returncode != 0:
+        print(f"❌ Command failed with exit code {result.returncode}")
+        return False
+    return True
+
+
+def main():
+    print("🚀 LeetIRCPythonBot Dependency Updater")
+    print(f"📁 Project root: {PROJECT_ROOT}")
+
+    # Step 1: Upgrade pip
+    print("\n📦 Step 1: Upgrading pip...")
+    run_command(f'"{VENV_PYTHON}" -m pip install --upgrade pip', "Upgrade pip")
+
+    # Step 2: Install/upgrade all runtime dependencies
+    print("\n📦 Step 2: Upgrading runtime dependencies (requirements.txt)...")
+    if (PROJECT_ROOT / "requirements.txt").exists():
+        run_command(
+            f'"{VENV_PYTHON}" -m pip install --upgrade -r requirements.txt',
+            "Upgrade runtime deps"
+        )
+    else:
+        print("⚠️  requirements.txt not found, skipping runtime deps")
+
+    # Step 3: Install/upgrade all dev dependencies
+    print("\n📦 Step 3: Upgrading dev dependencies (requirements-dev.txt)...")
+    if (PROJECT_ROOT / "requirements-dev.txt").exists():
+        run_command(
+            f'"{VENV_PYTHON}" -m pip install --upgrade -r requirements-dev.txt',
+            "Upgrade dev deps"
+        )
+    else:
+        print("⚠️  requirements-dev.txt not found, skipping dev deps")
+
+    # Step 4: Freeze exact versions to requirements files
+    print("\n📦 Step 4: Freezing exact versions to requirements.txt...")
+    run_command(
+        f'"{VENV_PYTHON}" -m pip freeze > requirements.txt',
+        "Freeze all installed packages"
+    )
+
+    # Step 5: Show what changed (compared to git)
+    print("\n📦 Step 5: Checking what changed...")
+    result = subprocess.run(
+        "git diff -- requirements.txt requirements-dev.txt",
+        shell=True, capture_output=True, text=True, cwd=PROJECT_ROOT
+    )
+    if result.stdout:
+        print("Changes to requirements.txt:")
+        print(result.stdout[:2000])  # Limit output
+    else:
+        print("No changes detected in requirements files (they may already be up to date)")
+
+    # Step 6: List current key packages
+    print("\n📋 Current installed versions of key packages:")
+    run_command(
+        f'"{VENV_PYTHON}" -m pip list | Select-String -Pattern "beautifulsoup4|feedparser|google-api|openai|pandas|openpyxl|python-dotenv|pytz|requests|playwright|tzdata|urwid|psutil|pyperclip|setuptools|xdk|black|isort|flake8|coverage|pytest|pytest-xdist"',
+        "List key package versions"
+    )
+
+    print("\n✅ Update complete!")
+    print("💡 Next: run tests with: python -m pytest -v --tb=short -n auto")
+
+
+if __name__ == "__main__":
+    main()

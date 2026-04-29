@@ -8,17 +8,19 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 
 1. Common commands
 
-- First-time setup (Windows PowerShell):
-  - python -m venv venv
-  - .\venv\Scripts\Activate.ps1
-  - pip install --upgrade pip
-  - if (Test-Path requirements.txt) { pip install -r requirements.txt }
+ - First-time setup (Windows PowerShell):
+   - python -m venv venv
+   - .\venv\Scripts\Activate.ps1
+   - pip install --upgrade pip
+   - if (Test-Path requirements.txt) { pip install -r requirements.txt }
+   - if (Test-Path requirements-dev.txt) { pip install -r requirements-dev.txt }
 
-- First-time setup (bash/zsh):
-  - python3 -m venv venv
-  - source venv/bin/activate
-  - pip install --upgrade pip
-  - [ -f requirements.txt ] && pip install -r requirements.txt
+ - First-time setup (bash/zsh):
+   - python3 -m venv venv
+   - source venv/bin/activate
+   - pip install --upgrade pip
+   - [ -f requirements.txt ] && pip install -r requirements.txt
+   - [ -f requirements-dev.txt ] && pip install -r requirements-dev.txt
 
 - Run the bot locally:
   - pwsh: python .\main.py
@@ -48,13 +50,13 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
   - Pre-commit setup (runs isort + Black before commit)
 
 - CI reference (GitHub Actions):
-  - Installs: python-dotenv pytest (and optionally requirements.txt)
-  - Runs tests via: python -m pytest -v
+  - Installs: python-dotenv pytest pytest-xdist (and optionally requirements.txt)
+  - Runs tests via: python -m pytest -v --tb=short -n auto
   - Lint job uses: black --check, isort --check-only, flake8
 
 - Local commands matching CI (pwsh):
   - $env:PYTHONPATH = (Get-Location)
-  - python -m pytest -v
+  - python -m pytest -v --tb=short -n auto
   - Lint (check-only):
     - isort --check-only --diff .
     - black --check --diff .
@@ -158,7 +160,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 
 - Pytest is the standard. (see tests/!TEST_SUMMARY.md for context).
 - Some tests intentionally skip external integrations; CI installs only minimal deps and relies on mocks/importorskip where needed.
-- All tests: python -m pytest pytest -v
+ - All tests: python -m pytest -v --tb=short -n auto
   - Single file: python -m pytest tests/test_config_new.py -v
   - Single test node: python -m pytest tests/test_config_new.py::test_load_env_file -v
   - With coverage (if pytest-cov installed): python -m pytest tests -v --cov=.
