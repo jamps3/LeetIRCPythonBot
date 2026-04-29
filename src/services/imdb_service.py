@@ -45,16 +45,24 @@ class IMDbService:
             }
 
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.5",
-                "Accept-Encoding": "gzip, deflate",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
                 "DNT": "1",
                 "Connection": "keep-alive",
                 "Upgrade-Insecure-Requests": "1",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "same-origin",
+                "Cache-Control": "max-age=0",
+                "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": '"Windows"',
             }
 
             # Make the search request
+            headers["Referer"] = "https://www.imdb.com/"
             response = requests.get(
                 self.search_url, params=params, headers=headers, timeout=10
             )
@@ -70,9 +78,30 @@ class IMDbService:
                 logger.info(
                     f"IMDb returned status {response.status_code} for query '{query}'"
                 )
-                logger.debug(f"IMDb 202 response content length: {len(response.text)}")
-                if len(response.text) < 1000:
-                    logger.debug(f"IMDb 202 response content: {response.text[:500]}...")
+                logger.debug(
+                    f"IMDb {response.status_code} response content length: {len(response.text)}"
+                )
+                # Show more content for debugging
+                content_preview = (
+                    response.text[:1000].replace("\n", " ").replace("\r", " ")
+                )
+                logger.debug(
+                    f"IMDb {response.status_code} response preview: {content_preview}..."
+                )
+                # Check for common indicators
+                if "captcha" in response.text.lower():
+                    logger.warning(
+                        "IMDb response contains captcha - possible bot detection"
+                    )
+                elif (
+                    "redirect" in response.text.lower()
+                    or "location" in response.headers
+                ):
+                    logger.info(
+                        f"IMDb redirect detected, Location: {response.headers.get('location', 'none')}"
+                    )
+                elif "rate limit" in response.text.lower():
+                    logger.warning("IMDb rate limiting detected")
 
             # Parse the results
             result = self._parse_search_results(response.text, query)
