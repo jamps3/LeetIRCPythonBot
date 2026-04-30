@@ -272,6 +272,18 @@ class Server:
             self.send_raw(f"NICK {nick}")
             self.send_raw(f"USER {login} 0 * :{nick}")
 
+            # Send NickServ authentication if configured
+            if self.config.nickserv_email and self.config.nickserv_password:
+                self.log.info("Registering nickname with NickServ...")
+                self.send_raw(
+                    f"PRIVMSG NickServ :REGISTER {self.config.nickserv_password} {self.config.nickserv_email}"
+                )
+            elif self.config.nickserv_password:
+                self.log.info("Identifying with NickServ...")
+                self.send_raw(
+                    f"PRIVMSG NickServ :IDENTIFY {self.config.nickserv_password}"
+                )
+
             last_response_time = time.time()
 
             while not self.stop_event.is_set():
@@ -285,6 +297,13 @@ class Server:
                     for line in response.split("\r\n"):
                         if line:
                             self.log.server(line)
+
+                        # Handle PING - respond with PONG to keep connection alive
+                        if "PING :" in line:
+                            ping_value = line.split(":")[-1].strip()
+                            self.send_raw(f"PONG :{ping_value}")
+                            self.log.debug(f"Sent PONG response to {ping_value}")
+                            continue
 
                         # If server says "Please wait while we process your connection", don't disconnect yet
                         if " 020 " in line:
@@ -456,10 +475,14 @@ class Server:
                 for line in response.strip().split("\r\n"):
                     self.log.server(line.strip())
 
-                    # Handle PING
-                    if line.startswith("PING"):
+                    # Handle PING - check if command is PING (with or without prefix)
+                    parts = line.split()
+                    if (parts and parts[0] == "PING") or (
+                        len(parts) >= 2 and parts[1] == "PING"
+                    ):
                         self.last_ping = time.time()
-                        ping_value = line.split(":", 1)[1].strip()
+                        # Token is after the colon following PING (could be after prefix too)
+                        ping_value = line.split(":")[-1].strip()
                         self.send_raw(f"PONG :{ping_value}")
                         self.log.debug(f"Sent PONG response to {ping_value}")
 

@@ -214,7 +214,26 @@ class IRCClient:
             self._send_raw(f"NICK {self.nickname}")
             self._send_raw(f"USER {self.nickname} 0 * :{self.nickname}")
 
-            # Wait for welcome message or error
+            # Send NickServ authentication immediately if configured
+            nickserv_sent = False
+            if (
+                self.server_config.nickserv_email
+                and self.server_config.nickserv_password
+            ):
+                self.log("Registering nickname with NickServ...", "INFO")
+                self._send_raw(
+                    f"PRIVMSG NickServ :REGISTER {self.server_config.nickserv_password} {self.server_config.nickserv_email}"
+                )
+                nickserv_sent = True
+
+            if self.server_config.nickserv_password and not nickserv_sent:
+                self.log("Identifying with NickServ...", "INFO")
+                self._send_raw(
+                    f"PRIVMSG NickServ :IDENTIFY {self.server_config.nickserv_password}"
+                )
+                nickserv_sent = True
+
+            # Wait for welcome message or error, handling PINGs
             welcomed = False
             start_time = time.time()
 
@@ -231,11 +250,16 @@ class IRCClient:
                         if not line:
                             continue
 
-                        self.log(f"AUTH: {line}", "DEBUG")
+                        self.log(f"AUTH Full Line: {line!r}", "DEBUG")
+                        self.log(f"AUTH checking: {line!r}", "DEBUG")
 
-                        # Handle PING during auth
-                        if line.startswith("PING"):
-                            ping_value = line.split(":", 1)[1].strip()
+                        # Handle PING during auth - check before any other processing
+                        if "PING" in line:
+                            self.log("PING DETECTED - entering handler", "DEBUG")
+                            # Extract token after last colon (works with or without prefix)
+                            ping_value = line.split(":")[-1].strip()
+                            self.log(f"Extracted ping token: {ping_value!r}", "DEBUG")
+                            self.log(f"SENDING PONG :{ping_value}", "DEBUG")
                             self._send_raw(f"PONG :{ping_value}")
                             continue
 
@@ -256,27 +280,6 @@ class IRCClient:
 
             if not welcomed:
                 raise ConnectionError("Authentication timeout")
-
-            # Register with NickServ if email is set (first-time registration)
-            if (
-                self.server_config.nickserv_email
-                and self.server_config.nickserv_password
-            ):
-                self.log("Registering nickname with NickServ...", "INFO")
-                self._send_raw(
-                    f"PRIVMSG NickServ :REGISTER {self.server_config.nickserv_password} {self.server_config.nickserv_email}"
-                )
-                # Wait for registration to process
-                time.sleep(3)
-
-            # Identify with NickServ if password is set
-            if self.server_config.nickserv_password:
-                self.log("Identifying with NickServ...", "INFO")
-                self._send_raw(
-                    f"PRIVMSG NickServ :IDENTIFY {self.server_config.nickserv_password}"
-                )
-                # Wait a bit for identification to complete
-                time.sleep(2)
 
             # Join channels
             self._join_channels()
