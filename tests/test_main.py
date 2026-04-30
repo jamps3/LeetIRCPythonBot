@@ -106,6 +106,7 @@ def _install_fake_args(monkeypatch, **kwargs):
         "nickname": None,
         "show_api_keys": False,
         "console": False,
+        "config": False,
     }
     defaults.update(kwargs)
     monkeypatch.setattr(
