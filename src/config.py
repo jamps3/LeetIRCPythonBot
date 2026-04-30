@@ -109,15 +109,6 @@ def _read_version_from_file() -> str:
 class ServerConfig:
     """
     Dataclass to store IRC server configuration.
-
-    Attributes:
-        host: The IRC server host address
-        port: The IRC server port number
-        channels: List of channels to join
-        keys: Optional list of channel keys (passwords) matching the channels list
-        tls: Enable TLS for secure connection
-        name: Unique identifier for this server configuration
-        nick: Optional bot nickname for this server (defaults to global BOT_NAME)
     """
 
     host: str
@@ -128,6 +119,8 @@ class ServerConfig:
     allow_insecure_tls: bool = False  # Allow insecure TLS connections
     name: str = ""
     nick: Optional[str] = None  # Bot nickname for this server
+    nickserv_password: Optional[str] = None  # NickServ password for identification
+    nickserv_email: Optional[str] = None  # Email for NickServ registration
 
     def __post_init__(self):
         # Ensure channel names have # prefix
@@ -147,7 +140,7 @@ class BotConfig:
     """
 
     # Bot identification
-    name: str = "jl3b"
+    name: str = BOT_NAME
     version: str = field(default_factory=_read_version_from_file)
 
     # Logging
@@ -277,7 +270,7 @@ class ConfigManager:
 
         config = BotConfig(
             # Bot identification
-            name=state_config.get("bot_name", "jl3b"),
+            name=state_config.get("bot_name", BOT_NAME),
             version=os.getenv("BOT_VERSION") or _read_version_from_file(),
             # Logging
             log_level=state_config.get("log_level", "INFO"),
@@ -484,6 +477,15 @@ class ConfigManager:
                 ).strip()
                 or None
             )
+            nickserv = input(
+                "NickServ password (optional, for networks requiring registration): "
+            ).strip()
+            server["nickserv_password"] = nickserv if nickserv else None
+            if nickserv:
+                email = input(
+                    "NickServ email (optional, for first-time registration): "
+                ).strip()
+                server["nickserv_email"] = email if email else None
 
             servers.append(server)
 
@@ -532,6 +534,8 @@ class ConfigManager:
                     allow_insecure_tls=server_data.get("allow_insecure_tls", False),
                     name=f"Server{i}",
                     nick=server_data.get("nick"),
+                    nickserv_password=server_data.get("nickserv_password"),
+                    nickserv_email=server_data.get("nickserv_email"),
                 )
                 servers.append(config)
                 logger.info(f"Successfully loaded server {config.name}")

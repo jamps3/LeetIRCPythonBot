@@ -257,6 +257,27 @@ class IRCClient:
             if not welcomed:
                 raise ConnectionError("Authentication timeout")
 
+            # Register with NickServ if email is set (first-time registration)
+            if (
+                self.server_config.nickserv_email
+                and self.server_config.nickserv_password
+            ):
+                self.log("Registering nickname with NickServ...", "INFO")
+                self._send_raw(
+                    f"PRIVMSG NickServ :REGISTER {self.server_config.nickserv_password} {self.server_config.nickserv_email}"
+                )
+                # Wait for registration to process
+                time.sleep(3)
+
+            # Identify with NickServ if password is set
+            if self.server_config.nickserv_password:
+                self.log("Identifying with NickServ...", "INFO")
+                self._send_raw(
+                    f"PRIVMSG NickServ :IDENTIFY {self.server_config.nickserv_password}"
+                )
+                # Wait a bit for identification to complete
+                time.sleep(2)
+
             # Join channels
             self._join_channels()
 
