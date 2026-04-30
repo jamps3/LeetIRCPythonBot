@@ -464,6 +464,12 @@ class ConfigManager:
             server["channels"] = [
                 ch.strip() for ch in channels.split(",") if ch.strip()
             ]
+            keys = input(
+                "Channel keys/passwords (comma-separated, leave empty if none): "
+            ).strip()
+            server["keys"] = (
+                [k.strip() for k in keys.split(",") if k.strip()] if keys else None
+            )
             server["nick"] = (
                 input(
                     "Bot nick for this server (optional, defaults to bot_name): "
