@@ -184,8 +184,11 @@ def setup_environment():
             "Warning: Could not load .env file. Using defaults where possible."
         )
 
-    # Validate essential configuration
-    bot_name = os.getenv("BOT_NAME", "LeetIRCBot")
+    # Get bot name from config (which loads from state.json or runs setup)
+    from config import get_config
+
+    config = get_config()
+    bot_name = config.name
 
     # Server configuration check is now handled by config loading
     # The config loader will run interactive setup if no servers are configured
@@ -206,12 +209,14 @@ def main():
 
     # Run configuration setup if requested
     if args.config:
-        from config import ConfigManager
+        import os
+
+        from config import PROJECT_ROOT, ConfigManager
 
         main_logger.log("Running interactive configuration setup...", "INFO")
         manager = ConfigManager()
-        # Force reload to trigger setup
-        manager.reload_config()
+        state_file = os.path.join(PROJECT_ROOT, "data", "state.json")
+        manager._run_interactive_setup(state_file)
         main_logger.log("Configuration setup complete.", "INFO")
         return 0
 

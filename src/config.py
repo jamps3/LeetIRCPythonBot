@@ -337,7 +337,7 @@ class ConfigManager:
         Load configuration from state.json file.
         If file doesn't exist or has no servers, run interactive setup.
         """
-        state_file = os.path.join("data", "state.json")
+        state_file = os.path.join(PROJECT_ROOT, "data", "state.json")
 
         if not os.path.exists(state_file):
             logger.info("state.json not found, running interactive setup...")

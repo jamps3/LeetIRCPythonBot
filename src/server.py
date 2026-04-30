@@ -62,9 +62,11 @@ class Server:
         self.config = config
         self.bot_config = bot_config
         self.host = config.host
-        self.bot_name = (
-            config.nick or bot_name
-        )  # Use per-server nick if set, else global bot_name
+        # Use per-server nick if set and not the old default, else global bot_name
+        if config.nick and config.nick != "LeetIRCBot":
+            self.bot_name = config.nick
+        else:
+            self.bot_name = bot_name
         self.stop_event = stop_event
         self.socket = None
         self.connected = False
