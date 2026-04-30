@@ -75,7 +75,7 @@ TITLE_BLACKLIST_EXTENSIONS = (
 TITLE_BANNED_TEXTS = "Bevor Sie zu Google Maps weitergehen;Just a moment...;403 Forbidden;404 Not Found;Access Denied;Ennen kuin jatkat Google Mapsiin"
 
 # GPT Service Settings
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4")  # Model for the Responses API
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4-nano")  # Model for the Responses API
 GPT_HISTORY_LIMIT = 100  # Maximum number of messages to keep in conversation history
 
 
@@ -177,7 +177,7 @@ class BotConfig:
     weather_forecast_api_key: str = ""
     electricity_api_key: str = ""
     openai_api_key: str = ""
-    openai_model: str = "gpt-5.4"
+    openai_model: str = "gpt-5.4-nano"
     youtube_api_key: str = ""
     eurojackpot_api_key: str = ""
 
@@ -303,7 +303,9 @@ class ConfigManager:
             weather_forecast_api_key=os.getenv("WEATHER_FORECAST_API_KEY", ""),
             electricity_api_key=os.getenv("ELECTRICITY_API_KEY", ""),
             openai_api_key=os.getenv("OPENAI_API_KEY", ""),
-            openai_model=os.getenv("OPENAI_MODEL", "gpt-5.4"),
+            openai_model=state_config.get(
+                "openai_model", os.getenv("OPENAI_MODEL", "gpt-5.4-nano")
+            ),
             youtube_api_key=os.getenv("YOUTUBE_API_KEY", ""),
             eurojackpot_api_key=os.getenv("EUROJACKPOT_API_KEY", ""),
             # Feature toggles
@@ -433,6 +435,12 @@ class ConfigManager:
         )
         config["gpt_history_limit"] = int(
             input("Max GPT conversation history (100): ").strip() or "100"
+        )
+
+        # AI settings
+        print("\n🤖 AI Settings:")
+        config["openai_model"] = (
+            input("OpenAI model (gpt-5.4-nano): ").strip() or "gpt-5.4-nano"
         )
 
         # Server configuration
