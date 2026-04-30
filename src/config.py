@@ -487,12 +487,82 @@ class ConfigManager:
         # Server configuration
         print("\n🖥️ Server Configuration:")
         existing_servers = existing_config.get("servers", [])
+        servers = existing_servers.copy()  # Start with existing servers
+
         if existing_servers:
-            print(f"Found {len(existing_servers)} existing server(s).")
-            print("You can add new servers below. Existing servers will be preserved.")
+            print(f"Found {len(existing_servers)} existing server(s):")
+            for i, server in enumerate(existing_servers):
+                host = server.get("host", "unknown")
+                port = server.get("port", "unknown")
+                channels = server.get("channels", [])
+                print(f"  {i+1}. {host}:{port} - {len(channels)} channels")
             print()
 
-        servers = existing_servers.copy()  # Start with existing servers
+            # Ask to edit existing servers
+            edit_choice = input("Edit existing servers? (y/n): ").strip().lower()
+            if edit_choice == "y":
+                while True:
+                    edit_input = input(
+                        "Enter server number to edit (or empty to finish editing): "
+                    ).strip()
+                    if not edit_input:
+                        break
+                    try:
+                        idx = int(edit_input) - 1
+                        if 0 <= idx < len(servers):
+                            server = servers[idx]
+                            print(f"Editing server {idx+1}:")
+
+                            # Edit host
+                            current_host = server.get("host", "")
+                            new_host = input(f"Server host ({current_host}): ").strip()
+                            if new_host:
+                                server["host"] = new_host
+
+                            # Edit port
+                            current_port = server.get("port", 6697)
+                            new_port_str = input(
+                                f"Server port ({current_port}): "
+                            ).strip()
+                            if new_port_str:
+                                try:
+                                    server["port"] = int(new_port_str)
+                                except ValueError:
+                                    print("Invalid port, keeping current.")
+
+                            # Edit TLS
+                            current_tls = server.get("tls", True)
+                            tls_str = (
+                                input(f"Use TLS ({current_tls}): ").strip().lower()
+                            )
+                            if tls_str in ("true", "false", "1", "0", "yes", "no"):
+                                server["tls"] = tls_str in ("true", "1", "yes")
+
+                            # Edit channels
+                            current_channels = server.get("channels", [])
+                            channels_str = input(
+                                f"Channels (comma-separated) ({','.join(current_channels)}): "
+                            ).strip()
+                            if channels_str:
+                                server["channels"] = [
+                                    ch.strip()
+                                    for ch in channels_str.split(",")
+                                    if ch.strip()
+                                ]
+
+                            # Edit nick
+                            current_nick = server.get("nick")
+                            nick_str = input(
+                                f"Bot nick (optional, {current_nick or 'global'}): "
+                            ).strip()
+                            server["nick"] = nick_str if nick_str else None
+
+                            print(f"Server {idx+1} updated.")
+                        else:
+                            print("Invalid server number.")
+                    except ValueError:
+                        print("Please enter a valid number.")
+                print()
         while True:
             add_server = input("Add another IRC server? (y/n): ").strip().lower()
             if add_server not in ("y", "yes"):

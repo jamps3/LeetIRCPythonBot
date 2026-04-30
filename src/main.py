@@ -209,8 +209,6 @@ def main():
 
     # Run configuration setup if requested
     if args.config:
-        import os
-
         from config import PROJECT_ROOT, ConfigManager
 
         main_logger.log("Running interactive configuration setup...", "INFO")

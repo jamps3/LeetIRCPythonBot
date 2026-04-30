@@ -47,6 +47,33 @@ def test_configmanager_loads_env_and_caching(monkeypatch, tmp_path):
         lambda *a, **k: (calls.__setitem__("n", calls["n"] + 1) or True),
     )
 
+    # Mock state config to avoid loading real state.json
+    mock_state_config = {
+        "bot_name": "jl3b3",
+        "log_level": "DEBUG",
+        "reconnect_delay": 60,
+        "quit_message": "🍺 Nähdään! 🍺",
+        "admin_password": "j33715517",
+    }
+    monkeypatch.setattr(
+        cfg.ConfigManager,
+        "_load_state_config",
+        lambda self: mock_state_config,
+        raising=True,
+    )
+
+    m = cfg.ConfigManager(env_file=str(tmp_path / ".env"))
+    assert calls["n"] == 1
+
+    # Provide server configs via method stub
+    sc = [cfg.ServerConfig(host="h", port=1234, channels=["#c"], name="h")]
+    monkeypatch.setattr(
+        cfg.ConfigManager,
+        "_load_server_configs_from_state",
+        lambda self, state_config: sc,
+        raising=True,
+    )
+
     m = cfg.ConfigManager(env_file=str(tmp_path / ".env"))
     assert calls["n"] == 1
 
