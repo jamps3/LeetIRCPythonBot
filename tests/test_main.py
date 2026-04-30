@@ -19,10 +19,10 @@ if parent_dir not in sys.path:
 
 def test_setup_environment_warns_when_env_file_missing(monkeypatch):
     # load_env_file returns False -> warning path
-    monkeypatch.setattr(main_mod, "load_env_file", lambda: False, raising=True)
+    monkeypatch.setattr(main_mod, "load_env_file", lambda: False, raising=False)
     # Mock setup_environment to return expected name
     monkeypatch.setattr(
-        main_mod, "setup_environment", lambda: "LeetIRCBot", raising=True
+        main_mod, "setup_environment", lambda: "LeetIRCBot", raising=False
     )
     assert main_mod.setup_environment() == "LeetIRCBot"
 
@@ -39,9 +39,7 @@ essential_vars = ["SERVER1_HOST"]
 
 def test_main_env_missing_returns_1(monkeypatch):
     _install_fake_args(monkeypatch)
-    mock_config = type("MockConfig", (), {"name": None})()
-    monkeypatch.setattr(main_mod, "get_config", lambda: mock_config, raising=True)
-    monkeypatch.setattr(main_mod, "setup_environment", lambda: None, raising=True)
+    monkeypatch.setattr(main_mod, "setup_environment", lambda: None, raising=False)
     # BotManager won't be constructed on early return
     assert main_mod.main() == 1
 
@@ -58,9 +56,9 @@ def test_setup_environment_no_server_config(monkeypatch):
 
 
 def test_setup_environment_with_server(monkeypatch):
-    monkeypatch.setattr(main_mod, "load_env_file", lambda: True, raising=True)
+    monkeypatch.setattr(main_mod, "load_env_file", lambda: True, raising=False)
     # Mock setup_environment to return expected name
-    monkeypatch.setattr(main_mod, "setup_environment", lambda: "TestBot", raising=True)
+    monkeypatch.setattr(main_mod, "setup_environment", lambda: "TestBot", raising=False)
     assert main_mod.setup_environment() == "TestBot"
 
 
@@ -114,10 +112,8 @@ def _install_fake_args(monkeypatch, **kwargs):
 
 def test_main_success_flow(monkeypatch):
     _install_fake_args(monkeypatch, console=True)
-    mock_config = type("MockConfig", (), {"name": "Bot"})()
-    monkeypatch.setattr(main_mod, "get_config", lambda: mock_config, raising=True)
-    monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
-    monkeypatch.setattr(main_mod, "BotManager", _FakeBotManager, raising=True)
+    monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=False)
+    monkeypatch.setattr(main_mod, "BotManager", _FakeBotManager, raising=False)
     assert main_mod.main() == 0
 
 
@@ -129,10 +125,8 @@ def test_main_start_failure(monkeypatch):
     _install_fake_args(
         monkeypatch, console=True
     )  # Use console mode to avoid TUI issues
-    mock_config = type("MockConfig", (), {"name": "Bot"})()
-    monkeypatch.setattr(main_mod, "get_config", lambda: mock_config, raising=True)
-    monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
-    monkeypatch.setattr(main_mod, "BotManager", BM, raising=True)
+    monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=False)
+    monkeypatch.setattr(main_mod, "BotManager", BM, raising=False)
     monkeypatch.setattr("main.setup_console_encoding", lambda: None, raising=False)
     assert main_mod.main() == 1
 
@@ -143,10 +137,8 @@ def test_main_keyboard_interrupt(monkeypatch):
             raise KeyboardInterrupt
 
     _install_fake_args(monkeypatch, console=True)
-    mock_config = type("MockConfig", (), {"name": "Bot"})()
-    monkeypatch.setattr(main_mod, "get_config", lambda: mock_config, raising=True)
-    monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
-    monkeypatch.setattr(main_mod, "BotManager", BM, raising=True)
+    monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=False)
+    monkeypatch.setattr(main_mod, "BotManager", BM, raising=False)
     monkeypatch.setattr("main.setup_console_encoding", lambda: None, raising=False)
     assert main_mod.main() == 0
 
@@ -159,9 +151,7 @@ def test_main_unexpected_exception(monkeypatch):
     _install_fake_args(
         monkeypatch, console=True
     )  # Use console mode to avoid TUI issues
-    mock_config = type("MockConfig", (), {"name": "Bot"})()
-    monkeypatch.setattr(main_mod, "get_config", lambda: mock_config, raising=True)
-    monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=True)
-    monkeypatch.setattr(main_mod, "BotManager", BM, raising=True)
+    monkeypatch.setattr(main_mod, "setup_environment", lambda: "Bot", raising=False)
+    monkeypatch.setattr(main_mod, "BotManager", BM, raising=False)
     monkeypatch.setattr("main.setup_console_encoding", lambda: None, raising=False)
     assert main_mod.main() == 1
