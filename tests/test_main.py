@@ -46,13 +46,14 @@ def test_main_env_missing_returns_1(monkeypatch):
 
 
 def test_setup_environment_no_server_config(monkeypatch):
-    # Ensure load_env_file returns True
     monkeypatch.setattr(main_mod, "load_env_file", lambda: True, raising=True)
 
-    # Clear SERVER*_HOST
+    # Clear SERVER*_HOST (though this doesn't matter anymore)
     for i in range(1, 10):
         os.environ.pop(f"SERVER{i}_HOST", None)
-    assert main_mod.setup_environment() is None
+    # setup_environment now just returns bot name, server checking is done later
+    result = main_mod.setup_environment()
+    assert isinstance(result, str)  # Returns bot name
 
 
 def test_setup_environment_with_server(monkeypatch):

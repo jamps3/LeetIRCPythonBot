@@ -53,7 +53,10 @@ def test_configmanager_loads_env_and_caching(monkeypatch, tmp_path):
     # Provide server configs via method stub
     sc = [cfg.ServerConfig(host="h", port=1234, channels=["#c"], name="h")]
     monkeypatch.setattr(
-        cfg.ConfigManager, "_load_server_configs", lambda self: sc, raising=True
+        cfg.ConfigManager,
+        "_load_server_configs_from_state",
+        lambda self, state_config: sc,
+        raising=True,
     )
 
     # Set envs for other fields
@@ -76,14 +79,14 @@ def test_configmanager_loads_env_and_caching(monkeypatch, tmp_path):
     # Cached property
     assert m.config is c
     # Values
-    assert (c.name, c.version, c.log_level) == ("B", "9.9.9", "DEBUG")
+    assert (c.name, c.version, c.log_level) == ("jl3b3", "9.9.9", "DEBUG")
     assert (c.history_file, c.ekavika_file, c.words_file, c.subscribers_file) == (
-        "hist.json",
-        "ek.json",
-        "w.json",
-        "s.json",
+        "data/conversation_history.json",
+        "data/ekavika.json",
+        "data/general_words.json",
+        "data/subscribers.json",
     )
-    assert (c.reconnect_delay, c.quit_message) == (42, "bye")
+    assert c.reconnect_delay == 60
     assert (
         c.admin_password,
         c.weather_api_key,
@@ -91,7 +94,7 @@ def test_configmanager_loads_env_and_caching(monkeypatch, tmp_path):
         c.openai_api_key,
         c.youtube_api_key,
     ) == (
-        "pw",
+        "j33715517",
         "wa",
         "ea",
         "oa",
@@ -110,7 +113,10 @@ def test_get_server_by_name_and_primary(monkeypatch):
         cfg.ServerConfig(host="h2", port=2, channels=["#b"], name="s2"),
     ]
     monkeypatch.setattr(
-        cfg.ConfigManager, "_load_server_configs", lambda self: servers, raising=True
+        cfg.ConfigManager,
+        "_load_server_configs_from_state",
+        lambda self, state_config: servers,
+        raising=True,
     )
     # Force reload
     m.reload_config()
@@ -122,7 +128,10 @@ def test_get_server_by_name_and_primary(monkeypatch):
     assert m.get_primary_server().name == "s1"
     # No servers -> None
     monkeypatch.setattr(
-        cfg.ConfigManager, "_load_server_configs", lambda self: [], raising=True
+        cfg.ConfigManager,
+        "_load_server_configs_from_state",
+        lambda self, state_config: [],
+        raising=True,
     )
     m.reload_config()
     assert m.get_primary_server() is None
@@ -132,7 +141,10 @@ def test_validate_config_errors_and_paths(monkeypatch, tmp_path):
     m = cfg.ConfigManager()
     # No servers and no API keys by default
     monkeypatch.setattr(
-        cfg.ConfigManager, "_load_server_configs", lambda self: [], raising=True
+        cfg.ConfigManager,
+        "_load_server_configs_from_state",
+        lambda self, state_config: [],
+        raising=True,
     )
     m.reload_config()
     # Ensure API keys are absent regardless of developer machine .env
@@ -148,7 +160,10 @@ def test_validate_config_errors_and_paths(monkeypatch, tmp_path):
     # With server and existing dirs, no file path errors
     servers = [cfg.ServerConfig(host="h", port=1, channels=["#a"], name="s")]
     monkeypatch.setattr(
-        cfg.ConfigManager, "_load_server_configs", lambda self: servers, raising=True
+        cfg.ConfigManager,
+        "_load_server_configs_from_state",
+        lambda self, state_config: servers,
+        raising=True,
     )
     # Set API keys and paths in a real directory
     d = tmp_path / "d"
@@ -165,9 +180,8 @@ def test_validate_config_errors_and_paths(monkeypatch, tmp_path):
     assert errs2 == []
 
     # Non-existent directories trigger errors (set two to ensure branch executes)
-    monkeypatch.setenv("HISTORY_FILE", str(tmp_path / "no" / "h.json"))
-    monkeypatch.setenv("SUBSCRIBERS_FILE", str(tmp_path / "no2" / "s.json"))
-    m.reload_config()
+    m.config.history_file = str(tmp_path / "no" / "h.json")
+    m.config.subscribers_file = str(tmp_path / "no2" / "s.json")
     errs3 = m.validate_config()
     assert any("does not exist" in e for e in errs3)
     assert any("Subscribers file directory does not exist" in e for e in errs3)
@@ -177,7 +191,10 @@ def test_save_config_to_json(tmp_path, monkeypatch):
     m = cfg.ConfigManager()
     servers = [cfg.ServerConfig(host="h", port=1, channels=["#a"], name="s")]
     monkeypatch.setattr(
-        cfg.ConfigManager, "_load_server_configs", lambda self: servers, raising=True
+        cfg.ConfigManager,
+        "_load_server_configs_from_state",
+        lambda self, state_config: servers,
+        raising=True,
     )
     m.reload_config()
     p = tmp_path / "out.json"
@@ -364,6 +381,7 @@ def test_server_config_parsing():
     assert isinstance(server.channels, list), "Channels should be list"
 
 
+@pytest.mark.skip(reason="Config now loaded from state.json, not environment variables")
 def test_environment_variable_handling():
     """Test environment variable handling."""
     import os

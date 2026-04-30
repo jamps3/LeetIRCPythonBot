@@ -109,6 +109,11 @@ def mock_bot_manager():
     bm.youtube_service = Mock()
     bm.otiedote_service = Mock()
     bm.fmi_warning_service = Mock()
+    # Add config mock
+    bm.config = Mock()
+    bm.config.log_buffer_size = 1000
+    bm.config.auto_connect = True
+    bm.config.auto_reconnect = True
     return bm
 
 

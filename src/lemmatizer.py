@@ -222,25 +222,34 @@ def cleanup_voikko():
 
 def _voikko_atexit_cleanup():
     """Cleanup function called at program exit to suppress Voikko deallocator errors."""
-    import gc
-    import io
-    import sys
-
-    # Disable garbage collection to prevent Voikko's buggy __del__ from running
-    gc.disable()
     try:
-        # Clean up Voikko
-        cleanup_voikko()
-        # Also clean up any Lemmatizer instances that might have Voikko
-        for obj in gc.get_objects():
-            if isinstance(obj, Lemmatizer) and hasattr(obj, "v") and obj.v is not None:
+        import gc
+
+        # Disable garbage collection to prevent Voikko's buggy __del__ from running
+        gc.disable()
+        try:
+            # Clean up Voikko
+            cleanup_voikko()
+            # Also clean up any Lemmatizer instances that might have Voikko
+            # Use a more careful approach to avoid triggering imports in other objects
+            for obj in gc.get_objects():
                 try:
-                    obj.v = None
+                    if isinstance(obj, Lemmatizer):
+                        # Check attributes carefully to avoid __getattribute__ issues
+                        if getattr(obj, "v", None) is not None:
+                            try:
+                                obj.v = None
+                            except Exception:
+                                pass
                 except Exception:
+                    # Skip objects that cause issues during inspection
                     pass
-    finally:
-        # Re-enable garbage collection
-        gc.enable()
+        finally:
+            # Re-enable garbage collection
+            gc.enable()
+    except Exception:
+        # Suppress all exceptions during atexit cleanup to avoid noisy output
+        pass
 
 
 atexit.register(_voikko_atexit_cleanup)

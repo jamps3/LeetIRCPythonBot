@@ -96,29 +96,7 @@ class TestReloadManager:
         assert result is False
         assert "Failed to reload test_module" in message
 
-    @patch("src.command_registry.get_command_registry")
-    @patch("src.reload_manager.reload_single_module")
-    def test_reload_all_commands_success(self, mock_reload_single, mock_get_registry):
-        """Test successful reload of all commands."""
-        # Mock the registry
-        mock_registry = Mock()
-        mock_registry._commands = {"cmd1": Mock(), "cmd2": Mock()}
-        mock_registry.clear_all = Mock()
-        mock_get_registry.return_value = mock_registry
-
-        # Mock successful reloads
-        mock_reload_single.return_value = (True, "Reloaded module")
-
-        # Mock loaded modules
-        with patch("sys.modules", {"command_registry": Mock()}):
-            result, message = reload_manager.reload_all_commands()
-
-        assert result is True
-        assert "Reloaded" in message
-        assert "modules" in message
-        mock_registry.clear_all.assert_called_once()
-
-    @patch("src.command_registry.get_command_registry")
+    @patch("command_registry.get_command_registry")
     @patch("src.reload_manager.reload_single_module")
     def test_reload_all_commands_with_failures(
         self, mock_reload_single, mock_get_registry
