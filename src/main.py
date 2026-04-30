@@ -17,10 +17,11 @@ Features:
 Usage:
     python main.py [options]
 
-Options:
-    -l, --loglevel LEVEL    Set logging level (ERROR, INFO, DEBUG), specified in .env (default: INFO)
-    -nick, --nickname NAME  Set bot nickname
-    -api                    Show API keys in logs (debugging)
+ Options:
+     -l, --loglevel LEVEL    Set logging level (ERROR, INFO, DEBUG), specified in .env (default: INFO)
+     -nick, --nickname NAME  Set bot nickname
+     -api                    Show API keys in logs (debugging)
+     -config                 Run interactive configuration setup
 
 Environment Configuration:
     Copy .env.sample to .env and configure:
@@ -123,11 +124,12 @@ def parse_arguments():
         description="Leet IRC Python Bot - Multi-Server Edition",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  python main.py                     # Start with default settings
-  python main.py -l DEBUG           # Start with debug logging
-  python main.py -nick MyBot        # Start with custom nickname
-  python main.py -api               # Show API keys (for debugging)
+ Examples:
+   python main.py                     # Start with default settings
+   python main.py -l DEBUG           # Start with debug logging
+   python main.py -nick MyBot        # Start with custom nickname
+   python main.py -api               # Show API keys (for debugging)
+   python main.py -config            # Run configuration setup
 
 Configuration:
   The bot reads configuration from a .env file. Copy .env.sample to .env
@@ -164,6 +166,13 @@ Configuration:
         help="Use console interface instead of TUI (fallback mode)",
     )
 
+    parser.add_argument(
+        "-config",
+        "--config",
+        action="store_true",
+        help="Run interactive configuration setup (use existing settings as defaults)",
+    )
+
     return parser.parse_args()
 
 
@@ -194,6 +203,17 @@ def main():
 
     # Parse command line arguments
     args = parse_arguments()
+
+    # Run configuration setup if requested
+    if args.config:
+        from config import ConfigManager
+
+        main_logger.log("Running interactive configuration setup...", "INFO")
+        manager = ConfigManager()
+        # Force reload to trigger setup
+        manager.reload_config()
+        main_logger.log("Configuration setup complete.", "INFO")
+        return 0
 
     # Determine interface mode
     use_console = args.console or os.getenv("FORCE_CONSOLE", "false").lower() == "true"

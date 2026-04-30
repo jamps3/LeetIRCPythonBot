@@ -80,12 +80,23 @@ def test_configmanager_loads_env_and_caching(monkeypatch, tmp_path):
     assert m.config is c
     # Values
     assert (c.name, c.version, c.log_level) == ("jl3b3", "9.9.9", "DEBUG")
-    assert (c.history_file, c.ekavika_file, c.words_file, c.subscribers_file) == (
-        "data/conversation_history.json",
-        "data/ekavika.json",
-        "data/general_words.json",
-        "data/subscribers.json",
+    import os
+
+    data_dir = os.path.join(
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "data"
     )
+    expected_paths = (
+        os.path.join(data_dir, "conversation_history.json"),
+        os.path.join(data_dir, "ekavika.json"),
+        os.path.join(data_dir, "general_words.json"),
+        os.path.join(data_dir, "subscribers.json"),
+    )
+    assert (
+        c.history_file,
+        c.ekavika_file,
+        c.words_file,
+        c.subscribers_file,
+    ) == expected_paths
     assert c.reconnect_delay == 60
     assert (
         c.admin_password,

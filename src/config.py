@@ -379,68 +379,122 @@ class ConfigManager:
 
     def _run_interactive_setup(self, state_file: str) -> None:
         """
-        Run interactive setup to create initial state.json
+        Run interactive setup to create or update state.json
         """
-        print("🤖 LeetIRCPythonBot First-Time Setup")
+        print("🤖 LeetIRCPythonBot Configuration Setup")
         print("=" * 40)
+
+        # Load existing configuration if available
+        existing_config = {}
+        if os.path.exists(state_file):
+            try:
+                with open(state_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                existing_config = data.get("config", {})
+                print("Loaded existing configuration. Using as defaults.")
+                print(
+                    "Press Enter to keep existing values, or enter new values to change."
+                )
+                print()
+            except Exception as e:
+                print(f"Could not load existing config: {e}. Starting fresh.")
+                print()
 
         config = {}
 
         # Bot Configuration
         print("\n📝 Bot Configuration:")
+        default_name = existing_config.get("bot_name", "LeetIRCBot")
         config["bot_name"] = (
-            input("Bot nickname (LeetIRCBot): ").strip() or "LeetIRCBot"
+            input(f"Bot nickname ({default_name}): ").strip() or default_name
         )
-        config["log_level"] = input("Log level (INFO): ").strip().upper() or "INFO"
-        config["admin_password"] = input("Admin password: ").strip() or "changeme"
+        default_level = existing_config.get("log_level", "INFO")
+        config["log_level"] = (
+            input(f"Log level ({default_level}): ").strip().upper() or default_level
+        )
+        default_password = existing_config.get("admin_password", "changeme")
+        config["admin_password"] = (
+            input(f"Admin password ({default_password}): ").strip() or default_password
+        )
 
         # Connection settings
         print("\n🌐 Connection Settings:")
+        default_delay = existing_config.get("reconnect_delay", 60)
         config["reconnect_delay"] = int(
-            input("Reconnect delay in seconds (60): ").strip() or "60"
+            input(f"Reconnect delay in seconds ({default_delay}): ").strip()
+            or str(default_delay)
         )
+        default_quit = existing_config.get("quit_message", "🍺 Nähdään! 🍺")
         config["quit_message"] = (
-            input("Quit message (🍺 Nähdään! 🍺): ").strip() or "🍺 Nähdään! 🍺"
+            input(f"Quit message ({default_quit}): ").strip() or default_quit
         )
 
         # Feature toggles
         print("\n⚙️ Feature Toggles:")
+        default_notices = (
+            "true" if existing_config.get("use_notices", USE_NOTICES) else "false"
+        )
         config["use_notices"] = input(
-            "Use IRC NOTICEs instead of PRIVMSG? (true): "
+            f"Use IRC NOTICEs instead of PRIVMSG? ({default_notices}): "
         ).strip().lower() in ("true", "1", "yes", "on", "")
+        default_tama = (
+            "true"
+            if existing_config.get("tamagotchi_enabled", TAMAGOTCHI_ENABLED)
+            else "false"
+        )
         config["tamagotchi_enabled"] = input(
-            "Enable tamagotchi responses? (true): "
+            f"Enable tamagotchi responses? ({default_tama}): "
         ).strip().lower() in ("true", "1", "yes", "on", "")
+        default_420 = (
+            "true" if existing_config.get("four_twenty_enabled", True) else "false"
+        )
         config["four_twenty_enabled"] = input(
-            "Enable 4:20 time announcements? (true): "
+            f"Enable 4:20 time announcements? ({default_420}): "
         ).strip().lower() in ("true", "1", "yes", "on", "")
+        default_auto_connect = (
+            "true" if existing_config.get("auto_connect", AUTO_CONNECT) else "false"
+        )
         config["auto_connect"] = input(
-            "Auto-connect to servers on startup? (true): "
+            f"Auto-connect to servers on startup? ({default_auto_connect}): "
         ).strip().lower() in ("true", "1", "yes", "on", "")
+        default_auto_reconnect = (
+            "true" if existing_config.get("auto_reconnect", AUTO_RECONNECT) else "false"
+        )
         config["auto_reconnect"] = input(
-            "Auto-reconnect if disconnected? (true): "
+            f"Auto-reconnect if disconnected? ({default_auto_reconnect}): "
         ).strip().lower() in ("true", "1", "yes", "on", "")
 
         # Buffer settings
         print("\n📊 Buffer Settings:")
+        default_log_buffer = existing_config.get("log_buffer_size", LOG_BUFFER_SIZE)
         config["log_buffer_size"] = int(
-            input("Max log entries in memory (1000): ").strip() or "1000"
+            input(f"Max log entries in memory ({default_log_buffer}): ").strip()
+            or str(default_log_buffer)
         )
+        default_gpt_limit = existing_config.get("gpt_history_limit", GPT_HISTORY_LIMIT)
         config["gpt_history_limit"] = int(
-            input("Max GPT conversation history (100): ").strip() or "100"
+            input(f"Max GPT conversation history ({default_gpt_limit}): ").strip()
+            or str(default_gpt_limit)
         )
 
         # AI settings
         print("\n🤖 AI Settings:")
+        default_model = existing_config.get("openai_model", "gpt-5.4-nano")
         config["openai_model"] = (
-            input("OpenAI model (gpt-5.4-nano): ").strip() or "gpt-5.4-nano"
+            input(f"OpenAI model ({default_model}): ").strip() or default_model
         )
 
         # Server configuration
         print("\n🖥️ Server Configuration:")
-        servers = []
+        existing_servers = existing_config.get("servers", [])
+        if existing_servers:
+            print(f"Found {len(existing_servers)} existing server(s).")
+            print("You can add new servers below. Existing servers will be preserved.")
+            print()
+
+        servers = existing_servers.copy()  # Start with existing servers
         while True:
-            add_server = input("Add an IRC server? (y/n): ").strip().lower()
+            add_server = input("Add another IRC server? (y/n): ").strip().lower()
             if add_server not in ("y", "yes"):
                 break
 
