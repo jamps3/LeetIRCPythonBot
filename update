@@ -9,10 +9,20 @@ then updates requirements.txt and requirements-dev.txt with the new versions.
 import subprocess
 import sys
 from pathlib import Path
+import platform
 
 # Project root (directory containing this script)
 PROJECT_ROOT = Path(__file__).parent.resolve()
-VENV_PYTHON = PROJECT_ROOT / "venv" / "Scripts" / "python.exe"
+
+# Detect platform and set correct virtualenv Python path
+if platform.system() == "Windows":
+    VENV_PYTHON = PROJECT_ROOT / "venv" / "Scripts" / "python.exe"
+    GREP_CMD = "Select-String"
+    PYTHON_CMD = "python"
+else:
+    VENV_PYTHON = PROJECT_ROOT / "venv" / "bin" / "python"
+    GREP_CMD = "grep -E"
+    PYTHON_CMD = "python3"
 
 
 def run_command(cmd, description=""):
@@ -77,12 +87,12 @@ def main():
     # Step 6: List current key packages
     print("\n📋 Current installed versions of key packages:")
     run_command(
-        f'"{VENV_PYTHON}" -m pip list | Select-String -Pattern "beautifulsoup4|feedparser|google-api|openai|pandas|openpyxl|python-dotenv|pytz|requests|playwright|tzdata|urwid|psutil|pyperclip|setuptools|xdk|black|isort|flake8|coverage|pytest|pytest-xdist"',
+        f'"{VENV_PYTHON}" -m pip list | {GREP_CMD} -E "beautifulsoup4|feedparser|google-api|openai|pandas|openpyxl|python-dotenv|pytz|requests|playwright|tzdata|urwid|psutil|pyperclip|setuptools|xdk|black|isort|flake8|coverage|pytest|pytest-xdist"',
         "List key package versions"
     )
 
     print("\n✅ Update complete!")
-    print("💡 Next: run tests with: python -m pytest -v --tb=short -n auto")
+    print(f"💡 Next: run tests with: {PYTHON_CMD} -m pytest -v --tb=short -n auto")
 
 
 if __name__ == "__main__":
