@@ -557,6 +557,22 @@ class ConfigManager:
                             ).strip()
                             server["nick"] = nick_str if nick_str else None
 
+                            # Edit NickServ password
+                            current_password = server.get("nickserv_password")
+                            password_str = input(
+                                f"NickServ password (optional, current: {current_password or 'none'}): "
+                            ).strip()
+                            server["nickserv_password"] = (
+                                password_str if password_str else None
+                            )
+
+                            # Edit NickServ email
+                            current_email = server.get("nickserv_email")
+                            email_str = input(
+                                f"NickServ email (optional, current: {current_email or 'none'}): "
+                            ).strip()
+                            server["nickserv_email"] = email_str if email_str else None
+
                             print(f"Server {idx+1} updated.")
                         else:
                             print("Invalid server number.")
