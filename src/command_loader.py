@@ -85,7 +85,7 @@ async def process_irc_command(
         raw_message=message,
         sender=sender,
         ident_host=ident_host,
-        target=target,
+        target=reply_target,  # Use reply_target so private messages go to sender
         is_private=is_private,
         is_console=False,
         server_name=bot_functions.get("server_name", "unknown"),
