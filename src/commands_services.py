@@ -504,7 +504,7 @@ def euribor_command(context: CommandContext, bot_functions):
             "https://reports.suomenpankki.fi/WebForms/ReportViewerPage.aspx?report="
             "/tilastot/markkina-_ja_hallinnolliset_korot/euribor_korot_today_xml_en&output=xml"
         )
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         if response.status_code == 200:
             root = ElementTree.fromstring(response.content)
             ns = {"ns": "euribor_korot_today_xml_en"}

@@ -218,8 +218,14 @@ class ServiceManager:
             from services.fmi_warning_service import create_fmi_warning_service
 
             config = get_config()
+
+            def fmi_callback(warnings):
+                bot_manager = getattr(self, "_bot_manager", None)
+                if bot_manager:
+                    bot_manager._handle_fmi_warnings(warnings)
+
             self.services["fmi_warning"] = create_fmi_warning_service(
-                callback=lambda warnings: None,  # Will be set by message handler
+                callback=fmi_callback,
                 state_file=config.state_file,
             )
             logger.info("⚠️ FMI warning service initialized.")
@@ -253,6 +259,14 @@ class ServiceManager:
 
     def start_background_services(self):
         """Start services that need background monitoring."""
+        fmi = self.services.get("fmi_warning")
+        if fmi and hasattr(fmi, "start"):
+            try:
+                fmi.start()
+                logger.info("FMI warning background monitor started.")
+            except Exception as e:
+                logger.warning(f"Could not start FMI warning monitor: {e}")
+
         otiedote = self.services.get("otiedote")
         if otiedote and hasattr(otiedote, "start_background"):
             try:
@@ -263,6 +277,13 @@ class ServiceManager:
 
     def stop_background_services(self):
         """Stop services that run background monitors."""
+        fmi = self.services.get("fmi_warning")
+        if fmi and hasattr(fmi, "stop"):
+            try:
+                fmi.stop()
+            except Exception as e:
+                logger.warning(f"Could not stop FMI warning monitor cleanly: {e}")
+
         otiedote = self.services.get("otiedote")
         if otiedote and hasattr(otiedote, "stop_background"):
             try:

@@ -739,7 +739,7 @@ def driving_distance_osrm(context: CommandContext, bot_functions):
         url = "https://nominatim.openstreetmap.org/search"
         params = {"q": city_name, "format": "json", "limit": 1}
         response = requests.get(
-            url, params=params, headers={"User-Agent": "matkalaskuri"}
+            url, params=params, headers={"User-Agent": "matkalaskuri"}, timeout=10
         )
         if response.status_code == 200 and response.json():
             result = response.json()[0]
@@ -788,7 +788,7 @@ def driving_distance_osrm(context: CommandContext, bot_functions):
         f"http://router.project-osrm.org/route/v1/driving/"
         f"{origin_lon},{origin_lat};{dest_lon},{dest_lat}?overview=false"
     )
-    response = requests.get(url)
+    response = requests.get(url, timeout=10)
 
     if response.status_code == 200:
         data = response.json()

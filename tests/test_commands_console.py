@@ -768,7 +768,7 @@ def test_euribor_command_success_and_error(monkeypatch):
     # Success path
     import requests as _requests
 
-    monkeypatch.setattr(_requests, "get", lambda url: Resp(200, xml_ok))
+    monkeypatch.setattr(_requests, "get", lambda url, **kwargs: Resp(200, xml_ok))
     ctx = CommandContext(
         command="euribor",
         args=[],
@@ -783,12 +783,12 @@ def test_euribor_command_success_and_error(monkeypatch):
     assert "12kk Euribor" in res
 
     # HTTP error path
-    monkeypatch.setattr(_requests, "get", lambda url: Resp(500, b""))
+    monkeypatch.setattr(_requests, "get", lambda url, **kwargs: Resp(500, b""))
     res2 = euribor_command(ctx, {})
     assert "HTTP Status Code: 500" in res2
 
     # Exception path
-    def boom(url):
+    def boom(url, **kwargs):
         raise Exception("boom")
 
     monkeypatch.setattr(_requests, "get", boom)
@@ -1831,7 +1831,7 @@ def test_euribor_non_windows_and_missing_cases(monkeypatch):
         b"<period value='2025-08-01'><rates><rate name='6 month (act/360)'><intr value='2.0'/></rate></rates></period>"
         b"</euribor_korot_today_xml_en>"
     )
-    monkeypatch.setattr(_requests, "get", lambda url: Resp(200, xml_no_rate))
+    monkeypatch.setattr(_requests, "get", lambda url, **kwargs: Resp(200, xml_no_rate))
     # Force non-Windows branch but patch datetime formatting to be compatible
     import builtins as _builtins
 
@@ -1874,13 +1874,15 @@ def test_euribor_non_windows_and_missing_cases(monkeypatch):
         b"<period value='2025-08-01'><rates><rate name='12 month (act/360)'></rate></rates></period>"
         b"</euribor_korot_today_xml_en>"
     )
-    monkeypatch.setattr(_requests, "get", lambda url: Resp(200, xml_no_intr))
+    monkeypatch.setattr(_requests, "get", lambda url, **kwargs: Resp(200, xml_no_intr))
     res_mid = euribor_command(ctx, {})
     assert "Interest rate value not found" in res_mid
 
     # No period branch
     xml_no_period = b'<euribor_korot_today_xml_en xmlns="euribor_korot_today_xml_en"></euribor_korot_today_xml_en>'
-    monkeypatch.setattr(_requests, "get", lambda url: Resp(200, xml_no_period))
+    monkeypatch.setattr(
+        _requests, "get", lambda url, **kwargs: Resp(200, xml_no_period)
+    )
     res2 = euribor_command(ctx, {})
     assert "No period data" in res2
 

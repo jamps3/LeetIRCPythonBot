@@ -331,6 +331,45 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         # TODO: Implement ekavika winner processing
         pass
 
+    def _get_subscription_server(self, server_name: str):
+        """Resolve a subscription server from the freshest available source."""
+        bot_manager = getattr(self, "bot_manager", None)
+        if not bot_manager:
+            return None
+
+        test_override = getattr(bot_manager, "_servers", None)
+        if isinstance(test_override, dict) and server_name in test_override:
+            return test_override[server_name]
+
+        if hasattr(bot_manager, "get_all_servers"):
+            servers = bot_manager.get_all_servers()
+        else:
+            servers = getattr(bot_manager, "servers", {})
+
+        return servers.get(server_name)
+
+    def _can_send_subscription_target(
+        self, server_name: str, server, nick_or_channel: str
+    ) -> bool:
+        """Check channel subscriptions against joined or configured channels."""
+        if not nick_or_channel.startswith("#"):
+            return True
+
+        bot_manager = getattr(self, "bot_manager", None)
+        if not bot_manager:
+            return True
+
+        joined_channels = set(
+            getattr(bot_manager, "joined_channels", {}).get(server_name, set())
+        )
+        configured = getattr(getattr(server, "config", None), "channels", [])
+        configured_channels = (
+            set(configured) if isinstance(configured, (list, tuple, set)) else set()
+        )
+        return (
+            nick_or_channel in joined_channels or nick_or_channel in configured_channels
+        )
+
     def _handle_fmi_warnings(self, warnings_list):
         """Handle FMI warnings."""
         try:
@@ -349,16 +388,10 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             # Send each warning to subscribers
             for warning in warnings_list:
                 for nick_or_channel, server_name in subscribers:
-                    # Find the server
-                    server = None
-                    if (
-                        hasattr(self, "bot_manager")
-                        and hasattr(self.bot_manager, "servers")
-                        and server_name in self.bot_manager.servers
+                    server = self._get_subscription_server(server_name)
+                    if server and self._can_send_subscription_target(
+                        server_name, server, nick_or_channel
                     ):
-                        server = self.bot_manager.servers[server_name]
-
-                    if server:
                         if hasattr(self, "bot_manager"):
                             self.bot_manager._send_response(
                                 server, nick_or_channel, warning
@@ -397,16 +430,10 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
             # Send to each subscriber
             for nick_or_channel, server_name in subscribers:
-                # Find the server
-                server = None
-                if (
-                    hasattr(self, "bot_manager")
-                    and hasattr(self.bot_manager, "servers")
-                    and server_name in self.bot_manager.servers
+                server = self._get_subscription_server(server_name)
+                if server and self._can_send_subscription_target(
+                    server_name, server, nick_or_channel
                 ):
-                    server = self.bot_manager.servers[server_name]
-
-                if server:
                     if hasattr(self, "bot_manager"):
                         self.bot_manager._send_response(
                             server, nick_or_channel, message
