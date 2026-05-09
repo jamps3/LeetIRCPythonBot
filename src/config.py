@@ -72,7 +72,7 @@ TITLE_BLACKLIST_DOMAINS = "youtube.com,youtu.be,facebook.com,fb.com,x.com,twitte
 TITLE_BLACKLIST_EXTENSIONS = (
     ".jpg,.jpeg,.png,.gif,.mp4,.webm,.pdf,.zip,.rar,.mp3,.wav,.flac"
 )
-TITLE_BANNED_TEXTS = "Bevor Sie zu Google Maps weitergehen;Just a moment...;403 Forbidden;404 Not Found;Access Denied;Ennen kuin jatkat Google Mapsiin"
+TITLE_BANNED_TEXTS = "Bevor Sie zu Google Maps weitergehen;Just a moment...;403 Forbidden;404 Not Found;Access Denied;Ennen kuin jatkat Google Mapsiin;Twitch;Bevor Sie zur Google Suche weitergehen"
 
 # GPT Service Settings
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4-nano")  # Model for the Responses API
@@ -329,6 +329,23 @@ class ConfigManager:
         servers = self._load_server_configs_from_state(state_config)
         logger.info(f"Loaded {len(servers)} servers from state.json")
         config.servers = servers
+
+        # Ensure title settings are in state.json with defaults
+        updated = False
+        if "title_banned_texts" not in state_config:
+            state_config["title_banned_texts"] = TITLE_BANNED_TEXTS
+            updated = True
+        if "title_blacklist_domains" not in state_config:
+            state_config["title_blacklist_domains"] = TITLE_BLACKLIST_DOMAINS
+            updated = True
+        if "title_blacklist_extensions" not in state_config:
+            state_config["title_blacklist_extensions"] = TITLE_BLACKLIST_EXTENSIONS
+            updated = True
+        if updated:
+            state_file = os.path.join(PROJECT_ROOT, "data", "state.json")
+            with open(state_file, "w", encoding="utf-8") as f:
+                json.dump(state_config, f, indent=2, ensure_ascii=False)
+            logger.info("Updated state.json with default title settings")
 
         return config
 
@@ -960,38 +977,6 @@ def get_server_configs() -> List[ServerConfig]:
     return server_configs
 
 
-def get_server_config_by_name(name: str) -> Optional[ServerConfig]:
-    """
-    Get a specific server configuration by its name.
-
-    Args:
-        name: The name identifier of the server (e.g., 'SERVER1')
-
-    Returns:
-        ServerConfig object if found, None otherwise
-    """
-    for config in get_server_configs():
-        if config.name == name:
-            return config
-    return None
-
-
-def get_channel_key_pairs(server_config: ServerConfig) -> List[Tuple[str, str]]:
-    """
-    Get channel-key pairs for a server configuration.
-
-    Args:
-        server_config: A ServerConfig object
-
-    Returns:
-        List of tuples with (channel, key) pairs
-    """
-    if not server_config.keys:
-        return [(channel, "") for channel in server_config.channels]
-
-    return list(zip(server_config.channels, server_config.keys))
-
-
 def get_api_key(key_name: str, default: str = "") -> str:
     """
     Get an API key from environment variables.
@@ -1029,37 +1014,3 @@ def get_api_key(key_name: str, default: str = "") -> str:
         )
 
     return api_key
-
-
-def generate_server_channel_id(server_name: str, channel: str) -> str:
-    """
-    Generate a unique identifier for a server-channel combination.
-
-    Args:
-        server_name: The server name or identifier
-        channel: The channel name
-
-    Returns:
-        Unique identifier string
-    """
-    # Normalize channel name (ensure it has # prefix)
-    if not channel.startswith("#"):
-        channel = f"#{channel}"
-
-    return f"{server_name}:{channel}"
-
-
-def parse_server_channel_id(combined_id: str) -> Tuple[str, str]:
-    """
-    Parse a server-channel identifier back into its components.
-
-    Args:
-        combined_id: Combined server:channel identifier
-
-    Returns:
-        Tuple of (server_name, channel)
-    """
-    parts = combined_id.split(":", 1)
-    if len(parts) != 2:
-        return (combined_id, "")
-    return parts[0], parts[1]

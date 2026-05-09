@@ -269,51 +269,6 @@ def test_get_server_configs_parsing_and_defaults(monkeypatch, capsys):
         assert s2.port == 6667 and s2.tls is False and s2.channels == ["#z"]
 
 
-def test_get_server_config_by_name_and_channel_keys(monkeypatch):
-    from unittest.mock import patch
-
-    # Mock load_dotenv to prevent .env from being reloaded during test
-    with patch.object(cfg, "load_env_file", return_value=True):
-        # Clear any existing SERVER1 environment variables from .env file
-        for key in list(os.environ.keys()):
-            if key.startswith("SERVER1_"):
-                monkeypatch.delenv(key, raising=False)
-
-        # Prepare env for a server
-        monkeypatch.setenv("SERVER1_HOST", "h")
-        monkeypatch.setenv("SERVER1_CHANNELS", "a,b")
-        servers = cfg.get_server_configs()
-        name = servers[0].name
-
-        found = cfg.get_server_config_by_name(name)
-        assert found is not None and found.name == name
-
-        # Not found path
-        assert cfg.get_server_config_by_name("unknown-name") is None
-
-        # Channel-key pairs with and without keys
-        pairs_no_keys = cfg.get_channel_key_pairs(found)
-        assert pairs_no_keys == [("#a", ""), ("#b", "")]
-
-        found.keys = ["k1"]
-        # __post_init__ won't be called here; enforce padding like function does when zipping
-        pairs_with_keys = cfg.get_channel_key_pairs(found)
-        # Since keys shorter, zip truncates, but our function returns zip as-is -> ensure length equals len(found.keys)
-        assert pairs_with_keys == [("#a", "k1")]
-
-
-def test_api_key_and_channel_id_helpers():
-    os.environ["X_KEY"] = "val"
-    assert cfg.get_api_key("X_KEY") == "val"
-    assert cfg.get_api_key("MISSING", default="d") == "d"
-
-    assert cfg.generate_server_channel_id("srv", "chan") == "srv:#chan"
-    assert cfg.generate_server_channel_id("srv", "#chan") == "srv:#chan"
-
-    assert cfg.parse_server_channel_id("srv:#c") == ("srv", "#c")
-    assert cfg.parse_server_channel_id("invalid") == ("invalid", "")
-
-
 # Add the parent directory to Python path to ensure imports work in CI
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
