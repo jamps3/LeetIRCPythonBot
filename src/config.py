@@ -121,6 +121,9 @@ class ServerConfig:
     nick: Optional[str] = None  # Bot nickname for this server
     nickserv_password: Optional[str] = None  # NickServ password for identification
     nickserv_email: Optional[str] = None  # Email for NickServ registration
+    banned_commands: List[str] = field(
+        default_factory=list
+    )  # Commands banned on this server
 
     def __post_init__(self):
         # Ensure channel names have # prefix
@@ -131,6 +134,25 @@ class ServerConfig:
         # Ensure keys list matches channels length if provided
         if self.keys and len(self.keys) < len(self.channels):
             self.keys.extend([""] * (len(self.channels) - len(self.keys)))
+
+
+def _is_placeholder_server_name(name: str) -> bool:
+    """Return True for generated names that should not own persistent state."""
+    return bool(re.fullmatch(r"server\d+", str(name or "").strip(), re.IGNORECASE))
+
+
+def _derive_state_server_name(server_data: dict, index: int) -> str:
+    """Derive a stable server key from real connection settings."""
+    explicit_name = str(server_data.get("name") or "").strip()
+    if explicit_name and not _is_placeholder_server_name(explicit_name):
+        return explicit_name
+
+    host = str(server_data.get("host") or "").strip().lower()
+    port = server_data.get("port", 6667)
+    if host:
+        return f"{host}:{port}"
+
+    return f"Server{index}"
 
 
 @dataclass
@@ -343,8 +365,21 @@ class ConfigManager:
             updated = True
         if updated:
             state_file = os.path.join(PROJECT_ROOT, "data", "state.json")
+            full_state = {}
+            if os.path.exists(state_file):
+                try:
+                    with open(state_file, "r", encoding="utf-8") as f:
+                        full_state = json.load(f)
+                except Exception:
+                    full_state = {}
+
+            if "config" in full_state:
+                full_state["config"] = state_config
+            else:
+                full_state.update(state_config)
+
             with open(state_file, "w", encoding="utf-8") as f:
-                json.dump(state_config, f, indent=2, ensure_ascii=False)
+                json.dump(full_state, f, indent=2, ensure_ascii=False)
             logger.info("Updated state.json with default title settings")
 
         return config
@@ -352,7 +387,7 @@ class ConfigManager:
     def _load_state_config(self) -> dict:
         """
         Load configuration from state.json file.
-        If file doesn't exist or has no servers, run interactive setup.
+        If file doesn't exist, run interactive setup.
         """
         state_file = os.path.join(PROJECT_ROOT, "data", "state.json")
 
@@ -364,18 +399,7 @@ class ConfigManager:
             try:
                 with open(state_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                config = data.get("config", {})
-                # Check if servers are configured
-                servers = config.get("servers", [])
-                if not servers:
-                    logger.info(
-                        "No servers configured in state.json, running interactive setup..."
-                    )
-                    self._run_interactive_setup(state_file)
-                    # Reload after setup
-                    with open(state_file, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    config = data.get("config", {})
+                config = data.get("config", data)
                 return config
             except (json.JSONDecodeError, IOError) as e:
                 logger.warning(f"Failed to load state.json: {e}")
@@ -384,7 +408,7 @@ class ConfigManager:
                 try:
                     with open(state_file, "r", encoding="utf-8") as f:
                         data = json.load(f)
-                    return data.get("config", {})
+                    return data.get("config", data)
                 except Exception:
                     return {}
             except Exception:
@@ -674,10 +698,15 @@ class ConfigManager:
         Load server configurations from state config dict.
         """
         servers = []
-        server_list = state_config.get("servers", [])
+        server_list = state_config.get("config", {}).get("servers", [])
+        if not server_list:
+            # Fallback for old state.json where servers might be at root
+            server_list = state_config.get("servers", [])
         logger.info(f"Found {len(server_list)} server entries in state config")
 
         for i, server_data in enumerate(server_list, 1):
+            if "banned_commands" not in server_data:
+                server_data["banned_commands"] = []
             try:
                 logger.info(
                     f"Loading server {i}: {server_data.get('host', 'unknown')}:{server_data.get('port', 'unknown')}"
@@ -689,10 +718,11 @@ class ConfigManager:
                     keys=server_data.get("keys"),
                     tls=server_data.get("tls", False),
                     allow_insecure_tls=server_data.get("allow_insecure_tls", False),
-                    name=f"Server{i}",
+                    name=_derive_state_server_name(server_data, i),
                     nick=server_data.get("nick"),
                     nickserv_password=server_data.get("nickserv_password"),
                     nickserv_email=server_data.get("nickserv_email"),
+                    banned_commands=server_data.get("banned_commands", []),
                 )
                 servers.append(config)
                 logger.info(f"Successfully loaded server {config.name}")

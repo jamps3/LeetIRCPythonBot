@@ -136,6 +136,9 @@ class BotManager:
         if not self.server_manager.start_servers():
             return False
 
+        if hasattr(self.service_manager, "start_background_services"):
+            self.service_manager.start_background_services()
+
         # Start console listener if in console mode
         if self.console_mode:
             self.console_manager.start_console_listener()
@@ -153,6 +156,9 @@ class BotManager:
         # Shutdown console manager
         if hasattr(self.console_manager, "shutdown"):
             self.console_manager.shutdown()
+
+        if hasattr(self.service_manager, "stop_background_services"):
+            self.service_manager.stop_background_services()
 
         # Shutdown server manager
         self.server_manager.shutdown(quit_message)
@@ -546,21 +552,37 @@ class BotManager:
         if url:
             announcement += f" | {url}"
 
+        servers = self.server_manager.get_all_servers()
+
         # Announce to all subscribed servers/channels
         for nick_or_channel, server_name in subscribers:
             # Find the server
-            if server_name not in self.servers:
+            if server_name not in servers:
+                self.logger.warning(
+                    f"Skipping Otiedote #{release['id']} for {nick_or_channel}: "
+                    f"server {server_name} is not configured"
+                )
                 continue
 
-            server = self.servers[server_name]
+            server = servers[server_name]
 
             # Send to channel or nick
             if nick_or_channel.startswith("#"):
                 # It's a channel - check if bot is on it
-                if hasattr(server, "channels") and nick_or_channel in server.channels:
+                joined_channels = set(self.joined_channels.get(server_name, set()))
+                configured_channels = set(getattr(server.config, "channels", []))
+                if (
+                    nick_or_channel in joined_channels
+                    or nick_or_channel in configured_channels
+                ):
                     server.send_message(nick_or_channel, announcement)
                     self.logger.info(
                         f"Announced Otiedote #{release['id']} to {nick_or_channel} on {server_name}"
+                    )
+                else:
+                    self.logger.info(
+                        f"Skipping Otiedote #{release['id']} for {nick_or_channel} "
+                        f"on {server_name}: bot has not joined that channel"
                     )
             else:
                 # It's a nick

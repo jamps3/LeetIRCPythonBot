@@ -67,9 +67,6 @@ class ServiceManager:
     def set_bot_manager(self, bot_manager):
         """Set the bot manager reference for callbacks."""
         self._bot_manager = bot_manager
-        # Re-initialize otiedote service with the callback now that bot_manager is available
-        if "otiedote" in self.services and self.services["otiedote"] is not None:
-            self._initialize_otiedote_service()
 
     def _initialize_weather_service(self):
         """Initialize weather service if API key is available."""
@@ -238,11 +235,9 @@ class ServiceManager:
 
             config = get_config()
 
-            # Get the bot_manager reference for callback
-            bot_manager = getattr(self, "_bot_manager", None)
-
             # Create callback that handles new releases
             def otiedote_callback(release):
+                bot_manager = getattr(self, "_bot_manager", None)
                 if bot_manager:
                     bot_manager.handle_otiedote_release(release)
 
@@ -251,22 +246,29 @@ class ServiceManager:
                 state_file=config.state_file,
             )
 
-            # Start the background monitor
-            import asyncio
-
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    asyncio.create_task(self.services["otiedote"].start())
-                else:
-                    loop.run_until_complete(self.services["otiedote"].start())
-            except Exception as e:
-                logger.warning(f"Could not start otiedote monitor: {e}")
-
-            logger.info("📢 Otiedote monitoring service initialized and started.")
+            logger.info("📢 Otiedote monitoring service initialized.")
         except ImportError as e:
             logger.warning(f"Otiedote service not available: {e}")
             self.services["otiedote"] = None
+
+    def start_background_services(self):
+        """Start services that need background monitoring."""
+        otiedote = self.services.get("otiedote")
+        if otiedote and hasattr(otiedote, "start_background"):
+            try:
+                otiedote.start_background()
+                logger.info("📢 Otiedote background monitor started.")
+            except Exception as e:
+                logger.warning(f"Could not start otiedote monitor: {e}")
+
+    def stop_background_services(self):
+        """Stop services that run background monitors."""
+        otiedote = self.services.get("otiedote")
+        if otiedote and hasattr(otiedote, "stop_background"):
+            try:
+                otiedote.stop_background()
+            except Exception as e:
+                logger.warning(f"Could not stop otiedote monitor cleanly: {e}")
 
     def _initialize_dream_service(self):
         """Initialize Dream service."""
@@ -383,6 +385,8 @@ class ServiceManager:
                 except Exception as e:
                     logger.warning(f"Failed to reload {mod_name}: {e}")
 
+        self.stop_background_services()
+
         # Clear existing services
         self.services.clear()
 
@@ -394,6 +398,8 @@ class ServiceManager:
             except Exception as e:
                 logger.error(f"Failed to reinitialize {service_name}: {e}")
                 results[service_name] = "failed"
+
+        self.start_background_services()
 
         return results
 

@@ -43,7 +43,28 @@ def help_command(context: CommandContext, bot_functions):
         if context.is_console:
             return help_text
         else:
-            return CommandResponse.success_msg(help_text)
+            # IRC: manually send notices to nick
+            notice = bot_functions.get("notice_message")
+            irc = bot_functions.get("irc")
+            if notice and irc:
+                # Split long help text into multiple messages
+                max_length = 400  # Conservative limit for IRC messages
+                if len(help_text) > max_length:
+                    # Split at a comma near the middle
+                    mid = len(help_text) // 2
+                    split_pos = help_text.rfind(", ", 0, mid)
+                    if split_pos == -1:
+                        split_pos = mid
+                    part1 = help_text[: split_pos + 1].rstrip()
+                    part2_start = split_pos + 1
+                    part2 = help_text[part2_start:].lstrip()
+                    notice(context.sender, part1)
+                    notice(context.sender, part2)
+                else:
+                    notice(context.sender, help_text)
+                return None  # Don't return a response
+            else:
+                return CommandResponse.success_msg(help_text)
     else:
         # Build command list depending on context. From IRC, show only IRC_ONLY.
         if context.is_console:

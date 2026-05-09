@@ -19,7 +19,11 @@ if _project_root not in sys.path:
 
 import requests  # noqa: E402
 
-from config import TITLE_BLACKLIST_DOMAINS, TITLE_BLACKLIST_EXTENSIONS  # noqa: E402
+from config import (  # noqa: E402
+    PROJECT_ROOT,
+    TITLE_BLACKLIST_DOMAINS,
+    TITLE_BLACKLIST_EXTENSIONS,
+)
 
 # Import handlers mixins
 from handlers.latency_tracker import LatencyTrackerMixin
@@ -2550,11 +2554,11 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         """Toggle tamagotchi responses on/off with .env file persistence."""
         self.tamagotchi_enabled = not self.tamagotchi_enabled
 
-        # Save the new state to .env file
+        # Save the new state to state.json
         import os
 
         new_value = "true" if self.tamagotchi_enabled else "false"
-        success = self._update_env_file("TAMAGOTCHI_ENABLED", new_value)
+        success = self._update_state_file("TAMAGOTCHI_ENABLED", new_value)
 
         status = "enabled" if self.tamagotchi_enabled else "disabled"
         emoji = "🐣" if self.tamagotchi_enabled else "💤"
@@ -2566,43 +2570,79 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             logger.info(
                 f"Tamagotchi responses toggled to {status} by {sender} (but .env update failed)"
             )
-            response = f"{emoji} Tamagotchi responses are now {status} (session only - .env update failed)."
+            response = f"{emoji} Tamagotchi responses are now {status} (session only - state.json update failed)."
 
         self._send_response(server, target, response)
         logger.info(f"{sender} toggled tamagotchi to {status}", server.config.name)
 
         return response
 
-    def _update_env_file(self, key: str, value: str) -> bool:
-        """Update a key-value pair in the .env file. Creates the file if it doesn't exist."""
-        env_file = ".env"
+    def _update_state_file(self, key: str, value: str) -> bool:
+        """Update a key-value pair in state.json instead of .env file."""
+        import json
+
+        state_file = os.path.join(PROJECT_ROOT, "data", "state.json")
         try:
-            if not os.path.exists(env_file):
-                with open(env_file, "w", encoding="utf-8") as f:
-                    f.write("")
+            # Load existing state.json
+            if os.path.exists(state_file):
+                with open(state_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            else:
+                data = {"config": {}, "state": {}}
 
-            with open(env_file, "r", encoding="utf-8") as f:
-                lines = f.readlines()
+            # Update the config section
+            # Convert key to lowercase for state.json (TAMAGOTCHI_ENABLED -> tamagotchi_enabled)
+            config_key = key.lower()
+            # Convert value to boolean if it's true/false string
+            if value.lower() in ("true", "false"):
+                config_value = value.lower() == "true"
+            else:
+                config_value = value
 
-            key_found = False
-            for i, line in enumerate(lines):
-                stripped = line.strip()
-                if stripped.startswith(f"{key}=") or stripped.startswith(f"#{key}="):
-                    lines[i] = f"{key}={value}\n"
-                    key_found = True
+            config_section = data["config"] if "config" in data else data
+            config_section[config_key] = config_value
+
+            # Save back to state.json
+            with open(state_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+
+            # Also update os.environ for runtime
+            os.environ[key] = value
+
+            return True
+
+        except (IOError, json.JSONDecodeError) as e:
+            logger.error(f"Could not update state.json file: {e}")
+            return False
+
+    def _update_env_file(self, key: str, value: str) -> bool:
+        """Update or add a key-value pair in the current working directory .env."""
+        env_file = os.path.join(os.getcwd(), ".env")
+        try:
+            lines = []
+            if os.path.exists(env_file):
+                with open(env_file, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+
+            new_line = f"{key}={value}\n"
+            updated = False
+            for idx, line in enumerate(lines):
+                if line.split("=", 1)[0].strip() == key:
+                    lines[idx] = new_line
+                    updated = True
                     break
 
-            if not key_found:
-                lines.append(f"{key}={value}\n")
+            if not updated:
+                if lines and not lines[-1].endswith("\n"):
+                    lines[-1] += "\n"
+                lines.append(new_line)
 
             with open(env_file, "w", encoding="utf-8") as f:
                 f.writelines(lines)
 
             os.environ[key] = value
-
             return True
-
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Could not update .env file: {e}")
             return False
 

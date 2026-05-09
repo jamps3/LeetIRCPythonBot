@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import threading
 from typing import Callable, Optional
 
 import requests
@@ -34,19 +35,20 @@ CONFIG_STATE_FILE = os.path.normpath(
 
 DEFAULT_START_ID = 2830  # fallback
 
-CHECK_INTERVAL = 5 * 60  # 5 min
+CHECK_INTERVAL = 15 * 60  # 15 min
 
 
 # ----------------------------------------------------
 # Helpers
 # ----------------------------------------------------
-def load_existing_ids():
-    """Load previously saved releases from JSON_FILE."""
-    if not os.path.exists(JSON_FILE):
+def load_existing_ids(json_file: str = None):
+    """Load previously saved releases from a release JSON file."""
+    json_file = json_file or JSON_FILE
+    if not os.path.exists(json_file):
         return {}, set()
 
     try:
-        with open(JSON_FILE, "r", encoding="utf8") as f:
+        with open(json_file, "r", encoding="utf8") as f:
             data = json.load(f)
     except (json.JSONDecodeError, IOError):
         return {}, set()
@@ -169,6 +171,7 @@ class OtiedoteService:
 
         self.running = False
         self._monitor_task = None
+        self.thread: Optional[threading.Thread] = None
 
         self.latest_release = self._load_latest_release()
 
@@ -389,6 +392,45 @@ class OtiedoteService:
         self._monitor_task = asyncio.create_task(self._monitor_loop())
         logger.info("🟢 Otiedote monitor started")
 
+    async def run_until_stopped(self):
+        """Run the monitor in the current event loop until stopped."""
+        if self.running:
+            return
+
+        self.running = True
+        logger.info("🟢 Otiedote monitor started")
+        try:
+            await self._monitor_loop()
+        finally:
+            self.running = False
+            logger.info("🔴 Otiedote monitor stopped")
+
+    def start_background(self):
+        """Start monitoring in a dedicated daemon thread."""
+        if self.thread and self.thread.is_alive():
+            return
+
+        self.thread = threading.Thread(
+            target=self._run_background_loop,
+            name="OtiedoteMonitor",
+            daemon=True,
+        )
+        self.thread.start()
+
+    def _run_background_loop(self):
+        try:
+            asyncio.run(self.run_until_stopped())
+        except Exception as e:
+            logger.error(f"Otiedote background monitor stopped unexpectedly: {e}")
+
+    def stop_background(self, timeout: float = 30.0):
+        """Stop a background-thread monitor."""
+        self.running = False
+        if self.thread and self.thread.is_alive():
+            self.thread.join(timeout=timeout)
+            if self.thread.is_alive():
+                logger.warning("Otiedote monitor thread did not stop cleanly")
+
     async def stop(self):
         self.running = False
         if self._monitor_task:
@@ -398,40 +440,23 @@ class OtiedoteService:
             except asyncio.CancelledError:
                 pass
 
+        self.stop_background(timeout=30.0)
+
         logger.info("🔴 Otiedote monitor stopped")
 
     # ---------------- Main loop ----------------
     async def _monitor_loop(self):
-        id_map, existing_ids = load_existing_ids()
-        releases = list(id_map.values())
-        next_id = max(self.latest_release + 1, DEFAULT_START_ID)
-
         while self.running:
             try:
-                release = fetch_release(next_id)
-                if release and release["id"] not in existing_ids:
-
-                    # Add to memory
-                    releases.append(release)
-                    existing_ids.add(release["id"])
-
-                    # Notify bot with full release data
-                    self.callback(release)
-
-                    # Save entire JSON list
-                    try:
-                        with open(self.json_file, "w", encoding="utf8") as f:
-                            json.dump(releases, f, ensure_ascii=False, indent=2)
-                    except Exception as e:
-                        logger.warning(f"Failed to save releases JSON: {e}")
-
-                    # Save state
-                    self.latest_release = release["id"]
-                    self._save_latest_release(self.latest_release)
-
+                new_releases = self.check_new_releases()
+                for release in new_releases:
                     logger.info(f"New Otiedote #{release['id']}: {release['title']}")
-
-                next_id += 1
+                    try:
+                        self.callback(release)
+                    except Exception as e:
+                        logger.error(
+                            f"Error in Otiedote callback for #{release['id']}: {e}"
+                        )
 
             except Exception as e:
                 logger.error(f"Error in Otiedote loop: {e}")
@@ -461,8 +486,55 @@ class OtiedoteService:
         Returns:
             List of otiedote entries, or empty list if no data available.
         """
-        id_map, _ = load_existing_ids()
+        id_map, _ = load_existing_ids(self.json_file)
         return list(id_map.values())
+
+    def _save_releases(self, releases: list) -> None:
+        os.makedirs(os.path.dirname(self.json_file), exist_ok=True)
+        releases.sort(key=lambda x: x["id"])
+        with open(self.json_file, "w", encoding="utf8") as f:
+            json.dump(releases, f, ensure_ascii=False, indent=2)
+
+    def check_new_releases(
+        self, max_attempts: int = 10, max_releases: int = 20
+    ) -> list:
+        """Check for newly published releases without skipping unpublished IDs."""
+        self.latest_release = self._load_latest_release()
+        starting_latest = self.latest_release
+        id_map, existing_ids = load_existing_ids(self.json_file)
+        releases = list(id_map.values())
+        new_releases = []
+
+        next_id = max(self.latest_release + 1, DEFAULT_START_ID)
+        misses = 0
+
+        while misses < max_attempts and len(new_releases) < max_releases:
+            logger.info(f"Checking Otiedote release #{next_id}")
+            release = fetch_release(next_id)
+
+            if release:
+                if release["id"] not in existing_ids:
+                    releases.append(release)
+                    existing_ids.add(release["id"])
+                    new_releases.append(release)
+
+                self.latest_release = max(self.latest_release, release["id"])
+                misses = 0
+            else:
+                misses += 1
+
+            next_id += 1
+
+        if new_releases:
+            try:
+                self._save_releases(releases)
+            except Exception as e:
+                logger.warning(f"Failed to save releases JSON: {e}")
+
+        if new_releases or self.latest_release != starting_latest:
+            self._save_latest_release(self.latest_release)
+
+        return new_releases
 
     def fetch_next_release(self) -> Optional[dict]:
         """Manually fetch the next release after the current latest one."""
@@ -484,13 +556,13 @@ class OtiedoteService:
                 self._save_latest_release(self.latest_release)
 
                 # Add to JSON file
-                id_map, existing_ids = load_existing_ids()
+                id_map, existing_ids = load_existing_ids(self.json_file)
                 releases = list(id_map.values())
-                releases.append(release)
+                if release["id"] not in existing_ids:
+                    releases.append(release)
 
                 try:
-                    with open(self.json_file, "w", encoding="utf8") as f:
-                        json.dump(releases, f, ensure_ascii=False, indent=2)
+                    self._save_releases(releases)
                 except Exception as e:
                     logger.warning(f"Failed to save releases JSON: {e}")
 
@@ -518,8 +590,8 @@ class OtiedoteService:
         """
         import time
 
-        releases = []
-        existing_ids = set()
+        id_map, existing_ids = load_existing_ids(self.json_file)
+        releases = list(id_map.values())
         next_id = start_id
         fetched_count = 0
         consecutive_failures = 0
@@ -535,10 +607,11 @@ class OtiedoteService:
                 release = fetch_release(next_id)
 
                 if release:
-                    releases.append(release)
-                    existing_ids.add(release["id"])
+                    if release["id"] not in existing_ids:
+                        releases.append(release)
+                        existing_ids.add(release["id"])
+                        fetched_count += 1
                     consecutive_failures = 0
-                    fetched_count += 1
 
                     if fetched_count % 50 == 0:
                         logger.info(
@@ -557,17 +630,13 @@ class OtiedoteService:
                 consecutive_failures += 1
                 next_id += 1
 
-        if releases:
+        if fetched_count:
             # Sort by ID
             releases.sort(key=lambda x: x["id"])
 
             # Save to JSON file
             try:
-                # Ensure data directory exists
-                os.makedirs(os.path.dirname(self.json_file), exist_ok=True)
-
-                with open(self.json_file, "w", encoding="utf8") as f:
-                    json.dump(releases, f, ensure_ascii=False, indent=2)
+                self._save_releases(releases)
 
                 logger.info(f"Saved {len(releases)} releases to {self.json_file}")
             except Exception as e:
@@ -588,16 +657,27 @@ class OtiedoteService:
 
             return {
                 "success": True,
-                "count": len(releases),
+                "count": fetched_count,
                 "latest_id": latest_id,
                 "start_id": start_id,
+                "total_count": len(releases),
             }
-        else:
+
+        if releases:
+            latest_id = max(r["id"] for r in releases)
             return {
-                "success": False,
+                "success": True,
                 "count": 0,
-                "error": "No releases found. The website may be unavailable or the start_id is too high.",
+                "latest_id": latest_id,
+                "start_id": start_id,
+                "total_count": len(releases),
             }
+
+        return {
+            "success": False,
+            "count": 0,
+            "error": "No releases found. The website may be unavailable or the start_id is too high.",
+        }
 
 
 # Factory

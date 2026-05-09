@@ -5,9 +5,10 @@ Provides weather information using OpenWeatherMap API.
 """
 
 import random
+import time
 import urllib.parse
-from datetime import datetime
-from typing import Any, Dict, Optional
+from datetime import datetime, timedelta
+from typing import Any, Dict, Optional, Tuple
 
 import requests
 

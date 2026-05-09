@@ -47,6 +47,7 @@ class CommandContext:
     is_private: bool = False  # True if sent via private message
     is_console: bool = False  # True if executed from console
     server_name: str = ""  # Server identifier
+    server: Any = None  # Server object (for IRC commands)
 
     @property
     def args_text(self) -> str:
@@ -549,6 +550,21 @@ async def process_command_message(
     context.command = command_name
     context.args = args
     context.raw_message = raw_message
+
+    # Check if command is banned on this server
+    banned_commands = []
+    if not context.is_console and context.server:
+        banned_commands = getattr(
+            getattr(context.server, "config", None), "banned_commands", []
+        )
+        if not isinstance(banned_commands, (list, tuple, set)):
+            banned_commands = []
+
+    if command_name in banned_commands:
+        logger.debug(
+            f"Command '{command_name}' is banned on server '{context.server_name}'"
+        )
+        return None
 
     # Execute the command
     registry = get_command_registry()

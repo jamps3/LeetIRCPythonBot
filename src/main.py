@@ -185,13 +185,24 @@ def setup_environment():
         )
 
     # Get bot name from config (which loads from state.json or runs setup)
-    from config import get_config
+    from config import get_config, get_config_manager
 
     config = get_config()
     bot_name = config.name
 
-    # Server configuration check is now handled by config loading
-    # The config loader will run interactive setup if no servers are configured
+    # Check if servers are configured, run setup if not
+    if not config.servers:
+        if sys.stdin.isatty():
+            main_logger.info("No servers configured, running interactive setup...")
+            config_manager = get_config_manager()
+            config_manager._run_interactive_setup("data/state.json")
+            # Reload config after setup
+            config = get_config()
+        else:
+            main_logger.error(
+                "No servers configured in state.json, and not running interactively. Please run the bot interactively to set up servers."
+            )
+            return 1
 
     return bot_name
 

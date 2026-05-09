@@ -89,6 +89,7 @@ async def process_irc_command(
         is_private=is_private,
         is_console=False,
         server_name=bot_functions.get("server_name", "unknown"),
+        server=irc_connection,
     )
 
     # Add IRC connection to bot_functions for admin commands
@@ -206,6 +207,7 @@ async def process_console_command_async(
         target=None,
         is_private=False,
         is_console=True,
+        server=None,
         server_name="console",
     )
 

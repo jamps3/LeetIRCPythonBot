@@ -305,9 +305,9 @@ def test_update_env_file_add_and_update(tmp_path, monkeypatch, manager):
 
 
 def test_toggle_tamagotchi_and_set_quit_message(monkeypatch, manager):
-    # Stub _update_env_file to True
+    # Stub _update_state_file to True
     monkeypatch.setattr(
-        manager.message_handler, "_update_env_file", lambda k, v: True, raising=True
+        manager.message_handler, "_update_state_file", lambda k, v: True, raising=True
     )
     # Capture responses sent
     sent = []
