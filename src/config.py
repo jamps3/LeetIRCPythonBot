@@ -14,6 +14,7 @@ if _project_root not in sys.path:
 from dotenv import load_dotenv  # noqa: E402
 
 from src.logger import get_logger  # noqa: E402
+from src.state_utils import load_json_file, save_json_atomic  # noqa: E402
 
 logger = get_logger("Config")
 
@@ -365,21 +366,16 @@ class ConfigManager:
             updated = True
         if updated:
             state_file = os.path.join(PROJECT_ROOT, "data", "state.json")
-            full_state = {}
-            if os.path.exists(state_file):
-                try:
-                    with open(state_file, "r", encoding="utf-8") as f:
-                        full_state = json.load(f)
-                except Exception:
-                    full_state = {}
+            full_state = load_json_file(state_file, default=dict)
+            if not isinstance(full_state, dict):
+                full_state = {}
 
             if "config" in full_state:
                 full_state["config"] = state_config
             else:
                 full_state.update(state_config)
 
-            with open(state_file, "w", encoding="utf-8") as f:
-                json.dump(full_state, f, indent=2, ensure_ascii=False)
+            save_json_atomic(state_file, full_state)
             logger.info("Updated state.json with default title settings")
 
         return config
@@ -686,8 +682,7 @@ class ConfigManager:
         }
 
         try:
-            with open(state_file, "w", encoding="utf-8") as f:
-                json.dump(state_data, f, indent=2, ensure_ascii=False)
+            save_json_atomic(state_file, state_data)
             print(f"\n✅ Configuration saved to {state_file}")
             print("🔑 Add your API keys to .env file (see .env.sample)")
         except Exception as e:
@@ -849,8 +844,7 @@ class ConfigManager:
             "drink_words": self.config.drink_words,
         }
 
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(config_dict, f, indent=2, ensure_ascii=False)
+        save_json_atomic(file_path, config_dict, update_timestamp=False)
 
 
 # Global configuration manager instance

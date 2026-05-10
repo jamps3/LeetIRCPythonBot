@@ -546,7 +546,7 @@ class BotManager:
         location = release.get("location", "")
         url = release.get("url", "")
 
-        announcement = f"📢 Uusi Onnettomuustiedote! #{release['id']}: {title}"
+        announcement = f"📢 #{release['id']}: {title}"
         if location:
             announcement += f" | Paikka: {location}"
         if url:

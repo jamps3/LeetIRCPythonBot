@@ -4,10 +4,10 @@ Latency Tracker Mixin
 Provides IRC latency measurement and tracking functionality.
 """
 
-import json
-import os
 import time
 from typing import Any, Dict, Optional
+
+from state_utils import load_json_file, save_json_atomic
 
 
 class LatencyTrackerMixin:
@@ -73,28 +73,31 @@ class LatencyTrackerMixin:
     def _load_lag_storage(self) -> Dict[tuple, float]:
         """Load lag storage from data file."""
         try:
-            if os.path.exists(self.LAG_STORAGE_FILE):
-                with open(self.LAG_STORAGE_FILE, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    # Convert dict keys from strings back to tuples
-                    return {
-                        (k.split("|")[0], k.split("|")[1]): v
-                        for k, v in data.items()
-                        if "|" in k
-                    }
-        except (json.JSONDecodeError, IOError, KeyError):
+            data = load_json_file(self.LAG_STORAGE_FILE, default=dict)
+            if not isinstance(data, dict):
+                return {}
+            # Convert dict keys from strings back to tuples
+            return {
+                (k.split("|")[0], k.split("|")[1]): v
+                for k, v in data.items()
+                if "|" in k
+            }
+        except KeyError:
             pass
         return {}
 
     def _save_lag_storage(self):
         """Save lag storage to data file."""
         try:
-            os.makedirs(os.path.dirname(self.LAG_STORAGE_FILE), exist_ok=True)
             # Convert tuple keys to strings for JSON serialization
             data = {f"{k[0]}|{k[1]}": v for k, v in self._lag_storage.items()}
-            with open(self.LAG_STORAGE_FILE, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
-        except IOError:
+            save_json_atomic(
+                self.LAG_STORAGE_FILE,
+                data,
+                update_timestamp=False,
+                ensure_ascii=True,
+            )
+        except OSError:
             pass
 
     def _store_lag(self, server_name: str, nick: str, lag_ms: float):

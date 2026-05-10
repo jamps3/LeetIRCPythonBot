@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 
 import logger
 from config import OTIEDOTE_FILE, STATE_FILE
+from state_utils import load_json_file, save_json_atomic, update_json_file
 
 BASE_URL = "https://otiedote.fi/"
 RELEASE_URL_TEMPLATE = "https://otiedote.fi/release_view/{}"
@@ -238,151 +239,57 @@ class OtiedoteService:
 
     def _save_subscribers(self, subscribers: list) -> None:
         """Save subscribers list to state.json."""
-        data = {}
-
-        # Load existing state if present
-        if os.path.exists(self.state_file):
-            try:
-                with open(self.state_file, "r", encoding="utf8") as f:
-                    data = json.load(f)
-            except Exception:
-                data = {}
-
-        data.setdefault("otiedote", {})
-        data["otiedote"]["subscribers"] = subscribers
-
-        # Atomic write with temporary file
-        import tempfile
-        from datetime import datetime
-
-        temp_path = None
         try:
-            target_dir = os.path.dirname(self.state_file) or "."
-            os.makedirs(target_dir, exist_ok=True)
-
-            data["last_updated"] = datetime.now().isoformat()
-
-            with tempfile.NamedTemporaryFile(
-                mode="w", encoding="utf8", dir=target_dir, delete=False, suffix=".json"
-            ) as temp_file:
-                json.dump(data, temp_file, ensure_ascii=False, indent=2)
-                temp_path = temp_file.name
-
-            os.replace(temp_path, self.state_file)
-        except Exception:
-            if temp_path and os.path.exists(temp_path):
-                try:
-                    os.unlink(temp_path)
-                except Exception:
-                    pass
+            update_json_file(
+                self.state_file,
+                lambda data: self._with_otiedote_value(
+                    data, "subscribers", subscribers
+                ),
+                default=dict,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save subscribers: {e}")
 
     # ---------------- State handling ----------------
     def _load_latest_release(self) -> int:
         """Load last processed ID from state.json."""
-        if not os.path.exists(self.state_file):
+        data = load_json_file(self.state_file, default=dict)
+        if not isinstance(data, dict):
             return DEFAULT_START_ID - 1
-
-        try:
-            with open(self.state_file, "r", encoding="utf8") as f:
-                data = json.load(f)
-
-            return data.get("otiedote", {}).get("latest_release", DEFAULT_START_ID - 1)
-
-        except Exception:
-            return DEFAULT_START_ID - 1
+        return data.get("otiedote", {}).get("latest_release", DEFAULT_START_ID - 1)
 
     def _load_state(self) -> dict:
         """Load full state including filters from state.json."""
-        if not os.path.exists(self.state_file):
-            return {"otiedote": {"latest_release": 0, "filters": {}}}
-
-        try:
-            with open(self.state_file, "r", encoding="utf8") as f:
-                data = json.load(f)
-            return data
-        except Exception:
-            return {"otiedote": {"latest_release": 0, "filters": {}}}
+        data = load_json_file(self.state_file, default=self._get_default_state)
+        return data if isinstance(data, dict) else self._get_default_state()
 
     def _save_state(self, state: dict) -> None:
         """Save full state including filters to state.json."""
-        import tempfile
-        from datetime import datetime
-
-        temp_path = None
         try:
-            # Ensure target directory exists
-            target_dir = os.path.dirname(self.state_file) or "."
-            os.makedirs(target_dir, exist_ok=True)
-
-            # Update timestamp
-            state["last_updated"] = datetime.now().isoformat()
-
-            # Save to a unique temporary file in the same directory, then rename atomically
-            with tempfile.NamedTemporaryFile(
-                mode="w", encoding="utf8", dir=target_dir, delete=False, suffix=".json"
-            ) as temp_file:
-                json.dump(state, temp_file, ensure_ascii=False, indent=2)
-                temp_path = temp_file.name
-
-            # Atomic rename
-            os.replace(temp_path, self.state_file)
-        except Exception:
-            # Clean up temp file on error
-            if temp_path and os.path.exists(temp_path):
-                try:
-                    os.unlink(temp_path)
-                except Exception:
-                    pass
+            save_json_atomic(self.state_file, state)
+        except Exception as e:
+            logger.warning(f"Failed to save state: {e}")
 
     def _save_latest_release(self, id_val: int) -> None:
         """Update state.json cleanly with atomic writes."""
-        data = {}
-
-        # Load existing state if present
-        if os.path.exists(self.state_file):
-            try:
-                with open(self.state_file, "r", encoding="utf8") as f:
-                    data = json.load(f)
-            except Exception:
-                data = {}
-
-        data.setdefault("otiedote", {})
-        data["otiedote"]["latest_release"] = id_val
-
-        # Atomic write with temporary file
-        import tempfile
-        from datetime import datetime
-
-        temp_path = None
         try:
-            # Ensure target directory exists
-            target_dir = os.path.dirname(self.state_file) or "."
-            os.makedirs(target_dir, exist_ok=True)
-
-            # Update timestamp
-            data["last_updated"] = datetime.now().isoformat()
-
-            # Save to a unique temporary file in the same directory, then rename atomically
-            with tempfile.NamedTemporaryFile(
-                "w", delete=False, dir=target_dir, suffix=".tmp", encoding="utf8"
-            ) as tmp:
-                temp_path = tmp.name
-                json.dump(data, tmp, ensure_ascii=False, indent=2)
-                tmp.flush()
-                os.fsync(tmp.fileno())
-
-            # Atomic replace
-            os.replace(temp_path, self.state_file)
-            temp_path = None  # consumed
+            update_json_file(
+                self.state_file,
+                lambda data: self._with_otiedote_value(data, "latest_release", id_val),
+                default=dict,
+            )
 
         except Exception as e:
             logger.warning(f"Failed to save state: {e}")
-            # Clean up temporary file if it exists
-            try:
-                if temp_path and os.path.exists(temp_path):
-                    os.remove(temp_path)
-            except Exception:
-                pass
+
+    @staticmethod
+    def _with_otiedote_value(data: dict, key: str, value):
+        """Return state data with one otiedote field updated."""
+        if not isinstance(data, dict):
+            data = {}
+        data.setdefault("otiedote", {})
+        data["otiedote"][key] = value
+        return data
 
     # ---------------- Public API ----------------
     async def start(self):
@@ -490,10 +397,8 @@ class OtiedoteService:
         return list(id_map.values())
 
     def _save_releases(self, releases: list) -> None:
-        os.makedirs(os.path.dirname(self.json_file), exist_ok=True)
         releases.sort(key=lambda x: x["id"])
-        with open(self.json_file, "w", encoding="utf8") as f:
-            json.dump(releases, f, ensure_ascii=False, indent=2)
+        save_json_atomic(self.json_file, releases, update_timestamp=False)
 
     def check_new_releases(
         self, max_attempts: int = 10, max_releases: int = 20

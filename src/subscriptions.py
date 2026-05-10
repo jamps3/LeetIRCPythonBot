@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Tuple
 
 import logger
 from config import get_config
+from state_utils import load_json_file, save_json_atomic
 
 # Get state file from config (subscriptions stored in state.json)
 config = get_config()
@@ -144,43 +145,17 @@ def save_subscriptions(data: Dict[str, Dict[str, List[str]]]) -> bool:
         cleaned_data = validate_and_clean_data(data)
 
         # Load existing state.json data to preserve other sections
-        existing_data = {}
-        if os.path.exists(SUBSCRIBERS_FILE):
-            try:
-                with open(SUBSCRIBERS_FILE, "r", encoding="utf-8") as f:
-                    existing_data = json.load(f)
-            except (json.JSONDecodeError, IOError):
-                pass
-
-        # Create backup if file exists
-        if os.path.exists(SUBSCRIBERS_FILE):
-            backup_path = f"{SUBSCRIBERS_FILE}.backup"
-            try:
-                shutil.copy2(SUBSCRIBERS_FILE, backup_path)
-            except Exception as backup_error:
-                logger.error(f"Error: Could not create backup: {backup_error}")
+        existing_data = load_json_file(SUBSCRIBERS_FILE, default=dict)
+        if not isinstance(existing_data, dict):
+            existing_data = {}
 
         # Update the subscriptions section
         existing_data["subscriptions"] = cleaned_data
 
-        # Write to temporary file first for atomic operation
-        temp_file = f"{SUBSCRIBERS_FILE}.tmp"
-        with open(temp_file, "w", encoding="utf-8") as f:
-            json.dump(existing_data, f, ensure_ascii=False, indent=2)
-
-        # Atomic rename
-        os.replace(temp_file, SUBSCRIBERS_FILE)
-        return True
+        return save_json_atomic(SUBSCRIBERS_FILE, existing_data, backup=True)
 
     except Exception as e:
         logger.error(f"Error saving subscriptions: {e}")
-        # Clean up temp file if it exists
-        temp_file = f"{SUBSCRIBERS_FILE}.tmp"
-        if os.path.exists(temp_file):
-            try:
-                os.remove(temp_file)
-            except Exception:
-                pass
         return False
 
 

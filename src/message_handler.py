@@ -31,6 +31,7 @@ from handlers.url_handler import UrlHandlerMixin
 from lemmatizer import Lemmatizer
 from logger import get_logger
 from server import Server
+from state_utils import update_json_file
 from tamagotchi import TamagotchiBot
 from word_tracking import DataManager, DrinkTracker, GeneralWords, WordAssociations
 from word_tracking.bac_tracker import BACTracker
@@ -2606,39 +2607,31 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
     def _update_state_file(self, key: str, value: str) -> bool:
         """Update a key-value pair in state.json instead of .env file."""
-        import json
-
         state_file = os.path.join(PROJECT_ROOT, "data", "state.json")
         try:
-            # Load existing state.json
-            if os.path.exists(state_file):
-                with open(state_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-            else:
-                data = {"config": {}, "state": {}}
-
-            # Update the config section
-            # Convert key to lowercase for state.json (TAMAGOTCHI_ENABLED -> tamagotchi_enabled)
             config_key = key.lower()
-            # Convert value to boolean if it's true/false string
             if value.lower() in ("true", "false"):
                 config_value = value.lower() == "true"
             else:
                 config_value = value
 
-            config_section = data["config"] if "config" in data else data
-            config_section[config_key] = config_value
+            def update_config(data):
+                if not isinstance(data, dict):
+                    data = {"config": {}, "state": {}}
+                config_section = data["config"] if "config" in data else data
+                config_section[config_key] = config_value
+                return data
 
-            # Save back to state.json
-            with open(state_file, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
+            update_json_file(
+                state_file, update_config, default=lambda: {"config": {}, "state": {}}
+            )
 
             # Also update os.environ for runtime
             os.environ[key] = value
 
             return True
 
-        except (IOError, json.JSONDecodeError) as e:
+        except Exception as e:
             logger.error(f"Could not update state.json file: {e}")
             return False
 

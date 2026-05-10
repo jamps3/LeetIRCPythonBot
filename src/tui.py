@@ -4,7 +4,6 @@ TUI implementation for LeetIRCPythonBot using urwid.
 The default interface. Use --console for the simple interface.
 """
 
-import json
 import os
 import time
 import warnings
@@ -15,6 +14,7 @@ import urwid
 
 import logger
 from config import AUTO_CONNECT, AUTO_RECONNECT, LOG_BUFFER_SIZE
+from state_utils import load_json_file, update_json_file
 
 # Suppress urwid deprecation warnings globally for this module
 warnings.filterwarnings("ignore", category=DeprecationWarning, module=".*urwid.*")
@@ -1969,20 +1969,22 @@ class TUIManager:
         try:
             state_file = os.path.join("data", "state.json")
             if os.path.exists(state_file):
-                with open(state_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
+                data = load_json_file(state_file, default=dict)
+                if not isinstance(data, dict):
+                    data = {}
 
                 # Check for TUI settings in state.json
                 tui_settings = data.get("tui", {})
                 default_wrap_mode = False
                 if "wrap_mode" not in tui_settings:
                     # Set default if not present
-                    tui_settings["wrap_mode"] = default_wrap_mode
-                    data["tui"] = tui_settings
-                    # Update last_updated timestamp
-                    data["last_updated"] = datetime.now().isoformat()
-                    with open(state_file, "w", encoding="utf-8") as f:
-                        json.dump(data, f, ensure_ascii=False, indent=2)
+                    update_json_file(
+                        state_file,
+                        lambda state: self._with_tui_wrap_mode(
+                            state, default_wrap_mode
+                        ),
+                        default=dict,
+                    )
 
                 WRAP_MODE = bool(tui_settings.get("wrap_mode", default_wrap_mode))
 
@@ -2010,24 +2012,11 @@ class TUIManager:
         """Save text wrapping mode to state.json."""
         try:
             state_file = os.path.join("data", "state.json")
-
-            # Load existing state
-            data = {}
-            if os.path.exists(state_file):
-                with open(state_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-            # Update TUI settings
-            if "tui" not in data:
-                data["tui"] = {}
-            data["tui"]["wrap_mode"] = WRAP_MODE
-
-            # Update last_updated timestamp
-            data["last_updated"] = datetime.now().isoformat()
-
-            # Save state
-            with open(state_file, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+            update_json_file(
+                state_file,
+                lambda state: self._with_tui_wrap_mode(state, WRAP_MODE),
+                default=dict,
+            )
 
         except Exception as e:
             self.add_log_entry(
@@ -2037,6 +2026,15 @@ class TUIManager:
                 f"Failed to save wrap mode to state.json: {e}",
                 "SYSTEM",
             )
+
+    @staticmethod
+    def _with_tui_wrap_mode(state, wrap_mode: bool):
+        """Return state data with TUI wrap mode updated."""
+        if not isinstance(state, dict):
+            state = {}
+        state.setdefault("tui", {})
+        state["tui"]["wrap_mode"] = wrap_mode
+        return state
 
     def toggle_console_logging(self):
         """Toggle between formatted TUI logs and raw console-style logs."""

@@ -4,6 +4,7 @@ Basic functionality tests for command modules.
 These tests verify that commands can be imported and called without complex mocking.
 """
 
+import asyncio
 import os
 import sys
 import unittest.mock as mock
@@ -344,7 +345,7 @@ class TestCommandExecution:
         console_context.args_text = "test message"
         console_context.args = ["test", "message"]
 
-        result = echo_command(console_context, mock_bot_functions)
+        result = asyncio.run(echo_command(console_context, mock_bot_functions))
         # Echo command should return a string or CommandResponse
         assert result is not None
 
@@ -356,7 +357,7 @@ class TestCommandExecution:
         console_context.args_text = ""
         console_context.args = []
 
-        result = echo_command(console_context, mock_bot_functions)
+        result = asyncio.run(echo_command(console_context, mock_bot_functions))
         # Echo command should return a string or CommandResponse
         assert result is not None
 

@@ -7,12 +7,12 @@ Creates a backup file from the last file.
 
 import json
 import os
-import shutil
 import socket
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from src.logger import get_logger
+from src.state_utils import save_json_atomic
 
 
 class DataManager:
@@ -122,43 +122,11 @@ class DataManager:
             data: Data to save
             backup: Whether to create a backup before saving
         """
-        temp_path = None
         try:
-            # Ensure target directory exists
-            target_dir = os.path.dirname(file_path) or "."
-            os.makedirs(target_dir, exist_ok=True)
-
-            # Create backup if requested and file exists
-            if backup and os.path.exists(file_path):
-                backup_path = f"{file_path}.backup"
-                shutil.copy2(file_path, backup_path)
-
-            # Update timestamp
-            data["last_updated"] = datetime.now().isoformat()
-
-            # Save to a unique temporary file in the same directory, then rename atomically
-            import tempfile
-
-            with tempfile.NamedTemporaryFile(
-                "w", delete=False, dir=target_dir, suffix=".tmp", encoding="utf-8"
-            ) as tmp:
-                temp_path = tmp.name
-                json.dump(data, tmp, indent=2, ensure_ascii=False)
-                tmp.flush()
-                os.fsync(tmp.fileno())
-
-            # Atomic replace
-            os.replace(temp_path, file_path)
-            temp_path = None  # consumed
+            save_json_atomic(file_path, data, backup=backup)
 
         except Exception as e:
             get_logger(__name__).error(f"Error saving {file_path}: {e}")
-            # Clean up temporary file if it exists
-            try:
-                if temp_path and os.path.exists(temp_path):
-                    os.remove(temp_path)
-            except Exception:
-                pass
 
     def get_server_name(self, irc_socket) -> str:
         """

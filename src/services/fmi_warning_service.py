@@ -6,8 +6,6 @@ via RSS feed and provides notifications for filtered locations.
 """
 
 import hashlib
-import json
-import os
 import re
 import threading
 import time
@@ -17,6 +15,7 @@ import feedparser
 
 from config import get_config
 from logger import log
+from state_utils import load_json_file, update_json_file
 
 
 class FMIWarningService:
@@ -190,95 +189,62 @@ class FMIWarningService:
 
     def _load_seen_hashes(self) -> Set[str]:
         """Load previously seen warning hashes from state file."""
-        if not os.path.exists(self.state_file):
-            return set()
-
-        try:
-            with open(self.state_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                # Support both legacy format and new nested format
-                if "fmi_warnings" in data:
-                    return set(data["fmi_warnings"].get("seen_hashes", []))
-                else:
-                    # Legacy format (last_warning.json)
-                    return set(data.get("seen_hashes", []))
-        except (json.JSONDecodeError, ValueError, IOError):
+        data = load_json_file(self.state_file, default=dict)
+        if not isinstance(data, dict):
             log(
                 "State file corrupted, resetting seen hashes",
                 level="WARNING",
                 context="FMI_WS",
             )
             return set()
+        if "fmi_warnings" in data:
+            return set(data["fmi_warnings"].get("seen_hashes", []))
+        return set(data.get("seen_hashes", []))
 
     def _save_seen_hashes(self, hashes: Set[str]) -> None:
         """Save seen warning hashes to state file."""
         try:
-            # Load existing data to preserve other sections
-            existing_data = {}
-            if os.path.exists(self.state_file):
-                try:
-                    with open(self.state_file, "r", encoding="utf-8") as f:
-                        existing_data = json.load(f)
-                except (json.JSONDecodeError, IOError):
-                    pass
-
-            # Ensure fmi_warnings section exists
-            if "fmi_warnings" not in existing_data:
-                existing_data["fmi_warnings"] = {}
-
-            # Update with new hashes
-            existing_data["fmi_warnings"]["seen_hashes"] = list(hashes)
-
-            with open(self.state_file, "w", encoding="utf-8") as f:
-                json.dump(existing_data, f, ensure_ascii=False, indent=2)
-        except IOError as e:
+            update_json_file(
+                self.state_file,
+                lambda data: self._with_fmi_value(data, "seen_hashes", list(hashes)),
+                default=dict,
+            )
+        except Exception as e:
             log(f"Error saving seen hashes: {e}", level="ERROR", context="FMI_WS")
 
     def _load_seen_data(self) -> List[dict]:
         """Load previously seen warning data for duplicate checking."""
-        if not os.path.exists(self.state_file):
-            return []
-
-        try:
-            with open(self.state_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                # Support both legacy format and new nested format
-                if "fmi_warnings" in data:
-                    return data["fmi_warnings"].get("seen_data", [])
-                else:
-                    # Legacy format (last_warning.json)
-                    return data.get("seen_data", [])
-        except (json.JSONDecodeError, ValueError, IOError):
+        data = load_json_file(self.state_file, default=dict)
+        if not isinstance(data, dict):
             log(
                 "State file corrupted, resetting seen data",
                 level="WARNING",
                 context="FMI_WS",
             )
             return []
+        if "fmi_warnings" in data:
+            return data["fmi_warnings"].get("seen_data", [])
+        return data.get("seen_data", [])
 
     def _save_seen_data(self, seen_data: List[dict]) -> None:
         """Save seen warning data to state file."""
         try:
-            # Load existing data to preserve other sections
-            existing_data = {}
-            if os.path.exists(self.state_file):
-                try:
-                    with open(self.state_file, "r", encoding="utf-8") as f:
-                        existing_data = json.load(f)
-                except (json.JSONDecodeError, IOError):
-                    pass
-
-            # Ensure fmi_warnings section exists
-            if "fmi_warnings" not in existing_data:
-                existing_data["fmi_warnings"] = {}
-
-            # Update with new seen data
-            existing_data["fmi_warnings"]["seen_data"] = seen_data
-
-            with open(self.state_file, "w", encoding="utf-8") as f:
-                json.dump(existing_data, f, ensure_ascii=False, indent=2)
-        except IOError as e:
+            update_json_file(
+                self.state_file,
+                lambda data: self._with_fmi_value(data, "seen_data", seen_data),
+                default=dict,
+            )
+        except Exception as e:
             log(f"Error saving seen data: {e}", level="ERROR", context="FMI_WS")
+
+    @staticmethod
+    def _with_fmi_value(data: dict, key: str, value):
+        """Return state data with one FMI warning field updated."""
+        if not isinstance(data, dict):
+            data = {}
+        data.setdefault("fmi_warnings", {})
+        data["fmi_warnings"][key] = value
+        return data
 
     def _normalize_title(self, title: str) -> str:
         """
