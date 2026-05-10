@@ -118,38 +118,40 @@ def scrape_batch(playwright, year, start_day, end_day, website_data):
 
                 type_class = type_div.get_attribute("class") or ""
 
-                # Map to categories
-                if "namedays-type-hevonen" in type_class or type_text == "Hevonen":
+                # Map to categories - prioritize type_text over class
+                type_text_cats = {
+                    "Hevonen": "hevonen",
+                    "Historiallinen": "historiallinen",
+                    "Suomalainen": "suomi",
+                    "Suomenruotsalainen": "ruotsi",
+                    "Saamelainen": "saame",
+                    "Ortodoksinen": "ortodoksi",
+                    "Virallinen": "official",
+                    "Epävirallinen": "unofficial",
+                    "Koira": "dogs",
+                    "Kissa": "cats",
+                }
+                if type_text in type_text_cats:
+                    cat = type_text_cats[type_text]
+                elif "namedays-type-hevonen" in type_class:
                     cat = "hevonen"
-                elif (
-                    "namedays-type-historiallinen" in type_class
-                    or type_text == "Historiallinen"
-                ):
+                elif "namedays-type-historiallinen" in type_class:
                     cat = "historiallinen"
-                elif "namedays-type-suomi" in type_class or type_text == "Suomalainen":
+                elif "namedays-type-suomi" in type_class:
                     cat = "suomi"
-                elif (
-                    "namedays-type-ruotsi" in type_class
-                    or type_text == "Suomenruotsalainen"
-                ):
+                elif "namedays-type-ruotsi" in type_class:
                     cat = "ruotsi"
-                elif "namedays-type-saame" in type_class or type_text == "Saamelainen":
+                elif "namedays-type-saame" in type_class:
                     cat = "saame"
-                elif "namedays-type-ortod" in type_class or type_text == "Ortodoksinen":
+                elif "namedays-type-ortod" in type_class:
                     cat = "ortodoksi"
-                elif (
-                    "namedays-type-virallinen" in type_class
-                    or type_text == "Virallinen"
-                ):
+                elif "namedays-type-virallinen" in type_class:
                     cat = "official"
-                elif (
-                    "namedays-type-epavirallinen" in type_class
-                    or type_text == "Epävirallinen"
-                ):
+                elif "namedays-type-epavirallinen" in type_class:
                     cat = "unofficial"
-                elif "namedays-type-koira" in type_class or type_text == "Koira":
+                elif "namedays-type-koira" in type_class:
                     cat = "dogs"
-                elif "namedays-type-kissa" in type_class or type_text == "Kissa":
+                elif "namedays-type-kissa" in type_class:
                     cat = "cats"
                 else:
                     continue
