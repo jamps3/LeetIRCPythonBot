@@ -43,7 +43,7 @@ def init_data():
 
 def scrape_batch(playwright, year, start_day, end_day, website_data):
     """Scrape a batch of days"""
-    start = date(year, start_day // 31 + 1, start_day % 31 + 1)
+    start = date(year, 1, 1) + timedelta(days=start_day)
     if start > date(year, 12, 31):
         return False
     end = min(date(year, 12, 31), start + timedelta(days=BATCH_SIZE))
