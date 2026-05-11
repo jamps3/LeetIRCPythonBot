@@ -193,13 +193,15 @@ if __name__ == "__main__":
     all_dates = set()
     for cat in website_data:
         all_dates.update(website_data[cat].keys())
-    start_day = len(all_dates)
-    print(f"Starting from day {start_day}")
+    batch_start = (
+        0  # Always start from beginning, since incremental save handles progress
+    )
+    print(f"Loaded {len(all_dates)} existing dates")
 
     with sync_playwright() as p:
-        while start_day < total_days:
+        while batch_start < total_days:
             success = scrape_batch(
-                p, year, start_day, start_day + BATCH_SIZE, website_data
+                p, year, batch_start, batch_start + BATCH_SIZE, website_data
             )
             if not success:
                 print("Batch failed, retrying...")
@@ -213,11 +215,12 @@ if __name__ == "__main__":
             all_dates = set()
             for cat in website_data:
                 all_dates.update(website_data[cat].keys())
-            start_day = len(all_dates)
-            print(f"Progress: {start_day}/{total_days} days scraped")
+            print(
+                f"Progress: {len(all_dates)}/{total_days} days scraped (batch {batch_start}-{min(total_days-1, batch_start + BATCH_SIZE-1)})"
+            )
 
-            if start_day >= total_days:
-                break
+            # Increment batch
+            batch_start += BATCH_SIZE
 
     print(f"\nScraped data saved to {OUTPUT_FILE}")
     print("Categories scraped:")
