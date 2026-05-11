@@ -152,7 +152,12 @@ def save_subscriptions(data: Dict[str, Dict[str, List[str]]]) -> bool:
         # Update the subscriptions section
         existing_data["subscriptions"] = cleaned_data
 
-        return save_json_atomic(SUBSCRIBERS_FILE, existing_data, backup=True)
+        return save_json_atomic(
+            SUBSCRIBERS_FILE,
+            existing_data,
+            backup=True,
+            update_timestamp=False,
+        )
 
     except Exception as e:
         logger.error(f"Error saving subscriptions: {e}")

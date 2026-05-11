@@ -6,6 +6,8 @@ via RSS feed and provides notifications for filtered locations.
 """
 
 import hashlib
+import json
+import os
 import re
 import threading
 import time
@@ -15,7 +17,6 @@ import feedparser
 
 from config import get_config
 from logger import log
-from state_utils import load_json_file, update_json_file
 
 
 class FMIWarningService:
@@ -189,13 +190,8 @@ class FMIWarningService:
 
     def _load_seen_hashes(self) -> Set[str]:
         """Load previously seen warning hashes from state file."""
-        data = load_json_file(self.state_file, default=dict)
+        data = self._load_state_data("seen hashes")
         if not isinstance(data, dict):
-            log(
-                "State file corrupted, resetting seen hashes",
-                level="WARNING",
-                context="FMI_WS",
-            )
             return set()
         if "fmi_warnings" in data:
             return set(data["fmi_warnings"].get("seen_hashes", []))
@@ -204,23 +200,18 @@ class FMIWarningService:
     def _save_seen_hashes(self, hashes: Set[str]) -> None:
         """Save seen warning hashes to state file."""
         try:
-            update_json_file(
-                self.state_file,
-                lambda data: self._with_fmi_value(data, "seen_hashes", list(hashes)),
-                default=dict,
+            data = self._load_state_data("seen hashes", log_corrupt=False)
+            self._save_state_data(
+                self._with_fmi_value(data, "seen_hashes", list(hashes))
             )
         except Exception as e:
+            print(f"Error saving seen hashes: {e}")
             log(f"Error saving seen hashes: {e}", level="ERROR", context="FMI_WS")
 
     def _load_seen_data(self) -> List[dict]:
         """Load previously seen warning data for duplicate checking."""
-        data = load_json_file(self.state_file, default=dict)
+        data = self._load_state_data("seen data")
         if not isinstance(data, dict):
-            log(
-                "State file corrupted, resetting seen data",
-                level="WARNING",
-                context="FMI_WS",
-            )
             return []
         if "fmi_warnings" in data:
             return data["fmi_warnings"].get("seen_data", [])
@@ -229,13 +220,39 @@ class FMIWarningService:
     def _save_seen_data(self, seen_data: List[dict]) -> None:
         """Save seen warning data to state file."""
         try:
-            update_json_file(
-                self.state_file,
-                lambda data: self._with_fmi_value(data, "seen_data", seen_data),
-                default=dict,
-            )
+            data = self._load_state_data("seen data", log_corrupt=False)
+            self._save_state_data(self._with_fmi_value(data, "seen_data", seen_data))
         except Exception as e:
+            print(f"Error saving seen data: {e}")
             log(f"Error saving seen data: {e}", level="ERROR", context="FMI_WS")
+
+    def _load_state_data(self, reset_target: str, log_corrupt: bool = True) -> dict:
+        """Load state data, reporting corrupt JSON for FMI warning state."""
+        if not self.state_file or not os.path.exists(self.state_file):
+            return {}
+
+        try:
+            with open(self.state_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except json.JSONDecodeError:
+            if log_corrupt:
+                message = f"State file corrupted, resetting {reset_target}"
+                print(message)
+                log(message, level="WARNING", context="FMI_WS")
+            return {}
+        except OSError:
+            return {}
+
+        return data if isinstance(data, dict) else {}
+
+    def _save_state_data(self, data: dict) -> None:
+        """Save FMI warning state."""
+        target_dir = os.path.dirname(self.state_file)
+        if target_dir:
+            os.makedirs(target_dir, exist_ok=True)
+
+        with open(self.state_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
     @staticmethod
     def _with_fmi_value(data: dict, key: str, value):

@@ -346,6 +346,39 @@ def np_command(context: CommandContext, bot_functions):
     """
     import json
 
+    def parse_month_day(date_str):
+        parts = date_str.split("-")
+        try:
+            if len(parts) == 2:
+                month, day = parts
+            elif len(parts) == 3:
+                _, month, day = parts
+            else:
+                return None
+            return int(month), int(day)
+        except ValueError:
+            return None
+
+    category_map = {
+        "ruotsi": "Ruotsiksi",
+        "saame": "Saameksi",
+        "ortodoksi": "Ortodoksit",
+        "hevonen": "Hevoset",
+        "historiallinen": "Historialliset",
+    }
+
+    def other_names_for_date(month, day):
+        month_day_date = f"{month:02d}-{day:02d}"
+        results = []
+        for category, display_name in category_map.items():
+            category_dates = others_data.get(category)
+            if not isinstance(category_dates, dict):
+                continue
+            names = category_dates.get(month_day_date)
+            if names and names != [": -"]:
+                results.append((display_name, names))
+        return results
+
     # Try to load nimipaivat.json
     np_file = os.path.join("data", "nimipaivat.json")
     if not os.path.exists(np_file):
@@ -424,52 +457,33 @@ def np_command(context: CommandContext, bot_functions):
                 if cats and cats != [": -"]:
                     parts.append(f"Kissat: {', '.join(cats)}")
 
-                    # Add other name days (Swedish, Sami, Orthodox, Hevonen, Historiallinen)
-                    # Data structure: {"ruotsi": {"03-10": ["Gerhard"]}, "saame": {...}, ...}
-                    month_day_date = f"{today_month:02d}-{today_day:02d}"
+                for display_name, names in other_names_for_date(today_month, today_day):
+                    parts.append(f"{display_name}: {', '.join(names)}")
 
-                    # Map category keys to display names
-                    category_map = {
-                        "ruotsi": "Ruotsiksi",
-                        "saame": "Saameksi",
-                        "ortodoksi": "Ortodoksit",
-                        "hevonen": "Hevoset",
-                        "historiallinen": "Historialliset",
-                    }
+                # Ensure we always have at least the official names
+                if not parts and official:
+                    parts.append(f"Viralliset: {', '.join(official)}")
 
-                    for category, display_name in category_map.items():
-                        if category in others_data:
-                            category_dates = others_data[category]
-                            # Find matching date (now keys are just "MM-DD")
-                            if month_day_date in category_dates:
-                                names = category_dates[month_day_date]
-                                if names and names != [": -"]:
-                                    parts.append(f"{display_name}: {', '.join(names)}")
+                if parts:
+                    # Check for church holiday
+                    holiday = get_church_holiday(now)
+                    prefix = f"[{holiday}] " if holiday else ""
 
-                    # Ensure we always have at least the official names
-                    if not parts and official:
-                        parts.append(f"Viralliset: {', '.join(official)}")
-
-                    if parts:
-                        # Check for church holiday
-                        holiday = get_church_holiday(now)
-                        prefix = f"[{holiday}] " if holiday else ""
-
-                        # Use pipe separators on single line, split to two IRC messages if too long
-                        single_line = f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: {prefix}| {' | '.join(parts)}"
-                        # IRC message limit is ~400 chars, split into two messages if needed
-                        if len(single_line) > 400:
-                            # Split parts roughly in half
-                            mid = len(parts) // 2
-                            part1 = parts[:mid]
-                            part2 = parts[mid:]
-                            return (
-                                f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: {prefix}| {' | '.join(part1)}\n"
-                                f"| {' | '.join(part2)}"
-                            )
-                        return single_line
-                    else:
-                        return f"Tänään ({today_day}.{today_month}) on nimipäivä: {', '.join(official)}"
+                    # Use pipe separators on single line, split to two IRC messages if too long
+                    single_line = f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: {prefix}| {' | '.join(parts)}"
+                    # IRC message limit is ~400 chars, split into two messages if needed
+                    if len(single_line) > 400:
+                        # Split parts roughly in half
+                        mid = len(parts) // 2
+                        part1 = parts[:mid]
+                        part2 = parts[mid:]
+                        return (
+                            f"Nimipäivät tänään {today_day}.{today_month}.{now.year}: {prefix}| {' | '.join(part1)}\n"
+                            f"| {' | '.join(part2)}"
+                        )
+                    return single_line
+                else:
+                    return f"Tänään ({today_day}.{today_month}) on nimipäivä: {', '.join(official)}"
             else:
                 return "No name day found for today"
 
@@ -483,14 +497,14 @@ def np_command(context: CommandContext, bot_functions):
             for date_str, entry in nimipaivat.items():
                 if date_str == "_scrape_timestamp":
                     continue
-                try:
-                    _, m, d = date_str.split("-")
-                    if int(d) == day:
-                        names = entry.get("official", [])
-                        if names:
-                            results.append(f"{day}.{int(m)}: {', '.join(names)}")
-                except (ValueError, IndexError):
+                month_day = parse_month_day(date_str)
+                if not month_day:
                     continue
+                m, d = month_day
+                if d == day:
+                    names = entry.get("official", [])
+                    if names:
+                        results.append(f"{day}.{m}: {', '.join(names)}")
             if results:
                 return " | ".join(results)
             return f"No name day found for day {day}"
@@ -504,11 +518,23 @@ def np_command(context: CommandContext, bot_functions):
             names = entry.get("official", [])
             for name in names:
                 if search_name in name.lower():
-                    try:
-                        _, month, day = date_str.split("-")
-                        results.append(f"{int(day)}.{int(month)}: {name}")
-                    except (ValueError, IndexError):
-                        pass
+                    month_day = parse_month_day(date_str)
+                    if month_day:
+                        month, day = month_day
+                        results.append(f"{day}.{month}: {name}")
+
+        for category, display_name in category_map.items():
+            category_dates = others_data.get(category)
+            if not isinstance(category_dates, dict):
+                continue
+            for date_str, names in category_dates.items():
+                month_day = parse_month_day(date_str)
+                if not month_day:
+                    continue
+                month, day = month_day
+                for name in names:
+                    if search_name in name.lower():
+                        results.append(f"{day}.{month}: {name} ({display_name})")
         if results:
             return " | ".join(results[:10])  # Limit results
         return f"No name found: {search_name}"
