@@ -66,9 +66,9 @@ def test_service_manager_weather_initialization():
     api_key = get_api_key("WEATHER_API_KEY")
 
     if api_key:
-        assert (
-            weather_service is not None
-        ), "Weather service should be initialized when API key is available"
+        assert weather_service is not None, (
+            "Weather service should be initialized when API key is available"
+        )
     else:
         # If no API key, service should be None - this is expected in test env
         pytest.skip("No WEATHER_API_KEY configured")

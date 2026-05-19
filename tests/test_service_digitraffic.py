@@ -417,8 +417,9 @@ def test_get_trains_for_station_filters_and_limits(monkeypatch):
     assert out4.startswith("🚉 Asema ")
 
     # Force formatter to None -> len(lines)==1 fallback
-    with patch.object(ds, "_format_train_row", return_value=None), patch(
-        "services.digitraffic_service.requests.get", return_value=resp_no_times
+    with (
+        patch.object(ds, "_format_train_row", return_value=None),
+        patch("services.digitraffic_service.requests.get", return_value=resp_no_times),
     ):
         out5 = ds.get_arrivals_for_station(st)
     assert "Ei saapuvia" in out5
@@ -460,8 +461,9 @@ def test_get_trains_for_station_filters_and_limits(monkeypatch):
     assert out4.startswith("🚉 Asema ")
 
     # Force format_train_row to return None -> triggers len(lines)==1 fallback
-    with patch.object(ds, "_format_train_row", return_value=None), patch(
-        "services.digitraffic_service.requests.get", return_value=resp_no_times
+    with (
+        patch.object(ds, "_format_train_row", return_value=None),
+        patch("services.digitraffic_service.requests.get", return_value=resp_no_times),
     ):
         out5 = ds.get_trains_for_station(st)
     assert "Ei junia" in out5

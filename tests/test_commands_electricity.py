@@ -77,12 +77,12 @@ class TestElectricityCommand:
         from cmd_modules.services import electricity_command
 
         # Mock the electricity service - patch the module-level import
-        with patch(
-            "cmd_modules.services.create_electricity_service"
-        ) as mock_service_class, patch(
-            "cmd_modules.services.get_api_key"
-        ) as mock_get_api_key:
-
+        with (
+            patch(
+                "cmd_modules.services.create_electricity_service"
+            ) as mock_service_class,
+            patch("cmd_modules.services.get_api_key") as mock_get_api_key,
+        ):
             mock_get_api_key.return_value = "test_api_key"
             mock_service = Mock()
             mock_service_class.return_value = mock_service
@@ -120,12 +120,12 @@ class TestElectricityCommand:
         console_context.args_text = "huomenna 15"
         console_context.args = ["huomenna", "15"]
 
-        with patch(
-            "cmd_modules.services.create_electricity_service"
-        ) as mock_service_class, patch(
-            "cmd_modules.services.get_api_key"
-        ) as mock_get_api_key:
-
+        with (
+            patch(
+                "cmd_modules.services.create_electricity_service"
+            ) as mock_service_class,
+            patch("cmd_modules.services.get_api_key") as mock_get_api_key,
+        ):
             mock_get_api_key.return_value = "test_api_key"
             mock_service = Mock()
             mock_service_class.return_value = mock_service

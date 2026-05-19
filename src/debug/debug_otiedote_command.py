@@ -57,7 +57,7 @@ def test_service_creation(create_otiedote_service):
                 "timestamp": datetime.now(),
             }
         )
-        print(f"\nNEW ANNOUNCEMENT:")
+        print("\nNEW ANNOUNCEMENT:")
         print(f"   Title: {title}")
         print(f"   URL: {url}")
         desc_preview = (
@@ -292,9 +292,9 @@ async def main():
     print("\n" + "=" * 80)
     print("TEST SUMMARY")
     print("=" * 80)
-    print(f"Import:             OK")
-    print(f"Service Creation:   OK")
-    print(f"Set Release Number: OK")
+    print("Import:             OK")
+    print("Service Creation:   OK")
+    print("Set Release Number: OK")
     print(f"Find New Releases:  {'OK' if releases_found else 'FAIL (see notes above)'}")
     print(f"Command Variants:   {'OK' if commands_ok else 'FAIL'}")
     print("=" * 80)

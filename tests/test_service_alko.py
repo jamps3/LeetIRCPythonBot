@@ -109,9 +109,9 @@ class TestAlkoService:
 
         for size_str, expected in test_cases:
             result = service._parse_bottle_size(size_str)
-            assert (
-                result == expected
-            ), f"Failed to parse '{size_str}': expected {expected}, got {result}"
+            assert result == expected, (
+                f"Failed to parse '{size_str}': expected {expected}, got {result}"
+            )
 
     @patch.object(AlkoService, "_download_excel_file", return_value=True)
     @patch.object(AlkoService, "_parse_excel_file", return_value=[])
@@ -143,9 +143,9 @@ class TestAlkoService:
 
         for alcohol_str, expected in test_cases:
             result = service._parse_alcohol_percent(alcohol_str)
-            assert (
-                result == expected
-            ), f"Failed to parse '{alcohol_str}': expected {expected}, got {result}"
+            assert result == expected, (
+                f"Failed to parse '{alcohol_str}': expected {expected}, got {result}"
+            )
 
     @patch.object(AlkoService, "_download_excel_file", return_value=True)
     @patch.object(AlkoService, "_parse_excel_file", return_value=[])
@@ -457,17 +457,17 @@ class TestAlkoService:
             result = service._parse_product_row(row)
 
             # Check that the result contains the expected alcohol_grams
-            assert (
-                result is not None
-            ), f"Failed to parse row for {volume}L at {alcohol_percent}%"
-            assert (
-                "alcohol_grams" in result
-            ), f"Missing alcohol_grams in result for {volume}L at {alcohol_percent}%"
+            assert result is not None, (
+                f"Failed to parse row for {volume}L at {alcohol_percent}%"
+            )
+            assert "alcohol_grams" in result, (
+                f"Missing alcohol_grams in result for {volume}L at {alcohol_percent}%"
+            )
             calculated_grams = result["alcohol_grams"]
 
-            assert (
-                calculated_grams == expected_grams
-            ), f"For {volume}L at {alcohol_percent}%: expected {expected_grams}g, got {calculated_grams}g"
+            assert calculated_grams == expected_grams, (
+                f"For {volume}L at {alcohol_percent}%: expected {expected_grams}g, got {calculated_grams}g"
+            )
 
     @patch.object(AlkoService, "_download_excel_file", return_value=True)
     @patch.object(AlkoService, "_parse_excel_file", return_value=[])
@@ -501,20 +501,18 @@ class TestAlkoService:
 
             assert len(result) == len(expected_matches)
             for match in expected_matches:
-                assert any(
-                    product["name"] == match for product in result
-                ), f"Expected product '{match}' in results for query '{query}'"
+                assert any(product["name"] == match for product in result), (
+                    f"Expected product '{match}' in results for query '{query}'"
+                )
 
     @patch.object(AlkoService, "_download_excel_file", return_value=True)
     @patch.object(AlkoService, "_parse_excel_file", return_value=[])
     def test_update_data_cache_miss_persistence(self, mock_parse, mock_download):
         """Test that update_data properly saves cache."""
-        with patch(
-            "services.alko_service.AlkoService._save_cache"
-        ) as mock_save_cache, patch(
-            "services.alko_service.AlkoService._load_cache"
-        ) as mock_load_cache:
-
+        with (
+            patch("services.alko_service.AlkoService._save_cache") as mock_save_cache,
+            patch("services.alko_service.AlkoService._load_cache") as mock_load_cache,
+        ):
             service = AlkoService(data_dir=self.data_dir)
 
             with patch.object(service, "_should_download_file") as mock_should:

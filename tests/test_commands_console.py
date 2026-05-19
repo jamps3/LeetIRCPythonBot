@@ -140,9 +140,9 @@ def test_console_command_processing():
     process_console_command("!version", bot_functions)
 
     # Should have gotten a version response
-    assert any(
-        "2.2.0" in str(response) for response in responses
-    ), "Should get version response"
+    assert any("2.2.0" in str(response) for response in responses), (
+        "Should get version response"
+    )
 
 
 def test_console_weather_command():
@@ -168,9 +168,9 @@ def test_console_weather_command():
     process_console_command("!s Helsinki", bot_functions)
 
     # Should have gotten weather response
-    assert any(
-        "Helsinki" in str(response) for response in responses
-    ), "Should get Helsinki weather response"
+    assert any("Helsinki" in str(response) for response in responses), (
+        "Should get Helsinki weather response"
+    )
 
 
 def test_console_help_command():
@@ -193,9 +193,9 @@ def test_console_help_command():
     process_console_command("!help", bot_functions)
 
     # Should have gotten help response
-    assert any(
-        "command" in str(response).lower() for response in responses
-    ), "Should get help response"
+    assert any("command" in str(response).lower() for response in responses), (
+        "Should get help response"
+    )
 
 
 def test_bot_manager_console_integration():
@@ -215,14 +215,14 @@ def test_bot_manager_console_integration():
         bot_manager = BotManager("TestBot")
 
         # Check if console listener method exists
-        assert hasattr(
-            bot_manager, "_listen_for_console_commands"
-        ), "Should have console listener method"
+        assert hasattr(bot_manager, "_listen_for_console_commands"), (
+            "Should have console listener method"
+        )
 
         # Check if console bot functions method exists
-        assert hasattr(
-            bot_manager, "_create_console_bot_functions"
-        ), "Should have console bot functions method"
+        assert hasattr(bot_manager, "_create_console_bot_functions"), (
+            "Should have console bot functions method"
+        )
 
         # Test console bot functions creation
         bot_functions = bot_manager._create_console_bot_functions()
@@ -403,9 +403,9 @@ def test_console_tilaa_command():
         process_console_command("!tilaa varoitukset", bot_functions)
 
         # Should get subscription toggle response
-        assert any(
-            "tilaus" in str(response).lower() for response in responses
-        ), f"Should get subscription toggle response, got: {responses}"
+        assert any("tilaus" in str(response).lower() for response in responses), (
+            f"Should get subscription toggle response, got: {responses}"
+        )
 
     finally:
         # Restore original file
@@ -447,9 +447,9 @@ def test_console_error_handling():
 
     # Should have handled the error gracefully
     # Either by logging error or providing error response
-    assert errors_logged or any(
-        "error" in str(r).lower() for r in responses
-    ), "Should handle errors gracefully"
+    assert errors_logged or any("error" in str(r).lower() for r in responses), (
+        "Should handle errors gracefully"
+    )
 
 
 @pytest.fixture
@@ -587,9 +587,9 @@ def test_parametrized_compatibility_console_commands(compatibility_command):
     process_console_command(compatibility_command, bot_functions)
 
     # Each command should generate responses
-    assert (
-        responses
-    ), f"Compatibility command {compatibility_command} should generate responses"
+    assert responses, (
+        f"Compatibility command {compatibility_command} should generate responses"
+    )
 
 
 def test_console_command_argument_parsing():
@@ -616,9 +616,9 @@ def test_console_command_argument_parsing():
     process_console_command("!s New York", bot_functions)
 
     # Should have parsed arguments correctly
-    assert any(
-        "New York" in str(response) for response in responses
-    ), "Command should parse multi-word location arguments"
+    assert any("New York" in str(response) for response in responses), (
+        "Command should parse multi-word location arguments"
+    )
 
 
 def test_console_command_case_insensitive():
@@ -720,9 +720,9 @@ def test_console_command_unicode_handling():
     process_console_command("!s Jyväskylä", bot_functions)
 
     # Should handle unicode gracefully
-    assert any(
-        "Jyväskylä" in str(response) for response in responses
-    ), "Command should handle unicode characters in arguments"
+    assert any("Jyväskylä" in str(response) for response in responses), (
+        "Command should handle unicode characters in arguments"
+    )
 
 
 def test_help_specific_command_console():
@@ -1127,8 +1127,8 @@ def test_short_forecast_commands_console_and_irc(monkeypatch):
     original_format_multi = services_module.format_multi_line
 
     # Console short forecast
-    services_module.format_single_line = (
-        lambda city, hours: f"Forecast {city or 'Joensuu'} {hours or ''}".strip()
+    services_module.format_single_line = lambda city, hours: (
+        f"Forecast {city or 'Joensuu'} {hours or ''}".strip()
     )
 
     try:
@@ -1736,9 +1736,9 @@ def test_leets_invalid_datetime(monkeypatch):
         time.sleep(0.01)
     # Combine all responses to handle multi-line output
     combined_response = " ".join(responses) if responses else ""
-    assert (
-        "No messages" in combined_response or "📅" in combined_response
-    ), f"Expected 'No messages' response, got: {responses}"
+    assert "No messages" in combined_response or "📅" in combined_response, (
+        f"Expected 'No messages' response, got: {responses}"
+    )
 
     # Not found cancel
     responses.clear()
@@ -1932,9 +1932,9 @@ def test_quote_command_functionality(monkeypatch, tmp_path):
     assert len(quote) > 0, "Quote should not be empty"
 
     # Quote should not contain line numbers (they should be stripped)
-    assert not (
-        quote[0].isdigit() and "|" in quote[:10]
-    ), "Quote should not contain line numbers"
+    assert not (quote[0].isdigit() and "|" in quote[:10]), (
+        "Quote should not contain line numbers"
+    )
 
     # Test multiple calls return different quotes (with high probability)
     quotes_seen = set()
@@ -1974,9 +1974,9 @@ def test_quote_command_error_handling(monkeypatch):
 
         # Should get an error response
         assert responses, "Should get error response for missing file"
-        assert any(
-            "not found" in str(response).lower() for response in responses
-        ), "Should indicate file not found"
+        assert any("not found" in str(response).lower() for response in responses), (
+            "Should indicate file not found"
+        )
     finally:
         # Restore original quotes source
         config.quotes_source = original_quotes_source
@@ -2025,9 +2025,9 @@ def test_quote_command_with_custom_file():
 
         # Should be one of our test quotes (without line numbers)
         expected_quotes = ["Test quote one", "Test quote two", "Test quote three"]
-        assert (
-            quote in expected_quotes
-        ), f"Quote should be one of {expected_quotes}, got: {quote}"
+        assert quote in expected_quotes, (
+            f"Quote should be one of {expected_quotes}, got: {quote}"
+        )
 
         # Test multiple calls to ensure randomness
         quotes_found = set()
@@ -2038,9 +2038,9 @@ def test_quote_command_with_custom_file():
                 quotes_found.add(responses[0])
 
         # Should eventually see all three quotes
-        assert (
-            len(quotes_found) == 3
-        ), f"Should find all 3 quotes, found: {quotes_found}"
+        assert len(quotes_found) == 3, (
+            f"Should find all 3 quotes, found: {quotes_found}"
+        )
 
     finally:
         # Clean up
@@ -2092,9 +2092,9 @@ def test_quote_command_search_functionality(tmp_path):
         quote = responses[0]
 
         # Should be the first quote containing "motto"
-        assert (
-            "motto is excellence" in quote.lower()
-        ), f"Should find first motto quote, got: {quote}"
+        assert "motto is excellence" in quote.lower(), (
+            f"Should find first motto quote, got: {quote}"
+        )
 
         # Test search with no matches
         responses.clear()
@@ -2117,9 +2117,9 @@ def test_quote_command_search_functionality(tmp_path):
 
         assert responses, "Should get case-insensitive search result"
         quote = responses[0]
-        assert (
-            "motto is excellence" in quote.lower()
-        ), f"Should find motto quote case-insensitively, got: {quote}"
+        assert "motto is excellence" in quote.lower(), (
+            f"Should find motto quote case-insensitively, got: {quote}"
+        )
 
     finally:
         # Restore original get_config
@@ -2142,9 +2142,9 @@ def test_electricity_command_with_args_split():
     }
     process_console_command("!sahko huomenna 7", botf)
     assert responses, "Should get error response when electricity service unavailable"
-    assert (
-        "not available" in responses[0].lower()
-    ), f"Should indicate service not available, got: {responses[0]}"
+    assert "not available" in responses[0].lower(), (
+        f"Should indicate service not available, got: {responses[0]}"
+    )
 
 
 def test_exit_command_direct_irc():

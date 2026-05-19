@@ -107,17 +107,17 @@ def test_leet_detector_mega():
 
         if timestamp == "13:37:13.371337133":
             # This should be ultimate, not mega
-            assert (
-                level == "ultimate"
-            ), f"Ultimate timestamp should be 'ultimate', got '{level}'"
+            assert level == "ultimate", (
+                f"Ultimate timestamp should be 'ultimate', got '{level}'"
+            )
         elif result["total_count"] >= 3 and expected_level == "mega":
-            assert (
-                level == "mega"
-            ), f"Expected 'mega' level for {timestamp}, got '{level}'"
+            assert level == "mega", (
+                f"Expected 'mega' level for {timestamp}, got '{level}'"
+            )
         elif result["total_count"] == 2 and expected_level == "super":
-            assert (
-                level == "super"
-            ), f"Expected 'super' level for {timestamp}, got '{level}'"
+            assert level == "super", (
+                f"Expected 'super' level for {timestamp}, got '{level}'"
+            )
 
 
 def test_leet_detector_nano():
@@ -138,9 +138,9 @@ def test_leet_detector_nano():
         level = detector.determine_achievement_level(result)
 
         if result["nano_count"] > 0 and result["time_count"] == 0:
-            assert (
-                level == "nano"
-            ), f"Expected 'nano' level for {timestamp}, got '{level}'"
+            assert level == "nano", (
+                f"Expected 'nano' level for {timestamp}, got '{level}'"
+            )
 
             # Test message formatting
             message = detector.format_achievement_message("nanouser", timestamp, level)
@@ -200,15 +200,15 @@ def test_leet_detector_json_storage():
 
         detection = history[0]
         assert detection["nick"] == "testuser", "Nick should be saved correctly"
-        assert (
-            detection["timestamp"] == "23:13:37.987654321"
-        ), "Timestamp should be saved correctly"
-        assert (
-            detection["user_message"] == "Test message"
-        ), "User message should be saved correctly"
-        assert (
-            detection["achievement_level"] == "leet"
-        ), "Achievement level should be correct"
+        assert detection["timestamp"] == "23:13:37.987654321", (
+            "Timestamp should be saved correctly"
+        )
+        assert detection["user_message"] == "Test message", (
+            "User message should be saved correctly"
+        )
+        assert detection["achievement_level"] == "leet", (
+            "Achievement level should be correct"
+        )
         assert "datetime" in detection, "Detection should have datetime"
         assert "achievement_name" in detection, "Detection should have achievement name"
         assert "emoji" in detection, "Detection should have emoji"
@@ -256,27 +256,27 @@ def test_leet_detector_history_limit():
 
         # Test unlimited history
         all_history = detector.get_leet_history()
-        assert (
-            len(all_history) == 5
-        ), f"Should have 5 detections, got {len(all_history)}"
+        assert len(all_history) == 5, (
+            f"Should have 5 detections, got {len(all_history)}"
+        )
 
         # Test limited history
         limited_history = detector.get_leet_history(limit=3)
-        assert (
-            len(limited_history) == 3
-        ), f"Should have 3 detections with limit, got {len(limited_history)}"
+        assert len(limited_history) == 3, (
+            f"Should have 3 detections with limit, got {len(limited_history)}"
+        )
 
         # Test that history is sorted by most recent first
         # The last detection (eve) should be first in the history
-        assert (
-            limited_history[0]["nick"] == "eve"
-        ), "Most recent detection should be first"
-        assert (
-            limited_history[1]["nick"] == "dave"
-        ), "Second most recent should be second"
-        assert (
-            limited_history[2]["nick"] == "charlie"
-        ), "Third most recent should be third"
+        assert limited_history[0]["nick"] == "eve", (
+            "Most recent detection should be first"
+        )
+        assert limited_history[1]["nick"] == "dave", (
+            "Second most recent should be second"
+        )
+        assert limited_history[2]["nick"] == "charlie", (
+            "Third most recent should be third"
+        )
 
     finally:
         # Clean up
@@ -309,19 +309,19 @@ def test_leet_detector_message_inclusion():
         achievement_msg, level = result
 
         # Check that the user message is included in the achievement message
-        assert (
-            test_message in achievement_msg
-        ), f"User message should be in achievement message: {achievement_msg}"
-        assert (
-            '"' in achievement_msg
-        ), "User message should be quoted in achievement message"
+        assert test_message in achievement_msg, (
+            f"User message should be in achievement message: {achievement_msg}"
+        )
+        assert '"' in achievement_msg, (
+            "User message should be quoted in achievement message"
+        )
 
         # Check that it's stored in history
         history = detector.get_leet_history()
         assert len(history) == 1, "Should have one detection in history"
-        assert (
-            history[0]["user_message"] == test_message
-        ), "User message should be stored in history"
+        assert history[0]["user_message"] == test_message, (
+            "User message should be stored in history"
+        )
 
         # Test without user message
         result2 = detector.check_message_for_leet("testuser2", "12:34:56.133713370")
@@ -332,9 +332,9 @@ def test_leet_detector_message_inclusion():
 
         # Find the detection without user message
         no_msg_detection = next(d for d in history2 if d["nick"] == "testuser2")
-        assert (
-            no_msg_detection["user_message"] is None
-        ), "Detection without message should have None for user_message"
+        assert no_msg_detection["user_message"] is None, (
+            "Detection without message should have None for user_message"
+        )
 
     finally:
         # Clean up
@@ -385,24 +385,24 @@ def test_leets_command_formatting():
         formatted_msg = f"{detection['emoji']} {detection['achievement_name']} [{detection['nick']}] {detection['timestamp']}{user_msg_part} ({date_str})"
 
         # Check that all components are present
-        assert (
-            detection["emoji"] in formatted_msg
-        ), "Emoji should be in formatted message"
-        assert (
-            detection["achievement_name"] in formatted_msg
-        ), "Achievement name should be in formatted message"
-        assert (
-            f"[{detection['nick']}]" in formatted_msg
-        ), "Nick should be bracketed in formatted message"
-        assert (
-            detection["timestamp"] in formatted_msg
-        ), "Timestamp should be in formatted message"
-        assert (
-            f'"{test_message}"' in formatted_msg
-        ), "User message should be quoted in formatted message"
-        assert (
-            date_str in formatted_msg
-        ), "Date should be in parentheses in formatted message"
+        assert detection["emoji"] in formatted_msg, (
+            "Emoji should be in formatted message"
+        )
+        assert detection["achievement_name"] in formatted_msg, (
+            "Achievement name should be in formatted message"
+        )
+        assert f"[{detection['nick']}]" in formatted_msg, (
+            "Nick should be bracketed in formatted message"
+        )
+        assert detection["timestamp"] in formatted_msg, (
+            "Timestamp should be in formatted message"
+        )
+        assert f'"{test_message}"' in formatted_msg, (
+            "User message should be quoted in formatted message"
+        )
+        assert date_str in formatted_msg, (
+            "Date should be in parentheses in formatted message"
+        )
 
         # Test message without user content
         result2 = detector.check_message_for_leet("testuser2", "12:34:56.133713370")

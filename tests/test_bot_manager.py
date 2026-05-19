@@ -164,9 +164,9 @@ def test_bot_manager_initialization_with_services(manager):
 
     for method in required_methods:
         assert hasattr(bot_manager, method), f"Missing required method: {method}"
-        assert callable(
-            getattr(bot_manager, method)
-        ), f"Attribute {method} is not callable"
+        assert callable(getattr(bot_manager, method)), (
+            f"Attribute {method} is not callable"
+        )
 
 
 def test_url_blacklist_functionality(manager):
@@ -283,9 +283,9 @@ def test_youtube_url_detection():
 
                                 for url, should_be_youtube in test_urls:
                                     result = bot_manager._is_youtube_url(url)
-                                    assert (
-                                        result == should_be_youtube
-                                    ), f"Failed for URL: {url}, expected {should_be_youtube}, got {result}"
+                                    assert result == should_be_youtube, (
+                                        f"Failed for URL: {url}, expected {should_be_youtube}, got {result}"
+                                    )
 
 
 def test_update_env_file_add_and_update(tmp_path, monkeypatch, manager):
@@ -420,7 +420,9 @@ def test_chat_with_gpt_paths(monkeypatch, manager):
     monkeypatch.setattr(
         manager.message_handler,
         "_chat_with_gpt",
-        lambda *args, **kwargs: "Sorry, there was trouble communicating with AI service.",
+        lambda *args, **kwargs: (
+            "Sorry, there was trouble communicating with AI service."
+        ),
     )
     assert "trouble" in manager._chat_with_gpt("hello").lower()
 
@@ -1319,9 +1321,7 @@ def test_nanoleet_achievement_send(monkeypatch, manager):
 
 
 def test_process_commands_paths(monkeypatch, manager):
-    server = SimpleNamespace(
-        config=SimpleNamespace(name="srv"), bot_name="MyBot"
-    )  # noqa: F841
+    server = SimpleNamespace(config=SimpleNamespace(name="srv"), bot_name="MyBot")  # noqa: F841
     # !otiedote is now handled through command registry, not direct call
     # Mock the get_otiedote_info function that the command uses
     called = {"n": 0}

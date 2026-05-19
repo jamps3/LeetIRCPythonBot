@@ -215,9 +215,9 @@ class TestCommandExecution:
         console_context.args = ["cannabis", "alcohol"]
 
         # Mock the check_drug_interactions function
-        mock_bot_functions["check_drug_interactions"].return_value = (
-            "💊 No interactions found"
-        )
+        mock_bot_functions[
+            "check_drug_interactions"
+        ].return_value = "💊 No interactions found"
 
         result = drugs_command(console_context, mock_bot_functions)
         # Drugs command should return a string
@@ -556,9 +556,9 @@ class TestCommandResponseTypes:
 
         mock_bot_functions["get_crypto_price"] = mock_get_crypto_price
         mock_bot_functions["get_alko_product"].return_value = "🍺 Test beer"
-        mock_bot_functions["check_drug_interactions"].return_value = (
-            "💊 No interactions"
-        )
+        mock_bot_functions[
+            "check_drug_interactions"
+        ].return_value = "💊 No interactions"
 
         # Mock data manager for word tracking commands
         mock_data_manager = Mock()
@@ -582,6 +582,6 @@ class TestCommandResponseTypes:
         for command in commands_to_test:
             result = command(console_context, mock_bot_functions)
             # Should return either a string or CommandResponse
-            assert isinstance(
-                result, (str, CommandResponse)
-            ), f"Command {command.__name__} returned {type(result)}"
+            assert isinstance(result, (str, CommandResponse)), (
+                f"Command {command.__name__} returned {type(result)}"
+            )

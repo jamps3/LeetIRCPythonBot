@@ -62,7 +62,7 @@ def scrape_batch(playwright, year, start_day, end_day, website_data):
             if search_btn:
                 search_btn.click()
                 page.wait_for_timeout(1000)
-        except:
+        except Exception:
             pass
 
         # Click date tab
@@ -71,7 +71,7 @@ def scrape_batch(playwright, year, start_day, end_day, website_data):
             if paiva_btn:
                 paiva_btn.click()
                 page.wait_for_timeout(500)
-        except:
+        except Exception:
             pass
 
         date_input = page.query_selector("#namedays-date-input-widget_1772634673724")
@@ -168,7 +168,7 @@ def scrape_batch(playwright, year, start_day, end_day, website_data):
 
     try:
         browser.close()
-    except:
+    except Exception:
         pass
     return True
 
@@ -186,7 +186,7 @@ if __name__ == "__main__":
             with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
                 website_data = json.load(f)
             print("Loaded existing data, continuing...")
-        except:
+        except (json.JSONDecodeError, OSError):
             pass
 
     # Track progress
@@ -216,7 +216,7 @@ if __name__ == "__main__":
             for cat in website_data:
                 all_dates.update(website_data[cat].keys())
             print(
-                f"Progress: {len(all_dates)}/{total_days} days scraped (batch {batch_start}-{min(total_days-1, batch_start + BATCH_SIZE-1)})"
+                f"Progress: {len(all_dates)}/{total_days} days scraped (batch {batch_start}-{min(total_days - 1, batch_start + BATCH_SIZE - 1)})"
             )
 
             # Increment batch

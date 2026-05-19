@@ -39,9 +39,9 @@ class TestDrugAPIs:
                         if isinstance(data, list) and len(data) > 10:
                             found_data = True
                             assert len(data) > 0, f"No data in {url}"
-                            assert isinstance(
-                                data[0], dict
-                            ), f"First item not a dict in {url}"
+                            assert isinstance(data[0], dict), (
+                                f"First item not a dict in {url}"
+                            )
                             break
                         elif isinstance(data, dict):
                             # Check for nested data
@@ -53,9 +53,9 @@ class TestDrugAPIs:
                                 ):
                                     found_data = True
                                     assert len(data[key]) > 0, f"No data in {url}.{key}"
-                                    assert isinstance(
-                                        data[key][0], dict
-                                    ), f"First item not a dict in {url}.{key}"
+                                    assert isinstance(data[key][0], dict), (
+                                        f"First item not a dict in {url}.{key}"
+                                    )
                                     break
                     except json.JSONDecodeError:
                         pass  # Not JSON, skip
@@ -117,9 +117,9 @@ class TestDrugAPIs:
         url = "https://tripbot.tripsit.me/api/tripsit/getAllDrugs"
 
         response = requests.get(url, timeout=10)
-        assert (
-            response.status_code == 200
-        ), f"TripBot API failed: {response.status_code}"
+        assert response.status_code == 200, (
+            f"TripBot API failed: {response.status_code}"
+        )
 
         data = response.json()
         assert isinstance(data, dict), "TripBot data should be a dict"

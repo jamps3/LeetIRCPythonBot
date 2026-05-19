@@ -26,9 +26,9 @@ def test_command_registry_creation():
 
     # Test global registry
     global_registry = get_command_registry()
-    assert isinstance(
-        global_registry, CommandRegistry
-    ), "Should return CommandRegistry instance"
+    assert isinstance(global_registry, CommandRegistry), (
+        "Should return CommandRegistry instance"
+    )
 
 
 def test_command_registration():

@@ -55,7 +55,9 @@ class EurojackpotScraper:
 
             for i, draw_date in enumerate(draw_dates):
                 if i % 2 == 0:  # Progress logging every 2 draws
-                    logger.info(f"Processing draw {i+1}/{len(draw_dates)}: {draw_date}")
+                    logger.info(
+                        f"Processing draw {i + 1}/{len(draw_dates)}: {draw_date}"
+                    )
 
                 try:
                     # Try different parameter combinations to get historical data
@@ -500,7 +502,7 @@ def main():
                 try:
                     draw_date = datetime.strptime(db_draw_data["date_iso"], "%Y-%m-%d")
                     db_draw_data["week_number"] = draw_date.isocalendar()[1]
-                except:
+                except ValueError:
                     pass
 
             # Save this draw to database

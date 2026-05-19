@@ -22,10 +22,12 @@ if _project_root not in sys.path:
 
 # Import submodules to trigger @command decorators
 # Order matters: dependencies first
-from cmd_modules import admin  # noqa: E402, F401
-from cmd_modules import basic  # noqa: E402, F401
-from cmd_modules import games  # noqa: E402, F401
-from cmd_modules import irc  # noqa: E402, F401
-from cmd_modules import misc  # noqa: E402, F401
-from cmd_modules import services  # noqa: E402, F401
-from cmd_modules import word_tracking  # noqa: E402, F401
+from cmd_modules import (
+    admin,  # noqa: E402, F401
+    basic,  # noqa: E402, F401
+    games,  # noqa: E402, F401
+    irc,  # noqa: E402, F401
+    misc,  # noqa: E402, F401
+    services,  # noqa: E402, F401
+    word_tracking,  # noqa: E402, F401
+)

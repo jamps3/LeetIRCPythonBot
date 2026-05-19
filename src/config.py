@@ -532,7 +532,7 @@ class ConfigManager:
                 host = server.get("host", "unknown")
                 port = server.get("port", "unknown")
                 channels = server.get("channels", [])
-                print(f"  {i+1}. {host}:{port} - {len(channels)} channels")
+                print(f"  {i + 1}. {host}:{port} - {len(channels)} channels")
             print()
 
             # Ask to edit existing servers
@@ -548,7 +548,7 @@ class ConfigManager:
                         idx = int(edit_input) - 1
                         if 0 <= idx < len(servers):
                             server = servers[idx]
-                            print(f"Editing server {idx+1}:")
+                            print(f"Editing server {idx + 1}:")
 
                             # Edit host
                             current_host = server.get("host", "")
@@ -610,7 +610,7 @@ class ConfigManager:
                             ).strip()
                             server["nickserv_email"] = email_str if email_str else None
 
-                            print(f"Server {idx+1} updated.")
+                            print(f"Server {idx + 1} updated.")
                         else:
                             print("Invalid server number.")
                     except ValueError:

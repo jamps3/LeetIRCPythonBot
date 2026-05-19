@@ -558,7 +558,7 @@ class DreamService:
             avg_lag = self._get_average_lag()
             if avg_lag is not None:
                 metadata += (
-                    f" | Network lag: {avg_lag:,.0f} ns ({avg_lag/1_000_000:.3f} ms)"
+                    f" | Network lag: {avg_lag:,.0f} ns ({avg_lag / 1_000_000:.3f} ms)"
                 )
 
             return dream_content + metadata

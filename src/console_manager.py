@@ -718,15 +718,17 @@ class ConsoleManager:
             "server_name": "console",
             "stop_event": self.stop_event,
             "set_quit_message": lambda msg: (
-                setattr(self.server_manager, "quit_message", msg)
-                or
-                # Also set on individual servers for consistency
-                [
-                    setattr(server, "quit_message", msg)
-                    for server in self.server_manager.get_all_servers().values()
-                ]
-            )
-            and None,
+                (
+                    setattr(self.server_manager, "quit_message", msg)
+                    or
+                    # Also set on individual servers for consistency
+                    [
+                        setattr(server, "quit_message", msg)
+                        for server in self.server_manager.get_all_servers().values()
+                    ]
+                )
+                and None
+            ),
             "set_openai_model": self._set_openai_model,
             "get_openai_model": self._get_openai_model,
             "connect": self._console_connect,
@@ -763,8 +765,8 @@ class ConsoleManager:
             "get_latency_start": lambda: getattr(
                 self.message_handler, "_latency_start", 0
             ),
-            "toggle_tamagotchi": lambda srv, tgt, snd: self.message_handler.toggle_tamagotchi(
-                srv, tgt, snd
+            "toggle_tamagotchi": lambda srv, tgt, snd: (
+                self.message_handler.toggle_tamagotchi(srv, tgt, snd)
             ),
             # Additional service functions
             "get_eurojackpot_results": self.message_handler._get_eurojackpot_results,

@@ -59,12 +59,10 @@ class TestOtiedoteCommand:
         from cmd_modules.services import otiedote_command
 
         # Mock the otiedote service
-        with patch(
-            "cmd_modules.services.create_otiedote_service"
-        ) as mock_service_class, patch(
-            "cmd_modules.services.get_config"
-        ) as mock_get_config:
-
+        with (
+            patch("cmd_modules.services.create_otiedote_service") as mock_service_class,
+            patch("cmd_modules.services.get_config") as mock_get_config,
+        ):
             mock_config = Mock()
             mock_get_config.return_value = mock_config
 
@@ -98,12 +96,10 @@ class TestOtiedoteCommand:
         console_context.args = ["#5"]
 
         # Mock the otiedote service
-        with patch(
-            "cmd_modules.services.create_otiedote_service"
-        ) as mock_service_class, patch(
-            "cmd_modules.services.get_config"
-        ) as mock_get_config:
-
+        with (
+            patch("cmd_modules.services.create_otiedote_service") as mock_service_class,
+            patch("cmd_modules.services.get_config") as mock_get_config,
+        ):
             mock_config = Mock()
             mock_get_config.return_value = mock_config
 
@@ -131,12 +127,10 @@ class TestOtiedoteCommand:
         from cmd_modules.services import otiedote_command
 
         # Mock the otiedote service
-        with patch(
-            "cmd_modules.services.create_otiedote_service"
-        ) as mock_service_class, patch(
-            "cmd_modules.services.get_config"
-        ) as mock_get_config:
-
+        with (
+            patch("cmd_modules.services.create_otiedote_service") as mock_service_class,
+            patch("cmd_modules.services.get_config") as mock_get_config,
+        ):
             mock_config = Mock()
             mock_get_config.return_value = mock_config
 

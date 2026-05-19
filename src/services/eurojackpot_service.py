@@ -615,10 +615,11 @@ class EurojackpotService:
             if extended:
                 # Show with example counts for historical data
                 primary_str = " ".join(
-                    f"{num:02d}[{45-i*2}]" for i, num in enumerate(frequent_primary)
+                    f"{num:02d}[{45 - i * 2}]" for i, num in enumerate(frequent_primary)
                 )
                 secondary_str = " ".join(
-                    f"{num:02d}[{25-i*3}]" for i, num in enumerate(frequent_secondary)
+                    f"{num:02d}[{25 - i * 3}]"
+                    for i, num in enumerate(frequent_secondary)
                 )
             else:
                 primary_str = " ".join(f"{num:02d}" for num in frequent_primary)

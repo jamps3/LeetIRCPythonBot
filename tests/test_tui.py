@@ -261,10 +261,14 @@ class TestSelectableText:
 
     def test_selectable_text_mouse_event_link_click(self, mock_urwid):
         """Test mouse event handling for link clicks."""
-        with patch.object(
-            SelectableText, "_get_link_at_position", return_value="https://example.com"
-        ), patch.object(SelectableText, "_open_link_in_browser") as mock_open:
-
+        with (
+            patch.object(
+                SelectableText,
+                "_get_link_at_position",
+                return_value="https://example.com",
+            ),
+            patch.object(SelectableText, "_open_link_in_browser") as mock_open,
+        ):
             text = SelectableText("Check https://example.com")
 
             result = text.mouse_event((80,), "mouse press", 1, 10, 0, True)
@@ -275,7 +279,6 @@ class TestSelectableText:
     def test_selectable_text_mouse_event_no_link(self, mock_urwid):
         """Test mouse event handling when no link is clicked."""
         with patch.object(SelectableText, "_get_link_at_position", return_value=None):
-
             text = SelectableText("Plain text")
 
             result = text.mouse_event((80,), "mouse press", 1, 10, 0, True)
@@ -286,10 +289,10 @@ class TestSelectableText:
     @patch("tui.pyperclip.copy")
     def test_selectable_text_keypress_clipboard_copy(self, mock_copy, mock_urwid):
         """Test keyboard event for clipboard copy."""
-        with patch("tui.urwid.Text") as mock_text, patch(
-            "tui.urwid.AttrMap"
-        ) as mock_attr_map:
-
+        with (
+            patch("tui.urwid.Text") as mock_text,
+            patch("tui.urwid.AttrMap") as mock_attr_map,
+        ):
             mock_text_instance = Mock()
             mock_text_instance.get_text.return_value = ("Selected text", None)
             mock_text.return_value = mock_text_instance
@@ -309,10 +312,10 @@ class TestSelectableText:
     @patch("tui.CLIPBOARD_AVAILABLE", False)
     def test_selectable_text_keypress_no_clipboard(self, mock_urwid):
         """Test keyboard event when clipboard is not available."""
-        with patch("tui.urwid.Text") as mock_text, patch(
-            "tui.urwid.AttrMap"
-        ) as mock_attr_map:
-
+        with (
+            patch("tui.urwid.Text") as mock_text,
+            patch("tui.urwid.AttrMap") as mock_attr_map,
+        ):
             # Mock the Text widget's get_text method
             mock_text_instance = Mock()
             mock_text_instance.get_text.return_value = ("Test text", None)
@@ -343,7 +346,6 @@ class TestSelectableText:
     def test_selectable_text_open_link_windows(self):
         """Test opening links on Windows."""
         with patch("sys.platform", "win32"), patch("subprocess.run") as mock_run:
-
             text = SelectableText("Test")
             text._open_link_in_browser("https://example.com")
 
@@ -356,10 +358,10 @@ class TestSelectableText:
 
     def test_selectable_text_open_link_fallback(self):
         """Test opening links with webbrowser fallback."""
-        with patch("sys.platform", "linux"), patch(
-            "webbrowser.open", return_value=True
-        ) as mock_open:
-
+        with (
+            patch("sys.platform", "linux"),
+            patch("webbrowser.open", return_value=True) as mock_open,
+        ):
             text = SelectableText("Test")
             text._open_link_in_browser("https://example.com")
 
@@ -517,12 +519,12 @@ class TestTUIManager:
     def test_tui_manager_creation_no_bot_manager(self, mock_urwid):
         """Test TUIManager creation without bot manager."""
         # Patch the UI components to avoid urwid initialization issues
-        with patch("tui.NonFocusableListBox") as mock_listbox, patch(
-            "tui.urwid.Text"
-        ) as mock_text, patch("tui.urwid.Edit") as mock_edit, patch(
-            "tui.urwid.Frame"
-        ) as mock_frame:
-
+        with (
+            patch("tui.NonFocusableListBox") as mock_listbox,
+            patch("tui.urwid.Text") as mock_text,
+            patch("tui.urwid.Edit") as mock_edit,
+            patch("tui.urwid.Frame") as mock_frame,
+        ):
             mock_listbox_instance = Mock()
             mock_listbox.return_value = mock_listbox_instance
             mock_listbox_instance.is_at_bottom.return_value = True
@@ -549,12 +551,12 @@ class TestTUIManager:
     def test_tui_manager_creation_with_bot_manager(self, mock_urwid, mock_bot_manager):
         """Test TUIManager creation with bot manager."""
         # Patch the UI components to avoid urwid initialization issues
-        with patch("tui.NonFocusableListBox") as mock_listbox, patch(
-            "tui.urwid.Text"
-        ) as mock_text, patch("tui.urwid.Edit") as mock_edit, patch(
-            "tui.urwid.Frame"
-        ) as mock_frame:
-
+        with (
+            patch("tui.NonFocusableListBox") as mock_listbox,
+            patch("tui.urwid.Text") as mock_text,
+            patch("tui.urwid.Edit") as mock_edit,
+            patch("tui.urwid.Frame") as mock_frame,
+        ):
             mock_listbox_instance = Mock()
             mock_listbox.return_value = mock_listbox_instance
             mock_listbox_instance.is_at_bottom.return_value = True

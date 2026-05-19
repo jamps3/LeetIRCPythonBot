@@ -30,7 +30,7 @@ def scrape_category_namedays(playwright, year, category_filter):
     browser = playwright.chromium.launch(headless=True)
     page = browser.new_page()
 
-    print(f"Loading main page...")
+    print("Loading main page...")
     page.goto(BASE_URL, wait_until="networkidle", timeout=30000)
     page.wait_for_timeout(2000)
 
@@ -110,7 +110,7 @@ def scrape_category_namedays(playwright, year, category_filter):
             )
 
             # Method 1: Look for result cards with the exact type class
-            result_cards = page.query_selector_all(f".namedays-result-card")
+            result_cards = page.query_selector_all(".namedays-result-card")
             for card in result_cards:
                 # Check if this card has the correct type class
                 type_div = card.query_selector(".namedays-result-type")
@@ -188,7 +188,7 @@ if __name__ == "__main__":
         if category.lower() not in valid_categories:
             print(f"Error: Invalid category '{category}'")
             print(f"Usage: python {sys.argv[0]} [hevonen|historiallinen|both]")
-            print(f"       Without arguments, scrapes both categories")
+            print("       Without arguments, scrapes both categories")
             sys.exit(1)
 
     # Map category name to display name

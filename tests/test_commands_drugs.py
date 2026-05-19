@@ -63,9 +63,9 @@ class TestDrugsCommand:
         console_context.args = ["cannabis", "alcohol"]
 
         # Mock the check_drug_interactions function
-        mock_bot_functions["check_drug_interactions"].return_value = (
-            "💊 No interactions found"
-        )
+        mock_bot_functions[
+            "check_drug_interactions"
+        ].return_value = "💊 No interactions found"
 
         result = drugs_command(console_context, mock_bot_functions)
 

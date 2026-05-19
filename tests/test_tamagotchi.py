@@ -44,31 +44,25 @@ def test_tamagotchi_toggle_functionality():
                                     mock_dm.return_value.load_tamagotchi_state.return_value = {
                                         "servers": {}
                                     }
-                                    mock_dm.return_value.save_tamagotchi_state.return_value = (
-                                        None
-                                    )
+                                    mock_dm.return_value.save_tamagotchi_state.return_value = None
                                     mock_dm.return_value.load_general_words_data.return_value = {
                                         "servers": {}
                                     }
-                                    mock_dm.return_value.save_general_words_data.return_value = (
-                                        None
-                                    )
+                                    mock_dm.return_value.save_general_words_data.return_value = None
                                     mock_dm.return_value.load_drink_data.return_value = {
                                         "servers": {}
                                     }
-                                    mock_dm.return_value.save_drink_data.return_value = (
-                                        None
-                                    )
+                                    mock_dm.return_value.save_drink_data.return_value = None
 
                                     bot_manager = BotManager("TestBot")
 
                                     # Test initial state
-                                    assert hasattr(
-                                        bot_manager, "tamagotchi_enabled"
-                                    ), "Bot should have tamagotchi_enabled attribute"
-                                    assert hasattr(
-                                        bot_manager, "toggle_tamagotchi"
-                                    ), "Bot should have toggle_tamagotchi method"
+                                    assert hasattr(bot_manager, "tamagotchi_enabled"), (
+                                        "Bot should have tamagotchi_enabled attribute"
+                                    )
+                                    assert hasattr(bot_manager, "toggle_tamagotchi"), (
+                                        "Bot should have toggle_tamagotchi method"
+                                    )
 
                                     # Mock server and response tracking
                                     mock_server = Mock()
@@ -94,12 +88,12 @@ def test_tamagotchi_toggle_functionality():
                                     assert (
                                         bot_manager.tamagotchi_enabled != original_state
                                     ), "Tamagotchi state should have changed"
-                                    assert (
-                                        len(responses) > 0
-                                    ), "Should have sent a response"
-                                    assert (
-                                        "Tamagotchi" in responses[0]
-                                    ), "Response should mention Tamagotchi"
+                                    assert len(responses) > 0, (
+                                        "Should have sent a response"
+                                    )
+                                    assert "Tamagotchi" in responses[0], (
+                                        "Response should mention Tamagotchi"
+                                    )
     finally:
         # Clean up temp file
         if os.path.exists(env_file):

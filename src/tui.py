@@ -674,8 +674,8 @@ class SelectableText(urwid.WidgetWrap):
         if visual_col >= len(line):
             # Position beyond line end
             char_pos = sum(
-                len(l) + (1 if i < visual_row else 0)
-                for i, l in enumerate(lines[: visual_row + 1])
+                len(line_text) + (1 if i < visual_row else 0)
+                for i, line_text in enumerate(lines[: visual_row + 1])
             )
             return min(char_pos, len(text))
 
@@ -786,8 +786,7 @@ class SelectableText(urwid.WidgetWrap):
 
                     # Selected text
                     selected_text = text[
-                        overlap_start
-                        - segment_start : overlap_end  # noqa: E203
+                        overlap_start - segment_start : overlap_end  # noqa: E203
                         - segment_start
                     ]
                     if selected_text:
@@ -830,8 +829,7 @@ class SelectableText(urwid.WidgetWrap):
 
                     # Selected text
                     selected_text = text[
-                        overlap_start
-                        - segment_start : overlap_end  # noqa: E203
+                        overlap_start - segment_start : overlap_end  # noqa: E203
                         - segment_start
                     ]
                     if selected_text:

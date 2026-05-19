@@ -132,14 +132,14 @@ def test_irc_connection_states(mock_irc_client):
     client = mock_irc_client
 
     # Initial state should be disconnected
-    assert (
-        client.connection_info.state == IRCConnectionState.DISCONNECTED
-    ), "Initial state should be disconnected"
+    assert client.connection_info.state == IRCConnectionState.DISCONNECTED, (
+        "Initial state should be disconnected"
+    )
 
     # Test connection info properties
-    assert (
-        client.connection_info.uptime is None
-    ), "Uptime should be None when disconnected"
+    assert client.connection_info.uptime is None, (
+        "Uptime should be None when disconnected"
+    )
     assert client.is_connected is False, "Should not be connected initially"
 
     # Test status string
@@ -174,9 +174,9 @@ def test_irc_handler_system(mock_irc_client):
 
     # Test handler removal
     client.remove_message_handler(IRCMessageType.PRIVMSG, test_handler)
-    assert (
-        len(client._message_handlers.get(IRCMessageType.PRIVMSG, [])) == 0
-    ), "Handler should be removed"
+    assert len(client._message_handlers.get(IRCMessageType.PRIVMSG, [])) == 0, (
+        "Handler should be removed"
+    )
 
 
 def test_irc_rate_limiting(mock_irc_client):
@@ -208,9 +208,9 @@ def test_irc_channel_management():
     client.part_channel = mock_part_channel
 
     # Test initial channel list
-    assert isinstance(
-        client.connection_info.channels, list
-    ), "Channels should be a list"
+    assert isinstance(client.connection_info.channels, list), (
+        "Channels should be a list"
+    )
 
     # Test channel operations (without actual network)
     initial_count = len(client.connection_info.channels)
@@ -219,9 +219,9 @@ def test_irc_channel_management():
     try:
         client.join_channel("#test")
         # Should add to channel list (even if network call fails)
-        assert (
-            "#test" in client.connection_info.channels
-        ), "Channel should be added to list"
+        assert "#test" in client.connection_info.channels, (
+            "Channel should be added to list"
+        )
     except Exception:
         # Network error is expected in test environment
         pass
@@ -229,9 +229,9 @@ def test_irc_channel_management():
     try:
         client.part_channel("#test")
         # Should remove from channel list
-        assert (
-            "#test" not in client.connection_info.channels
-        ), "Channel should be removed from list"
+        assert "#test" not in client.connection_info.channels, (
+            "Channel should be removed from list"
+        )
     except Exception:
         # Network error is expected in test environment
         pass
@@ -290,9 +290,9 @@ def test_irc_message_types(mock_irc_client):
     for raw_msg, expected_type in message_type_tests:
         parsed = client.parse_message(raw_msg)
         assert parsed is not None, f"Should parse: {raw_msg}"
-        assert (
-            parsed.type == expected_type
-        ), f"Wrong type for {raw_msg}: expected {expected_type}, got {parsed.type}"
+        assert parsed.type == expected_type, (
+            f"Wrong type for {raw_msg}: expected {expected_type}, got {parsed.type}"
+        )
 
 
 def test_irc_client_error_handling(mock_irc_client):
@@ -310,9 +310,9 @@ def test_irc_client_error_handling(mock_irc_client):
         parsed = client.parse_message(invalid_msg)
         # Should either return None or handle gracefully
         # The exact behavior depends on implementation
-        assert parsed is None or hasattr(
-            parsed, "type"
-        ), f"Should handle invalid message gracefully: {invalid_msg}"
+        assert parsed is None or hasattr(parsed, "type"), (
+            f"Should handle invalid message gracefully: {invalid_msg}"
+        )
 
 
 def test_irc_parse_with_tags_and_server_prefix(mock_irc_client):

@@ -2,8 +2,8 @@
 # This helps identify which test breaks the import or mutates sys.modules.
 
 import datetime as _dt
-import importlib as _importlib
 import importlib as _il
+import importlib as _importlib
 import os as _os
 import sys as _sys
 import traceback as _tb

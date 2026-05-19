@@ -83,7 +83,9 @@ else:
     trains = (
         data
         if isinstance(data, list)
-        else data.get("trains", []) if isinstance(data, dict) else []
+        else data.get("trains", [])
+        if isinstance(data, dict)
+        else []
     )
 
     for train in trains:

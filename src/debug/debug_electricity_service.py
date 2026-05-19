@@ -43,7 +43,7 @@ def main():
 
     print("Debugging electricity service for:")
     print(f"  Date: {test_date}")
-    print(f"  Time: {test_hour:02d}:{(test_quarter-1)*15:02d} (Q{test_quarter})")
+    print(f"  Time: {test_hour:02d}:{(test_quarter - 1) * 15:02d} (Q{test_quarter})")
     print("=" * 60)
 
     # Create service

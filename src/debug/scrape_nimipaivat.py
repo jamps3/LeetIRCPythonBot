@@ -4,6 +4,8 @@ from datetime import date, datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
 
+BASE_URL = "https://www.nimipaivat.fi/"
+
 
 def scrape_namedays(year):
     namedays = {}
@@ -15,7 +17,7 @@ def scrape_namedays(year):
     while current <= end:
         day = current.day
         month = current.month
-        url = f"{url}{day}.{month}."
+        url = f"{BASE_URL}{day}.{month}."
         response = requests.get(url)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")

@@ -59,17 +59,17 @@ def test_url_tracker_service_creation():
 
     # Test direct instantiation
     service = URLTrackerService()
-    assert isinstance(
-        service, URLTrackerService
-    ), "Should create URLTrackerService instance"
+    assert isinstance(service, URLTrackerService), (
+        "Should create URLTrackerService instance"
+    )
     assert hasattr(service, "urls_data"), "Should have urls_data attribute"
     assert hasattr(service, "data_dir"), "Should have data_dir attribute"
 
     # Test factory function
     service2 = create_url_tracker_service()
-    assert isinstance(
-        service2, URLTrackerService
-    ), "Factory should return URLTrackerService instance"
+    assert isinstance(service2, URLTrackerService), (
+        "Factory should return URLTrackerService instance"
+    )
 
 
 def test_url_tracking_basic(url_tracker_service):
@@ -95,12 +95,12 @@ def test_url_tracking_basic(url_tracker_service):
         "https://example.com", "testuser3", "testserver", "#differentchannel"
     )
 
-    assert (
-        is_duplicate3 is False
-    ), "Should not be duplicate for URL in different channel"
-    assert (
-        timestamp3 is None
-    ), "Should not have timestamp for new URL in different channel"
+    assert is_duplicate3 is False, (
+        "Should not be duplicate for URL in different channel"
+    )
+    assert timestamp3 is None, (
+        "Should not have timestamp for new URL in different channel"
+    )
 
 
 def test_url_normalization(url_tracker_service):
@@ -298,9 +298,9 @@ def test_channel_specific_tracking(url_tracker_service):
     is_duplicate2, _ = url_tracker_service.track_url(
         "https://test.com", "user2", "server1", "#channel2"
     )
-    assert (
-        is_duplicate2 is False
-    ), "Should not be duplicate in channel2 (different channel)"
+    assert is_duplicate2 is False, (
+        "Should not be duplicate in channel2 (different channel)"
+    )
 
     # Track same URL again in channel1
     is_duplicate3, _ = url_tracker_service.track_url(

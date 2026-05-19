@@ -23,6 +23,7 @@ from command_registry import (
 )
 from config import DATA_DIR, get_config
 from logger import get_logger
+from word_tracking.data_manager import get_data_manager
 
 logger = get_logger(__name__)
 
@@ -681,12 +682,20 @@ def quote_command(context: CommandContext, bot_functions):
                 return "Quote text cannot be empty"
 
             try:
-                # Ensure the directory exists
-                os.makedirs(os.path.dirname(quotes_source), exist_ok=True)
+                # Check if we should use state.json (file doesn't exist) or file
+                if not os.path.exists(quotes_source):
+                    # Use state.json
+                    data_manager = get_data_manager()
+                    current_quotes = data_manager.load_quotes()
+                    current_quotes.append(quote_text)
+                    data_manager.save_quotes(current_quotes)
+                else:
+                    # Ensure the directory exists
+                    os.makedirs(os.path.dirname(quotes_source), exist_ok=True)
 
-                # Append the quote to the file
-                with open(quotes_source, "a", encoding="utf-8") as f:
-                    f.write(quote_text + "\n")
+                    # Append the quote to the file
+                    with open(quotes_source, "a", encoding="utf-8") as f:
+                        f.write(quote_text + "\n")
 
                 return f'✅ Quote added: "{quote_text}"'
             except Exception as e:
@@ -708,13 +717,17 @@ def quote_command(context: CommandContext, bot_functions):
         else:
             # Handle file source
             if not os.path.exists(quotes_source):
-                return "Quotes file not found."
-
-            try:
-                with open(quotes_source, "r", encoding="utf-8") as f:
-                    lines = [line.strip() for line in f if line.strip()]
-            except Exception as e:
-                return f"Error reading quotes file: {e}"
+                # Fallback to state.json quotes
+                data_manager = get_data_manager()
+                lines = data_manager.load_quotes()
+                if not lines:
+                    return "Quotes file not found."
+            else:
+                try:
+                    with open(quotes_source, "r", encoding="utf-8") as f:
+                        lines = [line.strip() for line in f if line.strip()]
+                except Exception as e:
+                    return f"Error reading quotes file: {e}"
 
         if not lines:
             return "No quotes available"
@@ -828,7 +841,7 @@ def driving_distance_osrm(context: CommandContext, bot_functions):
         return (
             f"{origin_city}, {origin_country} → {destination_city}, {dest_country} : "
             f"Matka: {distance_km:.1f} km, "
-            f"Ajoaika: {duration_min/60:.1f} h"
+            f"Ajoaika: {duration_min / 60:.1f} h"
         )
     else:
         raise Exception(f"Virhe haettaessa reitteja: {response.status_code}")

@@ -306,11 +306,11 @@ class CryptoService:
         if price_data.get("market_cap") and price_data["market_cap"] > 1000000:
             market_cap = price_data["market_cap"]
             if market_cap >= 1e9:
-                cap_str = f"{market_cap/1e9:.1f}B"
+                cap_str = f"{market_cap / 1e9:.1f}B"
             elif market_cap >= 1e6:
-                cap_str = f"{market_cap/1e6:.1f}M"
+                cap_str = f"{market_cap / 1e6:.1f}M"
             else:
-                cap_str = f"{market_cap/1e3:.1f}K"
+                cap_str = f"{market_cap / 1e3:.1f}K"
             message += f" | 📊 {currency_symbol}{cap_str}"
 
         return message

@@ -73,7 +73,7 @@ def merge_data():
         if os.path.exists(hevonen_file):
             with open(hevonen_file, "r", encoding="utf-8") as f:
                 hevonen_data = json.load(f)
-            print(f"\nFound hevonen-historiallinen temp file!")
+            print("\nFound hevonen-historiallinen temp file!")
             if "hevonen" in hevonen_data:
                 converted["hevonen"] = hevonen_data["hevonen"]
                 print(f"  Added hevonen: {len(hevonen_data['hevonen'])} days")
@@ -87,7 +87,7 @@ def merge_data():
                 converted["_scrape_timestamp"] = hevonen_data["_scrape_timestamp"]
                 print(f"  Timestamp: {hevonen_data['_scrape_timestamp']}")
 
-        print(f"\nConverted data:")
+        print("\nConverted data:")
         for cat, days in converted.items():
             print(f"  {cat}: {len(days)} days")
 

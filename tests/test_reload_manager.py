@@ -191,9 +191,9 @@ class TestReloadManager:
 
         # Test 1: When commands exist, should return empty list
         missing = reload_manager.verify_critical_commands()
-        assert (
-            missing == []
-        ), f"Expected no missing commands when loaded, got: {missing}"
+        assert missing == [], (
+            f"Expected no missing commands when loaded, got: {missing}"
+        )
 
     def test_reload_lock_prevents_concurrent_access(self):
         """Test that reload lock prevents concurrent reloads."""

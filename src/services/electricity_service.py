@@ -24,12 +24,12 @@ class ElectricityService:
         self.cache_ttl_hours = cache_ttl_hours
         self._cache: Dict[str, Any] = {}
         self._logged_skip_dates: set = set()  # Track logged skip messages to avoid spam
-        self._pending_fetches: Dict[str, Any] = (
-            {}
-        )  # Track ongoing fetches to prevent duplicates
-        self._last_incomplete_fetch: Dict[str, datetime] = (
-            {}
-        )  # Track last incomplete fetch attempt
+        self._pending_fetches: Dict[
+            str, Any
+        ] = {}  # Track ongoing fetches to prevent duplicates
+        self._last_incomplete_fetch: Dict[
+            str, datetime
+        ] = {}  # Track last incomplete fetch attempt
         self._incomplete_fetch_cooldown = timedelta(
             minutes=5
         )  # Don't refetch incomplete data within 5 minutes
@@ -720,13 +720,13 @@ class ElectricityService:
                 "min_price": {
                     "hour": min_interval[0],
                     "quarter": min_interval[1],
-                    "time_str": f"{min_interval[0]:02d}:{(min_interval[1]-1)*15:02d}",
+                    "time_str": f"{min_interval[0]:02d}:{(min_interval[1] - 1) * 15:02d}",
                     "snt_per_kwh_with_vat": min_price,
                 },
                 "max_price": {
                     "hour": max_interval[0],
                     "quarter": max_interval[1],
-                    "time_str": f"{max_interval[0]:02d}:{(max_interval[1]-1)*15:02d}",
+                    "time_str": f"{max_interval[0]:02d}:{(max_interval[1] - 1) * 15:02d}",
                     "snt_per_kwh_with_vat": max_price,
                 },
                 "avg_price": {

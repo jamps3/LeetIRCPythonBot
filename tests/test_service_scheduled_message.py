@@ -80,7 +80,13 @@ class TestScheduledMessageService:
         """Test input validation for scheduling."""
         # Test hour clamping
         message_id = scheduled_service.schedule_message(
-            mock_irc_client, "#test", "Test", 25, 0, 0, 0  # Invalid hour
+            mock_irc_client,
+            "#test",
+            "Test",
+            25,
+            0,
+            0,
+            0,  # Invalid hour
         )
 
         msg_info = scheduled_service.scheduled_messages[message_id]
@@ -88,7 +94,13 @@ class TestScheduledMessageService:
 
         # Test minute clamping
         message_id2 = scheduled_service.schedule_message(
-            mock_irc_client, "#test", "Test", 12, 65, 0, 0  # Invalid minute
+            mock_irc_client,
+            "#test",
+            "Test",
+            12,
+            65,
+            0,
+            0,  # Invalid minute
         )
 
         msg_info2 = scheduled_service.scheduled_messages[message_id2]

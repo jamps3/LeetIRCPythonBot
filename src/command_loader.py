@@ -325,7 +325,9 @@ def process_console_command(command_text: str, bot_functions: Dict[str, Any]):
                 prefix = (
                     "!"
                     if command_text.startswith("!")
-                    else "/" if command_text.startswith("/") else "!"
+                    else "/"
+                    if command_text.startswith("/")
+                    else "!"
                 )
                 notice_message(
                     f"Command not recognized: {command_text}. Type {prefix}help for available commands."

@@ -64,7 +64,6 @@ def reset_command_registry():
 
 
 class TestElectricityService(unittest.TestCase):
-
     def setUp(self):
         """Set up test fixtures."""
         self.api_key = "test_api_key"

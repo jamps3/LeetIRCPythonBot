@@ -404,17 +404,17 @@ class YouTubeService:
 
         # Format view count
         if views >= 1000000:
-            view_str = f"{views/1000000:.1f}M"
+            view_str = f"{views / 1000000:.1f}M"
         elif views >= 1000:
-            view_str = f"{views/1000:.1f}k"
+            view_str = f"{views / 1000:.1f}k"
         else:
             view_str = str(views)
 
         # Format like count
         if likes >= 1000000:
-            like_str = f"{likes/1000000:.1f}M"
+            like_str = f"{likes / 1000000:.1f}M"
         elif likes >= 1000:
-            like_str = f"{likes/1000:.1f}k"
+            like_str = f"{likes / 1000:.1f}k"
         else:
             like_str = str(likes)
 

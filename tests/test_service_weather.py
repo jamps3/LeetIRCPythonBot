@@ -53,16 +53,16 @@ def test_weather_service_creation():
     # Test direct instantiation
     service = WeatherService("test_api_key")
     assert service.api_key == "test_api_key", "API key should be set"
-    assert (
-        service.base_url == "http://api.openweathermap.org/data/2.5"
-    ), "Base URL should be set"
+    assert service.base_url == "http://api.openweathermap.org/data/2.5", (
+        "Base URL should be set"
+    )
 
     # Test factory function
     service2 = create_weather_service("another_key")
     assert service2.api_key == "another_key", "Factory should set API key"
-    assert isinstance(
-        service2, WeatherService
-    ), "Factory should return WeatherService instance"
+    assert isinstance(service2, WeatherService), (
+        "Factory should return WeatherService instance"
+    )
 
 
 def test_weather_api_success(weather_service, mock_weather_response):
@@ -160,9 +160,9 @@ def test_weather_data_parsing(weather_service):
 def test_wind_direction_calculation(weather_service, degrees, expected_emoji):
     """Test wind direction emoji calculation."""
     result = weather_service._get_wind_direction(degrees)
-    assert (
-        result == expected_emoji
-    ), f"Wind direction for {degrees}° should be {expected_emoji}, got {result}"
+    assert result == expected_emoji, (
+        f"Wind direction for {degrees}° should be {expected_emoji}, got {result}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -180,9 +180,9 @@ def test_wind_direction_calculation(weather_service, degrees, expected_emoji):
 def test_weather_emoji_mapping(weather_service, condition, expected_emoji):
     """Test weather condition to emoji mapping."""
     result = weather_service._get_weather_emoji(condition)
-    assert (
-        result == expected_emoji
-    ), f"Weather emoji for {condition} should be {expected_emoji}, got {result}"
+    assert result == expected_emoji, (
+        f"Weather emoji for {condition} should be {expected_emoji}, got {result}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -203,9 +203,9 @@ def test_weather_emoji_mapping(weather_service, condition, expected_emoji):
 def test_pressure_analysis(weather_service, pressure, expected_visual):
     """Test atmospheric pressure analysis."""
     result = weather_service._analyze_pressure(pressure)
-    assert (
-        result["visual"] == expected_visual
-    ), f"Pressure visual for {pressure} hPa should be {expected_visual}, got {result['visual']}"
+    assert result["visual"] == expected_visual, (
+        f"Pressure visual for {pressure} hPa should be {expected_visual}, got {result['visual']}"
+    )
     assert isinstance(result["diff"], float), "Should have pressure difference"
     assert isinstance(result["percent"], float), "Should have pressure percentage"
 
@@ -426,9 +426,9 @@ def test_parse_weather_data_general_exception_returns_error(weather_service):
     result = weather_service._parse_weather_data(data, "Test")
 
     assert result["error"] is True, "Should have error when parsing fails"
-    assert (
-        "Error parsing weather data" in result["message"]
-    ), "Should indicate parsing error"
+    assert "Error parsing weather data" in result["message"], (
+        "Should indicate parsing error"
+    )
 
 
 def test_uv_index_exception_returns_none(weather_service):

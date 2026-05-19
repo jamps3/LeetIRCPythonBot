@@ -45,9 +45,10 @@ class TestLemmatizer:
                 "Voikko library is installed but cannot be initialized (missing system library)"
             )
 
-        with patch("lemmatizer.VOIKKO_AVAILABLE", True), patch(
-            "libvoikko.Voikko"
-        ) as mock_voikko_class:
+        with (
+            patch("lemmatizer.VOIKKO_AVAILABLE", True),
+            patch("libvoikko.Voikko") as mock_voikko_class,
+        ):
             mock_voikko = Mock()
             mock_voikko_class.return_value = mock_voikko
 
@@ -61,8 +62,9 @@ class TestLemmatizer:
         # Skip if Voikko is not installed at all
         pytest.importorskip("libvoikko")
 
-        with patch("lemmatizer.VOIKKO_AVAILABLE", True), patch(
-            "libvoikko.Voikko", side_effect=Exception("Voikko error")
+        with (
+            patch("lemmatizer.VOIKKO_AVAILABLE", True),
+            patch("libvoikko.Voikko", side_effect=Exception("Voikko error")),
         ):
             lem = Lemmatizer()
             assert lem.voikko_enabled is False

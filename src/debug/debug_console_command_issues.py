@@ -484,7 +484,7 @@ def main():
             failed += 1
 
     total = len(results)
-    print(f"\n📈 Results: {passed}/{total} tests passed ({passed/total:.1%})")
+    print(f"\n📈 Results: {passed}/{total} tests passed ({passed / total:.1%})")
 
     if failed > 0:
         print(f"\n🚨 {failed} test(s) failed! Console commands need fixing.")
@@ -524,7 +524,7 @@ def test_youtube_service_direct():
         if youtube_service:
             print(f"   YouTube service type: {type(youtube_service)}")
             print(
-                f'   YouTube service has api_key: {hasattr(youtube_service, "api_key")}'
+                f"   YouTube service has api_key: {hasattr(youtube_service, 'api_key')}"
             )
             if hasattr(youtube_service, "api_key") and youtube_service.api_key:
                 print(f"   YouTube API key: {youtube_service.api_key[:10]}...")

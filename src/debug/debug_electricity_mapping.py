@@ -136,7 +136,7 @@ def parse_test_hourly_averages(filename: str) -> Dict[int, float]:
                 hour = start_hour
                 hourly_averages[hour] = avg_price
                 print(
-                    f"Parsed hourly avg: {hour:02d}:00-{hour+1:02d}:00 -> {avg_price:.2f}¢"
+                    f"Parsed hourly avg: {hour:02d}:00-{hour + 1:02d}:00 -> {avg_price:.2f}¢"
                 )
             else:
                 print(f"Could not parse hourly average line: {line}")
@@ -524,7 +524,6 @@ def test_electricity_service_with_mocked_api():
         with mock.patch(
             "services.electricity_service.requests.get", side_effect=mock_response_func
         ) as mock_get:
-
             # Test specific times
             test_times = [
                 (0, 1),  # 00:00
@@ -542,10 +541,10 @@ def test_electricity_service_with_mocked_api():
             for hour, quarter in test_times:
                 expected_cents = expected_prices.get((hour, quarter))
                 if expected_cents is None:
-                    print(f"No expected price for {hour:02d}:{(quarter-1)*15:02d}")
+                    print(f"No expected price for {hour:02d}:{(quarter - 1) * 15:02d}")
                     continue
 
-                print(f"Testing {hour:02d}:{(quarter-1)*15:02d} (Q{quarter})")
+                print(f"Testing {hour:02d}:{(quarter - 1) * 15:02d} (Q{quarter})")
                 print(f"  Expected: {expected_cents}¢")
 
                 # Get actual price from service
@@ -594,7 +593,7 @@ def test_electricity_service_with_mocked_api():
                 for hour, quarter, expected, actual in failures:
                     actual_str = f"{actual:.2f}¢" if actual is not None else "None"
                     print(
-                        f"  {hour:02d}:{(quarter-1)*15:02d}: expected {expected}¢, got {actual_str}"
+                        f"  {hour:02d}:{(quarter - 1) * 15:02d}: expected {expected}¢, got {actual_str}"
                     )
 
             section_success = len(failures) == 0
@@ -643,12 +642,12 @@ def test_electricity_service_against_expected():
     for hour, quarter in test_times:
         expected_cents = expected_prices.get((hour, quarter))
         if expected_cents is None:
-            print(f"No expected price for {hour:02d}:{(quarter-1)*15:02d}")
+            print(f"No expected price for {hour:02d}:{(quarter - 1) * 15:02d}")
             continue
 
         # Get price from service (this will likely fail without proper API)
         # For now, just test the conversion logic
-        print(f"Testing {hour:02d}:{(quarter-1)*15:02d} (Q{quarter})")
+        print(f"Testing {hour:02d}:{(quarter - 1) * 15:02d} (Q{quarter})")
         print(f"  Expected: {expected_cents}¢")
 
         # Test the price conversion function directly
@@ -687,7 +686,7 @@ def test_electricity_service_against_expected():
         print("\nFailures:")
         for hour, quarter, expected, actual in failures:
             print(
-                f"  {hour:02d}:{(quarter-1)*15:02d}: expected {expected}¢, got {actual:.2f}¢"
+                f"  {hour:02d}:{(quarter - 1) * 15:02d}: expected {expected}¢, got {actual:.2f}¢"
             )
 
     return len(failures) == 0

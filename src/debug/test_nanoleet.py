@@ -65,10 +65,10 @@ def demo_nanoleet_detection():
 
         if result:
             achievement_message, achievement_level = result
-            print(f"  LUCKY #{i+1}: {achievement_message}")
+            print(f"  LUCKY #{i + 1}: {achievement_message}")
             lucky_count += 1
         else:
-            print(f"  #{i+1}: {timestamp} (no leet)")
+            print(f"  #{i + 1}: {timestamp} (no leet)")
 
         # Small delay to get different nanoseconds
         time.sleep(0.001)

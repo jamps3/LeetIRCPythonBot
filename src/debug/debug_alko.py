@@ -163,7 +163,7 @@ def check_excel_file():
         for i in range(min(10, len(df))):
             row = df.iloc[i]
             row_str = " | ".join(str(val) for val in row if pd.notna(val))
-            print(f"Row {i+1}: {row_str}")
+            print(f"Row {i + 1}: {row_str}")
 
         # Find header row by looking for "Nimi" or "Numero"
         header_row = None
@@ -218,7 +218,7 @@ def check_cache_products():
 
         print(f'Found {len(matches)} products containing "paperikassi":')
         for p in matches[:10]:  # Show first 10
-            print(f'  {p.get("number", "N/A")}: {p.get("name", "Unknown")}')
+            print(f"  {p.get('number', 'N/A')}: {p.get('name', 'Unknown')}")
 
         if len(matches) > 10:
             print(f"  ... and {len(matches) - 10} more")
@@ -233,7 +233,7 @@ def check_cache_products():
             f'\nFound {len(partial_matches)} products containing "paperi" or "kassi":'
         )
         for p in partial_matches[:10]:
-            print(f'  {p.get("number", "N/A")}: {p.get("name", "Unknown")}')
+            print(f"  {p.get('number', 'N/A')}: {p.get('name', 'Unknown')}")
 
     except Exception as e:
         print(f"❌ Error checking cache: {e}")

@@ -77,6 +77,7 @@ class DataManager:
             "drink_tracking_opt_out": {},
             "ai_teachings": {},
             "command_history": [],
+            "quotes": {"quotes.txt": []},
         }
 
         # Create files if they don't exist
@@ -613,6 +614,20 @@ class DataManager:
         teachings = self.get_teachings(network, channel)
         # Return just the content, without IDs to save tokens
         return [t["content"] for t in teachings[:max_items]]
+
+    def load_quotes(self) -> List[str]:
+        """Load quotes from merged state.json."""
+        state_data = self.load_json(self.state_file)
+        quotes_data = state_data.get("quotes", {})
+        return quotes_data.get("quotes.txt", [])
+
+    def save_quotes(self, quotes: List[str]):
+        """Save quotes to merged state.json."""
+        state_data = self.load_json(self.state_file)
+        if "quotes" not in state_data:
+            state_data["quotes"] = {}
+        state_data["quotes"]["quotes.txt"] = quotes
+        self.save_json(self.state_file, state_data)
 
 
 # Singleton instance for shared access

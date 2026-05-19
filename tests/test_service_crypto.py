@@ -90,19 +90,19 @@ def test_crypto_service_creation():
 
     # Test direct instantiation
     service = CryptoService()
-    assert (
-        service.base_url == "https://api.coingecko.com/api/v3"
-    ), "Base URL should be set"
+    assert service.base_url == "https://api.coingecko.com/api/v3", (
+        "Base URL should be set"
+    )
     assert isinstance(service.crypto_aliases, dict), "Should have crypto aliases"
-    assert isinstance(
-        service.supported_currencies, list
-    ), "Should have supported currencies"
+    assert isinstance(service.supported_currencies, list), (
+        "Should have supported currencies"
+    )
 
     # Test factory function
     service2 = create_crypto_service()
-    assert isinstance(
-        service2, CryptoService
-    ), "Factory should return CryptoService instance"
+    assert isinstance(service2, CryptoService), (
+        "Factory should return CryptoService instance"
+    )
 
 
 def test_crypto_price_success():
@@ -208,9 +208,9 @@ def test_unsupported_currency():
         result = service.get_crypto_price("bitcoin", "xyz")
 
         assert result["error"] is True, "Should have error"
-        assert (
-            "Unsupported currency" in result["message"]
-        ), "Should mention unsupported currency"
+        assert "Unsupported currency" in result["message"], (
+            "Should mention unsupported currency"
+        )
 
         return True
     except Exception as e:
@@ -421,9 +421,9 @@ def test_currency_symbol_mapping():
 
         for currency, expected_symbol in test_cases:
             result = service._get_currency_symbol(currency)
-            assert (
-                result == expected_symbol
-            ), f"Currency symbol for {currency} should be {expected_symbol}, got {result}"
+            assert result == expected_symbol, (
+                f"Currency symbol for {currency} should be {expected_symbol}, got {result}"
+            )
 
         return True
     except Exception as e:
@@ -472,18 +472,18 @@ def test_price_formatting_precision():
             if price >= 1:
                 # Check specific price formatting based on the actual price value
                 if price >= 1000:
-                    assert (
-                        "45,000.50" in result
-                    ), f"Should format large price correctly, got: {result}"
+                    assert "45,000.50" in result, (
+                        f"Should format large price correctly, got: {result}"
+                    )
                 else:
                     # For prices >= 1 but < 1000, format uses 2 decimal places
-                    assert (
-                        "3.57" in result
-                    ), f"Should format medium price correctly, got: {result}"
+                    assert "3.57" in result, (
+                        f"Should format medium price correctly, got: {result}"
+                    )
             else:
-                assert (
-                    "0.00001234" in result
-                ), f"Should format low prices with 8 decimals, got: {result}"
+                assert "0.00001234" in result, (
+                    f"Should format low prices with 8 decimals, got: {result}"
+                )
 
         return True
     except Exception as e:

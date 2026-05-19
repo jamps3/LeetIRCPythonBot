@@ -95,7 +95,9 @@ bot_functions = {
     "notice_message": lambda msg, irc, target: None,
     "log": lambda msg, level="INFO": None,
     "subscriptions": Mock(
-        toggle_subscription=lambda nick, server, topic: f"✅ Tilaus lisätty: {nick} on network {server} for {topic}",
+        toggle_subscription=lambda nick, server, topic: (
+            f"✅ Tilaus lisätty: {nick} on network {server} for {topic}"
+        ),
         format_all_subscriptions=lambda: "All subscriptions formatted",
     ),
     "data_manager": Mock(get_server_name=lambda: "test_server"),
@@ -133,23 +135,24 @@ def temp_subscriptions_file():
 
 @pytest.fixture
 def bot_manager():
-    with patch("bot_manager.DataManager"), patch(
-        "bot_manager.get_api_key", return_value=None
-    ), patch("bot_manager.create_crypto_service", return_value=Mock()), patch(
-        "bot_manager.create_leet_detector", return_value=Mock()
-    ), patch(
-        "bot_manager.create_fmi_warning_service", return_value=Mock()
-    ), patch(
-        "bot_manager.create_otiedote_service", return_value=Mock()
-    ), patch(
-        "bot_manager.Lemmatizer", side_effect=Exception("Mock error")
-    ), patch(
-        "bot_manager.get_config",
-        return_value=SimpleNamespace(
-            servers=[
-                SimpleNamespace(name="test_server", channels=["#test", "test", "main"])
-            ],
-            state_file="data/state.json",
+    with (
+        patch("bot_manager.DataManager"),
+        patch("bot_manager.get_api_key", return_value=None),
+        patch("bot_manager.create_crypto_service", return_value=Mock()),
+        patch("bot_manager.create_leet_detector", return_value=Mock()),
+        patch("bot_manager.create_fmi_warning_service", return_value=Mock()),
+        patch("bot_manager.create_otiedote_service", return_value=Mock()),
+        patch("bot_manager.Lemmatizer", side_effect=Exception("Mock error")),
+        patch(
+            "bot_manager.get_config",
+            return_value=SimpleNamespace(
+                servers=[
+                    SimpleNamespace(
+                        name="test_server", channels=["#test", "test", "main"]
+                    )
+                ],
+                state_file="data/state.json",
+            ),
         ),
     ):
         bot = BotManager("TestBot")
@@ -184,20 +187,30 @@ def otiedote_setup():
         (target, msg)
     )
 
-    with patch("config.get_server_configs", return_value=[server_config_mock]), patch(
-        "bot_manager.get_config",
-        return_value=Mock(servers=[server_config_mock], state_file="test_state.json"),
-    ), patch(
-        "services.electricity_service.create_electricity_service",
-        side_effect=ImportError("skip"),
-    ), patch(
-        "services.youtube_service.create_youtube_service",
-        side_effect=ImportError("skip"),
-    ), patch(
-        "services.fmi_warning_service.create_fmi_warning_service",
-        side_effect=ImportError("skip"),
-    ), patch(
-        "services.crypto_service.create_crypto_service", side_effect=ImportError("skip")
+    with (
+        patch("config.get_server_configs", return_value=[server_config_mock]),
+        patch(
+            "bot_manager.get_config",
+            return_value=Mock(
+                servers=[server_config_mock], state_file="test_state.json"
+            ),
+        ),
+        patch(
+            "services.electricity_service.create_electricity_service",
+            side_effect=ImportError("skip"),
+        ),
+        patch(
+            "services.youtube_service.create_youtube_service",
+            side_effect=ImportError("skip"),
+        ),
+        patch(
+            "services.fmi_warning_service.create_fmi_warning_service",
+            side_effect=ImportError("skip"),
+        ),
+        patch(
+            "services.crypto_service.create_crypto_service",
+            side_effect=ImportError("skip"),
+        ),
     ):
         manager = BotManager("TestBot")
         manager.servers = {server_name: fake_server}
@@ -246,9 +259,12 @@ def test_fmi_warnings(bot_manager):
     mock_subscriptions_1 = Mock(
         get_subscribers=lambda x: [("#test", "test_server"), ("user1", "test_server")]
     )
-    with patch.object(
-        bot_manager, "_get_subscriptions_module", return_value=mock_subscriptions_1
-    ), patch.object(bot_manager, "_send_response") as mock_send_1:
+    with (
+        patch.object(
+            bot_manager, "_get_subscriptions_module", return_value=mock_subscriptions_1
+        ),
+        patch.object(bot_manager, "_send_response") as mock_send_1,
+    ):
         bot_manager._handle_fmi_warnings(["Test warning"])
         mock_send_1.assert_any_call(
             bot_manager.servers["test_server"], "#test", "Test warning"
@@ -259,9 +275,12 @@ def test_fmi_warnings(bot_manager):
 
     # Test 2: No subscribers means no calls
     mock_subscriptions_2 = Mock(get_subscribers=lambda x: [])
-    with patch.object(
-        bot_manager, "_get_subscriptions_module", return_value=mock_subscriptions_2
-    ), patch.object(bot_manager, "_send_response") as mock_send_2:
+    with (
+        patch.object(
+            bot_manager, "_get_subscriptions_module", return_value=mock_subscriptions_2
+        ),
+        patch.object(bot_manager, "_send_response") as mock_send_2,
+    ):
         bot_manager._handle_fmi_warnings(["Test warning"])
         mock_send_2.assert_not_called()
 
@@ -269,9 +288,12 @@ def test_fmi_warnings(bot_manager):
     mock_subscriptions_3 = Mock(
         get_subscribers=lambda x: [("#test", "nonexistent_server")]
     )
-    with patch.object(
-        bot_manager, "_get_subscriptions_module", return_value=mock_subscriptions_3
-    ), patch.object(bot_manager, "_send_response") as mock_send_3:
+    with (
+        patch.object(
+            bot_manager, "_get_subscriptions_module", return_value=mock_subscriptions_3
+        ),
+        patch.object(bot_manager, "_send_response") as mock_send_3,
+    ):
         bot_manager._handle_fmi_warnings(["Test warning"])
         mock_send_3.assert_not_called()
 

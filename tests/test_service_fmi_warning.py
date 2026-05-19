@@ -16,7 +16,6 @@ from services.fmi_warning_service import FMIWarningService, create_fmi_warning_s
 
 
 class TestFMIWarningService(unittest.TestCase):
-
     def setUp(self):
         self.mock_callback = Mock()
         # Create a temporary file that gets cleaned up

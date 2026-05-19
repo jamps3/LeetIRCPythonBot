@@ -278,24 +278,27 @@ def test_list_lines_respects_limit_break(monkeypatch):
 
 def test_format_single_line_uses_defaults_and_limit(monkeypatch):
     # Patch _fetch and _list_lines to isolate logic
-    with patch.object(wf, "_fetch", return_value={}) as f, patch.object(
-        wf, "_list_lines", return_value=["11: x", "12: y", "13: z"]
+    with (
+        patch.object(wf, "_fetch", return_value={}) as f,
+        patch.object(wf, "_list_lines", return_value=["11: x", "12: y", "13: z"]),
     ):
         out = wf.format_single_line(city="  ", hours=-5)
     assert out.startswith(wf.DEFAULT_CITY + ": ")
     assert "11: x" in out
 
     # Hours cap at 48
-    with patch.object(wf, "_fetch", return_value={}) as f, patch.object(
-        wf, "_list_lines", return_value=["x"] * 60
+    with (
+        patch.object(wf, "_fetch", return_value={}) as f,
+        patch.object(wf, "_list_lines", return_value=["x"] * 60),
     ):
         out = wf.format_single_line(city="Helsinki", hours=100)
     assert out.startswith("Helsinki: ")
 
 
 def test_format_multi_line(monkeypatch):
-    with patch.object(wf, "_fetch", return_value={}), patch.object(
-        wf, "_list_lines", return_value=["A", "B"]
+    with (
+        patch.object(wf, "_fetch", return_value={}),
+        patch.object(wf, "_list_lines", return_value=["A", "B"]),
     ):
         out = wf.format_multi_line("Helsinki", hours=2)
     assert out[0] == "Helsinki"

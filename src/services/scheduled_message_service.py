@@ -82,8 +82,8 @@ class ScheduledMessageService:
             )  # Convert ms to ns, then half for one-way
             compensated_ns = target_epoch_ns - lag_ns
             self.logger.info(
-                f"Applying lag compensation: {lag_ms:.2f}ms (one-way: {lag_ms/2:.2f}ms, "
-                f"sending {lag_ns/1_000_000:.3f}ms earlier)"
+                f"Applying lag compensation: {lag_ms:.2f}ms (one-way: {lag_ms / 2:.2f}ms, "
+                f"sending {lag_ns / 1_000_000:.3f}ms earlier)"
             )
             # Use compensated time if it's in the future, otherwise use original
             if compensated_ns > now_ns:

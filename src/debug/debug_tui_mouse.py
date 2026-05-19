@@ -115,7 +115,7 @@ def test_multi_line_selection():
 
         selected_text = list_box._extract_multi_line_selected_text()
         print(f"Single line selection result: {selected_text!r}")
-        print(f"Expected: 't line' (from 'First line of text'[5:10])")
+        print("Expected: 't line' (from 'First line of text'[5:10])")
 
         # Test multi-line selection
         print("Testing multi-line selection...")
@@ -128,7 +128,7 @@ def test_multi_line_selection():
 
         selected_text = list_box._extract_multi_line_selected_text()
         print(f"Multi-line selection result: {selected_text!r}")
-        print(f"Expected: 'm URL\\nThird' (from line 1 col 10 + line 2 col 0-5)")
+        print("Expected: 'm URL\\nThird' (from line 1 col 10 + line 2 col 0-5)")
 
         # Test selection across all lines
         print("Testing selection across all lines...")

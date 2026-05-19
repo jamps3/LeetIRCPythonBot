@@ -93,7 +93,7 @@ def scrape_website(playwright, year):
         browser.close()
         return {}
 
-    print(f"Date input found, scraping all categories...")
+    print("Date input found, scraping all categories...")
 
     current = start
     total_days = (end - start).days + 1
@@ -316,7 +316,7 @@ if __name__ == "__main__":
     with sync_playwright() as p:
         website_data = scrape_website(p, year)
 
-    print(f"\nWebsite data scraped:")
+    print("\nWebsite data scraped:")
     for cat, data in website_data.items():
         if data:
             print(f"  {cat}: {len(data)} days")

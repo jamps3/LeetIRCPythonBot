@@ -46,9 +46,9 @@ class ServerManager:
         self.server_threads: Dict[str, threading.Thread] = {}
 
         # Channel tracking
-        self.joined_channels: Dict[str, List[str]] = (
-            {}
-        )  # server_name -> list of channels
+        self.joined_channels: Dict[
+            str, List[str]
+        ] = {}  # server_name -> list of channels
 
         # Connection settings
         if self.bot_config:
@@ -581,7 +581,7 @@ class ServerManager:
             if lag_measurements:
                 avg_lag_ns = sum(lag_measurements.values()) / len(lag_measurements)
                 logger.info(
-                    f"Average lag: {avg_lag_ns:,.0f} ns ({avg_lag_ns/1_000_000:.3f} ms)"
+                    f"Average lag: {avg_lag_ns:,.0f} ns ({avg_lag_ns / 1_000_000:.3f} ms)"
                 )
             else:
                 avg_lag_ns = 0

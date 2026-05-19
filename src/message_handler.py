@@ -1436,7 +1436,8 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                             while take > 0:
                                 try:
                                     chunk = b[
-                                        start : start + take  # noqa: E203
+                                        start : start
+                                        + take  # noqa: E203
                                     ].decode("utf-8")
                                     break
                                 except UnicodeDecodeError:
