@@ -60,7 +60,7 @@ python setup_hooks.py
 
 This sets up:
 
-- **Pre-commit hook**: Code formatting (black, isort, flake8)
+- **Pre-commit hook**: Code formatting and linting with Ruff
 - **Pre-push hook**: Runs `.	est -q` automatically before every push
 - **Git commit template**: Helpful commit message format
 

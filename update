@@ -87,7 +87,7 @@ def main():
     # Step 6: List current key packages
     print("\n📋 Current installed versions of key packages:")
     run_command(
-        f'"{VENV_PYTHON}" -m pip list | {GREP_CMD} -E "beautifulsoup4|feedparser|google-api|openai|pandas|openpyxl|python-dotenv|pytz|requests|playwright|tzdata|urwid|psutil|pyperclip|setuptools|xdk|black|isort|flake8|coverage|pytest|pytest-xdist"',
+        f'"{VENV_PYTHON}" -m pip list | {GREP_CMD} -E "beautifulsoup4|feedparser|google-api|openai|pandas|openpyxl|python-dotenv|pytz|requests|playwright|tzdata|urwid|psutil|pyperclip|setuptools|xdk|ruff|coverage|pytest|pytest-xdist"',
         "List key package versions"
     )
 

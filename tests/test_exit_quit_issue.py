@@ -18,7 +18,7 @@ _SRC_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")
 if _SRC_PATH not in sys.path:
     sys.path.insert(0, _SRC_PATH)
 
-# Import process_console_command for flake8 compliance (will be reloaded in fixture)
+# Import process_console_command for lint compliance (will be reloaded in fixture)
 from command_loader import process_console_command  # noqa: E402
 
 # Load environment variables for testing

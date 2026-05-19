@@ -44,23 +44,22 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
   - Optional API keys: OPENAI_API_KEY, WEATHER_API_KEY, ELECTRICITY_API_KEY, YOUTUBE_API_KEY
 
 - Linting & formatting:
-  - Isort (imports): isort --profile black .
-  - Black (format): black .
-  - Flake8 (lint): flake8 .
-  - Pre-commit setup (runs isort + Black before commit)
+  - Ruff format: ruff format .
+  - Ruff lint: ruff check .
+  - Ruff lint with fixes, including import sorting: ruff check --fix .
+  - Pre-commit setup (runs Ruff before commit)
 
 - CI reference (GitHub Actions):
   - Installs: python-dotenv pytest pytest-xdist (and optionally requirements.txt)
   - Runs tests via: python -m pytest -v --tb=short -n auto
-  - Lint job uses: black --check, isort --check-only, flake8
+  - Lint job uses: ruff format --check and ruff check
 
 - Local commands matching CI (pwsh):
   - $env:PYTHONPATH = (Get-Location)
   - python -m pytest -v --tb=short -n auto
   - Lint (check-only):
-    - isort --check-only --diff .
-    - black --check --diff .
-    - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+    - ruff format --check --diff .
+    - ruff check .
   - Security (optional, mirrors CI uploads but local files only):
     - bandit -r . -f json -o bandit-report.json || $true
     - safety check --json --output safety-report.json || $true

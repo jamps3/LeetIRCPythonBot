@@ -13,12 +13,12 @@ def get_hook_content():
     r"""Generate the pre-commit hook content."""
     return r"""#!/bin/bash
 # LeetIRCPythonBot Pre-commit Hook
-# Formats code with isort and black, lints with flake8, then runs quick tests if PRECOMMIT_RUN_TESTS enabled.
+# Formats and lints code with Ruff, then runs quick tests if PRECOMMIT_RUN_TESTS enabled.
 # If any step fails, the commit is aborted.
 
 set -euo pipefail
 
-echo "Running pre-commit: isort, black and flake8..."
+echo "Running pre-commit: Ruff format and lint..."
 
 # Ensure we run in repo root
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -49,28 +49,17 @@ fi
 
 echo "Using Python: $PYTHON_CMD"
 
-# Run isort if available, fail if not found
-if $PYTHON_CMD -m isort --version >/dev/null 2>&1; then
+# Run Ruff if available, fail if not found
+if $PYTHON_CMD -m ruff --version >/dev/null 2>&1; then
   # Get list of staged Python files to only format those
   STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | { grep -E '\.py$' || true; } | tr '\n' ' ')
   if [ -n "$STAGED_FILES" ]; then
-    echo "$PYTHON_CMD -m isort $STAGED_FILES"
-    $PYTHON_CMD -m isort $STAGED_FILES
-  else
-    echo "No staged Python files to sort"
-  fi
-else
-  echo "ERROR: isort not found. Install with: pip install isort"
-  exit 1
-fi
+    echo "$PYTHON_CMD -m ruff format $STAGED_FILES"
+    $PYTHON_CMD -m ruff format $STAGED_FILES
 
-# Run black if available, fail if not found
-if $PYTHON_CMD -m black --version >/dev/null 2>&1; then
-  # Get list of staged Python files to only format those
-  STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | { grep -E '\.py$' || true; } | tr '\n' ' ')
-  if [ -n "$STAGED_FILES" ]; then
-    echo "$PYTHON_CMD -m black $STAGED_FILES"
-    $PYTHON_CMD -m black $STAGED_FILES
+    echo "$PYTHON_CMD -m ruff check --fix $STAGED_FILES"
+    $PYTHON_CMD -m ruff check --fix $STAGED_FILES
+
     # Re-stage only the originally staged files that were modified
     echo "Re-staging formatted files..."
     git add $STAGED_FILES
@@ -78,18 +67,12 @@ if $PYTHON_CMD -m black --version >/dev/null 2>&1; then
     echo "No staged Python files to format"
   fi
 else
-  echo "ERROR: black not found. Install with: pip install black"
+  echo "ERROR: Ruff not found. Install with: pip install ruff"
   exit 1
 fi
 
-# Run flake8 if available, fail if not found
-if $PYTHON_CMD -m flake8 --version >/dev/null 2>&1; then
-  echo "$PYTHON_CMD -m flake8 ."
-  $PYTHON_CMD -m flake8 .
-else
-  echo "ERROR: flake8 not found. Install with: pip install flake8"
-  exit 1
-fi
+echo "$PYTHON_CMD -m ruff check ."
+$PYTHON_CMD -m ruff check .
 
 # Optionally run tests if PRECOMMIT_RUN_TESTS is enabled
 if [ "${PRECOMMIT_RUN_TESTS:-0}" != "0" ]; then
@@ -191,7 +174,7 @@ def install_hook():
     )
 
     print(f"Pre-commit hook installed at: {hook_path}")
-    print("The hook will run isort, black and flake8 before each commit.")
+    print("The hook will run Ruff format and lint before each commit.")
 
 
 if __name__ == "__main__":
