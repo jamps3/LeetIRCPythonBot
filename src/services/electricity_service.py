@@ -4,7 +4,6 @@ Provides Finnish electricity price information using ENTSO-E API.
 Supports caching, fetching prices for specific hours, 15-minute intervals, and statistics.
 """
 
-import xml.etree.ElementTree as ElementTree
 from datetime import datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from io import StringIO
@@ -12,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pytz
 import requests
+from defusedxml import ElementTree
 
 from logger import log
 

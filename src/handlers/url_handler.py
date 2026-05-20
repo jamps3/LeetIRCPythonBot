@@ -62,7 +62,7 @@ class UrlHandlerMixin:
         {
             "localhost",
             "127.0.0.1",
-            "0.0.0.0",
+            "0.0.0.0",  # noqa: S104 - blocked host literal, not a bind address.
         }
     )
 

@@ -61,8 +61,8 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
     - ruff format --check --diff .
     - ruff check .
   - Security (optional, mirrors CI uploads but local files only):
-    - bandit -r . -f json -o bandit-report.json || $true
-    - safety check --json --output safety-report.json || $true
+    - ruff check --select S .
+    - pip-audit -r requirements.txt -r requirements-dev.txt --progress-spinner off
 
 2. High-level architecture
 

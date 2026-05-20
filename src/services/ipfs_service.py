@@ -8,6 +8,7 @@ with size limits and password protection for large files.
 
 import hashlib
 import os
+import shutil
 import subprocess
 import tempfile
 from typing import Dict, Optional, Tuple
@@ -23,6 +24,7 @@ class IPFSService:
     def __init__(self):
         self.logger = get_logger("IPFSService")
         self.max_size_without_password = 100 * 1024 * 1024  # 100MB
+        self.ipfs_executable = shutil.which("ipfs")
 
         # Check if IPFS is available
         self.ipfs_available = self._check_ipfs_availability()
@@ -33,9 +35,15 @@ class IPFSService:
 
     def _check_ipfs_availability(self) -> bool:
         """Check if IPFS daemon is running and accessible."""
+        if not self.ipfs_executable:
+            return False
+
         try:
-            result = subprocess.run(
-                ["ipfs", "version"], capture_output=True, text=True, timeout=5
+            result = subprocess.run(  # noqa: S603 - executable is resolved with shutil.which and arguments are not shell-expanded.
+                [self.ipfs_executable, "version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             return result.returncode == 0
         except Exception as e:
@@ -124,9 +132,15 @@ class IPFSService:
         Returns:
             Tuple[ipfs_hash, error_message]
         """
+        if not self.ipfs_executable:
+            return None, "IPFS executable not found"
+
         try:
-            result = subprocess.run(
-                ["ipfs", "add", file_path], capture_output=True, text=True, timeout=60
+            result = subprocess.run(  # noqa: S603 - executable is resolved with shutil.which and arguments are not shell-expanded.
+                [self.ipfs_executable, "add", file_path],
+                capture_output=True,
+                text=True,
+                timeout=60,
             )
 
             if result.returncode == 0:
@@ -257,10 +271,12 @@ class IPFSService:
         """
         if not self.ipfs_available:
             return {"success": False, "message": "IPFS not available"}
+        if not self.ipfs_executable:
+            return {"success": False, "message": "IPFS executable not found"}
 
         try:
-            result = subprocess.run(
-                ["ipfs", "object", "stat", ipfs_hash],
+            result = subprocess.run(  # noqa: S603 - executable is resolved with shutil.which and arguments are not shell-expanded.
+                [self.ipfs_executable, "object", "stat", ipfs_hash],
                 capture_output=True,
                 text=True,
                 timeout=10,

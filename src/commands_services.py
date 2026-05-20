@@ -493,10 +493,10 @@ def electricity_command(context: CommandContext, bot_functions):
 def euribor_command(context: CommandContext, bot_functions):
     """Get current 12-month Euribor rate from Suomen Pankki."""
     import platform
-    import xml.etree.ElementTree as ElementTree
     from datetime import datetime as _dt
 
     import requests
+    from defusedxml import ElementTree
 
     try:
         # XML data URL from Suomen Pankki

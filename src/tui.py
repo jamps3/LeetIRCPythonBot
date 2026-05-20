@@ -851,8 +851,6 @@ class SelectableText(urwid.WidgetWrap):
 
     def _open_link_in_browser(self, url):
         """Open URL in default browser."""
-        import subprocess
-        import sys
         import webbrowser
 
         # Log the attempt to open URL
@@ -862,19 +860,6 @@ class SelectableText(urwid.WidgetWrap):
         log.info(f"Trying to open URL: {url}")
 
         try:
-            # Try different methods based on platform
-            if sys.platform == "win32":
-                # Windows: try start command first
-                try:
-                    subprocess.run(
-                        ["start", url], shell=True, check=True, capture_output=True
-                    )
-                    log.info(f"Successfully opened URL with start command: {url}")
-                    return
-                except subprocess.CalledProcessError as e:
-                    log.warning(f"Start command failed: {e}, trying webbrowser")
-
-            # Fallback to webbrowser
             result = webbrowser.open(url)
             log.info(f"webbrowser.open returned: {result} for URL: {url}")
 

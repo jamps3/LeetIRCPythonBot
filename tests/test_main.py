@@ -46,6 +46,11 @@ def test_main_env_missing_returns_1(monkeypatch):
 
 def test_setup_environment_no_server_config(monkeypatch):
     monkeypatch.setattr(main_mod, "load_env_file", lambda: True, raising=True)
+    monkeypatch.setattr(
+        "config.get_config",
+        lambda: Namespace(name="LeetIRCBot", servers=[object()]),
+        raising=True,
+    )
 
     # Clear SERVER*_HOST (though this doesn't matter anymore)
     for i in range(1, 10):

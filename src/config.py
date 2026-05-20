@@ -183,7 +183,7 @@ class BotConfig:
     quit_message: str = "🍺 Nähdään! 🍺"
 
     # Security
-    admin_password: str = "changeme"
+    admin_password: str = ""
 
     # Channel restrictions
     ops_allowed_channels: List[str] = field(default_factory=list)
@@ -309,7 +309,7 @@ class ConfigManager:
             reconnect_delay=state_config.get("reconnect_delay", RECONNECT_DELAY),
             quit_message=state_config.get("quit_message", QUIT_MESSAGE),
             # Security
-            admin_password=state_config.get("admin_password", "changeme"),
+            admin_password=state_config.get("admin_password", ""),
             # Channel restrictions
             ops_allowed_channels=parse_comma_separated_values(
                 state_config.get("ops_allowed_channels", OPS_ALLOWED_CHANNELS)
@@ -449,7 +449,7 @@ class ConfigManager:
         config["log_level"] = (
             input(f"Log level ({default_level}): ").strip().upper() or default_level
         )
-        default_password = existing_config.get("admin_password", "changeme")
+        default_password = existing_config.get("admin_password", "")
         config["admin_password"] = (
             input(f"Admin password ({default_password}): ").strip() or default_password
         )

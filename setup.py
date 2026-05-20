@@ -15,7 +15,7 @@ class CustomInstall(install):
         req_file = "requirements.txt"
         if os.path.exists(req_file):
             print(f"\nInstalling dependencies from {req_file}...\n")
-            subprocess.check_call(
+            subprocess.check_call(  # noqa: S603
                 [sys.executable, "-m", "pip", "install", "-r", req_file]
             )
         else:
@@ -23,7 +23,7 @@ class CustomInstall(install):
 
         # Step 2: Install the Playwright Firefox browser
         print("\nInstalling Playwright Firefox browser...\n")
-        subprocess.check_call(
+        subprocess.check_call(  # noqa: S603
             [sys.executable, "-m", "playwright", "install", "firefox"]
         )
 

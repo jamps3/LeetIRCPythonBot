@@ -170,7 +170,7 @@ def install_hook():
 
     os.chmod(
         hook_path,
-        stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH,
+        stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH,  # noqa: S103 - Git hooks must be executable by the current user.
     )
 
     print(f"Pre-commit hook installed at: {hook_path}")

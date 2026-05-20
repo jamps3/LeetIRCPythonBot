@@ -1268,6 +1268,7 @@ def test_start_flow(monkeypatch, manager):
             pass
 
     manager.servers = {"srv": S()}
+    manager.server_manager.servers = manager.servers
 
     # Patch threading.Thread to no-op thread
     class T:

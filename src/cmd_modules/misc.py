@@ -11,6 +11,7 @@ import random
 import re
 import urllib.request
 from datetime import datetime, timedelta
+from urllib.request import Request
 
 import requests
 
@@ -707,7 +708,8 @@ def quote_command(context: CommandContext, bot_functions):
         if quotes_source.startswith("http://") or quotes_source.startswith("https://"):
             # Handle URL source
             try:
-                with urllib.request.urlopen(quotes_source) as response:
+                request = Request(quotes_source, method="GET")  # noqa: S310 - scheme is restricted to HTTP(S) above.
+                with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310 - scheme is restricted to HTTP(S) above.
                     content = response.read().decode("utf-8")
                     lines = [
                         line.strip() for line in content.splitlines() if line.strip()

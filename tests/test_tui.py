@@ -345,16 +345,14 @@ class TestSelectableText:
 
     def test_selectable_text_open_link_windows(self):
         """Test opening links on Windows."""
-        with patch("sys.platform", "win32"), patch("subprocess.run") as mock_run:
+        with (
+            patch("sys.platform", "win32"),
+            patch("webbrowser.open", return_value=True) as mock_open,
+        ):
             text = SelectableText("Test")
             text._open_link_in_browser("https://example.com")
 
-            mock_run.assert_called_once_with(
-                ["start", "https://example.com"],
-                shell=True,
-                check=True,
-                capture_output=True,
-            )
+            mock_open.assert_called_once_with("https://example.com")
 
     def test_selectable_text_open_link_fallback(self):
         """Test opening links with webbrowser fallback."""

@@ -304,9 +304,21 @@ def test_config_validation():
     assert config_manager is not None
 
 
-def test_server_config_parsing():
+def test_server_config_parsing(monkeypatch):
     """Test server configuration parsing."""
     from config import get_config_manager
+
+    servers = [
+        cfg.ServerConfig(
+            host="irc.example.com", port=6667, channels=["#test"], name="s1"
+        )
+    ]
+    monkeypatch.setattr(
+        cfg.ConfigManager,
+        "_load_server_configs_from_state",
+        lambda self, state_config: servers,
+        raising=True,
+    )
 
     config_manager = get_config_manager()
     config = config_manager.config
@@ -393,9 +405,21 @@ def test_config_json_export():
             os.unlink(temp_json_path)
 
 
-def test_config_server_lookup():
+def test_config_server_lookup(monkeypatch):
     """Test server configuration lookup functionality."""
     from config import get_config_manager
+
+    servers = [
+        cfg.ServerConfig(
+            host="irc.example.com", port=6667, channels=["#test"], name="s1"
+        )
+    ]
+    monkeypatch.setattr(
+        cfg.ConfigManager,
+        "_load_server_configs_from_state",
+        lambda self, state_config: servers,
+        raising=True,
+    )
 
     config_manager = get_config_manager()
 
