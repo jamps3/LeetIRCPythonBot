@@ -21,11 +21,19 @@ Features:
 
 import os
 import shutil
+import sys
 import threading
 import time
 from datetime import datetime, timedelta, timezone
 
 # from typing import Optional
+
+
+def _safe_console_print(text: str) -> None:
+    """Print text using the active console encoding without raising Unicode errors."""
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    safe_text = str(text).encode(encoding, errors="replace").decode(encoding)
+    print(safe_text)
 
 
 def get_log_files(log_file: str = "data/leet.log"):
@@ -304,7 +312,7 @@ class PrecisionLogger:
                         _file_hook(timestamp, level.upper(), output)
                 except Exception as e:
                     # Don't let file hook errors break logging
-                    print(f"[LOGGER ERROR] File hook failed: {e}")
+                    _safe_console_print(f"[LOGGER ERROR] File hook failed: {e}")
 
             # Forward to TUI if hook is set, otherwise print to console
             if _tui_hook:
@@ -331,10 +339,10 @@ class PrecisionLogger:
                     )
                 except Exception as e:
                     # Don't let TUI hook errors break logging
-                    print(f"[LOGGER ERROR] TUI hook failed: {e}")
+                    _safe_console_print(f"[LOGGER ERROR] TUI hook failed: {e}")
             else:
                 # Only print to console if TUI hook is not active
-                print(f"{timestamp} {output}")  # Main console log output
+                _safe_console_print(f"{timestamp} {output}")  # Main console log output
                 # Also buffer for TUI display later
                 source_type = "SYSTEM"
                 if context and any(
@@ -395,14 +403,16 @@ class PrecisionLogger:
                             source_type,
                         )
                     except Exception as e:
-                        print(f"[LOGGER ERROR] TUI hook failed in fallback: {e}")
+                        _safe_console_print(
+                            f"[LOGGER ERROR] TUI hook failed in fallback: {e}"
+                        )
                 else:
                     # Only print to console if TUI hook is not active
                     fallback_output = f"{timestamp} [{level.upper():<7}]"
                     if context:
                         fallback_output += f" [{context}]"
                     fallback_output += f" {safe_message}"
-                    print(fallback_output)
+                    _safe_console_print(fallback_output)
             except Exception:
                 # Last resort: basic ASCII message - respect TUI hook
                 error_msg = f"Could not display Unicode message: {repr(message)}"
@@ -413,9 +423,9 @@ class PrecisionLogger:
                             datetime.now(), "Logger", "ERROR", error_msg, "SYSTEM"
                         )
                     except Exception:
-                        print(f"[LOGGER ERROR] {error_msg}")
+                        _safe_console_print(f"[LOGGER ERROR] {error_msg}")
                 else:
-                    print(f"[LOGGER ERROR] {error_msg}")
+                    _safe_console_print(f"[LOGGER ERROR] {error_msg}")
 
     def info(self, message: str, context: str = "", fallback_text: str = ""):
         self.log(message, "INFO", context, fallback_text)  # Log an info message
