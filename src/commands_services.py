@@ -72,12 +72,15 @@ def solarwind_command(context: CommandContext, bot_functions):
 @command(
     "otiedote",
     description="Get accident reports (Onnettomuustiedotteet) from local JSON",
-    usage="!otiedote [N | #N | seuraava | set <number> | filter #channel <organization> <field> | filter list | init]",
+    usage="!otiedote [N | #N | seuraava | tilaa #channel | peru #channel | tilaukset | set <number> | filter #channel <organization> <field> | filter list | init]",
     examples=[
         "!otiedote",
         "!otiedote 2",
         "!otiedote #2610",
         "!otiedote seuraava",
+        "!otiedote tilaa #onnettomuustiedotteet",
+        "!otiedote peru #onnettomuustiedotteet",
+        "!otiedote tilaukset",
         "!otiedote filter #joensuu Pohjois-Karjalan pelastuslaitos organization",
         "!otiedote filter list",
         "!otiedote init",
@@ -206,6 +209,101 @@ def otiedote_command(context: CommandContext, bot_functions):
                 return f"❌ No new releases found after #{otiedote_service.latest_release} (next release may not be published yet)"
         except Exception as e:
             return f"❌ Error fetching next release after #{otiedote_service.latest_release}: {e}"
+
+    # Handle "tilaa" subcommand - subscribe to otiedote notifications
+    if context.args and context.args[0].lower() == "tilaa":
+        try:
+            from subscriptions import toggle_subscription
+
+            # Determine the target (channel or nick)
+            if len(context.args) >= 2:
+                target = context.args[1]
+                if not target.startswith("#"):
+                    return "❌ Usage: !otiedote tilaa #channel"
+            else:
+                # Subscribe the current channel
+                if context.is_console:
+                    return "❌ Usage: !otiedote tilaa #channel"
+                target = context.target or ""
+
+            # Get server name
+            server_name = context.server_name if hasattr(context, "server_name") else ""
+            if not server_name:
+                return "❌ Could not determine server name"
+
+            result = toggle_subscription(target, server_name, "onnettomuustiedotteet")
+            if "✅" in result:
+                return (
+                    f"✅ Otiedote notifications enabled for {target} on {server_name}"
+                )
+            elif "❌" in result:
+                return (
+                    f"❌ Otiedote notifications disabled for {target} on {server_name}"
+                )
+            return result
+        except Exception as e:
+            return f"❌ Error managing subscription: {e}"
+
+    # Handle "peru" subcommand - unsubscribe from otiedote notifications
+    if context.args and context.args[0].lower() == "peru":
+        try:
+            from subscriptions import toggle_subscription
+
+            # Determine the target (channel or nick)
+            if len(context.args) >= 2:
+                target = context.args[1]
+                if not target.startswith("#"):
+                    return "❌ Usage: !otiedote peru #channel"
+            else:
+                # Unsubscribe the current channel
+                if context.is_console:
+                    return "❌ Usage: !otiedote peru #channel"
+                target = context.target or ""
+
+            # Get server name
+            server_name = context.server_name if hasattr(context, "server_name") else ""
+            if not server_name:
+                return "❌ Could not determine server name"
+
+            # toggle_subscription toggles, so we need to ensure it's removed
+            from subscriptions import (
+                get_user_subscriptions,
+                load_subscriptions,
+                save_subscriptions,
+            )
+
+            subs = get_user_subscriptions(target, server_name)
+            if "onnettomuustiedotteet" in subs:
+                data = load_subscriptions()
+                data[server_name][target].remove("onnettomuustiedotteet")
+                if not data[server_name][target]:
+                    del data[server_name][target]
+                if not data[server_name]:
+                    del data[server_name]
+                if save_subscriptions(data):
+                    return f"❌ Otiedote notifications disabled for {target} on {server_name}"
+            return f"ℹ️ {target} was not subscribed to otiedote notifications on {server_name}"
+        except Exception as e:
+            return f"❌ Error managing subscription: {e}"
+
+    # Handle "tilaukset" subcommand - list current subscriptions
+    if context.args and context.args[0].lower() == "tilaukset":
+        try:
+            from subscriptions import get_all_subscriptions
+
+            data = get_all_subscriptions()
+            if not data:
+                return "📋 Ei otiedote-tilauksia."
+
+            lines = ["📋 Otiedote-tilaukset:"]
+            for server_name, server_data in data.items():
+                for nick, topics in server_data.items():
+                    if "onnettomuustiedotteet" in topics:
+                        lines.append(f"  • {nick} ({server_name})")
+
+            return "\n".join(lines)
+        except Exception as e:
+            return f"❌ Error listing subscriptions: {e}"
 
     # Handle "set" subcommand - manually set current release number
     if context.args and context.args[0].lower() == "set":
