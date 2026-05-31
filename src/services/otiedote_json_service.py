@@ -401,7 +401,7 @@ class OtiedoteService:
         save_json_atomic(self.json_file, releases, update_timestamp=False)
 
     def check_new_releases(
-        self, max_attempts: int = 10, max_releases: int = 20
+        self, max_attempts: int = 5, max_releases: int = 500
     ) -> list:
         """Check for newly published releases without skipping unpublished IDs."""
         self.latest_release = self._load_latest_release()
