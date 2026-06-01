@@ -42,7 +42,7 @@ CHECK_INTERVAL = 15 * 60  # 15 min
 # ----------------------------------------------------
 # Helpers
 # ----------------------------------------------------
-def load_existing_ids(json_file: str = None):
+def load_existing_ids(json_file: Optional[str] = None):
     """Load previously saved releases from a release JSON file."""
     json_file = json_file or JSON_FILE
     if not os.path.exists(json_file):
@@ -80,13 +80,13 @@ def fetch_release(id: int) -> Optional[dict]:
 
         # Published date
         date = ""
-        published_span = soup.find("span", string=lambda s: s and "Julkaistu" in s)
+        published_span = soup.find("span", string=lambda s: s and "Julkaistu" in s)  # type: ignore[arg-type]
         if published_span:
             date = published_span.get_text(strip=True).replace("Julkaistu: ", "")
 
         # Location
         location = ""
-        location_label = soup.find("b", string=lambda s: s and "Tapahtumapaikka" in s)
+        location_label = soup.find("b", string=lambda s: s and "Tapahtumapaikka" in s)  # type: ignore[arg-type]
         if location_label:
             parent = location_label.parent
             location = (
@@ -96,7 +96,8 @@ def fetch_release(id: int) -> Optional[dict]:
         # Organization (Julkaiseva organisaatio)
         organization = ""
         org_label = soup.find(
-            "b", string=lambda s: s and "Julkaiseva organisaatio" in s
+            "b",
+            string=lambda s: s and "Julkaiseva organisaatio" in s,  # type: ignore[arg-type]
         )
         if org_label:
             # Get the row/div containing the organization info
@@ -114,7 +115,8 @@ def fetch_release(id: int) -> Optional[dict]:
         # Description
         content = ""
         description_block = soup.find(
-            "b", string=lambda s: s and "Tapahtuman kuvaus" in s
+            "b",
+            string=lambda s: s and "Tapahtuman kuvaus" in s,  # type: ignore[arg-type]
         )
         if description_block:
             row = description_block.find_parent(class_="row")
@@ -127,7 +129,8 @@ def fetch_release(id: int) -> Optional[dict]:
         # Units
         units = []
         units_header = soup.find(
-            "b", string=lambda s: s and "Osallistuneet yksiköt" in s
+            "b",
+            string=lambda s: s and "Osallistuneet yksiköt" in s,  # type: ignore[arg-type]
         )
         if units_header:
             list_root = units_header.find_parent("div").find_next("ul")
@@ -414,10 +417,10 @@ class OtiedoteService:
         misses = 0
 
         while misses < max_attempts and len(new_releases) < max_releases:
-            logger.info(f"Checking Otiedote release #{next_id}")
             release = fetch_release(next_id)
 
             if release:
+                logger.info(f"✅ Otiedote release #{next_id} found: {release['title']}")
                 if release["id"] not in existing_ids:
                     releases.append(release)
                     existing_ids.add(release["id"])
@@ -426,6 +429,7 @@ class OtiedoteService:
                 self.latest_release = max(self.latest_release, release["id"])
                 misses = 0
             else:
+                logger.info(f"❌ Otiedote release #{next_id} not found")
                 misses += 1
 
             next_id += 1

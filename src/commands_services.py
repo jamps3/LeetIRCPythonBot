@@ -197,11 +197,17 @@ def otiedote_command(context: CommandContext, bot_functions):
                 if should_show:
                     # Show the release in the current channel
                     header_message = f"📢 {release['title']} | {release['url']}"
-                    server = context.server if hasattr(context, "server") else None
-                    if server:
+                    raw_server = context.server if hasattr(context, "server") else None
+                    # context.server can be a Server object or a string (e.g. in help context);
+                    # only pass it to notice_message if it's a proper object
+                    if (
+                        raw_server
+                        and hasattr(raw_server, "connected")
+                        and callable(getattr(raw_server, "connected", None))
+                    ):
                         bot_functions.get(
                             "notice_message", lambda msg, irc, target: None
-                        )(header_message, server, target)
+                        )(header_message, raw_server, target)
                     return f"✅ Manually fetched and showed Otiedote #{release['id']}: {release['title']} (current was #{otiedote_service.latest_release})"
                 else:
                     return f"❌ Next release #{release['id']} is filtered out for this channel (organization: {release.get('organization', 'unknown')})"
@@ -432,8 +438,9 @@ def otiedote_command(context: CommandContext, bot_functions):
         if not organization.strip():
             return "❌ Organization name cannot be empty"
 
-        # Load state
-        state = otiedote_service._load_state()
+        # Load state (typed as dict[str, dict] to satisfy Pylance)
+        raw_state = otiedote_service._load_state()
+        state: dict[str, dict] = raw_state
         if "otiedote" not in state:
             state["otiedote"] = {"latest_release": 0}
 
@@ -441,12 +448,13 @@ def otiedote_command(context: CommandContext, bot_functions):
             state["otiedote"]["filters"] = {}
 
         # Add filter for channel
-        if channel not in state["otiedote"]["filters"]:
-            state["otiedote"]["filters"][channel] = []
+        filters = state["otiedote"]["filters"]
+        if channel not in filters:
+            filters[channel] = []
 
         filter_entry = f"{organization}:{field}"
-        if filter_entry not in state["otiedote"]["filters"][channel]:
-            state["otiedote"]["filters"][channel].append(filter_entry)
+        if filter_entry not in filters[channel]:
+            filters[channel].append(filter_entry)
 
         # Save state
         try:
@@ -608,7 +616,7 @@ def euribor_command(context: CommandContext, bot_functions):
             ns = {"ns": "euribor_korot_today_xml_en"}
             period = root.find(".//ns:period", namespaces=ns)
             if period is not None:
-                date_str = period.attrib.get("value")
+                date_str = period.attrib.get("value", "")
                 date_obj = _dt.strptime(date_str, "%Y-%m-%d")
                 if platform.system() == "Windows":
                     formatted_date = date_obj.strftime("%#d.%#m.%y")

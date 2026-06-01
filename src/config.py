@@ -370,6 +370,10 @@ class ConfigManager:
             if not isinstance(full_state, dict):
                 full_state = {}
 
+            # Preserve any servers that may exist at root level (old format)
+            if "servers" not in state_config and "servers" in full_state:
+                state_config["servers"] = full_state["servers"]
+
             if "config" in full_state:
                 full_state["config"] = state_config
             else:
