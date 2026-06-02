@@ -1,13 +1,10 @@
 """Tests for the reload_manager module."""
 
-import importlib
 import sys
-import threading
+from types import ModuleType
 from unittest.mock import Mock, patch
 
-import pytest
-
-from src import reload_manager
+import reload_manager
 
 
 class TestReloadManager:
@@ -19,49 +16,27 @@ class TestReloadManager:
         loaded = reload_manager.get_loaded_modules()
         assert isinstance(loaded, set)
 
-        # Import a reloadable module to test
-        import src.command_registry
-
-        sys.modules["command_registry"] = src.command_registry
-
-        loaded = reload_manager.get_loaded_modules()
-        assert "command_registry" in loaded
+        with patch.dict(
+            sys.modules, {"command_registry": ModuleType("command_registry")}
+        ):
+            loaded = reload_manager.get_loaded_modules()
+            assert "command_registry" in loaded
 
     def test_clear_module_caches(self):
         """Test clearing module caches."""
-        # Create a mock module with cache attributes
-        mock_module = Mock()
-        mock_module.__dict__ = {
-            "_commands_cache": {},
-            "_some_other_cache": [],
-            "normal_attribute": "value",
-            "__cache_info": "info",
-        }
+        module = ModuleType("test_module")
+        module._commands_cache = {}
+        module._some_other_cache = []
+        module.__cache_info = "info"
+        module.normal_attribute = "value"
 
-        # Clear caches
-        reload_manager.clear_module_caches("test_module")
+        with patch.dict(sys.modules, {"test_module": module}):
+            reload_manager.clear_module_caches("test_module")
 
-        # Verify cache attributes were cleared by checking the module's __dict__ directly
-        # Since Mock objects don't actually modify their __dict__ when we try to delete keys,
-        # we need to test the function logic differently
-        test_dict = {
-            "_commands_cache": {},
-            "_some_other_cache": [],
-            "normal_attribute": "value",
-            "__cache_info": "info",
-        }
-
-        # Simulate what clear_module_caches does
-        for key in list(test_dict.keys()):
-            if key.startswith("_") and "cache" in key.lower():
-                del test_dict[key]
-
-        # Verify cache attributes were cleared
-        assert "_commands_cache" not in test_dict
-        assert "_some_other_cache" not in test_dict
-        assert "__cache_info" not in test_dict
-        # Normal attributes should remain
-        assert "normal_attribute" in test_dict
+        assert not hasattr(module, "_commands_cache")
+        assert not hasattr(module, "_some_other_cache")
+        assert not hasattr(module, "__cache_info")
+        assert module.normal_attribute == "value"
 
     def test_reload_single_module_not_loaded(self):
         """Test reloading a module that is not loaded."""
@@ -157,7 +132,7 @@ class TestReloadManager:
     def test_verify_critical_commands_all_present(self):
         """Test verification when all critical commands are present."""
         # Import and load commands to ensure they exist
-        from src.command_loader import load_all_commands
+        from command_loader import load_all_commands
 
         load_all_commands()
 
@@ -168,32 +143,22 @@ class TestReloadManager:
 
     def test_verify_critical_commands_missing(self):
         """Test verification when critical commands are missing."""
-        # Test that an empty registry returns all commands as missing
-        # We'll directly test by clearing commands from a fresh registry
-        from src.command_loader import load_all_commands, reset_commands_loaded_flag
-        from src.command_registry import get_command_registry
+        from command_loader import load_all_commands
+        from command_registry import get_command_registry
 
         # First ensure commands are loaded
         load_all_commands()
         registry = get_command_registry()
 
-        # Save original handlers
-        original_help = registry.get_handler("help")
-        original_ping = registry.get_handler("ping")
-
-        # Remove the handlers temporarily
-        # Note: We can't actually remove them, but we can test the logic
-        # by checking what happens when handler returns None
-
-        # The key insight: we need to test what happens when commands ARE missing
-        # Since we can't easily remove commands from the singleton registry,
-        # let's just verify that the function correctly identifies present commands
-
-        # Test 1: When commands exist, should return empty list
-        missing = reload_manager.verify_critical_commands()
-        assert missing == [], (
-            f"Expected no missing commands when loaded, got: {missing}"
-        )
+        original_commands = registry._commands.copy()
+        original_aliases = registry._aliases.copy()
+        try:
+            registry.unregister("help")
+            registry.unregister("lag")
+            assert reload_manager.verify_critical_commands() == ["help", "lag"]
+        finally:
+            registry._commands = original_commands
+            registry._aliases = original_aliases
 
     def test_reload_lock_prevents_concurrent_access(self):
         """Test that reload lock prevents concurrent reloads."""

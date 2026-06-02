@@ -161,6 +161,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 
 - Pytest is the standard. (see tests/!TEST_SUMMARY.md for context).
 - Some tests intentionally skip external integrations; CI installs only minimal deps and relies on mocks/importorskip where needed.
+- Before finishing any task, run the full test suite and ensure all tests pass. Do not treat a task as complete while any test is failing.
  - All tests: python -m pytest -v --tb=short -n auto
   - Single file: python -m pytest tests/test_config_new.py -v
   - Single test node: python -m pytest tests/test_config_new.py::test_load_env_file -v

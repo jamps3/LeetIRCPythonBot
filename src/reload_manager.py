@@ -41,6 +41,7 @@ SERVICE_MODULES: List[str] = [
     "services.gpt_service",
     "services.alko_service",
     "services.drug_service",
+    "services.prescription_interaction_service",
     "services.digitraffic_service",
     "services.fmi_warning_service",
     "services.otiedote_json_service",
