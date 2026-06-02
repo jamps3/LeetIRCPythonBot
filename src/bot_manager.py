@@ -36,6 +36,7 @@ time = time
 from message_handler import MessageHandler, create_message_handler  # noqa: E402
 from server_manager import create_server_manager  # noqa: E402
 from service_manager import create_service_manager  # noqa: E402
+from state_utils import backup_json_atomic  # noqa: E402
 from word_tracking import DataManager  # noqa: E402
 
 
@@ -131,6 +132,7 @@ class BotManager:
     def start(self):
         """Start all managers and begin bot operation."""
         self.logger.info("🚀 Starting bot managers...")
+        self._backup_state("start.bak")
 
         # Start servers (this handles auto-connecting if enabled)
         if not self.server_manager.start_servers():
@@ -162,6 +164,7 @@ class BotManager:
 
         # Shutdown server manager
         self.server_manager.shutdown(quit_message)
+        self._backup_state("end.bak")
 
         # Clean up Voikko to avoid deallocator errors on shutdown
         try:
@@ -172,6 +175,12 @@ class BotManager:
             pass  # Ignore cleanup errors
 
         self.logger.info("✅ Bot shutdown complete")
+
+    def _backup_state(self, suffix: str) -> None:
+        try:
+            backup_json_atomic(self.config.state_file, suffix)
+        except Exception as e:
+            self.logger.error(f"Could not create state.json.{suffix}: {e}")
 
     def wait_for_shutdown(self):
         """Wait for all managers to complete shutdown."""

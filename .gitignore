@@ -172,6 +172,8 @@ cython_debug/
 
 # Saved data
 data/state.json
+data/state.json.start.bak
+data/state.json.end.bak
 data/leetbot_history
 
 data/conversation_history.json

@@ -8,7 +8,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -291,11 +291,10 @@ def test_save_seen_hashes_and_data_io_errors(tmp_path, capsys):
         callback=lambda x: None, state_file=str(tmp_path / "state.json")
     )
 
-    m = mock_open()
-    # Simulate IOError on write
-    m.return_value.write.side_effect = IOError("disk full")
-
-    with patch("builtins.open", m):
+    with patch(
+        "services.fmi_warning_service.update_json_file",
+        side_effect=IOError("disk full"),
+    ):
         svc._save_seen_hashes({"x"})
         svc._save_seen_data([{"title": "t"}])
 
@@ -304,8 +303,7 @@ def test_save_seen_hashes_and_data_io_errors(tmp_path, capsys):
     assert "Error saving seen data" in out
 
 
-def test_save_seen_handles_corrupt_existing_file(tmp_path):
-    # Existing file is corrupt; save functions should handle and overwrite
+def test_save_seen_refuses_to_overwrite_corrupt_existing_file(tmp_path):
     state = tmp_path / "state.json"
     state.write_text("not-json", encoding="utf-8")
     svc = FMIWarningService(callback=lambda x: None, state_file=str(state))
@@ -313,9 +311,20 @@ def test_save_seen_handles_corrupt_existing_file(tmp_path):
     svc._save_seen_hashes({"h"})
     svc._save_seen_data([{"title": "t"}])
 
+    assert state.read_text(encoding="utf-8") == "not-json"
+
+
+def test_save_seen_preserves_unrelated_state(tmp_path):
+    state = tmp_path / "state.json"
+    original = {"config": {"servers": [{"host": "irc.example"}]}, "custom": {"x": 1}}
+    state.write_text(json.dumps(original), encoding="utf-8")
+    svc = FMIWarningService(callback=lambda x: None, state_file=str(state))
+
+    svc._save_seen_hashes({"h"})
+
     data = json.loads(state.read_text(encoding="utf-8"))
-    assert data["fmi_warnings"]["seen_hashes"] == ["h"]
-    assert data["fmi_warnings"]["seen_data"] == [{"title": "t"}]
+    assert data["config"] == original["config"]
+    assert data["custom"] == original["custom"]
 
 
 @pytest.mark.parametrize(

@@ -17,6 +17,7 @@ import feedparser
 
 from config import get_config
 from logger import log
+from state_utils import update_json_file
 
 
 class FMIWarningService:
@@ -200,9 +201,11 @@ class FMIWarningService:
     def _save_seen_hashes(self, hashes: Set[str]) -> None:
         """Save seen warning hashes to state file."""
         try:
-            data = self._load_state_data("seen hashes", log_corrupt=False)
-            self._save_state_data(
-                self._with_fmi_value(data, "seen_hashes", list(hashes))
+            update_json_file(
+                self.state_file,
+                lambda data: self._with_fmi_value(data, "seen_hashes", list(hashes)),
+                default=dict,
+                strict=True,
             )
         except Exception as e:
             print(f"Error saving seen hashes: {e}")
@@ -220,8 +223,12 @@ class FMIWarningService:
     def _save_seen_data(self, seen_data: List[dict]) -> None:
         """Save seen warning data to state file."""
         try:
-            data = self._load_state_data("seen data", log_corrupt=False)
-            self._save_state_data(self._with_fmi_value(data, "seen_data", seen_data))
+            update_json_file(
+                self.state_file,
+                lambda data: self._with_fmi_value(data, "seen_data", seen_data),
+                default=dict,
+                strict=True,
+            )
         except Exception as e:
             print(f"Error saving seen data: {e}")
             log(f"Error saving seen data: {e}", level="ERROR", context="FMI_WS")
@@ -244,15 +251,6 @@ class FMIWarningService:
             return {}
 
         return data if isinstance(data, dict) else {}
-
-    def _save_state_data(self, data: dict) -> None:
-        """Save FMI warning state."""
-        target_dir = os.path.dirname(self.state_file)
-        if target_dir:
-            os.makedirs(target_dir, exist_ok=True)
-
-        with open(self.state_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
 
     @staticmethod
     def _with_fmi_value(data: dict, key: str, value):

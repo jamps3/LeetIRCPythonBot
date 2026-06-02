@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Tuple
 
 import logger
 from config import get_config
-from state_utils import load_json_file, save_json_atomic
+from state_utils import update_json_file
 
 # Get state file from config (subscriptions stored in state.json)
 config = get_config()
@@ -144,19 +144,13 @@ def save_subscriptions(data: Dict[str, Dict[str, List[str]]]) -> bool:
         # Validate data before saving
         cleaned_data = validate_and_clean_data(data)
 
-        # Load existing state.json data to preserve other sections
-        existing_data = load_json_file(SUBSCRIBERS_FILE, default=dict)
-        if not isinstance(existing_data, dict):
-            existing_data = {}
-
-        # Update the subscriptions section
-        existing_data["subscriptions"] = cleaned_data
-
-        return save_json_atomic(
+        return update_json_file(
             SUBSCRIBERS_FILE,
-            existing_data,
+            lambda state: {**state, "subscriptions": cleaned_data},
+            default=dict,
             backup=True,
             update_timestamp=False,
+            strict=True,
         )
 
     except Exception as e:

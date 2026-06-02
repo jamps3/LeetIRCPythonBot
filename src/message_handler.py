@@ -2624,7 +2624,10 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 return data
 
             update_json_file(
-                state_file, update_config, default=lambda: {"config": {}, "state": {}}
+                state_file,
+                update_config,
+                default=lambda: {"config": {}, "state": {}},
+                strict=True,
             )
 
             # Also update os.environ for runtime

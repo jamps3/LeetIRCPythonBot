@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from src.logger import get_logger
-from src.state_utils import save_json_atomic
+from src.state_utils import save_json_atomic, update_json_file
 
 
 class DataManager:
@@ -129,6 +129,23 @@ class DataManager:
         except Exception as e:
             get_logger(__name__).error(f"Error saving {file_path}: {e}")
 
+    def update_state(self, updater) -> bool:
+        """Update merged state without clobbering concurrent section writes."""
+        try:
+            return update_json_file(
+                self.state_file,
+                updater,
+                default=dict,
+                backup=True,
+                strict=True,
+            )
+        except Exception as e:
+            get_logger(__name__).error(f"Error updating {self.state_file}: {e}")
+            return False
+
+    def update_state_section(self, key: str, data: Any) -> bool:
+        return self.update_state(lambda state: {**state, key: data})
+
     def get_server_name(self, irc_socket) -> str:
         """
         Get server name from IRC socket.
@@ -189,7 +206,7 @@ class DataManager:
         state_data["tamagotchi"] = data
 
         # Save the full state file
-        self.save_json(self.state_file, state_data)
+        self.update_state_section("tamagotchi", data)
 
     def load_drink_tracking_opt_out_state(self) -> Dict[str, Any]:
         """Load drink tracking opt-out state data from merged state.json."""
@@ -214,7 +231,7 @@ class DataManager:
         state_data["drink_tracking_opt_out"] = data
 
         # Save the full state file
-        self.save_json(self.state_file, state_data)
+        self.update_state_section("drink_tracking_opt_out", data)
 
     def is_user_opted_out(self, server: str, nick: str) -> bool:
         """
@@ -308,7 +325,13 @@ class DataManager:
             state_data["ksp"] = data
 
         # Save the full state file
-        self.save_json(self.state_file, state_data)
+        self.update_state(
+            lambda state: (
+                {k: v for k, v in state.items() if k != "ksp"}
+                if data is None
+                else {**state, "ksp": data}
+            )
+        )
 
     def load_kraksdebug_state(self) -> Dict[str, Any]:
         """Load kraksdebug state data from merged state.json."""
@@ -317,7 +340,7 @@ class DataManager:
         kraksdebug = state_data.get("kraksdebug", default_kraksdebug)
         if "kraksdebug" not in state_data:
             state_data["kraksdebug"] = kraksdebug
-            self.save_json(self.state_file, state_data)
+            self.update_state_section("kraksdebug", kraksdebug)
         return kraksdebug
 
     def save_kraksdebug_state(self, data: Dict[str, Any]):
@@ -338,7 +361,7 @@ class DataManager:
         state_data["kraksdebug"] = data
 
         # Save the full state file
-        self.save_json(self.state_file, state_data)
+        self.update_state_section("kraksdebug", data)
 
     def load_leet_winners_state(self) -> Dict[str, Any]:
         """Load leet winners state data from merged state.json."""
@@ -363,7 +386,7 @@ class DataManager:
         state_data["leet_winners"] = data
 
         # Save the full state file
-        self.save_json(self.state_file, state_data)
+        self.update_state_section("leet_winners", data)
 
     def load_sanaketju_state(self) -> Dict[str, Any]:
         """Load sanaketju game state data from merged state.json."""
@@ -388,7 +411,7 @@ class DataManager:
         state_data["sanaketju"] = data
 
         # Save the full state file
-        self.save_json(self.state_file, state_data)
+        self.update_state_section("sanaketju", data)
 
     def load_state(self) -> Dict[str, Any]:
         """Load the full state file."""
@@ -396,7 +419,7 @@ class DataManager:
 
     def save_state(self, data: Dict[str, Any]):
         """Save the full state file."""
-        self.save_json(self.state_file, data)
+        self.update_state(lambda state: {**state, **data})
 
     def get_all_servers(self) -> List[str]:
         """
@@ -426,7 +449,7 @@ class DataManager:
             # Migrate old format to new structure under 'global' key
             migrated = {"global": ai_teachings}
             state_data["ai_teachings"] = migrated
-            self.save_json(self.state_file, state_data)
+            self.update_state_section("ai_teachings", migrated)
             ai_teachings = migrated
 
         if network and channel:
@@ -484,7 +507,7 @@ class DataManager:
         state_data["ai_teachings"][key] = data
 
         # Save the updated state
-        self.save_json(self.state_file, state_data)
+        self.update_state_section("ai_teachings", state_data["ai_teachings"])
 
     def load_command_history(self) -> List[str]:
         """Load command history from merged state.json."""
@@ -511,7 +534,7 @@ class DataManager:
         state_data["command_history"] = history
 
         # Save the updated state
-        self.save_json(self.state_file, state_data)
+        self.update_state_section("command_history", history)
 
     def add_teaching(
         self, content: str, added_by: str, network: str = None, channel: str = None
@@ -627,7 +650,7 @@ class DataManager:
         if "quotes" not in state_data:
             state_data["quotes"] = {}
         state_data["quotes"]["quotes.txt"] = quotes
-        self.save_json(self.state_file, state_data)
+        self.update_state_section("quotes", state_data["quotes"])
 
 
 # Singleton instance for shared access

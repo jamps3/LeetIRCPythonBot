@@ -309,7 +309,9 @@ class TestDataManager:
         with open(self.state_file, "r") as f:
             result = json.load(f)
 
-        assert result == test_state
+        for key, value in test_state.items():
+            assert result[key] == value
+        assert result["quotes"] == {"quotes.txt": []}
 
     def test_save_drink_tracking_opt_out_state(self):
         """Test saving drink tracking opt-out state."""

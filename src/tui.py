@@ -1967,6 +1967,7 @@ class TUIManager:
                             state, default_wrap_mode
                         ),
                         default=dict,
+                        strict=True,
                     )
 
                 WRAP_MODE = bool(tui_settings.get("wrap_mode", default_wrap_mode))
@@ -1999,6 +2000,7 @@ class TUIManager:
                 state_file,
                 lambda state: self._with_tui_wrap_mode(state, WRAP_MODE),
                 default=dict,
+                strict=True,
             )
 
         except Exception as e:

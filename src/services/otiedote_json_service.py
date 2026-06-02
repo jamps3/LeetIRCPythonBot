@@ -249,6 +249,7 @@ class OtiedoteService:
                     data, "subscribers", subscribers
                 ),
                 default=dict,
+                strict=True,
             )
         except Exception as e:
             logger.warning(f"Failed to save subscribers: {e}")
@@ -269,7 +270,12 @@ class OtiedoteService:
     def _save_state(self, state: dict) -> None:
         """Save full state including filters to state.json."""
         try:
-            save_json_atomic(self.state_file, state)
+            update_json_file(
+                self.state_file,
+                lambda current: {**current, **state},
+                default=dict,
+                strict=True,
+            )
         except Exception as e:
             logger.warning(f"Failed to save state: {e}")
 
@@ -280,6 +286,7 @@ class OtiedoteService:
                 self.state_file,
                 lambda data: self._with_otiedote_value(data, "latest_release", id_val),
                 default=dict,
+                strict=True,
             )
 
         except Exception as e:
