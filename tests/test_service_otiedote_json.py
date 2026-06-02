@@ -616,17 +616,38 @@ class TestOtiedoteServiceIntegration:
             state_file=str(state_file),
             json_file=str(json_file),
         )
-        missing = {"id": 2831, "title": "Previously missing"}
+        new_release = {"id": 2833, "title": "New release"}
 
         with patch(
             "services.otiedote_json_service.fetch_release",
-            side_effect=lambda release_id: missing if release_id == 2831 else None,
+            side_effect=lambda release_id: new_release if release_id == 2833 else None,
         ) as mock_fetch:
-            assert service.check_new_releases(max_attempts=1) == [missing]
+            assert service.check_new_releases(max_attempts=1) == [new_release]
 
-        assert [call.args[0] for call in mock_fetch.call_args_list] == [2831, 2833]
+        assert [call.args[0] for call in mock_fetch.call_args_list] == [2833, 2834]
         saved = json.loads(json_file.read_text(encoding="utf-8"))
-        assert [release["id"] for release in saved] == [2830, 2831, 2832]
+        assert [release["id"] for release in saved] == [2830, 2832, 2833]
+
+    def test_check_new_releases_resumes_after_persisted_latest_release(
+        self, tmp_path, mock_callback
+    ):
+        state_file = tmp_path / "test_state.json"
+        state_file.write_text(
+            json.dumps({"otiedote": {"latest_release": 3487}}),
+            encoding="utf-8",
+        )
+        service = OtiedoteService(
+            mock_callback,
+            state_file=str(state_file),
+            json_file=str(tmp_path / "test_otiedote.json"),
+        )
+
+        with patch(
+            "services.otiedote_json_service.fetch_release", return_value=None
+        ) as mock_fetch:
+            assert service.check_new_releases(max_attempts=1) == []
+
+        mock_fetch.assert_called_once_with(3488)
 
     def test_check_new_releases_stops_before_next_request(
         self, tmp_path, mock_callback

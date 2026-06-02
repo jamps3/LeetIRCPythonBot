@@ -430,7 +430,7 @@ class OtiedoteService:
 
         highest_known_id = max(existing_ids, default=self.latest_release)
         self.latest_release = max(self.latest_release, highest_known_id)
-        next_id = DEFAULT_START_ID
+        next_id = self.latest_release + 1
         misses = 0
 
         while misses < max_attempts and len(new_releases) < max_releases:
