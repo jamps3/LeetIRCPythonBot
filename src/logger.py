@@ -41,12 +41,23 @@ def get_log_files(log_file: str = "data/leet.log"):
     base_name = os.path.basename(log_file)
     dir_name = os.path.dirname(log_file)
     files = []
-    for f in os.listdir(dir_name):
+    try:
+        names = os.listdir(dir_name)
+    except FileNotFoundError:
+        return []
+
+    for f in names:
         if f.startswith(base_name):
-            files.append(os.path.join(dir_name, f))
+            path = os.path.join(dir_name, f)
+            try:
+                files.append((os.path.getmtime(path), path))
+            except FileNotFoundError:
+                # Another process may rotate the same log between listdir and stat.
+                continue
+
     # Sort by modification time (oldest first)
-    files.sort(key=lambda x: os.path.getmtime(x))
-    return files
+    files.sort(key=lambda item: item[0])
+    return [path for _, path in files]
 
 
 def rotate_logs(log_file: str = "data/leet.log", max_count: int = 5):

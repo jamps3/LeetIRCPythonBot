@@ -78,3 +78,16 @@ def test_safe_print_fallback_and_sanitize(monkeypatch, capsys):
     out2 = capsys.readouterr().out
     # Should print a sanitized version with [BOT] replacing the emoji
     assert "[BOT] hi" in out2
+
+
+def test_get_log_files_ignores_files_removed_during_rotation(monkeypatch):
+    monkeypatch.setattr(lg.os, "listdir", lambda _: ["leet.log", "leet.log.2"])
+
+    def getmtime(path):
+        if path.endswith(".2"):
+            raise FileNotFoundError(path)
+        return 1
+
+    monkeypatch.setattr(lg.os.path, "getmtime", getmtime)
+
+    assert lg.get_log_files("data/leet.log") == ["data\\leet.log"]
