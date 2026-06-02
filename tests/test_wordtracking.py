@@ -5,7 +5,6 @@ Pytest tests for word tracking functionality.
 
 import json
 import os
-import tempfile
 from types import SimpleNamespace
 
 import pytest
@@ -37,12 +36,12 @@ def reset_command_registry():
 
 
 @pytest.fixture()
-def temp_dm_and_words(monkeypatch):
+def temp_dm_and_words(monkeypatch, tmp_path):
     """Provide isolated DataManager and GeneralWords with a temporary data dir.
     Monkeypatch commands_extended to use these instances so command handlers
     operate on test data only.
     """
-    tmpdir = tempfile.mkdtemp()
+    tmpdir = str(tmp_path)
     dm = DataManager(tmpdir)
     gw = GeneralWords(dm)
 
@@ -57,21 +56,6 @@ def temp_dm_and_words(monkeypatch):
     monkeypatch.setattr(wt, "general_words", gw, raising=True)
 
     yield SimpleNamespace(tmpdir=tmpdir, dm=dm, gw=gw)
-
-    # Cleanup temp files
-    for name in (
-        "general_words.json",
-        "drink_tracking.json",
-        "tamagotchi_state.json",
-        "privacy_settings.json",
-    ):
-        path = os.path.join(tmpdir, name)
-        if os.path.exists(path):
-            os.unlink(path)
-    try:
-        os.rmdir(tmpdir)
-    except OSError:
-        pass
 
 
 def _write_general_words(dm: DataManager, data: dict):
@@ -132,7 +116,7 @@ def test_topwords_with_nick_found(temp_dm_and_words):
     _write_general_words(dm, data)
 
     ctx = SimpleNamespace(args=["alice"], args_text="alice")
-    result = cmds.command_topwords(ctx, None)
+    result = cmds.command_topwords(ctx, {"data_manager": dm, "general_words": gw})
     # Expect format: alice@srv1: word: count, ...
     assert result.startswith("alice@srv1:"), result
     assert "hello: 3" in result
@@ -140,8 +124,10 @@ def test_topwords_with_nick_found(temp_dm_and_words):
 
 
 def test_topwords_nick_not_found(temp_dm_and_words):
+    dm = temp_dm_and_words.dm
+    gw = temp_dm_and_words.gw
     ctx = SimpleNamespace(args=["missing"], args_text="missing")
-    result = cmds.command_topwords(ctx, None)
+    result = cmds.command_topwords(ctx, {"data_manager": dm, "general_words": gw})
     assert "Käyttäjää 'missing' ei löydy" in result
 
 
@@ -180,7 +166,9 @@ def test_topwords_global(temp_dm_and_words):
 
     # No args -> global top words
     ctx = SimpleNamespace(args=[], args_text="")
-    res = cmds.command_topwords(ctx, None)
+    res = cmds.command_topwords(
+        ctx, {"data_manager": dm, "general_words": temp_dm_and_words.gw}
+    )
     assert res.startswith("Top 10 sanat:"), res
     # Aggregates hello=3, world=4, beer=1
     assert "hello: 3" in res
