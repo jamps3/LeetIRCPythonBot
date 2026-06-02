@@ -104,7 +104,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
     1. Leetwinners detection, updates leet_winners.json
   - command_loader:
     - process_irc_message/process_console_command bridge messages/inputs to the command registry
-    - load_all_commands() currently imports the unified commands module (commands.py) which self-registers all commands
+    - load_all_commands() imports the `cmd_modules` package, which registers modular commands
   - command_registry:
     - Provides CommandContext/CommandResponse types, registry, and process_command_message()
     - Centralizes parsing, routing, and response shaping (including splitting long responses when needed)
@@ -141,8 +141,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 3. Command System Architecture
 
 - Modular Command Structure:
-  - commands.py: Backward compatibility layer and lazy getters
-  - cmd_modules/: Modular command packages (basic, admin, games, misc, services, word_tracking)
+  - cmd_modules/: Modular command packages (basic, admin, admin_privileged, games, irc, misc, services, word_tracking)
   - command_registry.py: Central command registration and routing
   - command_loader.py: Command loading and processing
 
@@ -174,7 +173,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 
 5. Focus files when modifying behavior
 
-- Adding/modifying commands: command modules (command_loader.py, command_registry.py, commands.py, commands_admin.py, commands_basic.py, cmd_modules/irc.py, cmd_modules/services.py, cmd_modules/admin.py, cmd_modules/basic.py, cmd_modules/games.py, cmd_modules/misc.py, cmd_modules/word_tracking.py)
+- Adding/modifying commands: command modules (`command_loader.py`, `command_registry.py`, and `cmd_modules/`)
 - Message handling behavior: bot_manager.BotManager.\_handle_message and subsequent helpers
 - Services: services/<service>\_service.py and the corresponding wiring in BotManager.
 - Server/IRC protocol details: server.py, irc_client.py, irc_processor.py
@@ -188,6 +187,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 
 - Console protection features in BotManager are intentionally disabled to avoid hangs in some terminals
 - Some modules (lemmatizer, subscriptions, etc.) are optional; code guards against missing deps
+- Do not add or preserve legacy compatibility layers, deprecated wrappers, or historical import paths. Migrate callers to the active modular implementation and delete obsolete code.
 - Treat `data/state.json` as shared mutable state. Section writers must use strict locked atomic updates from `state_utils.py`; do not open it directly with truncating write mode.
 - If `data/state.json` is temporarily invalid during a manual edit, writers must refuse the update and preserve the file bytes.
 - Normal startup and graceful shutdown maintain `data/state.json.start.bak` and `data/state.json.end.bak`. These fixed-name snapshots are local recovery files and stay ignored by Git.

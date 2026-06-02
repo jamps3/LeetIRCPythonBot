@@ -24,6 +24,7 @@ if _project_root not in sys.path:
 # Order matters: dependencies first
 from cmd_modules import (
     admin,  # noqa: E402, F401
+    admin_privileged,  # noqa: E402, F401
     basic,  # noqa: E402, F401
     games,  # noqa: E402, F401
     irc,  # noqa: E402, F401

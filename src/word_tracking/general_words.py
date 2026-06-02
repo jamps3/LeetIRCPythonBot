@@ -321,12 +321,12 @@ class GeneralWords:
         return sorted(users, key=lambda x: x["total_words"], reverse=True)[:limit]
 
     # =====================
-    # Backward compatibility methods
+    # Single-word command helpers
     # =====================
 
     def record_word(self, word: str, nick: str, server: str):
         """
-        Record a word for a user (backward compatibility method).
+        Record a word for a user.
 
         Args:
             word: The word to record
@@ -337,7 +337,7 @@ class GeneralWords:
 
     def get_word_stats(self, server: str, word: str) -> Dict[str, Any]:
         """
-        Get statistics for a specific word (backward compatibility method).
+        Get statistics for a specific word.
 
         Args:
             server: Server name

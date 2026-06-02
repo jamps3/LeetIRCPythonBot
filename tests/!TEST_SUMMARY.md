@@ -45,8 +45,6 @@
 | bot_manager.py                            | 1075  | 224  | 79%   |
 | command_loader.py                         | 183   | 90   | 51%   |
 | command_registry.py                       | 242   | 58   | 76%   |
-| commands.py                               | 525   | 56   | 91%   |
-| commands_admin.py                         | 130   | 18   | 90%   |
 | config.py                                 | 153   | 0    | 100%  |
 | irc_client.py                             | 383   | 6    | 98%   |
 | leet_detector.py                          | 104   | 0    | 100%  |
@@ -177,11 +175,7 @@ $nodes = python -m pytest --collect-only -qq tests 2>$null | Where-Object { $_ -
 - **Features**:
   - Pure pytest implementation
 
-### 6. test_commands.py
-- **Features**:
-  - Pure pytest implementation
-
-### 7. test_config.py
+### 6. test_config.py
 - **Features**:
   - Pure pytest with proper fixtures
   - Environment variable isolation
@@ -189,7 +183,7 @@ $nodes = python -m pytest --collect-only -qq tests 2>$null | Where-Object { $_ -
   - Comprehensive configuration testing
   - Path management for CI compatibility
 
-### 8. test_data_manager.py
+### 7. test_data_manager.py
 - **Features**:
   - Pytest fixtures for temporary data manager setup
   - Comprehensive JSON file operations testing

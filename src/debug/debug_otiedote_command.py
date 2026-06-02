@@ -166,8 +166,8 @@ def test_command_variants():
     try:
         from unittest.mock import Mock
 
+        from cmd_modules.services import otiedote_command
         from src.command_registry import CommandContext
-        from src.commands import otiedote_command
 
         # Create a mock bot_manager with otiedote service
         try:

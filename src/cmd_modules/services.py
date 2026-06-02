@@ -2,13 +2,14 @@
 External Service Commands Module
 
 Contains commands for external services like weather, electricity, crypto,
-YouTube, trains, and other APIs extracted from commands.py.
+YouTube, trains, and other API-backed commands.
 """
 
 import json
 import os
 import re
 from datetime import datetime
+from pathlib import Path
 
 # Module-level imports for test compatibility
 # These allow tests to mock via cmd_modules.services.X paths
@@ -1611,7 +1612,7 @@ def teach_command(context: CommandContext, bot_functions):
         password = parts[2]
 
         # Verify admin password
-        from commands_admin import verify_admin_password
+        from cmd_modules.admin_privileged import verify_admin_password
 
         if not verify_admin_password([password]):
             return "❌ Invalid admin password"
@@ -1689,3 +1690,69 @@ def unlearn_command(context: CommandContext, bot_functions):
         return f"📚 Removed teaching #{teaching_id}: {content}"
     else:
         return f"📚 Failed to remove teaching #{teaching_id}."
+
+
+@command(
+    "ecode",
+    aliases=["e"],
+    description="Get information about E-codes (food additives)",
+    usage="!ecode <E-number> or !e <E-number>",
+    examples=["!ecode E153", "!e 153", "!ecode E300"],
+    requires_args=True,
+)
+def ecode_command(context: CommandContext, bot_functions):
+    """Get information about E-codes (food additives)."""
+    try:
+        data_file = Path(__file__).parent.parent.parent / "data" / "ecodes.json"
+        if not data_file.exists():
+            return CommandResponse.error_msg("E-codes database not found")
+
+        with open(data_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        ecode_input = context.args_text.strip().upper()
+        if not ecode_input:
+            return CommandResponse.error_msg(
+                "Usage: !ecode <E-number> (e.g., !ecode E153 or !e 153)"
+            )
+
+        ecode = ecode_input.replace(" ", "")
+        if not ecode.startswith("E"):
+            ecode = "E" + ecode
+
+        if ecode not in data["ecodes"]:
+            return CommandResponse.error_msg(f"E-code {ecode} not found in database")
+
+        ecode_data = data["ecodes"][ecode]
+        symbol_defs = data["symbol_definitions"]
+        indicator_defs = data["indicator_definitions"]
+        parts = [f"{ecode}: {ecode_data['name']}"]
+
+        if ecode_data["categories"]:
+            category_symbols = " ".join(ecode_data["categories"])
+            category_names = [
+                symbol_defs[symbol]
+                for symbol in ecode_data["categories"]
+                if symbol in symbol_defs
+            ]
+            if category_names:
+                parts.append(
+                    f"Categories: {category_symbols} ({', '.join(category_names)})"
+                )
+
+        if ecode_data["indicators"]:
+            indicators = [
+                f"{indicator} ({indicator_defs[indicator]})"
+                if indicator in indicator_defs
+                else indicator
+                for indicator in ecode_data["indicators"]
+            ]
+            parts.append(f"Indicators: {' '.join(indicators)}")
+
+        response = " | ".join(parts)
+        if len(response) > 400:
+            response = response[:397] + "..."
+
+        return CommandResponse.success_msg(response)
+    except Exception as e:
+        return CommandResponse.error_msg(f"Error getting E-code information: {e}")

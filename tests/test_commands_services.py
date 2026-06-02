@@ -240,6 +240,6 @@ class TestEcodeCommand:
 
     def test_ecode_command_exists(self):
         """Test ecode command is registered."""
-        from commands_services import ecode_command
+        from cmd_modules.services import ecode_command
 
         assert callable(ecode_command)

@@ -51,18 +51,12 @@ def reset_command_registry():
         import cmd_modules.basic
         import cmd_modules.misc
         import cmd_modules.services
-        import commands
-        import commands_admin
+        from cmd_modules import admin_privileged
 
         # Force reload so decorators execute again after registry reset
         # Ignore duplicate registration errors
         try:
-            importlib.reload(commands)
-        except ValueError as e:
-            if "already registered" not in str(e):
-                raise
-        try:
-            importlib.reload(commands_admin)
+            importlib.reload(admin_privileged)
         except ValueError as e:
             if "already registered" not in str(e):
                 raise

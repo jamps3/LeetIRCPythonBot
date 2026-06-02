@@ -1206,7 +1206,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
         bot_functions = self._create_bot_functions(server, context)
 
-        # Create a mock IRC message format for commands.py compatibility
+        # Create the IRC message shape consumed by command_loader.
         message = f":{sender}!{ident_host} PRIVMSG {target.lower()} :{text}"
         logger.debug(f"Constructed IRC message: {message}")
 

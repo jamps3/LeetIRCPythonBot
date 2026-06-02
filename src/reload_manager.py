@@ -18,20 +18,17 @@ RELOADABLE_MODULES: List[str] = [
     # Base modules first
     "command_registry",
     "command_loader",
-    # Backward compatibility modules
-    "commands",
-    # commands_admin contains reload_command and reload_status_command - must be loaded before cmd_modules.admin
-    "commands_admin",
     # cmd_modules subpackages (modular command structure)
     "cmd_modules.basic",
     "cmd_modules.admin",
+    "cmd_modules.admin_privileged",
     "cmd_modules.games",
     "cmd_modules.misc",
     "cmd_modules.services",
     "cmd_modules.word_tracking",
 ]
 
-# Service modules to reload (imported by commands_services)
+# Service modules used by cmd_modules.services.
 SERVICE_MODULES: List[str] = [
     "services.youtube_service",
     "services.weather_service",
@@ -175,7 +172,7 @@ def reload_all_commands() -> Tuple[bool, str]:
                     else:
                         failed_modules.append(module_name)
 
-            # Reload command modules (command_registry, command_loader, commands, commands_admin, cmd_modules subpackages)
+            # Reload command modules and modular command packages.
             for module_name in RELOADABLE_MODULES:
                 if module_name in sys.modules:
                     success, _ = reload_single_module(module_name)
@@ -184,22 +181,11 @@ def reload_all_commands() -> Tuple[bool, str]:
                     else:
                         failed_modules.append(module_name)
 
-            # CRITICAL: Re-register all commands after reload
-            # importlib.reload() doesn't re-trigger @command decorators,
-            # so we need to reload cmd_modules to re-register all commands
+            # Re-register commands through the loader after clearing the registry.
             try:
-                # Remove cmd_modules from sys.modules to force re-import
-                for mod in list(sys.modules.keys()):
-                    if mod.startswith("cmd_modules.") or mod == "cmd_modules":
-                        del sys.modules[mod]
+                from command_loader import load_all_commands
 
-                # Also remove the old 'commands' module if it exists
-                if "commands" in sys.modules:
-                    del sys.modules["commands"]
-
-                # Re-import cmd_modules to trigger @command decorators
-                import cmd_modules  # noqa: F401
-
+                load_all_commands()
                 logger.debug("ReloadManager: Re-registered commands from cmd_modules")
             except Exception as e:
                 logger.warning(f"ReloadManager: Failed to re-register commands: {e}")
@@ -234,10 +220,6 @@ def reload_all_commands() -> Tuple[bool, str]:
 
             except Exception as e:
                 logger.warning(f"ReloadManager: Could not reinitialize services: {e}")
-
-            # Note: cmd_modules are already reloaded in the loop above (lines 140-164)
-            # The 'commands' module is kept in RELOADABLE_MODULES for backward compatibility
-            # but imports from cmd_modules instead (no longer has @command decorators)
 
             # Get new command count
             new_count = len(registry._commands)

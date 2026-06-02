@@ -3,7 +3,6 @@ Miscellaneous Commands Module
 
 Contains misc commands: 420, kaiku, muunnos, matka, np, quote, leets, etc.
 
-Note: Some commands depend on shared helpers in commands.py - they are imported as needed.
 """
 
 import os
@@ -1058,8 +1057,6 @@ def command_ipfs(context, bot_functions):
     except Exception as e:
         return f"❌ IPFS error: {str(e)}"
 
-
-# For now, these will be imported from commands.py via the fallback mechanism
 
 # =====================
 # Dream Command

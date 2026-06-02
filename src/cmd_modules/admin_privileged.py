@@ -1,5 +1,5 @@
 """
-Admin Commands for LeetIRCPythonBot
+Privileged Admin Commands for LeetIRCPythonBot
 
 This module contains administrative commands that require password authentication.
 """

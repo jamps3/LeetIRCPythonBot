@@ -931,11 +931,9 @@ def test_quit_command_console_triggers_shutdown():
     try:
         import cmd_modules.admin
         import cmd_modules.basic
-        import commands
-        import commands_admin
+        from cmd_modules import admin_privileged
 
-        importlib.reload(commands)
-        importlib.reload(commands_admin)
+        importlib.reload(admin_privileged)
         importlib.reload(cmd_modules.admin)
         importlib.reload(cmd_modules.basic)
     except Exception:

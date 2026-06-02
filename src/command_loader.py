@@ -6,9 +6,22 @@ the command registry system and the bot infrastructure.
 """
 
 import asyncio
+import importlib
+import sys
 from typing import Any, Dict
 
 import logger
+
+COMMAND_MODULES = (
+    "cmd_modules.admin",
+    "cmd_modules.admin_privileged",
+    "cmd_modules.basic",
+    "cmd_modules.games",
+    "cmd_modules.irc",
+    "cmd_modules.misc",
+    "cmd_modules.services",
+    "cmd_modules.word_tracking",
+)
 
 # Defer local imports to function bodies to avoid import-time side effects during
 # the full test run, where some tests monkeypatch modules in ways that can break
@@ -18,13 +31,16 @@ import logger
 def load_all_commands():
     """Load all command modules to register their commands."""
     try:
-        # Import cmd_modules package - it automatically loads all submodules
-        import cmd_modules  # noqa: F401
-
-        # Resolve registry at call time to avoid early imports
         from command_registry import get_command_registry
 
         registry = get_command_registry()
+        reload_cached_modules = not registry._commands
+        for module_name in COMMAND_MODULES:
+            if reload_cached_modules and module_name in sys.modules:
+                importlib.reload(sys.modules[module_name])
+            else:
+                importlib.import_module(module_name)
+
         command_count = len(registry._commands)
         logger.debug(f"Loaded {command_count} commands from command modules")
 

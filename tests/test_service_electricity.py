@@ -48,8 +48,7 @@ def reset_command_registry():
     except Exception:
         # Fallback: try individual imports
         try:
-            import commands  # noqa: F401
-            import commands_admin  # noqa: F401
+            from cmd_modules import admin_privileged  # noqa: F401
         except Exception:
             pass
 

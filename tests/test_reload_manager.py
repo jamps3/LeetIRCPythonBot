@@ -160,6 +160,21 @@ class TestReloadManager:
             registry._commands = original_commands
             registry._aliases = original_aliases
 
+    def test_load_all_commands_reregisters_cached_modules_after_registry_reset(self):
+        """Cached modular commands are restored after the registry is cleared."""
+        from command_loader import load_all_commands
+        from command_registry import get_command_registry, reset_command_registry
+
+        load_all_commands()
+        assert get_command_registry().get_handler("help")
+
+        reset_command_registry()
+        assert not get_command_registry()._commands
+
+        load_all_commands()
+        assert get_command_registry().get_handler("help")
+        assert get_command_registry().get_handler("lag")
+
     def test_reload_lock_prevents_concurrent_access(self):
         """Test that reload lock prevents concurrent reloads."""
         # This is a basic test - in practice you'd need more sophisticated

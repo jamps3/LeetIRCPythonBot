@@ -16,7 +16,6 @@ from typing import Any, Dict, List, Optional
 from command_registry import CommandContext, CommandResponse, command
 from logger import get_logger
 
-# Import needed items from commands.py for shared functionality
 # These are lazily initialized to avoid issues
 _data_manager = None
 
@@ -1050,6 +1049,3 @@ def sanaketju_command(context: CommandContext, bot_functions):
 
     else:
         return "Tuntematon komento. Käytä: start, stop, add [nick] tai ilman parametreja tilan näyttämiseen."
-
-
-# Backward compatibility - these are already imported at the top of the file

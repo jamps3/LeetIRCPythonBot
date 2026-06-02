@@ -47,6 +47,7 @@ def ensure_command_registry():
         import importlib
 
         import cmd_modules.admin
+        import cmd_modules.admin_privileged
 
         # Import from cmd_modules (the new modular structure)
         import cmd_modules.basic
@@ -55,15 +56,12 @@ def ensure_command_registry():
         import cmd_modules.services
         import cmd_modules.word_tracking
 
-        # Import commands FIRST (required for lazy getters)
-        import commands
-
         # Force reload so decorators execute again after registry reset
         # Ignore duplicate registration errors
         for mod in [
-            commands,
             cmd_modules.basic,
             cmd_modules.admin,
+            cmd_modules.admin_privileged,
             cmd_modules.games,
             cmd_modules.misc,
             cmd_modules.services,
@@ -747,8 +745,8 @@ def test_help_specific_command_console():
 
 def test_euribor_command_success_and_error(monkeypatch):
     """Test euribor command success XML path and error path."""
+    from cmd_modules.services import euribor_command
     from command_registry import CommandContext
-    from commands import euribor_command
 
     class Resp:
         def __init__(self, code, content):
@@ -798,8 +796,8 @@ def test_euribor_command_success_and_error(monkeypatch):
 
 def test_trains_command_variants_and_error(monkeypatch):
     """Test trains command with both subcommands and error handling."""
+    from cmd_modules.services import trains_command
     from command_registry import CommandContext
-    from commands import trains_command
 
     monkeypatch.setattr(
         "services.digitraffic_service.get_trains_for_station",
@@ -981,8 +979,8 @@ def test_tamagotchi_commands():
 
 
 def test_schedule_command_cases(monkeypatch):
+    from cmd_modules.misc import command_schedule
     from command_registry import CommandContext
-    from commands import command_schedule
 
     # Valid schedule
     call_args = {}
@@ -1055,8 +1053,8 @@ def test_schedule_command_cases(monkeypatch):
 def test_ipfs_command_usage_and_success(monkeypatch):
     import os as _os
 
+    from cmd_modules.misc import command_ipfs
     from command_registry import CommandContext
-    from commands import command_ipfs
 
     # Usage
     ctx = CommandContext(
@@ -1213,11 +1211,10 @@ def test_schedule_management_list_and_cancel(monkeypatch):
         pass
 
     # Force reload all command modules to ensure all commands are registered
-    import commands
-    import commands_admin
+    from cmd_modules import admin_privileged
 
     # Reload modules to trigger command registration (ignore duplicate errors)
-    for mod in [commands, commands_admin]:
+    for mod in [admin_privileged]:
         try:
             importlib.reload(mod)
         except ValueError:
@@ -1251,11 +1248,11 @@ def test_schedule_management_list_and_cancel(monkeypatch):
         lambda: FakeService(),
     )
 
-    # Set admin password expected by commands_admin.verify_admin_password
+    # Set admin password expected by admin_privileged.verify_admin_password
     class _Cfg:
         admin_password = "adm"
 
-    monkeypatch.setattr("commands_admin.get_config", lambda: _Cfg())
+    monkeypatch.setattr("cmd_modules.admin_privileged.get_config", lambda: _Cfg())
 
     responses = []
     # Use a list that we can check for responses
@@ -1398,8 +1395,8 @@ def test_echo_command_console_vs_irc():
     """Test echo command has different console vs IRC message format."""
     import asyncio
 
+    from cmd_modules.misc import echo_command
     from command_registry import CommandContext
-    from commands import echo_command
 
     # Console context
     ctx_console = CommandContext(
@@ -1432,8 +1429,8 @@ def test_echo_command_console_vs_irc():
 
 def test_weather_branch_import_logging(monkeypatch):
     """Test weather command console branch logging import."""
+    from cmd_modules.services import weather_command
     from command_registry import CommandContext
-    from commands import weather_command
 
     ctx = CommandContext(
         command="s",
@@ -1491,8 +1488,8 @@ def test_tilaa_special_cases(monkeypatch):
 
 def test_leets_command_args_handling(monkeypatch):
     """Test leets command args parsing with numeric limit."""
+    from cmd_modules.misc import command_leets
     from command_registry import CommandContext
-    from commands import command_leets
 
     # Mock detector with custom history
     def fake_detector():
@@ -1535,8 +1532,8 @@ def test_leets_command_args_handling(monkeypatch):
 
 def test_schedule_invalid_arg_cases(monkeypatch):
     """Test schedule command with more invalid argument patterns."""
+    from cmd_modules.misc import command_schedule
     from command_registry import CommandContext
-    from commands import command_schedule
 
     # No args
     ctx1 = CommandContext(
@@ -1642,8 +1639,8 @@ def test_topwords_found_user_early_return(monkeypatch):
 
 def test_help_command_direct_fallbacks():
     """Call help_command directly to exercise IRC fallbacks without notice/irc."""
+    from cmd_modules.basic import help_command
     from command_registry import CommandContext
-    from commands import help_command
 
     # Specific command with IRC context but no notice
     ctx = CommandContext(
@@ -1691,11 +1688,10 @@ def test_leets_invalid_datetime(monkeypatch):
         pass
 
     # Force reload all command modules to ensure all commands are registered
-    import commands
-    import commands_admin
+    from cmd_modules import admin_privileged
 
     # Reload modules to trigger command registration (ignore duplicate errors)
-    for mod in [commands, commands_admin]:
+    for mod in [admin_privileged]:
         try:
             importlib.reload(mod)
         except ValueError:
@@ -1715,11 +1711,11 @@ def test_leets_invalid_datetime(monkeypatch):
         lambda: EmptyService(),
     )
 
-    # Set admin password expected by commands_admin.verify_admin_password
+    # Set admin password expected by admin_privileged.verify_admin_password
     class _Cfg:
         admin_password = "adm"
 
-    monkeypatch.setattr("commands_admin.get_config", lambda: _Cfg())
+    monkeypatch.setattr("cmd_modules.admin_privileged.get_config", lambda: _Cfg())
 
     responses = []
     botf = {
@@ -1817,8 +1813,8 @@ def test_euribor_non_windows_and_missing_cases(monkeypatch):
 
     import requests as _requests
 
+    from cmd_modules.services import euribor_command
     from command_registry import CommandContext
-    from commands import euribor_command
 
     class Resp:
         def __init__(self, code, content):
@@ -2148,8 +2144,8 @@ def test_electricity_command_with_args_split():
 
 
 def test_exit_command_direct_irc():
+    from cmd_modules.admin import exit_command
     from command_registry import CommandContext
-    from commands import exit_command
 
     ctx = CommandContext(
         command="exit",
@@ -2167,8 +2163,8 @@ def test_exit_command_direct_irc():
 
 
 def test_tilaa_subscriber_selection_branches():
+    from cmd_modules.services import command_tilaa
     from command_registry import CommandContext
-    from commands import command_tilaa
 
     class FakeSub:
         def toggle_subscription(self, subscriber, server, topic):
@@ -2229,8 +2225,8 @@ def test_tilaa_subscriber_selection_branches():
 
 
 def test_tilaa_usage_when_no_topic():
+    from cmd_modules.services import command_tilaa
     from command_registry import CommandContext
-    from commands import command_tilaa
 
     ctx = CommandContext(
         command="tilaa",
@@ -2326,8 +2322,8 @@ def test_leets_limit_parse_exception(monkeypatch):
     # Patch int only within the function globals to avoid global side effects
     import builtins
 
+    from cmd_modules.misc import command_leets
     from command_registry import CommandContext
-    from commands import command_leets
 
     real_int = builtins.int
 
@@ -2357,9 +2353,9 @@ def test_weather_unavailable_and_forecast_direct_paths(monkeypatch):
         short_forecast_command,
         short_forecast_list_command,
         solarwind_command,
+        weather_command,
     )
     from command_registry import CommandContext
-    from commands import weather_command
 
     # weather unavailable direct
     ctx = CommandContext(
