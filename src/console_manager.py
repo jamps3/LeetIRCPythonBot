@@ -755,6 +755,7 @@ class ConsoleManager:
             "send_crypto_price": self.message_handler._send_crypto_price,
             "get_alko_product": self.message_handler._get_alko_product,
             "check_drug_interactions": self.message_handler._check_drug_interactions,
+            "check_prescription_interactions": self.message_handler._check_prescription_interactions,
             "lookup": lambda irc: "console",
             "format_counts": self.message_handler._format_counts,
             "wrap_irc_message_utf8_bytes": self.message_handler._wrap_irc_message_utf8_bytes,

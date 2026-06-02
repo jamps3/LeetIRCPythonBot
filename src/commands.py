@@ -187,6 +187,7 @@ from cmd_modules.services import (  # noqa: E402
     imdb_command,
     leetwinners_command,
     otiedote_command,
+    rxdrugs_command,
     short_forecast_command,
     short_forecast_list_command,
     solarwind_command,

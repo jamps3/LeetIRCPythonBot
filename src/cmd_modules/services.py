@@ -71,6 +71,13 @@ except ImportError:
     create_drug_service = None
 
 try:
+    from services.prescription_interaction_service import (
+        create_prescription_interaction_service,
+    )
+except ImportError:
+    create_prescription_interaction_service = None
+
+try:
     from services.url_tracker_service import create_url_tracker_service
 except ImportError:
     create_url_tracker_service = None
@@ -1333,6 +1340,34 @@ def drugs_command(context: CommandContext, bot_functions):
         logger = logging.getLogger(__name__)
         logger.error(f"Error in drugs command: {e}")
         return f"💊 Error checking drug interactions: {str(e)}"
+
+
+@command(
+    "rxdrugs",
+    description="Check IU Flockhart Table prescription drug interactions",
+    usage="!rxdrugs <drug1>[, <drug2>, ...]",
+    examples=["!rxdrugs warfarin", "!rxdrugs warfarin, fluconazole"],
+    requires_args=True,
+)
+def rxdrugs_command(context: CommandContext, bot_functions):
+    """Check offline IU Flockhart Table prescription interaction data."""
+    drug_names = context.args_text.strip() if context.args_text else ""
+    if not drug_names:
+        return "Rx: Usage: !rxdrugs <drug1>[, <drug2>, ...]"
+
+    check_interactions = bot_functions.get("check_prescription_interactions")
+    if check_interactions:
+        return check_interactions(drug_names)
+
+    if not create_prescription_interaction_service:
+        return "Rx: Prescription interaction service not available."
+    service = create_prescription_interaction_service()
+    drugs = [name.strip() for name in drug_names.split(",") if name.strip()]
+    if not service.drugs:
+        return "Rx: Prescription interaction database not available."
+    if len(drugs) == 1:
+        return service.format_profile(drugs[0])
+    return service.check_interactions(drugs)
 
 
 @command(

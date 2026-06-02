@@ -1264,6 +1264,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             "save_leet_winners": self._save_leet_winners,
             "get_alko_product": self._get_alko_product,
             "check_drug_interactions": self._check_drug_interactions,
+            "check_prescription_interactions": self._check_prescription_interactions,
             "send_weather": self._send_weather,
             "send_scheduled_message": self._send_scheduled_message,
             "get_eurojackpot_numbers": self._get_eurojackpot_numbers,
@@ -2349,6 +2350,18 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         except Exception as e:
             logger.error(f"Error checking drug interactions: {e}")
             return f"💊 Error checking drug interactions: {str(e)}"
+
+    def _check_prescription_interactions(self, drug_names: str) -> str:
+        """Check IU Flockhart Table prescription interactions."""
+        service = self.service_manager.get_service("prescription_interaction")
+        if not service or not service.drugs:
+            return "Rx: Prescription interaction database not available."
+        drugs = [name.strip() for name in drug_names.split(",") if name.strip()]
+        if not drugs:
+            return "Rx: Usage: !rxdrugs <drug1>[, <drug2>, ...]"
+        if len(drugs) == 1:
+            return service.format_profile(drugs[0])
+        return service.check_interactions(drugs)
 
     def _send_weather(self, irc, channel, location):
         """Send weather information."""

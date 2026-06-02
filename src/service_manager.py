@@ -50,6 +50,7 @@ class ServiceManager:
             self._initialize_crypto_service()
             self._initialize_alko_service()
             self._initialize_drug_service()
+            self._initialize_prescription_interaction_service()
             self._initialize_leet_detector()
             self._initialize_fmi_warning_service()
             self._initialize_otiedote_service()
@@ -199,6 +200,23 @@ class ServiceManager:
         except Exception as e:
             logger.warning(f"Drug service initialization failed: {e}")
             self.services["drug"] = None
+
+    def _initialize_prescription_interaction_service(self):
+        """Initialize offline IU Flockhart Table service."""
+        try:
+            from services.prescription_interaction_service import (
+                create_prescription_interaction_service,
+            )
+
+            self.services["prescription_interaction"] = (
+                create_prescription_interaction_service()
+            )
+            logger.info("Prescription interaction service initialized.")
+        except Exception as e:
+            logger.warning(
+                f"Prescription interaction service initialization failed: {e}"
+            )
+            self.services["prescription_interaction"] = None
 
     def _initialize_leet_detector(self):
         """Initialize leet detector."""
@@ -376,6 +394,10 @@ class ServiceManager:
             ("crypto", self._initialize_crypto_service),
             ("alko", self._initialize_alko_service),
             ("drug", self._initialize_drug_service),
+            (
+                "prescription_interaction",
+                self._initialize_prescription_interaction_service,
+            ),
             ("leet_detector", self._initialize_leet_detector),
             ("fmi_warning", self._initialize_fmi_warning_service),
             ("otiedote", self._initialize_otiedote_service),
@@ -391,6 +413,7 @@ class ServiceManager:
             "services.crypto_service",
             "services.alko_service",
             "services.drug_service",
+            "services.prescription_interaction_service",
             "services.leet_detector",
             "services.fmi_warning_service",
             "services.otiedote_json_service",
