@@ -174,6 +174,7 @@ class OtiedoteService:
         self.json_file = json_file
 
         self.running = False
+        self._stop_event = threading.Event()
         self._monitor_task = None
         self.thread: Optional[threading.Thread] = None
 
@@ -305,6 +306,7 @@ class OtiedoteService:
     async def start(self):
         if self.running:
             return
+        self._stop_event.clear()
         self.running = True
         self._monitor_task = asyncio.create_task(self._monitor_loop())
         logger.info("🟢 Otiedote monitor started")
@@ -314,6 +316,7 @@ class OtiedoteService:
         if self.running:
             return
 
+        self._stop_event.clear()
         self.running = True
         logger.info("🟢 Otiedote monitor started")
         try:
@@ -327,6 +330,7 @@ class OtiedoteService:
         if self.thread and self.thread.is_alive():
             return
 
+        self._stop_event.clear()
         self.thread = threading.Thread(
             target=self._run_background_loop,
             name="OtiedoteMonitor",
@@ -343,6 +347,7 @@ class OtiedoteService:
     def stop_background(self, timeout: float = 30.0):
         """Stop a background-thread monitor."""
         self.running = False
+        self._stop_event.set()
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=timeout)
             if self.thread.is_alive():
@@ -350,6 +355,7 @@ class OtiedoteService:
 
     async def stop(self):
         self.running = False
+        self._stop_event.set()
         if self._monitor_task:
             self._monitor_task.cancel()
             try:
@@ -367,6 +373,8 @@ class OtiedoteService:
             try:
                 new_releases = self.check_new_releases()
                 for release in new_releases:
+                    if self._stop_event.is_set():
+                        return
                     logger.info(f"New Otiedote #{release['id']}: {release['title']}")
                     try:
                         self.callback(release)
@@ -420,10 +428,19 @@ class OtiedoteService:
         releases = list(id_map.values())
         new_releases = []
 
-        next_id = max(self.latest_release + 1, DEFAULT_START_ID)
+        highest_known_id = max(existing_ids, default=self.latest_release)
+        self.latest_release = max(self.latest_release, highest_known_id)
+        next_id = DEFAULT_START_ID
         misses = 0
 
         while misses < max_attempts and len(new_releases) < max_releases:
+            if self._stop_event.is_set():
+                break
+
+            if next_id in existing_ids:
+                next_id += 1
+                continue
+
             release = fetch_release(next_id)
 
             if release:
@@ -440,6 +457,9 @@ class OtiedoteService:
                 misses += 1
 
             next_id += 1
+
+            if next_id <= highest_known_id:
+                misses = 0
 
         if new_releases:
             try:

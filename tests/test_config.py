@@ -437,3 +437,22 @@ def test_config_server_lookup(monkeypatch):
     # Test non-existent server
     non_existent = config_manager.get_server_by_name("NON_EXISTENT")
     assert non_existent is None, "Should return None for non-existent server"
+
+
+def test_load_server_configs_accepts_inner_and_full_state():
+    manager = cfg.ConfigManager.__new__(cfg.ConfigManager)
+    server_data = {
+        "host": "irc.example.com",
+        "port": 6697,
+        "channels": ["#test"],
+        "tls": True,
+    }
+
+    inner = manager._load_server_configs_from_state({"servers": [server_data.copy()]})
+    full = manager._load_server_configs_from_state(
+        {"config": {"servers": [server_data.copy()]}}
+    )
+
+    assert len(inner) == 1
+    assert len(full) == 1
+    assert inner[0].host == full[0].host == "irc.example.com"

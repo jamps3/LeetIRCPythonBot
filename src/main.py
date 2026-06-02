@@ -197,7 +197,9 @@ def setup_environment():
             config_manager = get_config_manager()
             config_manager._run_interactive_setup("data/state.json")
             # Reload config after setup
+            config_manager.reload_config()
             config = get_config()
+            bot_name = config.name
         else:
             main_logger.error(
                 "No servers configured in state.json, and not running interactively. Please run the bot interactively to set up servers."

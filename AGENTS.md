@@ -30,7 +30,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
     - python main.py -nick MyBot # override nickname
     - python main.py -api # show API keys in logs
 
-- Environment config (.env): copy .env.sample to .env and set at least one server and any API keys you intend to use.
+- Configuration: `data/state.json` stores bot settings and IRC servers. `.env` stores API keys and optional environment overrides.
   - For local test parity with CI, a minimal .env can include:
     BOT_NAME=TestBot,
     IRC_NICKNAME=test_bot,
@@ -57,6 +57,8 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 - Local commands matching CI (pwsh):
   - $env:PYTHONPATH = (Get-Location)
   - python -m pytest -v --tb=short -n auto
+  - Prefer the repo venv when available: .\venv\Scripts\python.exe -m pytest -v --tb=short -n auto
+  - Full pytest runs can take time: keep `-n auto` enabled and allow a generous timeout (at least 5 minutes).
   - Lint (check-only):
     - ruff format --check --diff .
     - ruff check .
@@ -68,11 +70,11 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 
 - Entrypoint (main.py):
   - Parses CLI flags (log level, nickname, API-key print mask)
-  - Loads .env via config.load*env_file(), validates at least one SERVERx*\* block
+  - Loads `.env` API keys via config.load*env_file() and IRC servers from `data/state.json`
   - Initializes and starts BotManager, then waits for shutdown
 
 - Bot orchestration (bot_manager.BotManager):
-  - Reads environment-driven server configs via get_server_configs()
+  - Reads configured IRC servers from `data/state.json`
   - Constructs Server instances (server.Server) for each configured server
   - Registers callbacks for: message, notice, join, part, quit
   - Starts background monitors (if available): FMI warnings, Otiedote releases
@@ -132,7 +134,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
   - BotManager.\_fetch_title: requests + BeautifulSoup; skips blacklisted domains/extensions (env-configurable)
 
 - Configuration and logging:
-  - config.py: .env loading, server config parsing, helper getters
+  - config.py: `.env` loading, `data/state.json` config parsing, helper getters
   - logger.py: get_logger(name) used across components; respects LOG_LEVEL
   - Notable env toggles: TAMAGOTCHI_ENABLED, USE_NOTICES, FOUR_TWENTY_ENABLED
 
@@ -176,6 +178,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 - Server/IRC protocol details: server.py, irc_client.py, irc_processor.py
 - Word tracking/persistence: word_tracking/
 - Configuration shape: config.py and .env.sample, .env when running
+- Shared `data/state.json` persistence: state_utils.py and every section writer
 - Command reloading: reload_manager.py (hot-reload commands without restart)
 - Lag measurement and timing: message_handler.py (lag storage), commands_irc.py (!lag, !sexact commands), scheduled_message_service.py (lag compensation)
 
@@ -183,6 +186,10 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 
 - Console protection features in BotManager are intentionally disabled to avoid hangs in some terminals
 - Some modules (lemmatizer, subscriptions, etc.) are optional; code guards against missing deps
+- Treat `data/state.json` as shared mutable state. Section writers must use strict locked atomic updates from `state_utils.py`; do not open it directly with truncating write mode.
+- If `data/state.json` is temporarily invalid during a manual edit, writers must refuse the update and preserve the file bytes.
+- Normal startup and graceful shutdown maintain `data/state.json.start.bak` and `data/state.json.end.bak`. These fixed-name snapshots are local recovery files and stay ignored by Git.
+- After interactive configuration setup, reload the cached `ConfigManager` before continuing startup.
 
 7. Git hygiene
 

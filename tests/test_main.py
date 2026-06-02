@@ -67,6 +67,34 @@ def test_setup_environment_with_server(monkeypatch):
     assert main_mod.setup_environment() == "TestBot"
 
 
+def test_setup_environment_reloads_config_after_interactive_setup(monkeypatch):
+    initial = Namespace(name="OldBot", servers=[])
+    reloaded = Namespace(name="NewBot", servers=[object()])
+
+    class Manager:
+        def __init__(self):
+            self.reloaded = False
+
+        def _run_interactive_setup(self, state_file):
+            assert state_file == "data/state.json"
+
+        def reload_config(self):
+            self.reloaded = True
+
+    manager = Manager()
+    monkeypatch.setattr(main_mod, "load_env_file", lambda: True, raising=True)
+    monkeypatch.setattr("config.get_config_manager", lambda: manager, raising=True)
+    monkeypatch.setattr(
+        "config.get_config",
+        lambda: reloaded if manager.reloaded else initial,
+        raising=True,
+    )
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True, raising=False)
+
+    assert main_mod.setup_environment() == "NewBot"
+    assert manager.reloaded is True
+
+
 def test_parse_arguments_variants(monkeypatch):
     argv = ["prog", "-l", "DEBUG", "-nick", "Alice", "-api"]
     monkeypatch.setattr(sys, "argv", argv)

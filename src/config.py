@@ -697,10 +697,10 @@ class ConfigManager:
         Load server configurations from state config dict.
         """
         servers = []
-        server_list = state_config.get("config", {}).get("servers", [])
+        server_list = state_config.get("servers", [])
         if not server_list:
-            # Fallback for old state.json where servers might be at root
-            server_list = state_config.get("servers", [])
+            # Accept callers that pass the complete state.json structure.
+            server_list = state_config.get("config", {}).get("servers", [])
         logger.info(f"Found {len(server_list)} server entries in state config")
 
         for i, server_data in enumerate(server_list, 1):

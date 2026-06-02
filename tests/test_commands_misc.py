@@ -309,6 +309,21 @@ class TestTilaaCommand:
 
         assert "Subscription service is not available" in result
 
+    def test_tilaa_command_accepts_otiedote_alias(
+        self, console_context, mock_bot_functions
+    ):
+        from cmd_modules.services import command_tilaa
+
+        mock_subscriptions = Mock()
+        mock_subscriptions.toggle_subscription.return_value = "Subscribed"
+        mock_bot_functions["subscriptions"] = mock_subscriptions
+        console_context.args = ["otiedote"]
+
+        assert command_tilaa(console_context, mock_bot_functions) == "Subscribed"
+        mock_subscriptions.toggle_subscription.assert_called_once_with(
+            "console", "console", "onnettomuustiedotteet"
+        )
+
 
 class TestSolarwindCommand:
     """Tests for the !solarwind command."""

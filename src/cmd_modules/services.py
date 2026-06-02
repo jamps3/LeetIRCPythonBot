@@ -1470,13 +1470,15 @@ def wrap_command(context: CommandContext, bot_functions):
     name="tilaa",
     command_type=CommandType.PUBLIC,
     description="Handle subscription commands",
-    usage="!tilaa varoitukset|onnettomuustiedotteet|list <kanava>",
+    usage="!tilaa varoitukset|otiedote|onnettomuustiedotteet|list <kanava>",
     admin_only=False,
 )
 def command_tilaa(context, bot_functions):
     topic = context.args[0].lower() if context.args else None
     if not topic:
-        return "⚠ Käyttö: !tilaa varoitukset|onnettomuustiedotteet|list <kanava>"
+        return (
+            "⚠ Käyttö: !tilaa varoitukset|otiedote|onnettomuustiedotteet|list <kanava>"
+        )
 
     if not bot_functions or "subscriptions" not in bot_functions:
         return "Subscription service is not available."
@@ -1487,7 +1489,9 @@ def command_tilaa(context, bot_functions):
         result = subscriptions.format_all_subscriptions()
         return result
 
-    elif topic in ["varoitukset", "onnettomuustiedotteet"]:
+    elif topic in ["varoitukset", "otiedote", "onnettomuustiedotteet"]:
+        if topic == "otiedote":
+            topic = "onnettomuustiedotteet"
         # Determine subscriber (channel/user)
         if len(context.args) >= 2:
             subscriber = context.args[1]  # Explicit override
@@ -1503,7 +1507,7 @@ def command_tilaa(context, bot_functions):
         result = subscriptions.toggle_subscription(subscriber, server_name, topic)
         return result
     else:
-        return "⚠ Tuntematon tilaustyyppi. Käytä: varoitukset, onnettomuustiedotteet tai list"
+        return "⚠ Tuntematon tilaustyyppi. Käytä: varoitukset, otiedote, onnettomuustiedotteet tai list"
 
 
 # Aliases for backwards compatibility with existing tests
