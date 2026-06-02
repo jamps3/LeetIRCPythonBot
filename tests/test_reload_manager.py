@@ -154,8 +154,8 @@ class TestReloadManager:
         original_aliases = registry._aliases.copy()
         try:
             registry.unregister("help")
-            registry.unregister("lag")
-            assert reload_manager.verify_critical_commands() == ["help", "lag"]
+            registry.unregister("latency")
+            assert reload_manager.verify_critical_commands() == ["help", "latency"]
         finally:
             registry._commands = original_commands
             registry._aliases = original_aliases
@@ -173,7 +173,7 @@ class TestReloadManager:
 
         load_all_commands()
         assert get_command_registry().get_handler("help")
-        assert get_command_registry().get_handler("lag")
+        assert get_command_registry().get_handler("latency")
 
     def test_reload_lock_prevents_concurrent_access(self):
         """Test that reload lock prevents concurrent reloads."""

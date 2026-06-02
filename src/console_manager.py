@@ -562,6 +562,9 @@ class ConsoleManager:
             return f"Server {self.active_server} is not connected."
 
         try:
+            self.message_handler._record_passive_latency_start(
+                server, self.active_channel, message
+            )
             server.send_message(self.active_channel, message)
             return f"[{self.active_server}:{self.active_channel}] <{self.server_manager.bot_name}> {message}"
         except Exception as e:

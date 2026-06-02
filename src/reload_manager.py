@@ -320,7 +320,7 @@ def verify_critical_commands() -> List[str]:
     Returns:
         List of missing critical commands (empty if all present)
     """
-    critical_commands = ["help", "ping", "lag", "sexact"]
+    critical_commands = ["help", "ping", "latency", "sexact"]
     missing = []
 
     try:

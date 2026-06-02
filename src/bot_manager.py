@@ -792,6 +792,9 @@ class BotManager:
         if not server.connected:
             return f"Server {self.active_server} is not connected"
 
+        self.message_handler._record_passive_latency_start(
+            server, self.active_channel, message
+        )
         server.send_message(self.active_channel, message)
         return f"<{self.bot_name}> {message}\nSent to {self.active_server}:{self.active_channel}: {message}"
 

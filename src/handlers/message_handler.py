@@ -94,7 +94,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         self._pending_latency_requests = {}
         self._latency_lock = threading.Lock()
 
-        # CTCP PING storage for !lag command
+        # CTCP PING storage for !latency nicks
         # Key: (server_name, nick), Value: {timestamp_ms, channel}
         self._pending_ctcp_pings = {}
         self._ctcp_ping_lock = threading.Lock()
@@ -104,6 +104,8 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         self._lag_storage: Dict[tuple, float] = {}
         self._lag_storage_lock = threading.Lock()
         self._load_lag_storage()
+        self._pending_notice_latency = {}
+        self._pending_notice_latency_lock = threading.Lock()
 
         # Set data_manager on gpt_service if available
         gpt_service = self.service_manager.get_service("gpt")
@@ -189,13 +191,16 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 "bot_name": server.bot_name,
             }
 
+            if self._check_passive_latency_receipt(server, sender, target, text):
+                return
+
             # Check for CTCP PONG response (from !lag command)
             # This should be checked before command processing
             if sender.lower() != server.bot_name.lower():
                 lag_response = self._check_ctcp_pong_response(server, sender, text)
                 if lag_response:
                     # Send the lag response to the channel where the command was issued
-                    server.send_message(target, lag_response)
+                    server.send_message(self._ctcp_response_target, lag_response)
 
             # 🎯 FIRST PRIORITY: Check for nanoleet achievements for maximum timestamp accuracy
             if sender.lower() != server.bot_name.lower():
@@ -1363,6 +1368,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
         try:
             if self.use_notices:
+                self._record_passive_latency_start(server, target, message)
                 server.send_notice(target, message)
             else:
                 server.send_message(target, message)
@@ -2006,6 +2012,129 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         setattr(self, "_latency_start", time.time())
         return time.time()
 
+    def _get_latency_nicks(self) -> list[str]:
+        """Return the explicitly configured nick latency targets."""
+        try:
+            state = self.data_manager.load_state()
+            nicks = state.get("config", {}).get("latency_nicks", [])
+        except Exception:
+            return []
+        if not isinstance(nicks, list):
+            return []
+        return list(dict.fromkeys(nick.strip() for nick in nicks if nick.strip()))
+
+    def _send_network_latency_ping(self, server) -> str:
+        """Send an IRC protocol PING for a network round-trip measurement."""
+        timestamp_ms = int(time.time() * 1000)
+        token = f"latency_{timestamp_ms}"
+        server.send_raw(f"PING :{token}")
+        return token
+
+    def _handle_pong(self, server, token: str) -> Optional[str]:
+        """Store a measured IRC network round trip from a matching PONG."""
+        if not token.startswith("latency_"):
+            return None
+        try:
+            timestamp_ms = int(token.removeprefix("latency_"))
+        except ValueError:
+            return None
+        rtt_ms = int(time.time() * 1000) - timestamp_ms
+        self._store_lag(server.config.name, "__network__", rtt_ms)
+        message = f"IRC network latency on {server.config.name}: {rtt_ms}ms"
+        logger.msg(message)
+        return message
+
+    def _send_ctcp_latency_ping(self, server, nick: str, channel: str) -> None:
+        """Send a CTCP PING to a configured nick and remember its reply target."""
+        timestamp_ms = int(time.time() * 1000)
+        server.send_raw(f"PRIVMSG {nick} :\x01PING {timestamp_ms}\x01")
+        self._store_pending_ctcp_ping(server.config.name, nick, timestamp_ms, channel)
+
+    def _get_passive_latency_channels(self) -> tuple[str, str]:
+        """Return source and observer channels for passive notice measurements."""
+        try:
+            config = self.data_manager.load_state().get("config", {})
+        except Exception:
+            return "", ""
+        return (
+            str(config.get("latency_source_channel", "")).strip(),
+            str(config.get("latency_observer_channel", "")).strip(),
+        )
+
+    def _record_passive_latency_start(self, server, target: str, message: str) -> None:
+        """Remember a normal outbound bot message without adding IRC traffic."""
+        source_channel, observer_channel = self._get_passive_latency_channels()
+        if not observer_channel or target.lower() != source_channel.lower():
+            return
+        key = (server.config.name.lower(), message)
+        with self._pending_notice_latency_lock:
+            self._pending_notice_latency[key] = time.time_ns()
+
+    @staticmethod
+    def _parse_passive_latency_announcement(
+        text: str,
+    ) -> Optional[tuple[str, int, Optional[str]]]:
+        """Extract the original message and observer receipt time-of-day."""
+        match = re.match(
+            r"^(?:\S+\s+-([^:]+):[^-]+-\s+\S+\s+)?"
+            r"(\d{1,2})\.(\d{2})\.(\d{2}),(\d{1,9}):\s?(.*)$",
+            text,
+        )
+        if not match:
+            return None
+        observer, hours, minutes, seconds, nanoseconds, message = match.groups()
+        time_of_day_ns = (
+            int(hours) * 3600 + int(minutes) * 60 + int(seconds)
+        ) * 1_000_000_000 + int(nanoseconds.ljust(9, "0"))
+        return message, time_of_day_ns, observer
+
+    @staticmethod
+    def _nearest_receipt_time_ns(sent_ns: int, receipt_time_of_day_ns: int) -> int:
+        """Resolve an observer time-of-day against the day nearest the send."""
+        day_ns = 24 * 60 * 60 * 1_000_000_000
+        sent_day_ns = sent_ns - (sent_ns % day_ns)
+        candidates = (
+            sent_day_ns - day_ns + receipt_time_of_day_ns,
+            sent_day_ns + receipt_time_of_day_ns,
+            sent_day_ns + day_ns + receipt_time_of_day_ns,
+        )
+        return min(candidates, key=lambda candidate: abs(candidate - sent_ns))
+
+    def _check_passive_latency_receipt(
+        self, server, sender: str, target: str, text: str
+    ) -> bool:
+        """Measure a configured nick's mirrored receipt in the observer channel."""
+        _, observer_channel = self._get_passive_latency_channels()
+        if not observer_channel or target.lower() != observer_channel.lower():
+            return False
+        configured_nicks = {nick.lower(): nick for nick in self._get_latency_nicks()}
+        if not configured_nicks:
+            return True
+        announcement = self._parse_passive_latency_announcement(text)
+        if announcement is None:
+            return True
+        message, receipt_time_of_day_ns, announced_observer = announcement
+        observer = next(
+            (
+                configured_nicks[candidate.lower()]
+                for candidate in (announced_observer, sender, server.config.name)
+                if candidate and candidate.lower() in configured_nicks
+            ),
+            None,
+        )
+        if observer is None:
+            return True
+        key = (server.config.name.lower(), message)
+        with self._pending_notice_latency_lock:
+            started_ns = self._pending_notice_latency.get(key)
+        if started_ns is not None:
+            receipt_ns = self._nearest_receipt_time_ns(
+                started_ns, receipt_time_of_day_ns
+            )
+            lag_ms = (receipt_ns - started_ns) / 1_000_000
+            self._store_lag(server.config.name, observer, lag_ms)
+        return True
+
     def _send_latency_ping(self, server, target: str) -> str:
         """
         Send a latency ping to a nick.
@@ -2148,6 +2277,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             # Remove the pending request
             channel = pending["channel"]
             del self._pending_ctcp_pings[key]
+            self._ctcp_response_target = channel
 
         # Calculate round-trip time
         receive_time_ms = int(time.time() * 1000)

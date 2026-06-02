@@ -235,6 +235,9 @@ class BotConfig:
     auto_reconnect: bool = True
     log_buffer_size: int = 1000
     gpt_history_limit: int = 100
+    latency_nicks: List[str] = field(default_factory=list)
+    latency_source_channel: str = ""
+    latency_observer_channel: str = ""
 
     # X (Twitter) API settings
     x_bearer_token: str = ""
@@ -338,6 +341,9 @@ class ConfigManager:
             auto_reconnect=state_config.get("auto_reconnect", AUTO_RECONNECT),
             log_buffer_size=state_config.get("log_buffer_size", LOG_BUFFER_SIZE),
             gpt_history_limit=state_config.get("gpt_history_limit", GPT_HISTORY_LIMIT),
+            latency_nicks=state_config.get("latency_nicks", []),
+            latency_source_channel=state_config.get("latency_source_channel", ""),
+            latency_observer_channel=state_config.get("latency_observer_channel", ""),
             # X (Twitter) API settings
             x_bearer_token=os.getenv("X_BEARER_TOKEN", ""),
             # URL title fetching settings
@@ -675,6 +681,9 @@ class ConfigManager:
             servers.append(server)
 
         config["servers"] = servers
+        config["latency_nicks"] = []
+        config["latency_source_channel"] = ""
+        config["latency_observer_channel"] = ""
 
         # Create data directory if needed
         os.makedirs(os.path.dirname(state_file), exist_ok=True)

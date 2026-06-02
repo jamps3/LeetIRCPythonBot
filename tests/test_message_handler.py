@@ -85,6 +85,14 @@ def test_send_response_modes_and_connected_server(handler, server, monkeypatch):
     assert logged[:3] == ["console", "missing target", "console target"]
 
 
+def test_send_response_records_notice_latency(handler, server):
+    handler._record_passive_latency_start = Mock()
+    handler._send_response(server, "#chan", "hello")
+    handler._record_passive_latency_start.assert_called_once_with(
+        server, "#chan", "hello"
+    )
+
+
 def test_wrap_irc_message_utf8_bytes(handler):
     assert handler._wrap_irc_message_utf8_bytes(None) == []
     assert handler._wrap_irc_message_utf8_bytes("one\n\ntwo") == ["one", "", "two"]

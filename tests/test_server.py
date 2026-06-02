@@ -50,6 +50,15 @@ def test_register_callback_valid_and_invalid(srv):
     srv.register_callback("nope", lambda: None)
 
 
+def test_process_message_dispatches_latency_pong(srv):
+    received = []
+    srv.register_callback(
+        "pong", lambda server, token: received.append((server, token))
+    )
+    srv._process_message(":irc.example PONG Bot :latency_1234")
+    assert received == [(srv, "latency_1234")]
+
+
 def test_connect_and_run_calls_start(monkeypatch, srv):
     flag = {"started": False}
     monkeypatch.setattr(

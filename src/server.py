@@ -82,6 +82,7 @@ class Server:
             "part": [],  # Callbacks for user part events
             "quit": [],  # Callbacks for user quit events
             "numeric": [],  # Callbacks for numeric responses (like 353, 366)
+            "pong": [],  # Callbacks for measured server round trips
         }
 
         # Flood protection - token bucket rate limiter
@@ -552,6 +553,14 @@ class Server:
         Args:
             message (str): The raw IRC message
         """
+        # Process PONG responses before the generic prefixed-message cases.
+        pong_match = re.search(r"(?:^:\S+\s+)?PONG(?:\s+\S+)?\s+:(\S+)", message)
+        if pong_match:
+            token = pong_match.group(1)
+            for callback in self.callbacks["pong"]:
+                self._invoke_callback(callback, self, token)
+            return
+
         # Process PRIVMSG
         privmsg_match = re.search(r":([^!]+)!([^ ]+) PRIVMSG (\S+) :(.+)", message)
         if privmsg_match:

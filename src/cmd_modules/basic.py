@@ -181,51 +181,51 @@ def _get_irc_connection(bot_functions):
 
 
 # =====================
-# Lag Command - measure network lag
+# Latency Command - measure IRC network and configured nick lag
 # =====================
 
 
 @command(
-    "lag",
-    description="Measure network lag to a user (sends timestamped ping)",
-    usage="!lag <nick>",
-    examples=["!lag TestUser"],
+    "latency",
+    description="Measure IRC network latency or configured nick latency",
+    usage="!latency [network|nicks|list]",
+    examples=["!latency network", "!latency nicks", "!latency list"],
     scope=CommandScope.IRC_AND_CONSOLE,
 )
-def lag_command(context: CommandContext, bot_functions):
-    """Measure network lag to a user by sending a timestamped ping."""
-    if not context.args:
-        return "Usage: !lag <nick>"
-
-    target_nick = context.args[0]
-
-    # Get the latency tracker if available
+def latency_command(context: CommandContext, bot_functions):
+    """Measure the network or explicitly configured nick targets."""
     latency_tracker = bot_functions.get("latency_tracker")
-
-    # Get server name
-    server_name = bot_functions.get("server_name", "unknown")
-
-    # Get server from bot_functions
     server = bot_functions.get("server")
     if not server or not hasattr(server, "send_raw"):
         return "Not connected to any IRC server"
+    if not latency_tracker:
+        return "Latency tracker is unavailable"
 
-    timestamp = int(time.time() * 1000)  # milliseconds
-
-    # Send CTCP PING
-    server.send_raw(f"PRIVMSG {target_nick} :\x01PING {timestamp}\x01")
-
-    # Store the pending ping for later response matching if tracker available
-    # Store: (server_name, target_nick) -> {timestamp, channel, server_name}
-    if latency_tracker and hasattr(latency_tracker, "_store_pending_ctcp_ping"):
-        # Use the channel from context (where the command was issued)
-        channel = context.target if context.target else ""
-        latency_tracker._store_pending_ctcp_ping(
-            server_name, target_nick, timestamp, channel
-        )
-
-    # Return None to suppress output - response will be sent when PONG is received
-    return None
+    action = context.args[0].lower() if context.args else "list"
+    nicks = latency_tracker._get_latency_nicks()
+    if action == "network":
+        latency_tracker._send_network_latency_ping(server)
+        return f"Measuring IRC network latency on {server.config.name}"
+    if action == "nicks":
+        if not nicks:
+            return "No latency nicks configured in config.latency_nicks"
+        channel = context.target or ""
+        for nick in nicks:
+            latency_tracker._send_ctcp_latency_ping(server, nick, channel)
+        return f"Measuring latency for: {', '.join(nicks)}"
+    if action == "list":
+        if not nicks:
+            return "No latency nicks configured in config.latency_nicks"
+        measurements = []
+        for nick in nicks:
+            lag = latency_tracker._get_lag(server.config.name, nick)
+            measurements.append(
+                f"{nick}: {lag:.0f}ms" if lag is not None else f"{nick}: n/a"
+            )
+        network_lag = latency_tracker._get_lag(server.config.name, "__network__")
+        network = f"{network_lag:.0f}ms" if network_lag is not None else "n/a"
+        return f"IRC network: {network} | " + ", ".join(measurements)
+    return "Usage: !latency [network|nicks|list]"
 
 
 # =====================

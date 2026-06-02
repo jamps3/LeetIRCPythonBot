@@ -89,6 +89,9 @@ class ServerManager:
 
         # Create Server instances
         for config in server_configs:
+            observer_channel = getattr(self.bot_config, "latency_observer_channel", "")
+            if observer_channel and observer_channel not in config.channels:
+                config.channels.append(observer_channel)
             server = Server(config, self.bot_name, self.stop_event, self.bot_config)
             # Set the quit message
             server.quit_message = self.quit_message
@@ -125,6 +128,9 @@ class ServerManager:
 
             # Register numeric callback for handling IRC numeric responses
             server.register_callback("numeric", message_handler._handle_numeric)
+
+            # Register PONG callback for IRC network latency measurements
+            server.register_callback("pong", message_handler._handle_pong)
 
             logger.info(f"Registered callbacks for server: {server_name}")
 

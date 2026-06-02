@@ -152,9 +152,10 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 
 - Timing and Lag Compensation:
   - message_handler.py: Lag storage and measurement
-  - commands_irc.py: !lag and !sexact commands for precise timing
+  - cmd_modules/basic.py: !latency and !sexact commands for precise timing
   - scheduled_message_service.py: Lag-compensated scheduled messages
-  - Usage: !lag <nick> to measure, !sexact <nick> <time> <message> for exact timing
+  - Usage: !latency network, !latency nicks, or !latency list; configure privacy-sensitive nick targets in `config.latency_nicks` (default `[]`)
+  - Passive receipt timing is opt-in: configure `config.latency_source_channel` and IRC safe-channel `config.latency_observer_channel` (both default to `""`). Normal outbound bot messages to the source channel are timestamped internally; timestamped observer announcements from configured nicks update lag storage without probe chatter.
 
 4. Testing guidance
 
@@ -181,7 +182,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 - Configuration shape: config.py and .env.sample, .env when running
 - Shared `data/state.json` persistence: state_utils.py and every section writer
 - Command reloading: reload_manager.py (hot-reload commands without restart)
-- Lag measurement and timing: message_handler.py (lag storage), commands_irc.py (!lag, !sexact commands), scheduled_message_service.py (lag compensation)
+- Lag measurement and timing: handlers/message_handler.py (lag storage), cmd_modules/basic.py (!latency, !sexact commands), scheduled_message_service.py (lag compensation)
 
 6. Notes and conventions
 
