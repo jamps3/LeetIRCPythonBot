@@ -13,7 +13,7 @@ from datetime import datetime
 import urwid
 
 import logger
-from config import AUTO_CONNECT, AUTO_RECONNECT, LOG_BUFFER_SIZE
+from config import AUTO_CONNECT, AUTO_RECONNECT, LOG_BUFFER_SIZE, get_config
 from state_utils import load_json_file, update_json_file
 
 # Suppress urwid deprecation warnings globally for this module
@@ -1950,7 +1950,7 @@ class TUIManager:
         """Load text wrapping mode from state.json."""
         global WRAP_MODE
         try:
-            state_file = os.path.join("data", "state.json")
+            state_file = get_config().state_file
             if os.path.exists(state_file):
                 data = load_json_file(state_file, default=dict)
                 if not isinstance(data, dict):
@@ -1995,7 +1995,7 @@ class TUIManager:
     def _save_wrap_mode(self):
         """Save text wrapping mode to state.json."""
         try:
-            state_file = os.path.join("data", "state.json")
+            state_file = get_config().state_file
             update_json_file(
                 state_file,
                 lambda state: self._with_tui_wrap_mode(state, WRAP_MODE),

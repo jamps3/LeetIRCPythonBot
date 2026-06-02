@@ -270,6 +270,13 @@ class ConfigManager:
         """
         return load_dotenv(self.env_file)
 
+    def _get_state_file(self) -> str:
+        """Resolve the configured shared state file without forcing it into data/."""
+        state_file = os.getenv("STATE_FILE", STATE_FILE)
+        if os.path.isabs(state_file):
+            return os.path.normpath(state_file)
+        return os.path.normpath(os.path.join(PROJECT_ROOT, state_file))
+
     @property
     def config(self) -> BotConfig:
         """
@@ -283,10 +290,7 @@ class ConfigManager:
         """
         Load configuration from state.json and environment variables.
         """
-        # Prepare state_file with data directory
-        state_file = os.getenv("STATE_FILE", STATE_FILE)
-        if not state_file.startswith(("data/", "data\\")):
-            state_file = os.path.join("data", state_file)
+        state_file = self._get_state_file()
 
         # Load settings from state.json
         state_config = self._load_state_config()
@@ -365,7 +369,7 @@ class ConfigManager:
             state_config["title_blacklist_extensions"] = TITLE_BLACKLIST_EXTENSIONS
             updated = True
         if updated:
-            state_file = os.path.join(PROJECT_ROOT, "data", "state.json")
+            state_file = self._get_state_file()
             full_state = load_json_file(state_file, default=dict)
             if not isinstance(full_state, dict):
                 full_state = {}
@@ -389,7 +393,7 @@ class ConfigManager:
         Load configuration from state.json file.
         If file doesn't exist, run interactive setup.
         """
-        state_file = os.path.join(PROJECT_ROOT, "data", "state.json")
+        state_file = self._get_state_file()
 
         if not os.path.exists(state_file):
             logger.info("state.json not found, running interactive setup...")

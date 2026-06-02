@@ -6,11 +6,19 @@ import importlib as _il
 import importlib as _importlib
 import os as _os
 import sys as _sys
+import tempfile as _tempfile
 import traceback as _tb
 import warnings as _warnings
 from types import ModuleType as _ModuleType
 
 import pytest as _pytest
+
+_PROJECT_ROOT = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), ".."))
+_DEVELOPMENT_STATE_FILE = _os.path.join(_PROJECT_ROOT, "data", "state.json")
+_TEST_STATE_DIR = _tempfile.mkdtemp(prefix="leetircbot-pytest-state-")
+_os.environ["STATE_FILE"] = _os.path.join(_TEST_STATE_DIR, "state.json")
+with open(_os.environ["STATE_FILE"], "w", encoding="utf-8") as _state_file:
+    _state_file.write("{}")
 
 # Ensure warnings module is available for xdist workers (Python 3.14 compatibility)
 try:
@@ -115,6 +123,11 @@ def pytest_runtest_setup(item):
 def pytest_sessionstart(session):
     # Start of session marker
     _log("=== pytest session start ===")
+    try:
+        with open(_DEVELOPMENT_STATE_FILE, "rb") as f:
+            session.config._development_state_bytes = f.read()
+    except FileNotFoundError:
+        session.config._development_state_bytes = None
 
 
 def pytest_sessionfinish(session, exitstatus):
@@ -128,6 +141,18 @@ def pytest_sessionfinish(session, exitstatus):
                 _os.remove(artifact)
         except Exception:
             pass  # Never break test run due to cleanup errors
+
+    try:
+        with open(_DEVELOPMENT_STATE_FILE, "rb") as f:
+            current_state_bytes = f.read()
+    except FileNotFoundError:
+        current_state_bytes = None
+
+    if current_state_bytes != session.config._development_state_bytes:
+        raise AssertionError(
+            "Tests modified data/state.json. Use tmp_path or the pytest STATE_FILE "
+            "sandbox for state persistence."
+        )
 
 
 # ---------------------------------------------------------------------------

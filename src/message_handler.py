@@ -20,7 +20,6 @@ if _project_root not in sys.path:
 import requests  # noqa: E402
 
 from config import (  # noqa: E402
-    PROJECT_ROOT,
     TITLE_BLACKLIST_DOMAINS,
     TITLE_BLACKLIST_EXTENSIONS,
 )
@@ -2621,7 +2620,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
     def _update_state_file(self, key: str, value: str) -> bool:
         """Update a key-value pair in state.json instead of .env file."""
-        state_file = os.path.join(PROJECT_ROOT, "data", "state.json")
+        state_file = self.data_manager.state_file
         try:
             config_key = key.lower()
             if value.lower() in ("true", "false"):

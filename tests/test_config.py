@@ -93,6 +93,21 @@ def test_configmanager_loads_env_and_caching(monkeypatch, tmp_path):
     assert c2 is not c  # New instance after reload
 
 
+def test_configmanager_uses_configured_state_file(monkeypatch, tmp_path):
+    state_file = tmp_path / "state.json"
+    state_file.write_text(
+        json.dumps({"config": {"bot_name": "TemporaryBot"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("STATE_FILE", str(state_file))
+
+    config = cfg.ConfigManager(env_file=str(tmp_path / ".env")).config
+
+    assert config.name == "TemporaryBot"
+    saved = json.loads(state_file.read_text(encoding="utf-8"))
+    assert "title_banned_texts" in saved["config"]
+
+
 def test_get_server_by_name_and_primary(monkeypatch):
     m = cfg.ConfigManager()
     servers = [
