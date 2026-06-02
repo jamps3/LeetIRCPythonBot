@@ -164,70 +164,76 @@ class NonFocusableListBox(urwid.ListBox):
         # Child didn't handle it, handle selection ourselves
         if event == "mouse press" and button == 1:
             # Start multi-line selection
-            self._start_multi_line_selection(row, col)
+            self._start_multi_line_selection(row, col, size)
             return True
 
         elif event == "mouse drag" and button == 1:
             # Update multi-line selection
-            self._update_multi_line_selection(row, col)
+            self._update_multi_line_selection(row, col, size)
             return True
 
         elif event == "mouse release" and button == 1:
             # End multi-line selection and copy
-            self._end_multi_line_selection(row, col)
+            self._end_multi_line_selection(row, col, size)
             return True
 
         return False
 
-    def _start_multi_line_selection(self, row, col):
+    def _mouse_to_text_position(self, size, row, col):
+        """Map a visible ListBox coordinate to a walker index and text offset."""
+        maxcol, maxrow = size
+        middle, top, bottom = self.calculate_visible((maxcol, maxrow), focus=True)
+        if middle is None:
+            return None
+
+        _offset, focus_widget, focus_pos, focus_rows, _cursor = middle
+        trim_top, fill_above = top
+        _trim_bottom, fill_below = bottom
+        visible_items = [
+            *reversed(fill_above),
+            (focus_widget, focus_pos, focus_rows),
+            *fill_below,
+        ]
+
+        widget_row = -trim_top
+        for widget, position, widget_rows in visible_items:
+            if widget_row + widget_rows > row:
+                if not hasattr(widget, "_visual_to_logical_pos"):
+                    return None
+                logical_col = widget._visual_to_logical_pos(
+                    maxcol, row - widget_row, col
+                )
+                return position, logical_col
+            widget_row += widget_rows
+        return None
+
+    def _start_multi_line_selection(self, row, col, size=None):
         """Start multi-line text selection."""
-        # For ListBox, row is the visible row index
-        # We need to convert this to the actual walker position
-        try:
-            # Calculate the scroll offset (top visible item index)
-            # The scroll position is the index of the top visible item
-            scroll_offset = self._calculate_scroll_offset()
-            list_index = scroll_offset + row
+        point = self._mouse_to_text_position(size, row, col) if size else (row, col)
+        if point is None:
+            return
+        list_index, logical_col = point
+        if 0 <= list_index < len(self.body):
+            self._selection_active = True
+            self._selection_start_line = list_index
+            self._selection_end_line = list_index
+            self._selection_start_col = logical_col
+            self._selection_end_col = logical_col
+            self._update_multi_line_display()
 
-            # Ensure bounds
-            if 0 <= list_index < len(self.body):
-                self._selection_active = True
-                self._selection_start_line = list_index
-                self._selection_end_line = list_index
-                self._selection_start_col = col
-                self._selection_end_col = col
-                self._update_multi_line_display()
-        except (AttributeError, IndexError, TypeError, ValueError):
-            # Fallback: assume no scrolling, row = list_index
-            if 0 <= row < len(self.body):
-                self._selection_active = True
-                self._selection_start_line = row
-                self._selection_end_line = row
-                self._selection_start_col = col
-                self._selection_end_col = col
-                self._update_multi_line_display()
-
-    def _update_multi_line_selection(self, row, col):
+    def _update_multi_line_selection(self, row, col, size=None):
         """Update multi-line text selection during drag."""
         if not self._selection_active:
             return
 
-        try:
-            # Calculate the scroll offset (top visible item index)
-            scroll_offset = self._calculate_scroll_offset()
-            list_index = scroll_offset + row
-
-            # Ensure bounds
-            if 0 <= list_index < len(self.body):
-                self._selection_end_line = list_index
-                self._selection_end_col = col
-                self._update_multi_line_display()
-        except (AttributeError, IndexError, TypeError, ValueError):
-            # Fallback: assume no scrolling, row = list_index
-            if 0 <= row < len(self.body):
-                self._selection_end_line = list_index
-                self._selection_end_col = col
-                self._update_multi_line_display()
+        point = self._mouse_to_text_position(size, row, col) if size else (row, col)
+        if point is None:
+            return
+        list_index, logical_col = point
+        if 0 <= list_index < len(self.body):
+            self._selection_end_line = list_index
+            self._selection_end_col = logical_col
+            self._update_multi_line_display()
 
     def _calculate_scroll_offset(self):
         """Calculate the index of the top visible item (scroll offset)."""
@@ -292,13 +298,13 @@ class NonFocusableListBox(urwid.ListBox):
             except (AttributeError, TypeError):
                 return 0  # No scrolling
 
-    def _end_multi_line_selection(self, row, col):
+    def _end_multi_line_selection(self, row, col, size=None):
         """End multi-line text selection and copy to clipboard."""
         if not self._selection_active:
             return
 
         # Update final position
-        self._update_multi_line_selection(row, col)
+        self._update_multi_line_selection(row, col, size)
 
         # Extract and copy selected text (before clearing selection)
         selected_text = self._extract_multi_line_selected_text()
@@ -330,9 +336,7 @@ class NonFocusableListBox(urwid.ListBox):
                     item._update_selection_display()
             return
 
-        # Determine affected line range
-        start_line = min(self._selection_start_line, self._selection_end_line)
-        end_line = max(self._selection_start_line, self._selection_end_line)
+        start_line, start_col, end_line, end_col = self._ordered_selection()
 
         # Update each line in the selection
         for i, item in enumerate(self.body):
@@ -344,22 +348,18 @@ class NonFocusableListBox(urwid.ListBox):
                         and i == self._selection_end_line
                     ):
                         # Single line selection
-                        item._selection_start = min(
-                            self._selection_start_col, self._selection_end_col
-                        )
-                        item._selection_end = max(
-                            self._selection_start_col, self._selection_end_col
-                        )  # noqa: E203
-                    elif i == self._selection_start_line:
+                        item._selection_start = start_col
+                        item._selection_end = end_col
+                    elif i == start_line:
                         # First line of multi-line selection
-                        item._selection_start = self._selection_start_col
+                        item._selection_start = start_col
                         item._selection_end = len(
                             item._text_content
                         )  # Select to end of line
-                    elif i == self._selection_end_line:
+                    elif i == end_line:
                         # Last line of multi-line selection
                         item._selection_start = 0  # Select from start of line
-                        item._selection_end = self._selection_end_col
+                        item._selection_end = end_col
                     else:
                         # Middle line of multi-line selection
                         item._selection_start = 0
@@ -374,16 +374,21 @@ class NonFocusableListBox(urwid.ListBox):
                     item._selection_end = None
                     item._update_selection_display()
 
+    def _ordered_selection(self):
+        """Return selection endpoints in document order."""
+        start = (self._selection_start_line, self._selection_start_col)
+        end = (self._selection_end_line, self._selection_end_col)
+        if start <= end:
+            return (*start, *end)
+        return (*end, *start)
+
     def _extract_multi_line_selected_text(self):
         """Extract the selected text across multiple lines (called before clearing selection)."""
         if not self._selection_active:
             return None
 
         selected_lines = []
-        start_line = min(self._selection_start_line, self._selection_end_line)
-        end_line = max(self._selection_start_line, self._selection_end_line)
-        start_col = min(self._selection_start_col, self._selection_end_col)
-        end_col = max(self._selection_start_col, self._selection_end_col)
+        start_line, start_col, end_line, end_col = self._ordered_selection()
 
         for i in range(start_line, end_line + 1):
             if i < len(self.body):
@@ -393,11 +398,7 @@ class NonFocusableListBox(urwid.ListBox):
 
                     if i == start_line and i == end_line:
                         # Single line selection
-                        selected_text = line_content[
-                            min(start_col, end_col) : max(  # noqa: E203
-                                start_col, end_col
-                            )
-                        ]
+                        selected_text = line_content[start_col:end_col]
                     elif i == start_line:
                         # First line of multi-line selection
                         selected_text = line_content[start_col:]
@@ -419,10 +420,7 @@ class NonFocusableListBox(urwid.ListBox):
             return None
 
         selected_lines = []
-        start_line = min(self._selection_start_line, self._selection_end_line)
-        end_line = max(self._selection_start_line, self._selection_end_line)
-        start_col = min(self._selection_start_col, self._selection_end_col)
-        end_col = max(self._selection_start_col, self._selection_end_col)
+        start_line, start_col, end_line, end_col = self._ordered_selection()
 
         for i in range(start_line, end_line + 1):
             if i < len(self.body):
@@ -432,11 +430,7 @@ class NonFocusableListBox(urwid.ListBox):
 
                     if i == start_line and i == end_line:
                         # Single line selection
-                        selected_text = line_content[
-                            min(start_col, end_col) : max(  # noqa: E203
-                                start_col, end_col
-                            )
-                        ]
+                        selected_text = line_content[start_col:end_col]
                     elif i == start_line:
                         # First line of multi-line selection
                         selected_text = line_content[start_col:]
@@ -648,48 +642,13 @@ class SelectableText(urwid.WidgetWrap):
 
         return markup if markup else text
 
-    def _visual_to_logical_pos(self, text, maxcol, visual_row, visual_col):
+    def _visual_to_logical_pos(self, maxcol, visual_row, visual_col):
         """Convert visual (row, col) coordinates to logical character position in text."""
-        if visual_row == 0 and visual_col < len(text):
-            return visual_col
+        from urwid.text_layout import calc_pos
 
-        lines = []
-        remaining = text
-        while remaining:
-            if len(remaining) <= maxcol:
-                lines.append(remaining)
-                break
-            # Find last space before maxcol for word wrapping
-            cut = remaining.rfind(" ", 0, maxcol + 1)
-            if cut == -1 or cut == 0:
-                # No space found or space at beginning, cut at maxcol
-                cut = maxcol
-            lines.append(remaining[:cut])
-            remaining = remaining[cut:].lstrip()
-
-        if visual_row >= len(lines):
-            return len(text)
-
-        line = lines[visual_row]
-        if visual_col >= len(line):
-            # Position beyond line end
-            char_pos = sum(
-                len(line_text) + (1 if i < visual_row else 0)
-                for i, line_text in enumerate(lines[: visual_row + 1])
-            )
-            return min(char_pos, len(text))
-
-        # Count characters up to this visual position
-        char_pos = 0
-        for i in range(visual_row):
-            # Add the length of previous lines plus the space that was stripped
-            prev_line = lines[i]
-            char_pos += len(prev_line)
-            if i < visual_row - 1:  # Add space that was stripped between lines
-                char_pos += 1
-
-        char_pos += visual_col
-        return min(char_pos, len(text))
+        layout = self._text_widget.get_line_translation(maxcol)
+        visual_row = max(0, min(visual_row, len(layout) - 1))
+        return calc_pos(self._text_content, layout, visual_col, visual_row)
 
     def _get_link_at_position(self, maxcol, visual_row, visual_col):
         """Get the URL at the given visual position."""
@@ -698,9 +657,7 @@ class SelectableText(urwid.WidgetWrap):
         plain_text = text_widget.get_text()[0]
 
         # Convert visual position to logical position
-        logical_pos = self._visual_to_logical_pos(
-            plain_text, maxcol, visual_row, visual_col
-        )
+        logical_pos = self._visual_to_logical_pos(maxcol, visual_row, visual_col)
 
         # Find URL at this position
         import re
@@ -1644,12 +1601,6 @@ class TUIManager:
 
     def mouse_event(self, size, event, button, col, row, focus):
         """Handle mouse events - route them to the appropriate child widget."""
-        self.add_log_entry(
-            datetime.now(),
-            "DEBUG",
-            f"Mouse event: event={event}, button={button}, col={col}, row={row}, focus={focus}",
-            "SYSTEM",
-        )
         # Get the layout of the Frame
         head_size = self.header.rows((size[0],))
         foot_size = self.input_field.rows((size[0],))
@@ -1675,27 +1626,6 @@ class TUIManager:
         else:
             # Calculate the relative position within the body
             body_row = row - head_size
-
-            # Debug: Log scroll state on mouse press
-            if event == "mouse press" and button == 1:
-                try:
-                    focus_pos = self.log_display.focus_position
-                    focus_offset = getattr(
-                        self.log_display, "focus_position_offset", "N/A"
-                    )
-                    scroll_offset = self.log_display._calculate_scroll_offset()
-                    total_items = len(self.log_display.body)
-                    self.add_log_entry(
-                        datetime.now(),
-                        "DEBUG",
-                        f"Mouse press: row={body_row}, focus_pos={focus_pos}, focus_offset={focus_offset}, "
-                        f"scroll_offset={scroll_offset}, total_items={total_items}",
-                        "SYSTEM",
-                    )
-                except Exception as e:
-                    self.add_log_entry(
-                        datetime.now(), "ERROR", f"Debug error: {e}", "SYSTEM"
-                    )
 
             # Let the log display handle the mouse event
             result = self.log_display.mouse_event(

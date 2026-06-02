@@ -365,6 +365,35 @@ class TestSelectableText:
 
             mock_open.assert_called_once_with("https://example.com")
 
+    def test_visual_to_logical_pos_uses_rendered_wrap_layout(self):
+        """Wrapped visual rows map back to offsets in the original text."""
+        text = SelectableText("abcdefghij")
+
+        assert text._visual_to_logical_pos(5, 1, 2) == 7
+
+    def test_link_detection_uses_wrapped_visual_coordinates(self):
+        """Links remain clickable after wrapping onto a later visual row."""
+        text = SelectableText("prefix https://example.com")
+
+        assert text._get_link_at_position(10, 1, 2) == "https://example.com"
+        assert text._get_link_at_position(10, 0, 0) is None
+
+    def test_update_selection_display_highlights_markup_and_plain_text(self):
+        """Selection highlighting retains normal text around the selected range."""
+        text = SelectableText("go https://example.com now")
+        text._selection_start = 1
+        text._selection_end = 8
+
+        text._update_selection_display()
+
+        assert text._text_widget.get_text()[0] == "go https://example.com now"
+        assert ("selected", 7) in text._text_widget.get_text()[1]
+
+        text._selection_start = None
+        text._selection_end = None
+        text._update_selection_display()
+        assert text._text_widget.get_text()[0] == "go https://example.com now"
+
 
 class TestNonFocusableListBox:
     """Test NonFocusableListBox class functionality."""
@@ -383,6 +412,106 @@ class TestNonFocusableListBox:
             assert hasattr(listbox, "_selection_start_col")
             assert hasattr(listbox, "_selection_end_col")
             assert hasattr(listbox, "_user_scrolled")
+
+    def test_reverse_multi_line_selection_preserves_endpoint_columns(self):
+        """Dragging upwards selects from the upper endpoint to the lower endpoint."""
+        import urwid
+
+        listbox = NonFocusableListBox(
+            urwid.SimpleListWalker(
+                [
+                    SelectableText("0123456789"),
+                    SelectableText("abcdefghij"),
+                    SelectableText("ABCDEFGHIJ"),
+                ]
+            )
+        )
+        listbox._selection_active = True
+        listbox._selection_start_line = 2
+        listbox._selection_start_col = 3
+        listbox._selection_end_line = 0
+        listbox._selection_end_col = 7
+
+        assert listbox._extract_multi_line_selected_text() == ("789\nabcdefghij\nABC")
+
+    def test_mouse_selection_lifecycle_copies_text(self):
+        """Mouse press, drag, and release select and copy rendered text."""
+        import urwid
+
+        listbox = NonFocusableListBox(
+            urwid.SimpleListWalker(
+                [SelectableText("first line"), SelectableText("second line")]
+            )
+        )
+
+        with (
+            patch("tui.urwid.ListBox.mouse_event", return_value=False),
+            patch("tui.CLIPBOARD_AVAILABLE", True),
+            patch("tui.pyperclip.copy") as mock_copy,
+            patch.object(SelectableText, "_flash"),
+        ):
+            assert listbox.mouse_event((20, 2), "mouse press", 1, 2, 0, True)
+            assert listbox.mouse_event((20, 2), "mouse drag", 1, 4, 1, True)
+            assert listbox.mouse_event((20, 2), "mouse release", 1, 4, 1, True)
+
+        mock_copy.assert_called_once_with("rst line\nseco")
+        assert listbox._selection_active is False
+
+    def test_mouse_to_text_position_handles_wrapped_rows_and_empty_list(self):
+        """Visible terminal rows map through Urwid layout to walker positions."""
+        import urwid
+
+        listbox = NonFocusableListBox(
+            urwid.SimpleListWalker([SelectableText("abcdefghij")])
+        )
+        assert listbox._mouse_to_text_position((5, 2), 1, 2) == (0, 7)
+
+        empty = NonFocusableListBox(urwid.SimpleListWalker([]))
+        assert empty._mouse_to_text_position((5, 2), 0, 0) is None
+
+    def test_selection_display_and_text_cover_forward_multi_line_range(self):
+        """A forward multi-line selection highlights and extracts each segment."""
+        import urwid
+
+        items = [
+            SelectableText("012345"),
+            SelectableText("abcdef"),
+            SelectableText("ABCDEF"),
+        ]
+        listbox = NonFocusableListBox(urwid.SimpleListWalker(items))
+        listbox._start_multi_line_selection(0, 2)
+        listbox._update_multi_line_selection(2, 3)
+
+        assert listbox._get_multi_line_selected_text() == "2345\nabcdef\nABC"
+        assert items[0]._selection_start == 2
+        assert items[1]._selection_end == 6
+        assert items[2]._selection_end == 3
+
+        listbox._selection_active = False
+        listbox._update_multi_line_display()
+        assert all(item._selection_start is None for item in items)
+
+    def test_scroll_helpers_move_focus_and_track_auto_scroll(self):
+        """Scrolling helpers move walker focus and maintain auto-scroll state."""
+        import urwid
+
+        listbox = NonFocusableListBox(
+            urwid.SimpleListWalker([SelectableText(str(i)) for i in range(30)])
+        )
+        listbox.scroll_down()
+        assert listbox.focus_position == 1
+        listbox.scroll_down_page()
+        assert listbox.focus_position == 21
+        listbox.scroll_up()
+        assert listbox.focus_position == 20
+        listbox.scroll_up_page()
+        assert listbox.focus_position == 0
+        listbox.scroll_to_bottom()
+        assert listbox.focus_position == 29
+        assert listbox.should_auto_scroll() is True
+        listbox.scroll_to_top()
+        assert listbox.focus_position == 0
+        assert listbox.should_auto_scroll() is False
 
 
 class TestStatsView:
@@ -631,6 +760,26 @@ class TestTUIManager:
 
         finally:
             os.chdir(original_cwd)
+
+    def test_mouse_event_routes_body_without_appending_debug_logs(self):
+        """Dragging in the log view does not mutate the visible log list."""
+        tui_manager = TUIManager()
+        tui_manager.header = Mock()
+        tui_manager.header.rows.return_value = 2
+        tui_manager.input_field = Mock()
+        tui_manager.input_field.rows.return_value = 1
+        tui_manager.log_display = Mock()
+        tui_manager.log_display.mouse_event.return_value = True
+        tui_manager.main_layout = Mock()
+        original_count = len(tui_manager.log_entries)
+
+        result = tui_manager.mouse_event((80, 20), "mouse drag", 1, 4, 5, True)
+
+        assert result is True
+        assert len(tui_manager.log_entries) == original_count
+        tui_manager.log_display.mouse_event.assert_called_once_with(
+            (80, 17), "mouse drag", 1, 4, 3, True
+        )
 
 
 class TestGlobalFunctions:

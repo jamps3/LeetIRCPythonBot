@@ -75,8 +75,11 @@ def test_setup_environment_reloads_config_after_interactive_setup(monkeypatch):
         def __init__(self):
             self.reloaded = False
 
+        def _get_state_file(self):
+            return "custom/state.json"
+
         def _run_interactive_setup(self, state_file):
-            assert state_file == "data/state.json"
+            assert state_file == "custom/state.json"
 
         def reload_config(self):
             self.reloaded = True
@@ -93,6 +96,27 @@ def test_setup_environment_reloads_config_after_interactive_setup(monkeypatch):
 
     assert main_mod.setup_environment() == "NewBot"
     assert manager.reloaded is True
+
+
+def test_setup_environment_returns_none_when_setup_adds_no_servers(monkeypatch):
+    config = Namespace(name="Bot", servers=[])
+
+    class Manager:
+        def _get_state_file(self):
+            return "custom/state.json"
+
+        def _run_interactive_setup(self, state_file):
+            assert state_file == "custom/state.json"
+
+        def reload_config(self):
+            pass
+
+    monkeypatch.setattr(main_mod, "load_env_file", lambda: True, raising=True)
+    monkeypatch.setattr("config.get_config_manager", lambda: Manager(), raising=True)
+    monkeypatch.setattr("config.get_config", lambda: config, raising=True)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True, raising=False)
+
+    assert main_mod.setup_environment() is None
 
 
 def test_parse_arguments_variants(monkeypatch):

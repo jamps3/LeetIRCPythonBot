@@ -22,9 +22,8 @@ else
     fi
     START_COMMAND="$VENV_PYTHON -m pip install --upgrade -r requirements.txt && $VENV_PYTHON src/main.py$BOT_ARGS"
 
-    # Keep the shell open after failure so the first-run error remains visible.
-    tmux new-session -d -s "$SESSION_NAME" \
+    # Start attached so first-run configuration prompts have a live terminal.
+    # Keep the shell open after failure so the error remains visible.
+    tmux new-session -s "$SESSION_NAME" \
         "$START_COMMAND; status=\$?; echo; echo \"Bot bootstrap exited with status \$status\"; exec bash"
-
-    tmux attach -t "$SESSION_NAME"
 fi

@@ -195,11 +195,14 @@ def setup_environment():
         if sys.stdin.isatty():
             main_logger.info("No servers configured, running interactive setup...")
             config_manager = get_config_manager()
-            config_manager._run_interactive_setup("data/state.json")
+            config_manager._run_interactive_setup(config_manager._get_state_file())
             # Reload config after setup
             config_manager.reload_config()
             config = get_config()
             bot_name = config.name
+            if not config.servers:
+                main_logger.error("No servers were added during interactive setup.")
+                return None
         else:
             main_logger.error(
                 "No servers configured in state.json, and not running interactively. Please run the bot interactively to set up servers."
