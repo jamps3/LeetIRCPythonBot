@@ -97,7 +97,7 @@ def manager(monkeypatch):
     mock_message_handler._send_response = Mock()
     mock_message_handler._wrap_irc_message_utf8_bytes = lambda m, **k: [str(m)]
     monkeypatch.setattr(
-        "message_handler.create_message_handler",
+        "handlers.message_handler.create_message_handler",
         lambda *args: mock_message_handler,
         raising=True,
     )

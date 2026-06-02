@@ -22,7 +22,7 @@ def test_console_command_service_functions():
     try:
         # Import required modules
         from console_manager import ConsoleManager
-        from message_handler import MessageHandler
+        from handlers.message_handler import MessageHandler
         from service_manager import ServiceManager
         from word_tracking import DataManager
 
@@ -119,7 +119,7 @@ def test_youtube_command_console_routing():
     try:
         from command_loader import process_console_command
         from console_manager import ConsoleManager
-        from message_handler import MessageHandler
+        from handlers.message_handler import MessageHandler
         from service_manager import ServiceManager
         from word_tracking import DataManager
 
@@ -356,7 +356,7 @@ def test_console_command_integration():
 
     try:
         from console_manager import ConsoleManager
-        from message_handler import MessageHandler
+        from handlers.message_handler import MessageHandler
         from service_manager import ServiceManager
         from word_tracking import DataManager
 

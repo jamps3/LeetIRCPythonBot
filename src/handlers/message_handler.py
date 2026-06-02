@@ -2547,10 +2547,6 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         text = context["text"]
 
         try:
-            from services.url_tracker_service import create_url_tracker_service
-
-            url_tracker = create_url_tracker_service()
-
             # Find URLs in the text (both http/https and www. prefixed)
             urls = set()  # Use set to avoid duplicates
 
@@ -2569,6 +2565,13 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             # Normalize www. URLs by adding https:// prefix
             for www_url in www_urls:
                 urls.add(f"https://{www_url}")
+
+            if not urls:
+                return
+
+            from services.url_tracker_service import create_url_tracker_service
+
+            url_tracker = create_url_tracker_service()
 
             for url in urls:
                 # Track the URL (no blacklist for tracking - we track all URLs)

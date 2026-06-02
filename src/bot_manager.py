@@ -33,7 +33,10 @@ requests = requests
 time = time
 
 # Imports for test mocking compatibility
-from message_handler import MessageHandler, create_message_handler  # noqa: E402
+from handlers.message_handler import (  # noqa: E402
+    MessageHandler,
+    create_message_handler,
+)
 from server_manager import create_server_manager  # noqa: E402
 from service_manager import create_service_manager  # noqa: E402
 from state_utils import backup_json_atomic  # noqa: E402
