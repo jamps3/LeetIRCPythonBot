@@ -1721,6 +1721,12 @@ def ecode_command(context: CommandContext, bot_functions):
             ecode = "E" + ecode
 
         if ecode not in data["ecodes"]:
+            ecode = next(
+                (key for key in data["ecodes"] if key.upper() == ecode),
+                ecode,
+            )
+
+        if ecode not in data["ecodes"]:
             return CommandResponse.error_msg(f"E-code {ecode} not found in database")
 
         ecode_data = data["ecodes"][ecode]
@@ -1731,14 +1737,15 @@ def ecode_command(context: CommandContext, bot_functions):
         if ecode_data["categories"]:
             category_symbols = " ".join(ecode_data["categories"])
             category_names = [
-                symbol_defs[symbol]
-                for symbol in ecode_data["categories"]
-                if symbol in symbol_defs
+                symbol_defs.get(symbol, symbol) for symbol in ecode_data["categories"]
             ]
             if category_names:
-                parts.append(
-                    f"Categories: {category_symbols} ({', '.join(category_names)})"
-                )
+                if category_names == ecode_data["categories"]:
+                    parts.append(f"Categories: {', '.join(category_names)}")
+                else:
+                    parts.append(
+                        f"Categories: {category_symbols} ({', '.join(category_names)})"
+                    )
 
         if ecode_data["indicators"]:
             indicators = [
