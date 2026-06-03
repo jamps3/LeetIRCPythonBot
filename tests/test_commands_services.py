@@ -243,3 +243,26 @@ class TestEcodeCommand:
         from cmd_modules.services import ecode_command
 
         assert callable(ecode_command)
+
+    def test_ecode_response_wraps_description_and_keeps_category_on_last_line(self):
+        """E-code output should preserve description and use IRC-safe lines."""
+        from cmd_modules.services import ecode_command
+
+        context = CommandContext(
+            command="ecode",
+            args=["160a"],
+            raw_message="!ecode 160a",
+            sender="tester",
+            target="#test",
+        )
+
+        response = ecode_command(context, {})
+
+        assert response.success is True
+        assert response.split_long_messages is False
+        lines = response.message.splitlines()
+        assert all(len(line) <= 400 for line in lines)
+        assert lines[0].startswith("E160a ■: Karotenoidit")
+        assert " | Description: " in response.message
+        assert lines[-1].endswith(" | Category: Elintarvikevärit")
+        assert "A-vitamiinin esiasteita" in response.message

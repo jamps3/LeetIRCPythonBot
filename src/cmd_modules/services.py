@@ -1702,6 +1702,71 @@ def unlearn_command(context: CommandContext, bot_functions):
 )
 def ecode_command(context: CommandContext, bot_functions):
     """Get information about E-codes (food additives)."""
+
+    def truncate(text: str, max_length: int) -> str:
+        if max_length <= 0:
+            return ""
+        if len(text) <= max_length:
+            return text
+        if max_length <= 3:
+            return "." * max_length
+        return text[: max_length - 3].rstrip() + "..."
+
+    def resolve_category_parts(categories, symbol_defs):
+        official_category_symbols = {
+            "Elintarvikevärit": "■",
+            "Hapettumisenestoaineet": "★",
+            "Emulgointi, stabilointi- ja sakeuttamisaineet": "♠",
+            "Muunnetut tärkkelykset": "♠",
+            "Makeutusaineet": "❖",
+            "Säilöntäaineet": "S",
+            "Muut lisäaineet": "M",
+        }
+        symbols = []
+        explanations = []
+
+        for category in categories:
+            if category in symbol_defs:
+                symbols.append(category)
+                explanations.append(symbol_defs[category])
+            else:
+                symbol = official_category_symbols.get(category, "?")
+                symbols.append(symbol)
+                explanations.append(category)
+
+        return " ".join(dict.fromkeys(symbols)), ", ".join(dict.fromkeys(explanations))
+
+    def wrap_irc_lines(prefix: str, text: str, max_length: int = 400) -> list[str]:
+        """Wrap text into IRC-safe lines without dropping content."""
+        words = text.split()
+        if not words:
+            return [prefix.rstrip()]
+
+        lines = []
+        current = prefix
+        for word in words:
+            separator = "" if current.endswith((" ", ": ")) else " "
+            candidate = f"{current}{separator}{word}"
+            if len(candidate) <= max_length:
+                current = candidate
+                continue
+
+            if current.strip():
+                lines.append(current.rstrip())
+                current = word
+            else:
+                lines.append(word[:max_length])
+                current = word[max_length:]
+
+            while len(current) > max_length:
+                lines.append(current[:max_length])
+                current = current[max_length:]
+
+        if current.strip():
+            lines.append(current.rstrip())
+
+        return lines
+
     try:
         data_file = Path(__file__).parent.parent.parent / "data" / "ecodes.json"
         if not data_file.exists():
@@ -1732,20 +1797,21 @@ def ecode_command(context: CommandContext, bot_functions):
         ecode_data = data["ecodes"][ecode]
         symbol_defs = data["symbol_definitions"]
         indicator_defs = data["indicator_definitions"]
-        parts = [f"{ecode}: {ecode_data['name']}"]
+        category_symbols = ""
+        category_explanation = ""
 
         if ecode_data["categories"]:
-            category_symbols = " ".join(ecode_data["categories"])
-            category_names = [
-                symbol_defs.get(symbol, symbol) for symbol in ecode_data["categories"]
-            ]
-            if category_names:
-                if category_names == ecode_data["categories"]:
-                    parts.append(f"Categories: {', '.join(category_names)}")
-                else:
-                    parts.append(
-                        f"Categories: {category_symbols} ({', '.join(category_names)})"
-                    )
+            category_symbols, category_explanation = resolve_category_parts(
+                ecode_data["categories"], symbol_defs
+            )
+
+        code_part = f"{ecode} {category_symbols}".strip()
+        head = f"{code_part}: {ecode_data['name']}"
+        parts = [head]
+
+        description = ecode_data.get("description")
+        if isinstance(description, list):
+            description = " ".join(str(item) for item in description if item)
 
         if ecode_data["indicators"]:
             indicators = [
@@ -1756,10 +1822,38 @@ def ecode_command(context: CommandContext, bot_functions):
             ]
             parts.append(f"Indicators: {' '.join(indicators)}")
 
-        response = " | ".join(parts)
-        if len(response) > 400:
-            response = response[:397] + "..."
+        if description:
+            response_lines = wrap_irc_lines(
+                f"{' | '.join(parts)} | Description: ",
+                str(description),
+            )
+        else:
+            response_lines = [" | ".join(parts)]
 
-        return CommandResponse.success_msg(response)
+        if category_explanation:
+            category_prefix = " | Category: "
+            last_line = response_lines[-1]
+            category_budget = 400 - len(last_line) - len(category_prefix)
+
+            if category_budget <= 0 and " " in last_line:
+                split_at = last_line.rfind(" ", 0, max(1, len(last_line) // 2))
+                if split_at > 0:
+                    response_lines[-1] = last_line[:split_at].rstrip()
+                    response_lines.append(last_line[split_at + 1 :].lstrip())
+                    last_line = response_lines[-1]
+                    category_budget = 400 - len(last_line) - len(category_prefix)
+
+            if category_budget > 0:
+                response_lines[-1] = (
+                    last_line
+                    + category_prefix
+                    + truncate(category_explanation, category_budget)
+                )
+
+        response = "\n".join(truncate(line, 400) for line in response_lines)
+
+        return CommandResponse(
+            success=True, message=response, split_long_messages=False
+        )
     except Exception as e:
         return CommandResponse.error_msg(f"Error getting E-code information: {e}")
