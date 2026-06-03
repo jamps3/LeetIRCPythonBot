@@ -156,6 +156,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
   - scheduled_message_service.py: Lag-compensated scheduled messages
   - Usage: !latency network, !latency nicks, or !latency list; configure privacy-sensitive nick targets in `config.latency_nicks` (default `[]`)
   - Passive receipt timing is opt-in: configure `config.latency_source_channel` and IRC safe-channel `config.latency_observer_channel` (both default to `""`). Normal outbound bot messages to the source channel are timestamped internally; timestamped observer announcements from configured nicks update lag storage without probe chatter.
+  - Command handlers that need an IRC server should use `context.server` or `bot_functions["server"]` as a server object, not a server-name string. If a console path may pass an active server name, resolve it through `bot_functions["server_manager"].get_server(name)` and guard `connected`, `send_raw`, and `config` with `getattr` before use.
 
 4. Testing guidance
 

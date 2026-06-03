@@ -23,6 +23,37 @@ def test_latency_requires_connection_and_tracker():
         latency_command(_context(), {"server": server})
         == "Latency tracker is unavailable"
     )
+    disconnected = SimpleNamespace(send_raw=Mock(), connected=False)
+    assert (
+        latency_command(_context(), {"server": disconnected})
+        == "Not connected to any IRC server"
+    )
+
+
+def test_latency_resolves_console_server_name():
+    server = SimpleNamespace(
+        config=SimpleNamespace(name="srv"),
+        connected=True,
+        send_raw=Mock(),
+    )
+    server_manager = Mock()
+    server_manager.get_server.return_value = server
+    tracker = Mock()
+    tracker._get_latency_nicks.return_value = []
+
+    assert (
+        latency_command(
+            _context("network"),
+            {
+                "server": "srv",
+                "server_manager": server_manager,
+                "latency_tracker": tracker,
+            },
+        )
+        == "Measuring IRC network latency on srv"
+    )
+    server_manager.get_server.assert_called_once_with("srv")
+    tracker._send_network_latency_ping.assert_called_once_with(server)
 
 
 def test_latency_network_and_nicks():

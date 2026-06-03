@@ -196,16 +196,24 @@ def latency_command(context: CommandContext, bot_functions):
     """Measure the network or explicitly configured nick targets."""
     latency_tracker = bot_functions.get("latency_tracker")
     server = bot_functions.get("server")
+    if isinstance(server, str):
+        server_manager = bot_functions.get("server_manager")
+        get_server = getattr(server_manager, "get_server", None)
+        server = get_server(server) if callable(get_server) else None
     if not server or not hasattr(server, "send_raw"):
+        return "Not connected to any IRC server"
+    if getattr(server, "connected", True) is False:
         return "Not connected to any IRC server"
     if not latency_tracker:
         return "Latency tracker is unavailable"
 
     action = context.args[0].lower() if context.args else "list"
     nicks = latency_tracker._get_latency_nicks()
+    server_config = getattr(server, "config", None)
+    server_name = getattr(server_config, "name", context.server_name or "unknown")
     if action == "network":
         latency_tracker._send_network_latency_ping(server)
-        return f"Measuring IRC network latency on {server.config.name}"
+        return f"Measuring IRC network latency on {server_name}"
     if action == "nicks":
         if not nicks:
             return "No latency nicks configured in config.latency_nicks"
@@ -218,11 +226,11 @@ def latency_command(context: CommandContext, bot_functions):
             return "No latency nicks configured in config.latency_nicks"
         measurements = []
         for nick in nicks:
-            lag = latency_tracker._get_lag(server.config.name, nick)
+            lag = latency_tracker._get_lag(server_name, nick)
             measurements.append(
                 f"{nick}: {lag:.0f}ms" if lag is not None else f"{nick}: n/a"
             )
-        network_lag = latency_tracker._get_lag(server.config.name, "__network__")
+        network_lag = latency_tracker._get_lag(server_name, "__network__")
         network = f"{network_lag:.0f}ms" if network_lag is not None else "n/a"
         return f"IRC network: {network} | " + ", ".join(measurements)
     return "Usage: !latency [network|nicks|list]"
