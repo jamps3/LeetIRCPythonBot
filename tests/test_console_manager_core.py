@@ -1,5 +1,6 @@
 """Focused behavioral coverage for ConsoleManager."""
 
+import os
 import threading
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -57,7 +58,7 @@ def test_readline_history_and_shutdown(manager):
     manager.readline = readline
     manager.readline_available = True
     manager._setup_readline_history()
-    assert manager._history_file == "data\\leetbot_history"
+    assert manager._history_file == os.path.join("data", "leetbot_history")
     assert readline.parse_and_bind.call_count == 9
     manager._save_command_history()
     readline.write_history_file.assert_called_once()

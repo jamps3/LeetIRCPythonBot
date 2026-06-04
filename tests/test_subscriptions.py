@@ -128,7 +128,8 @@ def temp_subscriptions_file():
 
 
 @pytest.fixture
-def bot_manager():
+def bot_manager(tmp_path):
+    state_file = tmp_path / "state.json"
     with (
         patch("bot_manager.DataManager"),
         patch("bot_manager.get_api_key", return_value=None),
@@ -145,7 +146,7 @@ def bot_manager():
                         name="test_server", channels=["#test", "test", "main"]
                     )
                 ],
-                state_file="data/state.json",
+                state_file=str(state_file),
             ),
         ),
     ):

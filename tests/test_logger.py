@@ -4,6 +4,7 @@ Pytest tests for logger module.
 """
 
 import builtins
+import os
 import re
 
 import logger as lg
@@ -90,4 +91,4 @@ def test_get_log_files_ignores_files_removed_during_rotation(monkeypatch):
 
     monkeypatch.setattr(lg.os.path, "getmtime", getmtime)
 
-    assert lg.get_log_files("data/leet.log") == ["data\\leet.log"]
+    assert lg.get_log_files("data/leet.log") == [os.path.join("data", "leet.log")]

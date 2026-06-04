@@ -466,7 +466,7 @@ class NonFocusableListBox(urwid.ListBox):
         # Scroll up by changing walker focus position
         if hasattr(self, "body") and len(self.body) > 0:
             try:
-                current_focus = self.get_focus()[1]
+                current_focus = self.focus_position
                 if current_focus is not None:
                     new_focus = max(0, current_focus - 20)
                     self.body.set_focus(new_focus)
@@ -480,7 +480,7 @@ class NonFocusableListBox(urwid.ListBox):
         # Scroll down by changing walker focus position
         if hasattr(self, "body") and len(self.body) > 0:
             try:
-                current_focus = self.get_focus()[1]
+                current_focus = self.focus_position
                 if current_focus is not None:
                     new_focus = min(len(self.body) - 1, current_focus + 20)
                     self.body.set_focus(new_focus)
@@ -494,7 +494,7 @@ class NonFocusableListBox(urwid.ListBox):
         # Scroll up by changing walker focus position
         if hasattr(self, "body") and len(self.body) > 0:
             try:
-                current_focus = self.get_focus()[1]
+                current_focus = self.focus_position
                 if current_focus is not None and current_focus > 0:
                     self.body.set_focus(current_focus - 1)
             except (AttributeError, TypeError):
@@ -507,7 +507,7 @@ class NonFocusableListBox(urwid.ListBox):
         # Scroll down by changing walker focus position
         if hasattr(self, "body") and len(self.body) > 0:
             try:
-                current_focus = self.get_focus()[1]
+                current_focus = self.focus_position
                 if current_focus is not None and current_focus < len(self.body) - 1:
                     self.body.set_focus(current_focus + 1)
             except (AttributeError, TypeError):
