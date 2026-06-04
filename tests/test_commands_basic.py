@@ -83,6 +83,74 @@ class TestPingCommand:
         assert "pong" in result.lower()
 
 
+class TestHelpCommandNoticeRouting:
+    """Regression tests for IRC-specific command help delivery."""
+
+    def test_specific_help_sends_message_server_and_target(
+        self, irc_context, monkeypatch
+    ):
+        """!help <command> must pass a server object, not a nick string."""
+        from cmd_modules.basic import help_command
+        from cmd_modules.services import command_tilaa  # noqa: F401
+
+        irc_context.command = "help"
+        irc_context.args = ["tilaa"]
+        irc_context.raw_message = "!help tilaa"
+
+        server = Mock(connected=True)
+        irc_context.server = server
+        sent = []
+
+        def strict_notice(message, irc, target):
+            assert hasattr(irc, "connected")
+            sent.append((message, irc, target))
+
+        result = help_command(
+            irc_context,
+            {
+                "irc": server,
+                "notice_message": strict_notice,
+            },
+        )
+
+        assert result is None
+        assert sent
+        assert sent[0][1] is server
+        assert sent[0][2] == "TestUser"
+        assert "tilaa" in sent[0][0]
+
+    @pytest.mark.parametrize("command_name", ["ping", "tilaa"])
+    def test_specific_help_does_not_treat_target_as_server(
+        self, irc_context, command_name
+    ):
+        """Catch str.connected regressions for any specific help command."""
+        from cmd_modules.basic import help_command
+        from cmd_modules.services import command_tilaa  # noqa: F401
+
+        irc_context.command = "help"
+        irc_context.args = [command_name]
+        irc_context.raw_message = f"!help {command_name}"
+
+        server = Mock(connected=True)
+        messages = []
+
+        def notice_requires_server(message, irc, target):
+            if not getattr(irc, "connected", False):
+                raise AssertionError("notice helper received a non-server object")
+            messages.append((message, target))
+
+        help_command(
+            irc_context,
+            {
+                "irc": server,
+                "notice_message": notice_requires_server,
+            },
+        )
+
+        assert messages
+        assert all(target == "TestUser" for _, target in messages)
+
+
 class TestVersionCommand:
     """Tests for the !version command."""
 

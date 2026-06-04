@@ -58,10 +58,10 @@ def help_command(context: CommandContext, bot_functions):
                     part1 = help_text[: split_pos + 1].rstrip()
                     part2_start = split_pos + 1
                     part2 = help_text[part2_start:].lstrip()
-                    notice(context.sender, part1)
-                    notice(context.sender, part2)
+                    notice(part1, irc, context.sender)
+                    notice(part2, irc, context.sender)
                 else:
-                    notice(context.sender, help_text)
+                    notice(help_text, irc, context.sender)
                 return None  # Don't return a response
             else:
                 return CommandResponse.success_msg(help_text)
