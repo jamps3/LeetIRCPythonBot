@@ -25,6 +25,10 @@ class FMIWarningService:
 
     FEED_URL = "https://alerts.fmi.fi/cap/feed/rss_fi-FI.rss"
     DEFAULT_CHECK_INTERVAL = 300  # 5 minutes
+    WEEKDAY_TIME_RANGE_RE = re.compile(
+        r"\b(?:ma|ti|ke|to|pe|la|su)\s+\d{1,2}\.\d{2}\s*[–-]\s*(\d{1,2}\.\d{2})"
+    )
+    KLO_TIME_RANGE_RE = re.compile(r"\bklo\s*\d{1,2}\.\d{2}\s*[–-]\s*(\d{1,2}\.\d{2})")
 
     # Locations to exclude from notifications
     EXCLUDED_LOCATIONS = [
@@ -263,8 +267,11 @@ class FMIWarningService:
 
     def _normalize_title(self, title: str) -> str:
         """
-        Extract only the END time from the warning title.
-        Removes weekday, start time, dash, and surrounding spaces.
+        Normalize warning title while preserving the warning end time.
+
+        FMI may republish the same warning with a different start time while the
+        end time remains unchanged. Ignore the start time in duplicate checks,
+        but keep the end time so extended or shortened warnings are announced.
         """
         if not title:
             return ""
@@ -273,12 +280,12 @@ class FMIWarningService:
 
         # Examples:
         # "ma 14.32 - 23.00", "ma 17.49 – 23.00", "ti 06.00-09.00"
-        t = re.sub(
-            r"\b(ma|ti|ke|to|pe|la|su)\s+\d{1,2}\.\d{2}\s*[–-]\s*\d{1,2}\.\d{2}", "", t
+        t = self.WEEKDAY_TIME_RANGE_RE.sub(
+            lambda match: f" päättyy {match.group(1)}", t
         )
 
         # Also match "klo 17.49–23.00"
-        t = re.sub(r"klo\s*\d{1,2}\.\d{2}\s*[–-]\s*\d{1,2}\.\d{2}", "", t)
+        t = self.KLO_TIME_RANGE_RE.sub(lambda match: f" päättyy {match.group(1)}", t)
 
         # Clean multiple spaces
         t = re.sub(r"\s+", " ", t).strip()
