@@ -7,6 +7,7 @@ and related functionality extracted from bot_manager.py.
 
 import os
 import re
+import secrets
 import sys
 import threading
 import time
@@ -36,6 +37,7 @@ from word_tracking import DataManager, DrinkTracker, GeneralWords, WordAssociati
 from word_tracking.bac_tracker import BACTracker
 
 logger = get_logger("MessageHandler")
+secure_random = secrets.SystemRandom()
 
 
 class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
@@ -720,7 +722,6 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         This handles both the 420 auto-response AND the 420 leet achievement detection
         to avoid sending duplicate responses.
         """
-        import random
         import re
 
         text = context["text"]
@@ -766,7 +767,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             logger.error(f"Error checking 420 leet achievement: {e}")
 
         # If no leet achievement, send regular auto-response
-        response = random.choice(self._420_AUTO_RESPONSES)
+        response = secure_random.choice(self._420_AUTO_RESPONSES)
         self._send_response(server, target, response)
         logger.debug(f"420 auto-response triggered in {target}")
 

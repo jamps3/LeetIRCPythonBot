@@ -181,7 +181,7 @@ def test_nanoleet_and_420_paths(handler, server, monkeypatch):
     handler.service_manager.get_service.return_value = detector
     context = {"server": server, "target": "#chan", "sender": "alice", "text": "420"}
     handler._check_nanoleet_achievement(context)
-    monkeypatch.setattr("random.choice", lambda _: "regular")
+    monkeypatch.setattr(message_handler.secure_random, "choice", lambda _: "regular")
     handler._handle_420_response(context)
     assert handler._send_response.call_args_list[0].args[-1] == "nano"
     assert handler._send_response.call_args_list[1].args[-1] == "regular"

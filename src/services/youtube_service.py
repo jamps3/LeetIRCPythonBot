@@ -5,13 +5,15 @@ Provides YouTube video information and search functionality using YouTube Data A
 """
 
 import html
-import random
 import re
+import secrets
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 import isodate
 import requests
+
+secure_random = secrets.SystemRandom()
 
 
 class YouTubeService:
@@ -425,7 +427,7 @@ class YouTubeService:
             date_str = "Unknown"
 
         # IRC-formatted YouTube logo
-        yt_logo = random.choice(
+        yt_logo = secure_random.choice(
             [
                 # "\x02\x0314,15You\x0315,04Tube\x03\x02",  # YouTube
                 "\x0300,04 ▶ \x03",  # _▶_

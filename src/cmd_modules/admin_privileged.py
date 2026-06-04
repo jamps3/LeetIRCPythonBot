@@ -5,7 +5,13 @@ This module contains administrative commands that require password authenticatio
 """
 
 from command_registry import CommandContext, CommandScope, command
-from config import get_config
+from config import get_config, get_config_manager
+from state_utils import update_json_file
+
+
+def _normalize_command_name(command_name: str) -> str:
+    """Normalize command names for per-server ignore lists."""
+    return str(command_name or "").strip().lstrip("!/").lower()
 
 
 def verify_admin_password(args):
@@ -15,6 +21,152 @@ def verify_admin_password(args):
 
     config = get_config()
     return args[0] == config.admin_password
+
+
+def _get_state_server_list(state: dict) -> list:
+    """Return the mutable server list from either supported state.json shape."""
+    if not isinstance(state, dict):
+        return []
+    if isinstance(state.get("servers"), list):
+        return state["servers"]
+    config = state.get("config")
+    if isinstance(config, dict) and isinstance(config.get("servers"), list):
+        return config["servers"]
+    return []
+
+
+def _find_state_server(servers: list, server_name: str) -> dict | None:
+    """Find a server entry by configured server name, case-insensitively."""
+    wanted = str(server_name or "").strip().lower()
+    for server in servers:
+        if not isinstance(server, dict):
+            continue
+        if str(server.get("name") or "").strip().lower() == wanted:
+            return server
+    return None
+
+
+def _sync_live_server_ignore(bot_functions, server_name: str, ignored_commands: list):
+    """Update the in-memory server config so ignores apply without restart."""
+    server_manager = bot_functions.get("server_manager")
+    servers = getattr(server_manager, "servers", None)
+    if not isinstance(servers, dict):
+        bot_manager = bot_functions.get("bot_manager")
+        servers = getattr(bot_manager, "servers", None)
+    if not isinstance(servers, dict):
+        return
+
+    for name, server in servers.items():
+        if str(name).lower() != str(server_name).lower():
+            continue
+        config = getattr(server, "config", None)
+        if config is not None:
+            config.banned_commands = list(ignored_commands)
+        return
+
+
+def _reload_config_cache():
+    """Reload cached config after state.json changes."""
+    config_mgr = get_config_manager()
+    config_mgr.reload_config()
+
+
+@command(
+    "ignorecommand",
+    description="Ignore a command on a specific IRC server (admin only)",
+    usage="!ignorecommand <password> list [server]|<server> <command>",
+    examples=[
+        "!ignorecommand mypass list",
+        "!ignorecommand mypass list Libera",
+        "!ignorecommand mypass Libera weather",
+    ],
+    admin_only=True,
+    requires_args=True,
+)
+def ignore_command_command(context: CommandContext, bot_functions):
+    """Add or list per-server ignored commands."""
+    if not verify_admin_password(context.args):
+        return "❌ Invalid admin password"
+
+    args = context.args[1:]
+    if not args:
+        return "Usage: !ignorecommand <password> list [server]|<server> <command>"
+
+    config = get_config()
+    state_file = config.state_file
+    servers = list(config.servers or [])
+
+    if args[0].lower() == "list":
+        requested_server = args[1] if len(args) > 1 else None
+        lines = []
+        for server in servers:
+            if requested_server and server.name.lower() != requested_server.lower():
+                continue
+            ignored = sorted(
+                {_normalize_command_name(cmd) for cmd in server.banned_commands if cmd}
+            )
+            ignored_text = ", ".join(ignored) if ignored else "(none)"
+            lines.append(f"{server.name}: {ignored_text}")
+
+        if requested_server and not lines:
+            return f"❌ Server not found: {requested_server}"
+        if not lines:
+            return "No configured servers found"
+        return "Ignored commands:\n" + "\n".join(lines)
+
+    if len(args) < 2:
+        return "Usage: !ignorecommand <password> <server> <command>"
+
+    server_name = args[0]
+    command_name = _normalize_command_name(args[1])
+    if not command_name:
+        return "❌ Command name is required"
+    if command_name == "ignorecommand":
+        return "❌ Cannot ignore !ignorecommand"
+
+    server_config = next(
+        (server for server in servers if server.name.lower() == server_name.lower()),
+        None,
+    )
+    if not server_config:
+        return f"❌ Server not found: {server_name}"
+    was_already_ignored = command_name in {
+        _normalize_command_name(cmd) for cmd in server_config.banned_commands
+    }
+
+    updated_commands = None
+
+    def updater(state):
+        nonlocal updated_commands
+        if not isinstance(state, dict):
+            state = {}
+        state_servers = _get_state_server_list(state)
+        state_server = _find_state_server(state_servers, server_config.name)
+        if state_server is None:
+            raise ValueError(f"Server not found in state.json: {server_config.name}")
+
+        current = state_server.get("banned_commands", [])
+        if not isinstance(current, list):
+            current = []
+        normalized = sorted({_normalize_command_name(cmd) for cmd in current if cmd})
+        if command_name not in normalized:
+            normalized.append(command_name)
+            normalized.sort()
+        state_server["banned_commands"] = normalized
+        updated_commands = normalized
+        return state
+
+    try:
+        update_json_file(state_file, updater, default={}, strict=True)
+    except Exception as e:
+        return f"❌ Failed to update ignored commands: {e}"
+
+    _sync_live_server_ignore(bot_functions, server_config.name, updated_commands or [])
+    _reload_config_cache()
+
+    if was_already_ignored:
+        return f"ℹ️ !{command_name} was already ignored on {server_config.name}"
+    return f"✅ Ignoring !{command_name} on {server_config.name}"
 
 
 @command(

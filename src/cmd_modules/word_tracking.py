@@ -6,7 +6,7 @@ Contains word tracking commands: drink, kraks, drinkword, krakstats, tamagotchi,
 
 import json
 import os
-import random
+import secrets
 
 from command_registry import CommandContext, CommandResponse, CommandType, command
 from config import SANANMUUNNOKSET_FILE
@@ -14,6 +14,8 @@ from tamagotchi import TamagotchiBot
 
 # Import lazy getters from word_tracking module directly
 from word_tracking import DataManager, DrinkTracker, GeneralWords
+
+secure_random = secrets.SystemRandom()
 
 
 # Get the shared singletons via lazy getters
@@ -1099,7 +1101,7 @@ def muunnos_command(context: CommandContext, bot_functions):
             result = "Ei sananmuunnoksia saatavilla."
             return _send_muunnos_response(context, bot_functions, result)
 
-        original = random.choice(list(transformations.keys()))
+        original = secure_random.choice(list(transformations.keys()))
         transformed = transformations[original]
         result = f"{original} - {transformed}"
         return _send_muunnos_response(context, bot_functions, result)
@@ -1144,7 +1146,7 @@ def muunnos_command(context: CommandContext, bot_functions):
     # Fallback: try random transformations until one works
     max_attempts = 10
     for _ in range(max_attempts):
-        random_original = random.choice(list(transformations.keys()))
+        random_original = secure_random.choice(list(transformations.keys()))
         random_transformed = transformations[random_original]
         # Try to apply this transformation somehow - for now just return it
         result = f"{random_original} - {random_transformed}"

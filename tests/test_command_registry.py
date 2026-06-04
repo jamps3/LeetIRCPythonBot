@@ -7,6 +7,7 @@ Comprehensive tests for the command registry system.
 
 import os
 import sys
+from types import SimpleNamespace
 
 # Add the parent directory to Python path to ensure imports work in CI
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -181,3 +182,51 @@ def test_decorator_functionality():
     # Should use global registry
     registry = get_command_registry()
     assert "decorated" in registry._commands, "Should register with global registry"
+
+
+def test_process_command_message_skips_server_ignored_alias():
+    """Ignored command aliases should be suppressed per server."""
+    import asyncio
+
+    from command_registry import (
+        CommandContext,
+        CommandInfo,
+        CommandRegistry,
+        process_command_message,
+        reset_command_registry,
+    )
+
+    registry = CommandRegistry()
+    called = False
+
+    def ignored_command(context, bot_functions):
+        nonlocal called
+        called = True
+        return "should not run"
+
+    registry.register_function(
+        CommandInfo(name="primary", aliases=["alias"]), ignored_command
+    )
+
+    import command_registry as command_registry_module
+
+    try:
+        command_registry_module._command_registry = registry
+        context = CommandContext(
+            command="",
+            args=[],
+            raw_message="!alias",
+            is_console=False,
+            server_name="Libera",
+            server=SimpleNamespace(config=SimpleNamespace(banned_commands=["primary"])),
+        )
+
+        response = asyncio.run(process_command_message("!alias", context, {}))
+
+        assert response is None
+        assert called is False
+    finally:
+        reset_command_registry()
+        from command_loader import load_all_commands
+
+        load_all_commands()

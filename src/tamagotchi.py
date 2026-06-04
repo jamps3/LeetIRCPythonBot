@@ -6,12 +6,14 @@ and responses to trigger words from tamagotchi.json.
 """
 
 import json
-import random
+import secrets
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
 import logger as log
 from word_tracking.data_manager import DataManager
+
+secure_random = secrets.SystemRandom()
 
 
 class TamagotchiBot:
@@ -160,7 +162,9 @@ class TamagotchiBot:
         self._save_state(server, state)
 
         # Build response message
-        mood_emoji = random.choice(self.mood_responses.get(state["mood"], ["🤖"]))
+        mood_emoji = secure_random.choice(
+            self.mood_responses.get(state["mood"], ["🤖"])
+        )
 
         if new_level > old_level:
             level_up_msg = f" 🎉 LEVEL UP! Saavutin tason {new_level}!"
@@ -247,7 +251,7 @@ class TamagotchiBot:
             "onnellisuus": 4,
         }
 
-        response = random.choice(responses.get(category, ["Kiitos!"]))
+        response = secure_random.choice(responses.get(category, ["Kiitos!"]))
         exp_gain = experience_gain.get(category, 1)
         changes = state_changes.get(category, {})
 
@@ -343,7 +347,9 @@ class TamagotchiBot:
         """
         state = self._get_state(server)
         level = self._calculate_level(state["experience"])
-        mood_emoji = random.choice(self.mood_responses.get(state["mood"], ["🤖"]))
+        mood_emoji = secure_random.choice(
+            self.mood_responses.get(state["mood"], ["🤖"])
+        )
 
         # Calculate time since last interaction
         last_interaction = datetime.fromisoformat(state["last_interaction"])
@@ -389,7 +395,9 @@ class TamagotchiBot:
 
             self._save_state(server, state)
 
-            mood_emoji = random.choice(self.mood_responses.get(state["mood"], ["🤖"]))
+            mood_emoji = secure_random.choice(
+                self.mood_responses.get(state["mood"], ["🤖"])
+            )
             level = self._calculate_level(state["experience"])
 
             return f"{mood_emoji} Nam nam! Kiitos ruoasta! [Lvl:{level} ❤️:{state['happiness']}/100 🍽️:{state['hunger']}/100]"

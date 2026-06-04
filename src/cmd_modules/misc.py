@@ -6,8 +6,8 @@ Contains misc commands: 420, kaiku, muunnos, matka, np, quote, leets, etc.
 """
 
 import os
-import random
 import re
+import secrets
 import urllib.request
 from datetime import datetime, timedelta
 from urllib.request import Request
@@ -26,6 +26,7 @@ from logger import get_logger
 from word_tracking.data_manager import get_data_manager
 
 logger = get_logger(__name__)
+secure_random = secrets.SystemRandom()
 
 # =====================
 # 420 Command
@@ -155,7 +156,7 @@ def four_twenty_command(context: CommandContext, bot_functions):
     # Default: show countdown
     days = _get_420_countdown()
     time_to_1620 = _get_1620_countdown()
-    response = random.choice(_420_RESPONSES)
+    response = secure_random.choice(_420_RESPONSES)
 
     # Check if today is 4/20
     now = datetime.now()
@@ -749,7 +750,7 @@ def quote_command(context: CommandContext, bot_functions):
             quote = matching_quotes[0]
         else:
             # Select random quote
-            quote = random.choice(lines)
+            quote = secure_random.choice(lines)
 
         # Remove line numbers if present (format: "123|quote text")
         if "|" in quote and quote.split("|")[0].isdigit():

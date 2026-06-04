@@ -13,17 +13,32 @@ extend-ignore = [
     "F401",
     "F841",
     "E402",
-    # Project baseline: these are intentionally common in this IRC bot and tests.
+    # Project baseline: these are intentionally common in tests.
     "S101", # pytest uses assert statements
-    "S110", # cleanup / optional dependency probes intentionally ignore failures
-    "S112", # parser loops intentionally skip malformed records
-    "S311", # non-cryptographic randomness is used for games and playful replies
 ]
 select = ["E", "F", "I", "S"]
 
 [tool.ruff.lint.per-file-ignores]
-"src/debug/*.py" = ["S113"]
-"tests/*.py" = ["S105", "S604"]
+"src/debug/*.py" = ["S110", "S112", "S113", "S311"]
+"src/bot_manager.py" = ["S110"]
+"src/cmd_modules/admin_privileged.py" = ["S110"]
+"src/cmd_modules/basic.py" = ["S110"]
+"src/cmd_modules/misc.py" = ["S110"]
+"src/cmd_modules/services.py" = ["S110"]
+"src/handlers/message_handler.py" = ["S110"]
+"src/irc_client.py" = ["S110"]
+"src/leet_detector.py" = ["S110"]
+"src/lemmatizer.py" = ["S110"]
+"src/logger.py" = ["S110"]
+"src/main.py" = ["S110"]
+"src/services/__init__.py" = ["S110"]
+"src/services/alko_service.py" = ["S110"]
+"src/services/digitraffic_service.py" = ["S112"]
+"src/services/eurojackpot_service.py" = ["S110", "S112"]
+"src/services/weather_forecast_service.py" = ["S110", "S112"]
+"src/services/youtube_service.py" = ["S110"]
+"src/tui.py" = ["S110"]
+"tests/*.py" = ["S101", "S105", "S106", "S110", "S604"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10

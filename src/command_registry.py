@@ -552,6 +552,8 @@ async def process_command_message(
     context.raw_message = raw_message
 
     # Check if command is banned on this server
+    registry = get_command_registry()
+    handler = registry.get_handler(command_name)
     banned_commands = []
     if not context.is_console and context.server:
         banned_commands = getattr(
@@ -560,18 +562,23 @@ async def process_command_message(
         if not isinstance(banned_commands, (list, tuple, set)):
             banned_commands = []
 
-    if command_name in banned_commands:
+    banned_commands = {
+        str(command).strip().lstrip("!/").lower() for command in banned_commands
+    }
+    command_names = {command_name}
+    if handler:
+        command_names.update(handler.info.all_names)
+
+    if command_names & banned_commands:
         logger.debug(
             f"Command '{command_name}' is banned on server '{context.server_name}'"
         )
         return None
 
     # Execute the command
-    registry = get_command_registry()
     logger.debug(
         f"Looking up command '{command_name}' in registry with {len(registry._commands)} commands"
     )
-    handler = registry.get_handler(command_name)
     if not handler:
         logger.debug(
             f"Command '{command_name}' not found in registry. Available commands: {list(registry._commands.keys())[:10]}"

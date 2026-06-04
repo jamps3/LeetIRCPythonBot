@@ -4,8 +4,8 @@ Games Commands Module
 Contains game commands: blackjack, sanaketju, noppa, kolikko, ksp
 """
 
-import random
 import re
+import secrets
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field
@@ -20,6 +20,7 @@ from logger import get_logger
 _data_manager = None
 
 logger = get_logger(__name__)
+secure_random = secrets.SystemRandom()
 
 
 # =====================
@@ -128,7 +129,7 @@ class Deck:
         for suit in CardSuit:
             for rank in CardRank:
                 self.cards.append(Card(suit, rank))
-        random.shuffle(self.cards)
+        secure_random.shuffle(self.cards)
 
     def draw(self) -> Card:
         """Draw a card from the deck."""
@@ -446,7 +447,7 @@ def _get_data_manager():
 )
 def kolikko_command(context: CommandContext, bot_functions):
     """Flip a coin and optionally check if user guessed correctly."""
-    result = random.choice(["Kruuna", "Klaava"])
+    result = secure_random.choice(["Kruuna", "Klaava"])
 
     if context.args:
         guess = context.args[0].lower()
@@ -494,7 +495,7 @@ def noppa_command(context: CommandContext, bot_functions):
     if sides < 2 or sides > 100:
         return "Sivujen määrä pitää olla 2-100 välillä."
 
-    rolls = [random.randint(1, sides) for _ in range(num_dice)]
+    rolls = [secure_random.randint(1, sides) for _ in range(num_dice)]
     total = sum(rolls)
 
     if num_dice == 1:
@@ -800,7 +801,7 @@ class SanaketjuGame:
             if not valid_words:
                 return None
 
-            return random.choice(valid_words)
+            return secure_random.choice(valid_words)
 
         except Exception as e:
             logger.error(f"Error getting random starting word: {e}")

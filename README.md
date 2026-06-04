@@ -318,6 +318,16 @@ git push  # Runs tests first, cancels if any fail
 python -m pytest tests/specific_test.py  # Run specific test
 ```
 
+### Security Checks
+
+```bash
+ruff check --select S .
+pip-audit -r requirements.txt -r requirements-dev.txt --progress-spinner off
+bandit -r src -ll
+```
+
+Ruff security checks are configured to keep `S110`, `S112`, and `S311` enabled globally. Intentional silent cleanup/parser cases are limited to file-specific ignores in `pyproject.toml`, and bot/game randomness should use `secrets.SystemRandom()` instead of Python's default `random` module.
+
 ### Bypass Git Hooks (Emergency Use Only)
 
 ```bash

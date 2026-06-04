@@ -7,14 +7,15 @@ Generates surreal narratives and technical reports from daily conversation data.
 
 import json
 import os
-import random
 import re
+import secrets
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from logger import get_logger
 
 logger = get_logger("DreamService")
+secure_random = secrets.SystemRandom()
 
 
 class DreamService:
@@ -284,13 +285,13 @@ class DreamService:
 
         # If no real data, generate random elements
         if not top_words:
-            top_words = [random.choice(vocab.get("nouns", ["void"]))]
+            top_words = [secure_random.choice(vocab.get("nouns", ["void"]))]
         if not top_drinks:
-            top_drinks = [random.choice(vocab.get("nouns", ["mist"]))]
+            top_drinks = [secure_random.choice(vocab.get("nouns", ["mist"]))]
         if user_count == 0:
-            user_count = random.randint(1, 10)
+            user_count = secure_random.randint(1, 10)
         if total_messages == 0:
-            total_messages = random.randint(100, 5000)
+            total_messages = secure_random.randint(100, 5000)
 
         # Generate random narrative parts
         narrative_parts = []
@@ -298,60 +299,60 @@ class DreamService:
         # Random opening based on genre
         if genre == "cyberpunk":
             openings = [
-                f"SYSTEM_DREAM v{random.randint(2, 9)}.{random.randint(0, 99)} initiating...",
-                f"NEURAL_PATHWAY ACTIVATED in sector {random.choice(['Alpha', 'Beta', 'Gamma', 'Delta', 'Omega'])}...",
-                f"QUANTUM_CONSCIOUSNESS breach detected at {random.randint(100, 999)}MHz...",
+                f"SYSTEM_DREAM v{secure_random.randint(2, 9)}.{secure_random.randint(0, 99)} initiating...",
+                f"NEURAL_PATHWAY ACTIVATED in sector {secure_random.choice(['Alpha', 'Beta', 'Gamma', 'Delta', 'Omega'])}...",
+                f"QUANTUM_CONSCIOUSNESS breach detected at {secure_random.randint(100, 999)}MHz...",
                 "DIGITAL_SLEEP mode engaged. Synaptic bridges forming...",
             ]
         else:
             openings = [
-                f"The threshold between waking and dreaming dissolves like {random.choice(vocab.get('verbs', ['melting']))}...",
-                f"In the space between seconds, where {random.choice(vocab.get('nouns', ['shadows']))} speak...",
-                f"A {random.choice(vocab.get('adjectives', ['strange']))} wind carries fragments of {random.choice(vocab.get('nouns', ['memories']))}...",
-                f"The {random.choice(vocab.get('nouns', ['mirror']))} shows a reality that was never quite real...",
+                f"The threshold between waking and dreaming dissolves like {secure_random.choice(vocab.get('verbs', ['melting']))}...",
+                f"In the space between seconds, where {secure_random.choice(vocab.get('nouns', ['shadows']))} speak...",
+                f"A {secure_random.choice(vocab.get('adjectives', ['strange']))} wind carries fragments of {secure_random.choice(vocab.get('nouns', ['memories']))}...",
+                f"The {secure_random.choice(vocab.get('nouns', ['mirror']))} shows a reality that was never quite real...",
             ]
-        narrative_parts.append(random.choice(openings))
+        narrative_parts.append(secure_random.choice(openings))
 
         # Random middle - using word associations
-        dream_word = random.choice(top_words)
-        verb = random.choice(vocab.get("verbs", ["drift"]))
-        adj = random.choice(vocab.get("adjectives", ["strange"]))
-        noun2 = random.choice(vocab.get("nouns", ["echo"]))
+        dream_word = secure_random.choice(top_words)
+        verb = secure_random.choice(vocab.get("verbs", ["drift"]))
+        adj = secure_random.choice(vocab.get("adjectives", ["strange"]))
+        noun2 = secure_random.choice(vocab.get("nouns", ["echo"]))
 
         if genre == "cyberpunk":
             narrative_parts.append(
                 f"DATA_FRAGMENT '{dream_word}' {verb}s through neural {noun2}. "
-                f"Probability matrix shows {adj} reality distortion at {random.randint(10, 99)}%."
+                f"Probability matrix shows {adj} reality distortion at {secure_random.randint(10, 99)}%."
             )
         else:
             narrative_parts.append(
                 f"{dream_word.capitalize()} {verb}s, becoming {adj} {noun2} that "
-                f"{random.choice(vocab.get('verbs', ['floating']))} through the {random.choice(vocab.get('nouns', ['void']))}."
+                f"{secure_random.choice(vocab.get('verbs', ['floating']))} through the {secure_random.choice(vocab.get('nouns', ['void']))}."
             )
 
         # Random element about drinks/substances
-        drink = random.choice(top_drinks)
+        drink = secure_random.choice(top_drinks)
         if genre == "cyberpunk":
             narrative_parts.append(
                 f"BIO-SUBSTANCE '{drink}' detected in dream buffer. "
-                f"Consciousness calibration at {random.randint(50, 99)}%."
+                f"Consciousness calibration at {secure_random.randint(50, 99)}%."
             )
         else:
             narrative_parts.append(
-                f"{drink.capitalize()} becomes {random.choice(vocab.get('adjectives', ['ethereal']))} "
-                f"{random.choice(vocab.get('nouns', ['light']))}, dissolving into {random.choice(vocab.get('nouns', ['shadows']))}."
+                f"{drink.capitalize()} becomes {secure_random.choice(vocab.get('adjectives', ['ethereal']))} "
+                f"{secure_random.choice(vocab.get('nouns', ['light']))}, dissolving into {secure_random.choice(vocab.get('nouns', ['shadows']))}."
             )
 
         # Random user count element
         if genre == "cyberpunk":
             narrative_parts.append(
-                f"{user_count} neural nodes connected. Dream_{random.choice(['protocol', 'matrix', 'stream'])} "
-                f"optimizing at {random.randint(100, 999)}% efficiency."
+                f"{user_count} neural nodes connected. Dream_{secure_random.choice(['protocol', 'matrix', 'stream'])} "
+                f"optimizing at {secure_random.randint(100, 999)}% efficiency."
             )
         else:
             narrative_parts.append(
-                f"{user_count} {random.choice(['souls', 'spirits', 'minds', 'consciousnesses'])} "
-                f"{random.choice(vocab.get('verbs', ['drift']))} together in this {random.choice(vocab.get('adjectives', ['shared']))} {random.choice(vocab.get('nouns', ['dream']))}."
+                f"{user_count} {secure_random.choice(['souls', 'spirits', 'minds', 'consciousnesses'])} "
+                f"{secure_random.choice(vocab.get('verbs', ['drift']))} together in this {secure_random.choice(vocab.get('adjectives', ['shared']))} {secure_random.choice(vocab.get('nouns', ['dream']))}."
             )
 
         # Random closing
@@ -359,15 +360,15 @@ class DreamService:
             closings = [
                 "SYSTEM_HALT. Dream cycle complete. Reality stream resuming...",
                 "MEMORY_CACHE cleared. The simulation continues... or does it?",
-                f"DISCONNECTING from neural dream. {random.choice(['Awake', 'Asleep', 'Neither'])} state pending...",
+                f"DISCONNECTING from neural dream. {secure_random.choice(['Awake', 'Asleep', 'Neither'])} state pending...",
             ]
         else:
             closings = [
-                f"And when the {random.choice(vocab.get('nouns', ['clock']))} strikes, the dream {random.choice(vocab.get('verbs', ['dissolves']))} into waking...",
-                f"But the {random.choice(vocab.get('nouns', ['shadow']))} remembers what the mind forgets.",
-                f"The {random.choice(vocab.get('nouns', ['door']))} opens, and {random.choice(vocab.get('adjectives', ['strange']))} {random.choice(vocab.get('adjectives', ['strange']))} morning light floods in.",
+                f"And when the {secure_random.choice(vocab.get('nouns', ['clock']))} strikes, the dream {secure_random.choice(vocab.get('verbs', ['dissolves']))} into waking...",
+                f"But the {secure_random.choice(vocab.get('nouns', ['shadow']))} remembers what the mind forgets.",
+                f"The {secure_random.choice(vocab.get('nouns', ['door']))} opens, and {secure_random.choice(vocab.get('adjectives', ['strange']))} {secure_random.choice(vocab.get('adjectives', ['strange']))} morning light floods in.",
             ]
-        narrative_parts.append(random.choice(closings))
+        narrative_parts.append(secure_random.choice(closings))
 
         return " ".join(narrative_parts)
 
@@ -395,10 +396,10 @@ class DreamService:
         # Main narrative - cybernetic interpretation
         if top_words:
             dream_word = top_words[0]
-            cyber_verb = random.choice(vocab["verbs"])
-            cyber_adj = random.choice(vocab["adjectives"])
+            cyber_verb = secure_random.choice(vocab["verbs"])
+            cyber_adj = secure_random.choice(vocab["adjectives"])
             narrative_parts.append(
-                f"WORD STREAM ANALYSIS: '{dream_word}' detected, {cyber_verb}ing through mainframe at {random.randint(100, 999)}% capacity. Neural pathways show {cyber_adj} activity patterns."
+                f"WORD STREAM ANALYSIS: '{dream_word}' detected, {cyber_verb}ing through mainframe at {secure_random.randint(100, 999)}% capacity. Neural pathways show {cyber_adj} activity patterns."
             )
 
         if top_drinks:

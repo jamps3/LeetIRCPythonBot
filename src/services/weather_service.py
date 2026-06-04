@@ -4,13 +4,15 @@ Weather Service Module
 Provides weather information using OpenWeatherMap API.
 """
 
-import random
+import secrets
 import time
 import urllib.parse
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Tuple
 
 import requests
+
+secure_random = secrets.SystemRandom()
 
 
 class WeatherService:
@@ -249,7 +251,7 @@ class WeatherService:
             return f"Sään haku epäonnistui: {weather_data.get('message', 'Tuntematon virhe')}"
 
         # Random symbol at the beginning
-        random_symbol = random.choice(
+        random_symbol = secure_random.choice(
             ["🌈", "🔮", "🍺", "☀️", "❄️", "🌊", "🔥", "⛄", "☂️", "🌬️", "🌪️"]
         )
 

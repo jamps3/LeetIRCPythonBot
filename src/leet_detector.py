@@ -9,11 +9,14 @@ Saves all detected leets to a JSON file for historical tracking.
 import json
 import os
 import re
+import secrets
 import time
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 import logger
+
+secure_random = secrets.SystemRandom()
 
 
 class LeetDetector:
@@ -401,7 +404,6 @@ class LeetDetector:
         Returns:
             Tuple of (achievement_message, achievement_level) or None
         """
-        import random
         import re
 
         # Get timestamp if not provided
@@ -413,14 +415,14 @@ class LeetDetector:
             time_part, nano_part = timestamp.split(".", 1)
             # Check for 420 in nanoseconds (like nano leet for 1337)
             if "420" in nano_part:
-                response = random.choice(self._420_LEET_RESPONSES)
+                response = secure_random.choice(self._420_LEET_RESPONSES)
                 achievement_message = f"🌟 420 NANO: {nick} {response}"
                 self.logger.info(f"420 nano leet detected for {nick} at {timestamp}")
                 return (achievement_message, "420_nano")
 
         # Check if message contains "420" as a standalone number
         if user_message and re.search(r"\b420\b", user_message, re.IGNORECASE):
-            response = random.choice(self._420_LEET_RESPONSES)
+            response = secure_random.choice(self._420_LEET_RESPONSES)
             achievement_message = f"🌟 {nick} {response}"
 
             self.logger.info(f"420 leet detected for {nick}: {user_message}")

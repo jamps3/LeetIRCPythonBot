@@ -65,6 +65,8 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
   - Security (optional, mirrors CI uploads but local files only):
     - ruff check --select S .
     - pip-audit -r requirements.txt -r requirements-dev.txt --progress-spinner off
+    - One-time/static second opinion: bandit -r src -ll
+  - Ruff security is intentionally stricter than before: `S110`, `S112`, and `S311` are not globally ignored. Any intentional silent exception handling is scoped through per-file ignores in `pyproject.toml`, and random choices in bot/game behavior should use `secrets.SystemRandom()` instead of `random`.
 
 2. High-level architecture
 
