@@ -105,7 +105,37 @@ def test_configmanager_uses_configured_state_file(monkeypatch, tmp_path):
 
     assert config.name == "TemporaryBot"
     saved = json.loads(state_file.read_text(encoding="utf-8"))
-    assert "title_banned_texts" in saved["config"]
+    expected_config_defaults = {
+        "admin_password",
+        "auto_connect",
+        "auto_reconnect",
+        "ekavika_file",
+        "four_twenty_enabled",
+        "gpt_history_limit",
+        "history_file",
+        "latency_nicks",
+        "latency_observer_channel",
+        "latency_source_channel",
+        "log_buffer_size",
+        "log_level",
+        "openai_model",
+        "ops_allowed_channels",
+        "otiedote_file",
+        "quit_message",
+        "quotes_source",
+        "reconnect_delay",
+        "subscribers_file",
+        "tamagotchi_enabled",
+        "title_banned_texts",
+        "title_blacklist_domains",
+        "title_blacklist_extensions",
+        "use_notices",
+        "words_file",
+    }
+
+    assert expected_config_defaults.issubset(saved["config"])
+    assert saved["config"]["quotes_source"] == "data/quotes.txt"
+    assert saved["config"]["ops_allowed_channels"] == cfg.OPS_ALLOWED_CHANNELS
 
 
 def test_get_server_by_name_and_primary(monkeypatch):

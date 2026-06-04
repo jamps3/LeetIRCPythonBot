@@ -297,6 +297,7 @@ class ConfigManager:
 
         # Load settings from state.json
         state_config = self._load_state_config()
+        updated = self._ensure_state_config_defaults(state_config)
 
         config = BotConfig(
             # Bot identification
@@ -363,19 +364,7 @@ class ConfigManager:
         logger.info(f"Loaded {len(servers)} servers from state.json")
         config.servers = servers
 
-        # Ensure title settings are in state.json with defaults
-        updated = False
-        if "title_banned_texts" not in state_config:
-            state_config["title_banned_texts"] = TITLE_BANNED_TEXTS
-            updated = True
-        if "title_blacklist_domains" not in state_config:
-            state_config["title_blacklist_domains"] = TITLE_BLACKLIST_DOMAINS
-            updated = True
-        if "title_blacklist_extensions" not in state_config:
-            state_config["title_blacklist_extensions"] = TITLE_BLACKLIST_EXTENSIONS
-            updated = True
         if updated:
-            state_file = self._get_state_file()
             full_state = load_json_file(state_file, default=dict)
             if not isinstance(full_state, dict):
                 full_state = {}
@@ -390,9 +379,48 @@ class ConfigManager:
                 full_state.update(state_config)
 
             save_json_atomic(state_file, full_state)
-            logger.info("Updated state.json with default title settings")
+            logger.info("Updated state.json with default config settings")
 
         return config
+
+    def _ensure_state_config_defaults(self, state_config: dict) -> bool:
+        """Populate missing state-backed config keys with editable defaults."""
+        defaults = {
+            "bot_name": BOT_NAME,
+            "log_level": "INFO",
+            "history_file": CONVERSATION_HISTORY_FILE,
+            "ekavika_file": EKAVIKA_FILE,
+            "words_file": GENERAL_WORDS_FILE,
+            "subscribers_file": SUBSCRIBERS_FILE,
+            "otiedote_file": OTIEDOTE_FILE,
+            "quotes_source": "data/quotes.txt",
+            "reconnect_delay": RECONNECT_DELAY,
+            "quit_message": QUIT_MESSAGE,
+            "admin_password": "",
+            "ops_allowed_channels": OPS_ALLOWED_CHANNELS,
+            "openai_model": "gpt-5.4-nano",
+            "use_notices": USE_NOTICES,
+            "tamagotchi_enabled": TAMAGOTCHI_ENABLED,
+            "four_twenty_enabled": True,
+            "auto_connect": AUTO_CONNECT,
+            "auto_reconnect": AUTO_RECONNECT,
+            "log_buffer_size": LOG_BUFFER_SIZE,
+            "gpt_history_limit": GPT_HISTORY_LIMIT,
+            "latency_nicks": [],
+            "latency_source_channel": "",
+            "latency_observer_channel": "",
+            "title_banned_texts": TITLE_BANNED_TEXTS,
+            "title_blacklist_domains": TITLE_BLACKLIST_DOMAINS,
+            "title_blacklist_extensions": TITLE_BLACKLIST_EXTENSIONS,
+        }
+
+        updated = False
+        for key, value in defaults.items():
+            if key not in state_config:
+                state_config[key] = value.copy() if isinstance(value, list) else value
+                updated = True
+
+        return updated
 
     def _load_state_config(self) -> dict:
         """
