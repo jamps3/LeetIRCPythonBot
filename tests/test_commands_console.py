@@ -1978,6 +1978,41 @@ def test_quote_command_error_handling(monkeypatch):
         config.quotes_source = original_quotes_source
 
 
+def test_quote_command_default_repo_relative_path(monkeypatch, tmp_path):
+    """Test that default data/quotes.txt resolves from project root."""
+    import cmd_modules.misc as misc
+    from command_loader import process_console_command
+    from config import get_config
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    quotes_file = data_dir / "quotes.txt"
+    quotes_file.write_text("1|Default path quote\n", encoding="utf-8")
+
+    responses = []
+
+    def mock_notice(msg, *args, **kwargs):
+        responses.append(msg)
+
+    bot_functions = {
+        "notice_message": mock_notice,
+        "log": lambda msg, level="INFO": None,
+    }
+
+    config = get_config()
+    original_quotes_source = getattr(config, "quotes_source", "quotes.txt")
+
+    try:
+        monkeypatch.setattr(misc, "PROJECT_ROOT", str(tmp_path))
+        config.quotes_source = "data/quotes.txt"
+
+        process_console_command("!quote", bot_functions)
+
+        assert responses == ["Default path quote"]
+    finally:
+        config.quotes_source = original_quotes_source
+
+
 def test_quote_command_with_custom_file():
     """Test quote command with a custom quotes file."""
     import os

@@ -21,7 +21,7 @@ from command_registry import (
     command,
     process_command_message,
 )
-from config import DATA_DIR, get_config
+from config import PROJECT_ROOT, QUOTES_FILE, get_config
 from logger import get_logger
 from word_tracking.data_manager import get_data_manager
 
@@ -661,14 +661,14 @@ def quote_command(context: CommandContext, bot_functions):
     config_obj = get_config()
 
     # Get quotes source from environment, default to data/quotes.txt
-    quotes_source = getattr(
-        config_obj, "quotes_source", os.path.join(DATA_DIR, "quotes.txt")
-    )
+    quotes_source = getattr(config_obj, "quotes_source", QUOTES_FILE)
 
     # Make sure we have an absolute path for file operations
-    if not os.path.isabs(quotes_source):
+    if not quotes_source.startswith(("http://", "https://")) and not os.path.isabs(
+        quotes_source
+    ):
         # Make relative paths resolve from project root
-        quotes_source = os.path.join(DATA_DIR, quotes_source)
+        quotes_source = os.path.join(PROJECT_ROOT, quotes_source)
 
     try:
         # Check if this is an "add" command
