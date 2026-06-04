@@ -941,6 +941,80 @@ def test_handle_fmi_and_otiedote_release(monkeypatch, manager):
     )
 
 
+def test_direct_otiedote_announcements_respect_channel_filters(monkeypatch, manager):
+    subs = SimpleNamespace(
+        get_subscribers=lambda topic: (
+            [("#c", "srv")] if topic == "onnettomuustiedotteet" else []
+        )
+    )
+
+    direct_sends = []
+    responses = []
+    mock_server = SimpleNamespace(
+        send_message=lambda target, message: direct_sends.append(
+            ("message", target, message)
+        ),
+        send_notice=lambda target, message: direct_sends.append(
+            ("notice", target, message)
+        ),
+        connected=True,
+        config=SimpleNamespace(name="srv", channels=["#c"]),
+    )
+    monkeypatch.setattr(
+        manager.server_manager,
+        "get_all_servers",
+        lambda: {"srv": mock_server},
+    )
+    manager.joined_channels = {"srv": {"#c"}}
+    monkeypatch.setattr(
+        manager,
+        "_send_response",
+        lambda server, target, message: responses.append((server, target, message)),
+    )
+
+    monkeypatch.setattr("subscriptions.get_subscribers", subs.get_subscribers)
+    monkeypatch.setattr(
+        "services.otiedote_json_service.load_json_file",
+        lambda path, default=None: {
+            "otiedote": {
+                "filters": {"#c": ["Pohjois-Karjalan pelastuslaitos:organization"]}
+            }
+        },
+        raising=True,
+    )
+
+    manager.handle_otiedote_release(
+        {
+            "id": 1,
+            "title": "Wrong department",
+            "location": "Kuopio",
+            "url": "https://example.com/wrong",
+            "organization": "Pohjois-Savon pelastuslaitos",
+        }
+    )
+    assert responses == []
+    assert direct_sends == []
+
+    manager.handle_otiedote_release(
+        {
+            "id": 2,
+            "title": "Right department",
+            "location": "Joensuu",
+            "url": "https://example.com/right",
+            "organization": "Pohjois-Karjalan pelastuslaitos",
+        }
+    )
+
+    assert responses == [
+        (
+            mock_server,
+            "#c",
+            "📢 #2: Right department | Paikka: Joensuu | https://example.com/right",
+        )
+    ]
+    assert direct_sends == []
+
+
 def test_stop_and_wait_for_shutdown(monkeypatch, manager):
     # Prepare services
     manager.fmi_warning_service = SimpleNamespace(start=lambda: None, stop=lambda: None)

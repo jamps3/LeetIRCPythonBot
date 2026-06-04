@@ -678,3 +678,57 @@ def test_otiedote_subscriptions(otiedote_setup):
             }
         )
         assert not sent_messages
+
+
+def test_otiedote_subscriptions_respect_channel_filters(otiedote_setup, monkeypatch):
+    manager, fake_server, sent_messages = otiedote_setup
+
+    class MockSubscriptions:
+        def get_subscribers(self, topic):
+            if topic == "onnettomuustiedotteet":
+                return [("#general", "test_server")]
+            return []
+
+    def fake_load_json_file(path, default=None):
+        return {
+            "otiedote": {
+                "filters": {
+                    "#general": ["Pohjois-Karjalan pelastuslaitos:organization"]
+                }
+            }
+        }
+
+    monkeypatch.setattr(
+        "services.otiedote_json_service.load_json_file",
+        fake_load_json_file,
+        raising=True,
+    )
+
+    with patch.object(
+        manager, "_get_subscriptions_module", return_value=MockSubscriptions()
+    ):
+        manager._handle_otiedote_release(
+            {
+                "title": "Wrong department",
+                "url": "https://example.com/wrong",
+                "description": "Test Description",
+                "organization": "Pohjois-Savon pelastuslaitos",
+            }
+        )
+        assert sent_messages == []
+
+        manager._handle_otiedote_release(
+            {
+                "title": "Right department",
+                "url": "https://example.com/right",
+                "description": "Test Description",
+                "organization": "Pohjois-Karjalan pelastuslaitos",
+            }
+        )
+
+    assert sent_messages == [
+        (
+            "#general",
+            "📢 Right department - Test Description | https://example.com/right",
+        )
+    ]

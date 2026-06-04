@@ -153,6 +153,47 @@ def fetch_release(id: int) -> Optional[dict]:
         return None
 
 
+def get_otiedote_filters(state_file: Optional[str] = None) -> dict:
+    """Load configured otiedote filters keyed by target channel/nick."""
+    data = load_json_file(state_file or CONFIG_STATE_FILE, default=dict)
+    if not isinstance(data, dict):
+        return {}
+
+    filters = data.get("otiedote", {}).get("filters", {})
+    return filters if isinstance(filters, dict) else {}
+
+
+def otiedote_release_matches_filters(release: dict, target_filters: list) -> bool:
+    """Return True when a release should be sent for the target filters."""
+    if not target_filters:
+        return True
+
+    for filter_entry in target_filters:
+        if ":" in filter_entry:
+            needle, field = filter_entry.split(":", 1)
+        else:
+            needle = filter_entry
+            field = "organization"
+
+        needle = needle.strip().lower()
+        field = field.strip() or "organization"
+        if not needle:
+            continue
+
+        if field == "*":
+            haystack = json.dumps(release, ensure_ascii=False).lower()
+        else:
+            field_value = release.get(field, "")
+            if isinstance(field_value, list):
+                field_value = " ".join(str(item) for item in field_value)
+            haystack = str(field_value).lower()
+
+        if needle in haystack:
+            return True
+
+    return False
+
+
 # ----------------------------------------------------
 # Service Class
 # ----------------------------------------------------

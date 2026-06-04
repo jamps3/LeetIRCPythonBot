@@ -39,6 +39,10 @@ from handlers.message_handler import (  # noqa: E402
 )
 from server_manager import create_server_manager  # noqa: E402
 from service_manager import create_service_manager  # noqa: E402
+from services.otiedote_json_service import (  # noqa: E402
+    get_otiedote_filters,
+    otiedote_release_matches_filters,
+)
 from state_utils import backup_json_atomic  # noqa: E402
 from word_tracking import DataManager  # noqa: E402
 
@@ -565,9 +569,18 @@ class BotManager:
             announcement += f" | {url}"
 
         servers = self.server_manager.get_all_servers()
+        filters = get_otiedote_filters(get_config().state_file)
 
         # Announce to all subscribed servers/channels
         for nick_or_channel, server_name in subscribers:
+            target_filters = filters.get(nick_or_channel, [])
+            if not otiedote_release_matches_filters(release, target_filters):
+                self.logger.info(
+                    f"Skipping Otiedote #{release['id']} for {nick_or_channel} "
+                    f"on {server_name}: filters did not match"
+                )
+                continue
+
             # Find the server
             if server_name not in servers:
                 self.logger.warning(
@@ -587,7 +600,7 @@ class BotManager:
                     nick_or_channel in joined_channels
                     or nick_or_channel in configured_channels
                 ):
-                    server.send_message(nick_or_channel, announcement)
+                    self._send_response(server, nick_or_channel, announcement)
                     self.logger.info(
                         f"Announced Otiedote #{release['id']} to {nick_or_channel} on {server_name}"
                     )
@@ -598,7 +611,7 @@ class BotManager:
                     )
             else:
                 # It's a nick
-                server.send_message(nick_or_channel, announcement)
+                self._send_response(server, nick_or_channel, announcement)
                 self.logger.info(
                     f"Announced Otiedote #{release['id']} to {nick_or_channel} on {server_name}"
                 )

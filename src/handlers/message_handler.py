@@ -31,6 +31,10 @@ from handlers.url_handler import UrlHandlerMixin
 from lemmatizer import Lemmatizer
 from logger import get_logger
 from server import Server
+from services.otiedote_json_service import (
+    get_otiedote_filters,
+    otiedote_release_matches_filters,
+)
 from state_utils import update_json_file
 from tamagotchi import TamagotchiBot
 from word_tracking import DataManager, DrinkTracker, GeneralWords, WordAssociations
@@ -436,7 +440,17 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 message += f" | {url}"
 
             # Send to each subscriber
+            state_file = getattr(self.data_manager, "state_file", None)
+            filters = get_otiedote_filters(state_file)
             for nick_or_channel, server_name in subscribers:
+                target_filters = filters.get(nick_or_channel, [])
+                if not otiedote_release_matches_filters(data, target_filters):
+                    logger.info(
+                        f"Skipping Otiedote for {nick_or_channel} on {server_name}: "
+                        "filters did not match"
+                    )
+                    continue
+
                 server = self._get_subscription_server(server_name)
                 if server and self._can_send_subscription_target(
                     server_name, server, nick_or_channel
