@@ -1493,10 +1493,7 @@ class TUIManager:
         if not text.strip():
             return True
 
-        # Add to history
-        if text not in self.command_history:
-            self.command_history.append(text)
-        self.history_index = len(self.command_history)
+        self._add_command_to_history(text)
 
         # Instant save command history to state.json
         if self.bot_manager and hasattr(self.bot_manager, "data_manager"):
@@ -1524,6 +1521,7 @@ class TUIManager:
             result = self.config_editor.handle_config_command(config_command)
             self.add_log_entry(datetime.now(), "Config", "INFO", result, "SYSTEM")
             return True
+
         elif text.lower() in ["stats", "statistics"]:
             # Switch to stats view
             self.switch_view("stats")
@@ -1598,6 +1596,13 @@ class TUIManager:
                     "SYSTEM",
                 )
                 return True
+
+    def _add_command_to_history(self, text: str):
+        """Store command history uniquely, with the latest use at the end."""
+        if text in self.command_history:
+            self.command_history.remove(text)
+        self.command_history.append(text)
+        self.history_index = len(self.command_history)
 
     def mouse_event(self, size, event, button, col, row, focus):
         """Handle mouse events - route them to the appropriate child widget."""

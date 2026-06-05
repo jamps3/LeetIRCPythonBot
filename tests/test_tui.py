@@ -732,6 +732,29 @@ class TestTUIManager:
         assert result is True
         assert tui_manager.current_view == "stats"
 
+    def test_process_input_refreshes_existing_command_history_recency(self):
+        """Re-used commands should move to the newest history position."""
+        tui_manager = TUIManager()
+
+        assert tui_manager.process_input("first") is True
+        assert tui_manager.process_input("second") is True
+        assert tui_manager.process_input("first") is True
+
+        assert tui_manager.command_history == ["second", "first"]
+        assert tui_manager.history_index == len(tui_manager.command_history)
+
+    def test_up_arrow_recalls_latest_reused_command_first(self):
+        """Pressing up should show the most recently used command first."""
+        tui_manager = TUIManager()
+        tui_manager.process_input("first")
+        tui_manager.process_input("second")
+        tui_manager.process_input("first")
+
+        tui_manager.handle_key("up")
+
+        assert tui_manager.input_field.get_edit_text() == "first"
+        assert tui_manager.history_index == 1
+
     def test_write_log_to_file(self, tmp_path):
         """Test writing logs to file."""
         tui_manager = TUIManager()
