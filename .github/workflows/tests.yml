@@ -6,20 +6,21 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  PYTHON_VERSION: "3.13"
+
 jobs:
   test:
+    name: test (${{ env.PYTHON_VERSION }})
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: |
@@ -71,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: test-results-${{ matrix.python-version }}
+          name: test-results-${{ env.PYTHON_VERSION }}
           path: |
             test-results.txt
             test-coverage.txt
@@ -79,6 +80,7 @@ jobs:
           retention-days: 30
 
   lint:
+    name: lint (${{ env.PYTHON_VERSION }})
     runs-on: ubuntu-latest
 
     steps:
@@ -87,7 +89,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install linting tools
         run: |
@@ -103,6 +105,7 @@ jobs:
           ruff check .
 
   security:
+    name: security (${{ env.PYTHON_VERSION }})
     runs-on: ubuntu-latest
 
     steps:
@@ -111,7 +114,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install security tools
         run: |
