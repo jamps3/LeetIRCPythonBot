@@ -512,10 +512,12 @@ class DataManager:
     def load_command_history(self) -> List[str]:
         """Load command history from merged state.json."""
         state_data = self.load_json(self.state_file)
-        return state_data.get("command_history", [])
+        return self._normalize_command_history(state_data.get("command_history", []))
 
     def save_command_history(self, history: List[str]):
         """Save command history to merged state.json."""
+        history = self._normalize_command_history(history)
+
         # Load the full state file
         state_data = self.load_json(self.state_file)
         if not state_data:
@@ -535,6 +537,24 @@ class DataManager:
 
         # Save the updated state
         self.update_state_section("command_history", history)
+
+    @staticmethod
+    def _normalize_command_history(history: List[str]) -> List[str]:
+        """Return unique command history while preserving latest-use order."""
+        if not isinstance(history, list):
+            return []
+
+        normalized = []
+        for command in history:
+            if not isinstance(command, str):
+                continue
+            command = command.strip()
+            if not command:
+                continue
+            if command in normalized:
+                normalized.remove(command)
+            normalized.append(command)
+        return normalized
 
     def add_teaching(
         self, content: str, added_by: str, network: str = None, channel: str = None

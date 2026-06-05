@@ -755,6 +755,33 @@ class TestTUIManager:
         assert tui_manager.input_field.get_edit_text() == "first"
         assert tui_manager.history_index == 1
 
+    def test_up_arrow_promotes_selected_command_to_newest_history(self):
+        """Selecting an older history item should refresh its recency immediately."""
+        tui_manager = TUIManager()
+        tui_manager.command_history = ["first", "second", "third"]
+        tui_manager.history_index = len(tui_manager.command_history)
+
+        tui_manager.handle_key("up")
+        tui_manager.handle_key("up")
+
+        assert tui_manager.input_field.get_edit_text() == "second"
+        assert tui_manager.command_history == ["first", "third", "second"]
+        assert tui_manager.history_index == 1
+
+    def test_repeated_up_after_promotion_continues_to_older_history(self):
+        """Promotion should not make repeated Up bounce between recent commands."""
+        tui_manager = TUIManager()
+        tui_manager.command_history = ["first", "second", "third"]
+        tui_manager.history_index = len(tui_manager.command_history)
+
+        tui_manager.handle_key("up")
+        tui_manager.handle_key("up")
+        tui_manager.handle_key("up")
+
+        assert tui_manager.input_field.get_edit_text() == "first"
+        assert tui_manager.command_history == ["third", "second", "first"]
+        assert tui_manager.history_index == 0
+
     def test_write_log_to_file(self, tmp_path):
         """Test writing logs to file."""
         tui_manager = TUIManager()

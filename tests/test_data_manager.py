@@ -313,6 +313,39 @@ class TestDataManager:
             assert result[key] == value
         assert result["quotes"] == {"quotes.txt": []}
 
+    def test_load_command_history_normalizes_latest_use_order(self):
+        """Persisted duplicate commands should collapse to their latest position."""
+        with open(self.state_file, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "command_history": [
+                        "first",
+                        "second",
+                        "first",
+                        "",
+                        None,
+                        "third",
+                        "second",
+                    ]
+                },
+                f,
+            )
+
+        assert self.data_manager.load_command_history() == [
+            "first",
+            "third",
+            "second",
+        ]
+
+    def test_save_command_history_normalizes_before_persisting(self):
+        """Saved command history should be unique in latest-use order."""
+        self.data_manager.save_command_history(["first", "second", "first"])
+
+        with open(self.state_file, "r", encoding="utf-8") as f:
+            state = json.load(f)
+
+        assert state["command_history"] == ["second", "first"]
+
     def test_save_drink_tracking_opt_out_state(self):
         """Test saving drink tracking opt-out state."""
         opt_out_data = {"server1": ["user1", "user2"]}

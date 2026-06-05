@@ -1599,10 +1599,23 @@ class TUIManager:
 
     def _add_command_to_history(self, text: str):
         """Store command history uniquely, with the latest use at the end."""
-        if text in self.command_history:
-            self.command_history.remove(text)
-        self.command_history.append(text)
+        self._promote_command_in_history(text)
         self.history_index = len(self.command_history)
+
+    def _promote_command_in_history(self, text: str):
+        """Move a command to the newest history position."""
+        text = text.strip()
+        if not text:
+            return
+        self.command_history = [
+            command for command in self.command_history if command != text
+        ]
+        self.command_history.append(text)
+
+    def _save_command_history(self):
+        """Persist current TUI command history when possible."""
+        if self.bot_manager and hasattr(self.bot_manager, "data_manager"):
+            self.bot_manager.data_manager.save_command_history(self.command_history)
 
     def mouse_event(self, size, event, button, col, row, focus):
         """Handle mouse events - route them to the appropriate child widget."""
@@ -1745,7 +1758,14 @@ class TUIManager:
             # Command history up
             if self.command_history and self.history_index > 0:
                 self.history_index -= 1
+                selected_index = self.history_index
                 command = self.command_history[self.history_index]
+                self._promote_command_in_history(command)
+                self.history_index = min(selected_index, len(self.command_history))
+                try:
+                    self._save_command_history()
+                except Exception:
+                    pass
                 self.input_field.set_edit_text(command)
                 self.input_field.set_edit_pos(len(command))  # Move cursor to end
                 self.update_input_style()
