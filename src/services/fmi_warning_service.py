@@ -26,7 +26,8 @@ class FMIWarningService:
     FEED_URL = "https://alerts.fmi.fi/cap/feed/rss_fi-FI.rss"
     DEFAULT_CHECK_INTERVAL = 300  # 5 minutes
     WEEKDAY_TIME_RANGE_RE = re.compile(
-        r"\b(?:ma|ti|ke|to|pe|la|su)\s+\d{1,2}\.\d{2}\s*[–-]\s*(\d{1,2}\.\d{2})"
+        r"\b(?:ma|ti|ke|to|pe|la|su)\s+\d{1,2}\.\d{2}\s*[–-]\s*"
+        r"((?:(?:ma|ti|ke|to|pe|la|su)\s+)?\d{1,2}\.\d{2})"
     )
     KLO_TIME_RANGE_RE = re.compile(r"\bklo\s*\d{1,2}\.\d{2}\s*[–-]\s*(\d{1,2}\.\d{2})")
 
