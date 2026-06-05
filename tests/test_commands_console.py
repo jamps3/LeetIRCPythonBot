@@ -2202,13 +2202,18 @@ def test_tilaa_subscriber_selection_branches():
     from command_registry import CommandContext
 
     class FakeSub:
+        def __init__(self):
+            self.calls = []
+
         def toggle_subscription(self, subscriber, server, topic):
+            self.calls.append((subscriber, server, topic))
             return f"Toggled {subscriber} on {server} for {topic}"
 
         def format_all_subscriptions(self):
             return "List"
 
-    botf = {"subscriptions": FakeSub()}
+    subscriptions = FakeSub()
+    botf = {"subscriptions": subscriptions}
     # Explicit override arg
     ctx1 = CommandContext(
         command="tilaa",
@@ -2258,6 +2263,19 @@ def test_tilaa_subscriber_selection_branches():
     )
     assert "console" in command_tilaa(ctx4, botf)
 
+    ctx5 = CommandContext(
+        command="tilaa",
+        args=["vaaratiedotteet", "#joensuutest"],
+        raw_message="!tilaa vaaratiedotteet #joensuutest",
+        sender="Nick",
+        target="#room",
+        is_private=False,
+        is_console=False,
+        server_name="irc",
+    )
+    assert "#joensuutest" in command_tilaa(ctx5, botf)
+    assert subscriptions.calls[-1] == ("#joensuutest", "irc", "vaaratiedotteet")
+
 
 def test_tilaa_usage_when_no_topic():
     from cmd_modules.services import command_tilaa
@@ -2273,7 +2291,9 @@ def test_tilaa_usage_when_no_topic():
         is_console=True,
         server_name="console",
     )
-    assert "Käyttö" in command_tilaa(ctx, {})
+    response = command_tilaa(ctx, {})
+    assert "Käyttö" in response
+    assert "vaaratiedotteet" in response
 
 
 def test_sana_total_zero():
