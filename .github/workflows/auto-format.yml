@@ -11,10 +11,8 @@ permissions:
 
 jobs:
   format:
+    name: format (3.13)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.12", "3.13"]
 
     steps:
     - uses: actions/checkout@v6
@@ -24,7 +22,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: "3.13"
 
     - name: Install Ruff
       run: |
