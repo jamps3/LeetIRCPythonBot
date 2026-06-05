@@ -246,7 +246,7 @@ def test_get_entry_hash_deterministic():
     assert svc._get_entry_hash(e) == svc._get_entry_hash(e)
 
 
-def test_entry_hash_ignores_warning_start_time_but_keeps_end_time():
+def test_entry_hash_ignores_warning_start_and_end_clock_times():
     svc = FMIWarningService(callback=lambda x: None)
     base = {
         "title": "Keltainen tuulivaroitus Joensuu ma 14.32 - 23.00",
@@ -256,13 +256,18 @@ def test_entry_hash_ignores_warning_start_time_but_keeps_end_time():
         "title": "Keltainen tuulivaroitus Joensuu ma 17.49 – 23.00",
         "summary": "Kova tuuli",
     }
-    changed_end = {
+    shifted_end = {
         "title": "Keltainen tuulivaroitus Joensuu ma 17.49 – 22.00",
+        "summary": "Kova tuuli",
+    }
+    changed_end_day = {
+        "title": "Keltainen tuulivaroitus Joensuu ma 17.49 – ti 22.00",
         "summary": "Kova tuuli",
     }
 
     assert svc._get_entry_hash(base) == svc._get_entry_hash(shifted_start)
-    assert svc._get_entry_hash(base) != svc._get_entry_hash(changed_end)
+    assert svc._get_entry_hash(base) == svc._get_entry_hash(shifted_end)
+    assert svc._get_entry_hash(base) != svc._get_entry_hash(changed_end_day)
 
 
 def test_entry_hash_ignores_warning_start_time_with_end_weekday():
@@ -275,13 +280,18 @@ def test_entry_hash_ignores_warning_start_time_with_end_weekday():
         "title": "Keltainen maastopalovaroitus Paikoin koko maa pe 14.56 - la 0.00",
         "summary": "Maastopalovaroitus on voimassa.",
     }
-    changed_end = {
+    shifted_end = {
         "title": "Keltainen maastopalovaroitus Paikoin koko maa pe 14.56 - la 2.00",
+        "summary": "Maastopalovaroitus on voimassa.",
+    }
+    changed_end_day = {
+        "title": "Keltainen maastopalovaroitus Paikoin koko maa pe 14.56 - su 0.00",
         "summary": "Maastopalovaroitus on voimassa.",
     }
 
     assert svc._get_entry_hash(base) == svc._get_entry_hash(shifted_start)
-    assert svc._get_entry_hash(base) != svc._get_entry_hash(changed_end)
+    assert svc._get_entry_hash(base) == svc._get_entry_hash(shifted_end)
+    assert svc._get_entry_hash(base) != svc._get_entry_hash(changed_end_day)
 
 
 def test_load_and_save_seen_hashes_and_data(tmp_path):
@@ -433,7 +443,7 @@ def test_is_duplicate_title_checks():
     assert svc._is_duplicate_title("warning c", seen) is False
 
 
-def test_is_duplicate_title_ignores_start_time_when_end_time_matches():
+def test_is_duplicate_title_ignores_start_and_end_clock_times():
     svc = FMIWarningService(callback=lambda x: None)
     seen = [
         {
@@ -451,6 +461,12 @@ def test_is_duplicate_title_ignores_start_time_when_end_time_matches():
     assert (
         svc._is_duplicate_title(
             "Keltainen tuulivaroitus Joensuu ma 17.49 – 22.00", seen
+        )
+        is True
+    )
+    assert (
+        svc._is_duplicate_title(
+            "Keltainen tuulivaroitus Joensuu ma 17.49 – ti 22.00", seen
         )
         is False
     )
@@ -475,6 +491,13 @@ def test_is_duplicate_title_ignores_start_time_with_end_weekday():
     assert (
         svc._is_duplicate_title(
             "Keltainen maastopalovaroitus Paikoin koko maa pe 11.23 - la 2.00",
+            seen,
+        )
+        is True
+    )
+    assert (
+        svc._is_duplicate_title(
+            "Keltainen maastopalovaroitus Paikoin koko maa pe 11.23 - su 0.00",
             seen,
         )
         is False

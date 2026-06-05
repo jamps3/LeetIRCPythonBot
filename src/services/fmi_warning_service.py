@@ -27,7 +27,7 @@ class FMIWarningService:
     DEFAULT_CHECK_INTERVAL = 300  # 5 minutes
     WEEKDAY_TIME_RANGE_RE = re.compile(
         r"\b(?:ma|ti|ke|to|pe|la|su)\s+\d{1,2}\.\d{2}\s*[–-]\s*"
-        r"((?:(?:ma|ti|ke|to|pe|la|su)\s+)?\d{1,2}\.\d{2})"
+        r"((?:(ma|ti|ke|to|pe|la|su)\s+)?\d{1,2}\.\d{2})"
     )
     KLO_TIME_RANGE_RE = re.compile(r"\bklo\s*\d{1,2}\.\d{2}\s*[–-]\s*(\d{1,2}\.\d{2})")
 
@@ -268,11 +268,11 @@ class FMIWarningService:
 
     def _normalize_title(self, title: str) -> str:
         """
-        Normalize warning title while preserving the warning end time.
+        Normalize warning title while preserving the warning end day.
 
-        FMI may republish the same warning with a different start time while the
-        end time remains unchanged. Ignore the start time in duplicate checks,
-        but keep the end time so extended or shortened warnings are announced.
+        FMI may republish the same warning with shifted start or end clock
+        times. Ignore clock times in duplicate checks, but keep the end weekday
+        when present so warnings crossing into a different day remain distinct.
         """
         if not title:
             return ""
@@ -282,11 +282,11 @@ class FMIWarningService:
         # Examples:
         # "ma 14.32 - 23.00", "ma 17.49 – 23.00", "ti 06.00-09.00"
         t = self.WEEKDAY_TIME_RANGE_RE.sub(
-            lambda match: f" päättyy {match.group(1)}", t
+            lambda match: f" päättyy {match.group(2) or ''}", t
         )
 
         # Also match "klo 17.49–23.00"
-        t = self.KLO_TIME_RANGE_RE.sub(lambda match: f" päättyy {match.group(1)}", t)
+        t = self.KLO_TIME_RANGE_RE.sub(" päättyy", t)
 
         # Clean multiple spaces
         t = re.sub(r"\s+", " ", t).strip()
