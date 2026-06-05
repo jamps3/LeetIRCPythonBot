@@ -1824,14 +1824,14 @@ def ecode_command(context: CommandContext, bot_functions):
 
         if description:
             response_lines = wrap_irc_lines(
-                f"{' | '.join(parts)} | Description: ",
+                f"{' | '.join(parts)} | ",
                 str(description),
             )
         else:
             response_lines = [" | ".join(parts)]
 
         if category_explanation:
-            category_prefix = " | Category: "
+            category_prefix = " | "
             last_line = response_lines[-1]
             category_budget = 400 - len(last_line) - len(category_prefix)
 

@@ -263,6 +263,6 @@ class TestEcodeCommand:
         lines = response.message.splitlines()
         assert all(len(line) <= 400 for line in lines)
         assert lines[0].startswith("E160a ■: Karotenoidit")
-        assert " | Description: " in response.message
-        assert lines[-1].endswith(" | Category: Elintarvikevärit")
+        assert " | " in response.message
+        assert lines[-1].endswith(" | Elintarvikevärit")
         assert "A-vitamiinin esiasteita" in response.message

@@ -935,8 +935,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
     ):
         """Send drink word notifications to channel."""
         # Calculate current BAC (before this drink)
-        current_bac_info = self.bac_tracker.get_user_bac(server_name, sender)
-        current_bac = current_bac_info["current_bac"]
+        current_bac = self._get_precise_current_bac(server_name, sender)
 
         # Calculate projected BAC after this drink
         total_grams = sum(alcohol_grams for _, _, alcohol_grams, _ in drink_words_found)
@@ -1045,13 +1044,21 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         added_bac = alcohol_grams / body_water  # ‰
         return added_bac
 
+    def _get_precise_current_bac(self, server_name: str, nick: str) -> float:
+        """Return unrounded current BAC for projection messages."""
+        bac_data = self.bac_tracker._load_bac_data()
+        user_key = f"{server_name}:{nick}"
+        user_data = bac_data.get(user_key)
+        if not user_data:
+            return 0.0
+        return self.bac_tracker._calculate_current_bac(server_name, nick, user_data)
+
     def _send_drink_word_notifications_to_user(
         self, server, sender, server_name, drink_words_found, kraksdebug_config
     ):
         """Send drink word notifications to user."""
         # Calculate current BAC (before this drink)
-        current_bac_info = self.bac_tracker.get_user_bac(server_name, sender)
-        current_bac = current_bac_info["current_bac"]
+        current_bac = self._get_precise_current_bac(server_name, sender)
 
         # Calculate projected BAC after this drink
         total_grams = sum(alcohol_grams for _, _, alcohol_grams, _ in drink_words_found)

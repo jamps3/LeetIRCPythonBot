@@ -205,10 +205,31 @@ class BACTracker:
         user_data = bac_data[user_key]
         current_bac = self._calculate_current_bac(server, nick, user_data)
 
+        if self._is_sober(current_bac, user_data):
+            last_drink = user_data.get("last_drink")
+            del bac_data[user_key]
+            self._save_bac_data(bac_data)
+            return {
+                "current_bac": 0.0,
+                "peak_bac": 0.0,
+                "sober_time": None,
+                "driving_time": None,
+                "last_drink": last_drink,
+            }
+
         # Update stored BAC if it has changed
+        now = time.time()
+        should_save = False
+        if user_data.get("last_update_time", now) > now:
+            user_data["last_update_time"] = now
+            should_save = True
+
         if abs(current_bac - user_data.get("current_bac", 0.0)) > 0.001:
             user_data["current_bac"] = current_bac
-            user_data["last_update_time"] = time.time()
+            user_data["last_update_time"] = now
+            should_save = True
+
+        if should_save:
             self._save_bac_data(bac_data)
 
         peak_bac = user_data.get("peak_bac", 0.0)
@@ -239,7 +260,7 @@ class BACTracker:
         last_update = user_data.get("last_update_time", time.time())
 
         # Calculate time elapsed since last update
-        time_elapsed_hours = (time.time() - last_update) / 3600.0
+        time_elapsed_hours = max(0.0, (time.time() - last_update) / 3600.0)
 
         # Get user's burn rate from profile
         profile = self.get_user_profile(server, nick)
@@ -250,6 +271,10 @@ class BACTracker:
         current_bac = max(0.0, current_bac - burned_alcohol)
 
         return current_bac
+
+    def _is_sober(self, current_bac: float, user_data: Dict) -> bool:
+        """Check whether a BAC entry can be removed from persisted state."""
+        return current_bac <= 0.001 and user_data.get("pending_alcohol", 0.0) <= 0.0
 
     def _calculate_sober_time(
         self, server: str, nick: str, current_bac: float
@@ -541,11 +566,18 @@ class BACTracker:
         server_prefix = f"{server}:"
 
         active_users = []
-        for user_key, user_data in bac_data.items():
+        changed = False
+        for user_key, user_data in list(bac_data.items()):
             if user_key.startswith(server_prefix):
                 nick = user_key[len(server_prefix) :]  # noqa E203
                 current_bac = self._calculate_current_bac(server, nick, user_data)
-                if current_bac > 0.0:
+                if self._is_sober(current_bac, user_data):
+                    del bac_data[user_key]
+                    changed = True
+                else:
+                    user_data["current_bac"] = current_bac
+                    user_data["last_update_time"] = time.time()
+                    changed = True
                     active_users.append(
                         {
                             "nick": nick,
@@ -553,6 +585,9 @@ class BACTracker:
                             "peak": round(user_data.get("peak_bac", 0.0), 2),
                         }
                     )
+
+        if changed:
+            self._save_bac_data(bac_data)
 
         # Sort by BAC descending
         active_users.sort(key=lambda x: x["bac"], reverse=True)

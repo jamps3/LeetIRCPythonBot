@@ -153,6 +153,68 @@ class TestBACTracker:
         # 12oz = 0.355L, so 0.355L * 4.5% * 0.789 * 1000 = 12.58g
         assert abs(grams4 - 12.58) < 0.05  # Allow for rounding precision
 
+    def test_parse_krak_drink_description_variants(self):
+        """Test parsing BAC grams from common krak(...) drink descriptions."""
+        cases = [
+            ("Olut 8,9% 0,3L", 0.3 * 0.089 * 0.789 * 1000),
+            ("Olut 5.0% 33cl", 0.33 * 0.05 * 0.789 * 1000),
+            ("Olut 5% 3,3cl", 0.033 * 0.05 * 0.789 * 1000),
+            ("Olut 3% 3.3cl", 0.033 * 0.03 * 0.789 * 1000),
+            ("Olut 9% 0.3L", 0.3 * 0.09 * 0.789 * 1000),
+            ("Olut 4,7% 3,3dL", 0.33 * 0.047 * 0.789 * 1000),
+        ]
+
+        for description, expected_grams in cases:
+            grams = self.drink_tracker._parse_alcohol_content(description)
+            assert abs(grams - expected_grams) < 0.01
+
+    def test_process_multiple_pipe_separated_krak_entries(self):
+        """Multiple krak(...) entries in one message should each count."""
+        found = self.drink_tracker.process_message(
+            "testserver",
+            "testuser",
+            "krak(Olut 8,9% 0,3L) | krak(Olut 5.0% 33cl) | krak(Olut 9% 0.3L)",
+        )
+
+        assert [entry[1] for entry in found] == [
+            "Olut 8,9% 0,3L",
+            "Olut 5.0% 33cl",
+            "Olut 9% 0.3L",
+        ]
+        assert [round(entry[2], 2) for entry in found] == [21.07, 13.02, 21.3]
+
+    def test_process_pipe_separated_small_centiliter_krak_entries(self):
+        """Decimal centiliter krak(...) entries should parse with comma or dot."""
+        found = self.drink_tracker.process_message(
+            "testserver",
+            "testuser",
+            "krak(5% 3,3cl) | krak(3% 3.3cl)",
+        )
+
+        assert [entry[1] for entry in found] == ["5% 3,3cl", "3% 3.3cl"]
+        assert [round(entry[2], 2) for entry in found] == [1.3, 0.78]
+
+    def test_bac_increase_for_krak_description_variants(self):
+        """Parsed drink descriptions should raise BAC by Widmark math."""
+        self.bac_tracker.set_user_profile(
+            "testserver", "testuser", weight_kg=75, sex="m"
+        )
+
+        body_water = 0.68 * 75
+        cases = [
+            "Olut 8,9% 0,3L",
+            "Olut 5.0% 33cl",
+            "Olut 9% 0.3L",
+        ]
+
+        for description in cases:
+            self.bac_tracker.reset_user_bac("testserver", "testuser")
+            grams = self.drink_tracker._parse_alcohol_content(description)
+            result = self.bac_tracker.add_drink("testserver", "testuser", grams)
+            expected_bac = grams / body_water
+
+            assert abs(result["current_bac"] - expected_bac) < 0.01
+
     def test_add_single_drink_female(self):
         """Test adding a single drink for female user."""
         # Set up female user profile
@@ -215,6 +277,44 @@ class TestBACTracker:
         expected_bac = max(0.0, initial_bac - expected_burned)
 
         assert abs(result_after["current_bac"] - expected_bac) < 0.01
+
+    def test_get_user_bac_prunes_sober_state(self):
+        """Fully burned-off BAC entries should not linger in state.json."""
+        self.bac_tracker.set_user_profile(
+            "testserver", "testuser", weight_kg=75, sex="m"
+        )
+        self.bac_tracker.add_drink("testserver", "testuser", 12.0)
+
+        bac_data = self.bac_tracker._load_bac_data()
+        user_key = "testserver:testuser"
+        bac_data[user_key]["last_update_time"] = time.time() - (24 * 3600)
+        self.bac_tracker._save_bac_data(bac_data)
+
+        result = self.bac_tracker.get_user_bac("testserver", "testuser")
+        saved_data = self.bac_tracker._load_bac_data()
+
+        assert result["current_bac"] == 0.0
+        assert user_key not in saved_data
+
+    def test_future_update_time_does_not_increase_bac(self):
+        """Clock skew should not make BAC rise by applying negative burn-off."""
+        self.bac_tracker.set_user_profile(
+            "testserver", "testuser", weight_kg=75, sex="m"
+        )
+        self.bac_tracker.add_drink("testserver", "testuser", 12.0)
+
+        bac_data = self.bac_tracker._load_bac_data()
+        user_key = "testserver:testuser"
+        original_bac = bac_data[user_key]["current_bac"]
+        bac_data[user_key]["last_update_time"] = time.time() + 3600
+        self.bac_tracker._save_bac_data(bac_data)
+
+        result = self.bac_tracker.get_user_bac("testserver", "testuser")
+        saved_data = self.bac_tracker._load_bac_data()
+
+        assert result["current_bac"] == round(original_bac, 2)
+        assert saved_data[user_key]["current_bac"] == original_bac
+        assert saved_data[user_key]["last_update_time"] <= time.time()
 
     def test_custom_burn_rate(self):
         """Test custom burn rate."""
@@ -424,3 +524,19 @@ class TestBACTracker:
 
         # Should be sorted by BAC descending
         assert stats["active_users"][0]["bac"] >= stats["active_users"][1]["bac"]
+
+    def test_get_bac_stats_prunes_sober_users(self):
+        """Stats should clean up sober rows instead of leaving stale positives."""
+        self.bac_tracker.set_user_profile("testserver", "soberuser", weight_kg=75)
+        self.bac_tracker.add_drink("testserver", "soberuser", 12.0)
+
+        bac_data = self.bac_tracker._load_bac_data()
+        user_key = "testserver:soberuser"
+        bac_data[user_key]["last_update_time"] = time.time() - (24 * 3600)
+        self.bac_tracker._save_bac_data(bac_data)
+
+        stats = self.bac_tracker.get_bac_stats("testserver")
+        saved_data = self.bac_tracker._load_bac_data()
+
+        assert stats["active_users"] == []
+        assert user_key not in saved_data

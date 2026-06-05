@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import time
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -91,6 +92,38 @@ def test_send_response_records_notice_latency(handler, server):
     handler._record_passive_latency_start.assert_called_once_with(
         server, "#chan", "hello"
     )
+
+
+def test_drink_notification_uses_precise_current_bac(handler, server):
+    handler.bac_tracker._load_bac_data.return_value = {
+        "srv:nick": {
+            "current_bac": 0.235,
+            "last_update_time": time.time(),
+            "pending_alcohol": 0.0,
+        }
+    }
+    handler.bac_tracker._calculate_current_bac.return_value = 0.235
+    handler.bac_tracker.get_user_profile.return_value = {
+        "weight_kg": 75,
+        "sex": "m",
+        "burn_rate": 0.15,
+    }
+    handler.bac_tracker._get_body_water_constant.return_value = 0.68
+    handler.bac_tracker._calculate_sober_time.return_value = "23:00"
+    handler.bac_tracker._calculate_driving_time.return_value = None
+    handler.drink_tracker.search_drink_word.return_value = {"total_occurrences": 1}
+
+    handler._send_drink_word_notifications(
+        server,
+        "#chan",
+        "nick",
+        "srv",
+        [("krak", "unspecified", 12.2, None)],
+        {},
+    )
+
+    message = server.send_notice.call_args.args[1]
+    assert "Promilles: 0.23‰ | After: 0.47‰" in message
 
 
 def test_wrap_irc_message_utf8_bytes(handler):

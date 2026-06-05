@@ -48,9 +48,9 @@ class DrinkTracker:
 
         # Regex pattern for detecting drink words with specific drinks and optional opening time
         # Matches: "krak (Karhu 5,5%)" or "krak (karhu)" or "krak (5,0% 0.5L) @ 02:15" or just "krak"
-        # But only if the message begins with the drink word
+        # Allows multiple drink entries when separated with "|".
         self.drink_pattern = re.compile(
-            r"^("
+            r"(?:^|\|\s*)("
             + "|".join(self.drink_words)
             + r")\s*(?:\(([^)]+)\))?\s*(?:@\s*(\d{1,2}:\d{2}))?(?!\w)",
             re.IGNORECASE,
@@ -196,6 +196,7 @@ class DrinkTracker:
         - "koti-maista neipa 5,0% 5,0L"
         - "karhu 4,7%"
         - "corona 4.5% 0.355L"
+        - "olut 5.0% 33cl"
         - "heineken 5% 12oz"
 
         Args:
@@ -288,8 +289,8 @@ class DrinkTracker:
         """
         Parse volume from text.
 
-        Supports units: L, dL, oz
-        Handles formats: 5,0L, 0.33L, 5dL, 12oz
+        Supports units: L, cL, dL, oz
+        Handles formats: 5,0L, 0.33L, 33cl, 5dL, 12oz
 
         Args:
             text: Text to parse
@@ -300,6 +301,7 @@ class DrinkTracker:
         # Regex patterns for different volume formats
         volume_patterns = [
             (r"(\d+(?:[,.]\d+)?)\s*L\b", 1.0),  # Liters: 5,0L, 0.33L
+            (r"(\d+(?:[,.]\d+)?)\s*cL\b", 0.01),  # Centiliters: 33cl
             (r"(\d+(?:[,.]\d+)?)\s*dL\b", 0.1),  # Deciliters: 5dL, 3,3dL
             (r"(\d+(?:[,.]\d+)?)\s*oz\b", 0.0295735),  # Ounces: 12oz
         ]
