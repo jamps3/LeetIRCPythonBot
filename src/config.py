@@ -721,7 +721,12 @@ class ConfigManager:
             "config": config,
             "state": {
                 "last_updated": None,
-                "otiedote": {"latest_release": 0, "filters": {}, "subscribers": []},
+                "otiedote": {
+                    "latest_release": 0,
+                    "not_found_attempts": 2,
+                    "filters": {},
+                    "subscribers": [],
+                },
                 "ai_teachings": [],
             },
         }

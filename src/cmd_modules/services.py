@@ -242,12 +242,14 @@ def solarwind_command(context: CommandContext, bot_functions):
 @command(
     "otiedote",
     description="Get accident reports (Onnettomuustiedotteet) from local JSON",
-    usage="!otiedote [N | #N | seuraava | set <number> | filter #channel <organization> <field> | filter list | init | simulate [text]]",
+    usage="!otiedote [N | #N | seuraava | set <number> | attempts [number] | filter #channel <organization> <field> | filter list | init | simulate [text]]",
     examples=[
         "!otiedote",
         "!otiedote 2",
         "!otiedote #2610",
         "!otiedote seuraava",
+        "!otiedote attempts",
+        "!otiedote attempts 2",
         "!otiedote filter #joensuu Pohjois-Karjalan pelastuslaitos organization",
         "!otiedote filter list",
         "!otiedote init",
@@ -286,6 +288,9 @@ def otiedote_command(context: CommandContext, bot_functions):
         elif context.args and context.args[0].lower() == "filter":
             # Handle filter command below
             pass
+        elif context.args and context.args[0].lower() == "attempts":
+            # Handle attempts command below
+            pass
         else:
             # No data exists and not a special command - try to fetch the latest release
             try:
@@ -305,6 +310,7 @@ def otiedote_command(context: CommandContext, bot_functions):
     is_special_command = context.args and context.args[0].lower() in [
         "init",
         "set",
+        "attempts",
         "filter",
         "simulate",
     ]
@@ -401,6 +407,34 @@ def otiedote_command(context: CommandContext, bot_functions):
             return "❌ Invalid number format"
         except Exception as e:
             return f"❌ Error setting release number: {e}"
+
+    # Handle "attempts" subcommand - configure how many not-found IDs are tried
+    if context.args and context.args[0].lower() == "attempts":
+        if len(context.args) == 1:
+            return (
+                "📋 Otiedote not-found attempts: "
+                f"{otiedote_service.get_not_found_attempts()}"
+            )
+
+        if len(context.args) > 2:
+            return "❌ Usage: !otiedote attempts [number]"
+
+        try:
+            attempts = int(context.args[1])
+        except ValueError:
+            return "❌ Invalid number format"
+
+        if attempts < 1:
+            return "❌ Attempts must be at least 1"
+
+        try:
+            old_attempts = otiedote_service.get_not_found_attempts()
+            otiedote_service.set_not_found_attempts(attempts)
+            return (
+                f"✅ Otiedote not-found attempts set to {attempts} (was {old_attempts})"
+            )
+        except Exception as e:
+            return f"❌ Error setting otiedote attempts: {e}"
 
     # Handle "init" subcommand - fetch all releases from the website
     if context.args and context.args[0].lower() == "init":

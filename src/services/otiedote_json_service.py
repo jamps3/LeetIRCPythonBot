@@ -37,6 +37,7 @@ CONFIG_STATE_FILE = os.path.normpath(
 DEFAULT_START_ID = 2830  # fallback
 
 CHECK_INTERVAL = 15 * 60  # 15 min
+DEFAULT_NOT_FOUND_ATTEMPTS = 2
 
 
 # ----------------------------------------------------
@@ -228,6 +229,7 @@ class OtiedoteService:
         return {
             "otiedote": {
                 "latest_release": 0,
+                "not_found_attempts": DEFAULT_NOT_FOUND_ATTEMPTS,
                 "filters": {},
                 "subscribers": [],
             }
@@ -333,6 +335,32 @@ class OtiedoteService:
 
         except Exception as e:
             logger.warning(f"Failed to save state: {e}")
+
+    def get_not_found_attempts(self) -> int:
+        """Load how many missing release IDs to try before giving up."""
+        state = self._load_state()
+        value = state.get("otiedote", {}).get(
+            "not_found_attempts", DEFAULT_NOT_FOUND_ATTEMPTS
+        )
+        try:
+            attempts = int(value)
+        except (TypeError, ValueError):
+            return DEFAULT_NOT_FOUND_ATTEMPTS
+        return max(1, attempts)
+
+    def set_not_found_attempts(self, attempts: int) -> None:
+        """Persist how many missing release IDs should be tried."""
+        if attempts < 1:
+            raise ValueError("attempts must be at least 1")
+
+        update_json_file(
+            self.state_file,
+            lambda data: self._with_otiedote_value(
+                data, "not_found_attempts", attempts
+            ),
+            default=dict,
+            strict=True,
+        )
 
     @staticmethod
     def _with_otiedote_value(data: dict, key: str, value):
@@ -441,6 +469,7 @@ class OtiedoteService:
     def get_latest_release_info(self):
         return {
             "latest_release": self.latest_release,
+            "not_found_attempts": self.get_not_found_attempts(),
             "running": self.running,
             "state_file": self.state_file,
             "json_file": self.json_file,
@@ -460,9 +489,12 @@ class OtiedoteService:
         save_json_atomic(self.json_file, releases, update_timestamp=False)
 
     def check_new_releases(
-        self, max_attempts: int = 5, max_releases: int = 500
+        self, max_attempts: Optional[int] = None, max_releases: int = 500
     ) -> list:
         """Check for newly published releases without skipping unpublished IDs."""
+        if max_attempts is None:
+            max_attempts = self.get_not_found_attempts()
+
         self.latest_release = self._load_latest_release()
         starting_latest = self.latest_release
         id_map, existing_ids = load_existing_ids(self.json_file)
@@ -513,14 +545,16 @@ class OtiedoteService:
 
         return new_releases
 
-    def fetch_next_release(self) -> Optional[dict]:
+    def fetch_next_release(self, max_attempts: Optional[int] = None) -> Optional[dict]:
         """Manually fetch the next release after the current latest one."""
         # Reload latest_release from state.json to ensure we have the most current value
         # (in case the monitoring thread has updated it)
         self.latest_release = self._load_latest_release()
 
         # Try up to 3 releases ahead in case there are gaps (some releases may be inaccessible)
-        max_attempts = 3
+        if max_attempts is None:
+            max_attempts = self.get_not_found_attempts()
+
         for attempt in range(max_attempts):
             next_id = self.latest_release + 1 + attempt
             logger.info(

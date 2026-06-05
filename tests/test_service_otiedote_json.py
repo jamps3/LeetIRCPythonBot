@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from services.otiedote_json_service import (
+    DEFAULT_NOT_FOUND_ATTEMPTS,
     DEFAULT_START_ID,
     JSON_FILE,
     RELEASE_URL_TEMPLATE,
@@ -119,9 +120,32 @@ class TestOtiedoteService:
         info = service.get_latest_release_info()
 
         assert info["latest_release"] == 9999
+        assert info["not_found_attempts"] == DEFAULT_NOT_FOUND_ATTEMPTS
         assert info["running"] is True
         assert info["state_file"] == STATE_FILE
         assert info["json_file"] == JSON_FILE
+
+    def test_not_found_attempts_default_and_persistence(self, tmp_path, mock_callback):
+        """Test configurable not-found attempt count."""
+        state_file = tmp_path / "test_state.json"
+        service = OtiedoteService(mock_callback, state_file=str(state_file))
+
+        assert service.get_not_found_attempts() == 2
+
+        service.set_not_found_attempts(4)
+        assert service.get_not_found_attempts() == 4
+
+        saved = json.loads(state_file.read_text(encoding="utf-8"))
+        assert saved["otiedote"]["not_found_attempts"] == 4
+
+    def test_not_found_attempts_rejects_less_than_one(self, tmp_path, mock_callback):
+        """Test invalid not-found attempt count."""
+        service = OtiedoteService(
+            mock_callback, state_file=str(tmp_path / "test_state.json")
+        )
+
+        with pytest.raises(ValueError):
+            service.set_not_found_attempts(0)
 
 
 class TestOtiedoteServiceAsync:
@@ -669,6 +693,48 @@ class TestOtiedoteServiceIntegration:
             assert service.check_new_releases(max_attempts=5) == []
 
         mock_fetch.assert_called_once_with(DEFAULT_START_ID)
+
+    def test_check_new_releases_uses_configured_not_found_attempts(
+        self, tmp_path, mock_callback
+    ):
+        state_file = tmp_path / "test_state.json"
+        state_file.write_text(
+            json.dumps({"otiedote": {"latest_release": 3000, "not_found_attempts": 2}}),
+            encoding="utf-8",
+        )
+        service = OtiedoteService(
+            mock_callback,
+            state_file=str(state_file),
+            json_file=str(tmp_path / "test_otiedote.json"),
+        )
+
+        with patch(
+            "services.otiedote_json_service.fetch_release", return_value=None
+        ) as mock_fetch:
+            assert service.check_new_releases() == []
+
+        assert [call.args[0] for call in mock_fetch.call_args_list] == [3001, 3002]
+
+    def test_fetch_next_release_uses_configured_not_found_attempts(
+        self, tmp_path, mock_callback
+    ):
+        state_file = tmp_path / "test_state.json"
+        state_file.write_text(
+            json.dumps({"otiedote": {"latest_release": 4000, "not_found_attempts": 2}}),
+            encoding="utf-8",
+        )
+        service = OtiedoteService(
+            mock_callback,
+            state_file=str(state_file),
+            json_file=str(tmp_path / "test_otiedote.json"),
+        )
+
+        with patch(
+            "services.otiedote_json_service.fetch_release", return_value=None
+        ) as mock_fetch:
+            assert service.fetch_next_release() is None
+
+        assert [call.args[0] for call in mock_fetch.call_args_list] == [4001, 4002]
 
     def test_monitor_loop_new_release(
         self, tmp_path, mock_callback, mock_requests, mock_bs4
