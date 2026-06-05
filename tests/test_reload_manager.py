@@ -72,7 +72,7 @@ class TestReloadManager:
         assert "Failed to reload test_module" in message
 
     @patch("command_registry.get_command_registry")
-    @patch("src.reload_manager.reload_single_module")
+    @patch("reload_manager.reload_single_module")
     def test_reload_all_commands_with_failures(
         self, mock_reload_single, mock_get_registry
     ):
@@ -123,10 +123,13 @@ class TestReloadManager:
         assert isinstance(status, dict)
         assert "available_modules" in status
         assert "available_services" in status
+        assert "available_core" in status
         assert "loaded_modules" in status
         assert "loaded_services" in status
+        assert "loaded_core" in status
         assert "loaded_count" in status
         assert "service_count" in status
+        assert "core_count" in status
         assert "command_count" in status
 
     def test_verify_critical_commands_all_present(self):
@@ -210,3 +213,49 @@ class TestReloadManager:
         assert isinstance(reload_manager.CORE_MODULES, list)
         assert len(reload_manager.CORE_MODULES) > 0
         assert "config" in reload_manager.CORE_MODULES
+        assert "subscriptions" in reload_manager.CORE_MODULES
+
+    @patch("reload_manager.reload_single_module")
+    def test_reload_specific_module_accepts_subscriptions(self, mock_reload_single):
+        """Subscription topic validation must be refreshable without restart."""
+        mock_reload_single.return_value = (True, "Reloaded subscriptions")
+
+        result, message = reload_manager.reload_specific_module("subscriptions")
+
+        assert result is True
+        assert message == "Reloaded module: subscriptions"
+        mock_reload_single.assert_called_once_with("subscriptions")
+
+    @patch("command_registry.get_command_registry")
+    @patch("reload_manager.reload_single_module")
+    def test_reload_all_commands_reloads_loaded_subscriptions(
+        self, mock_reload_single, mock_get_registry
+    ):
+        """Hot reload updates shared subscription topic validation constants."""
+        mock_registry = Mock()
+        mock_registry._commands = {}
+        mock_registry.clear_all = Mock()
+        mock_get_registry.return_value = mock_registry
+        mock_reload_single.return_value = (True, "Reloaded module")
+        command_registry_module = ModuleType("command_registry")
+        command_registry_module.get_command_registry = mock_get_registry
+        command_loader_module = ModuleType("command_loader")
+        command_loader_module.load_all_commands = Mock()
+
+        with (
+            patch.dict(
+                sys.modules,
+                {
+                    "config": ModuleType("config"),
+                    "subscriptions": ModuleType("subscriptions"),
+                    "command_registry": command_registry_module,
+                    "command_loader": command_loader_module,
+                },
+            ),
+        ):
+            result, _ = reload_manager.reload_all_commands()
+
+        assert result is True
+        reloaded = [call.args[0] for call in mock_reload_single.call_args_list]
+        assert reloaded.index("config") < reloaded.index("subscriptions")
+        assert reloaded.index("subscriptions") < reloaded.index("command_registry")

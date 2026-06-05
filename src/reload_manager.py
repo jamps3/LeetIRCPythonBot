@@ -61,6 +61,7 @@ WORD_TRACKING_MODULES: List[str] = [
 # Core infrastructure modules (require special handling - mostly config)
 CORE_MODULES: List[str] = [
     "config",
+    "subscriptions",
 ]
 
 # Lock to prevent concurrent reloads
@@ -255,18 +256,18 @@ def reload_specific_module(module_name: str) -> Tuple[bool, str]:
     Returns:
         Tuple of (success, message)
     """
-    # Check both command modules and service modules
-    all_reloadable = RELOADABLE_MODULES + SERVICE_MODULES
+    # Check command, service, and shared infrastructure modules.
+    all_reloadable = RELOADABLE_MODULES + SERVICE_MODULES + CORE_MODULES
 
     if module_name not in all_reloadable:
         return False, f"Unknown reloadable module: {module_name}"
 
-    # Check if it's a service module
-    if module_name in SERVICE_MODULES:
+    # Check if it's a service or shared infrastructure module.
+    if module_name in SERVICE_MODULES or module_name in CORE_MODULES:
         with _reload_lock:
             success, msg = reload_single_module(module_name)
             if success:
-                return True, f"Reloaded service module: {module_name}"
+                return True, f"Reloaded module: {module_name}"
             return False, msg
 
     # Find the index and reload from that point onwards
@@ -292,6 +293,7 @@ def get_reload_status() -> Dict[str, any]:
 
     # Get loaded service modules
     service_modules_loaded = set(SERVICE_MODULES) & set(sys.modules.keys())
+    core_modules_loaded = set(CORE_MODULES) & set(sys.modules.keys())
 
     # Get command count
     try:
@@ -305,10 +307,13 @@ def get_reload_status() -> Dict[str, any]:
     return {
         "available_modules": RELOADABLE_MODULES,
         "available_services": SERVICE_MODULES,
+        "available_core": CORE_MODULES,
         "loaded_modules": sorted(loaded),
         "loaded_services": sorted(service_modules_loaded),
+        "loaded_core": sorted(core_modules_loaded),
         "loaded_count": len(loaded),
         "service_count": len(service_modules_loaded),
+        "core_count": len(core_modules_loaded),
         "command_count": command_count,
     }
 
