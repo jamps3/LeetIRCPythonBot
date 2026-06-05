@@ -232,12 +232,14 @@ def test_multiple_subscriptions(temp_subscriptions_file):
         toggle_subscription("#test1", "test_server", "varoitukset")
         toggle_subscription("#test2", "test_server", "varoitukset")
         toggle_subscription("#test1", "test_server", "onnettomuustiedotteet")
+        toggle_subscription("#test3", "test_server", "vaaratiedotteet")
 
         varoitukset = get_subscribers("varoitukset")
         assert ("#test1", "test_server") in varoitukset
         assert ("#test2", "test_server") in varoitukset
         assert ("#test1", "test_server") in get_subscribers("onnettomuustiedotteet")
         assert ("#test2", "test_server") not in get_subscribers("onnettomuustiedotteet")
+        assert ("#test3", "test_server") in get_subscribers("vaaratiedotteet")
 
 
 def test_persistence(temp_subscriptions_file):
@@ -731,4 +733,29 @@ def test_otiedote_subscriptions_respect_channel_filters(otiedote_setup, monkeypa
             "#general",
             "📢 Right department - Test Description | https://example.com/right",
         )
+    ]
+
+
+def test_danger_announcement_subscriptions(otiedote_setup):
+    manager, fake_server, sent_messages = otiedote_setup
+
+    class MockSubscriptions:
+        def get_subscribers(self, topic):
+            if topic == "vaaratiedotteet":
+                return [
+                    ("#general", "test_server"),
+                    ("user1", "test_server"),
+                ]
+            return []
+
+    with patch.object(
+        manager, "_get_subscriptions_module", return_value=MockSubscriptions()
+    ):
+        manager._handle_danger_announcements(
+            ["⚠ Vaaratiedote Pe 5.6.2026 11:42: Suomenkielinen teksti."]
+        )
+
+    assert sent_messages == [
+        ("#general", "⚠ Vaaratiedote Pe 5.6.2026 11:42: Suomenkielinen teksti."),
+        ("user1", "⚠ Vaaratiedote Pe 5.6.2026 11:42: Suomenkielinen teksti."),
     ]

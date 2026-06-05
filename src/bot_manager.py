@@ -126,6 +126,9 @@ class BotManager:
         self.leet_detector = self.service_manager.get_service("leet_detector")
         self.fmi_warning_service = self.service_manager.get_service("fmi_warning")
         self.otiedote_service = self.service_manager.get_service("otiedote")
+        self.danger_announcement_service = self.service_manager.get_service(
+            "danger_announcement"
+        )
 
         # Initialize test properties
         self._auto_connect = (
@@ -543,6 +546,9 @@ class BotManager:
 
     def _handle_otiedote_release(self, *args, **kwargs):
         return self.message_handler._handle_otiedote_release(*args, **kwargs)
+
+    def _handle_danger_announcements(self, *args, **kwargs):
+        return self.message_handler._handle_danger_announcements(*args, **kwargs)
 
     def handle_otiedote_release(self, release):
         """Handle new otiedote release - announce to subscribed channels."""

@@ -413,6 +413,37 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         except Exception as e:
             logger.error(f"Error handling FMI warnings: {e}")
 
+    def _handle_danger_announcements(self, announcements):
+        """Handle 112.fi danger announcements."""
+        try:
+            subscriptions = None
+            if hasattr(self, "bot_manager"):
+                subscriptions = self.bot_manager._get_subscriptions_module()
+            else:
+                subscriptions = self._get_subscriptions_module()
+            if not subscriptions:
+                return
+
+            subscribers = subscriptions.get_subscribers("vaaratiedotteet")
+            if not subscribers:
+                return
+
+            for announcement in announcements:
+                for nick_or_channel, server_name in subscribers:
+                    server = self._get_subscription_server(server_name)
+                    if server and self._can_send_subscription_target(
+                        server_name, server, nick_or_channel
+                    ):
+                        if hasattr(self, "bot_manager"):
+                            self.bot_manager._send_response(
+                                server, nick_or_channel, announcement
+                            )
+                        else:
+                            self._send_response(server, nick_or_channel, announcement)
+
+        except Exception as e:
+            logger.error(f"Error handling danger announcements: {e}")
+
     def _handle_otiedote_release(self, data):
         """Handle otiedote release."""
         try:

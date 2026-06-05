@@ -75,6 +75,7 @@ def test_message_and_console_delegates(bare_manager):
         "_is_url_blacklisted",
         "_send_electricity_price",
         "_handle_otiedote_release",
+        "_handle_danger_announcements",
         "_handle_fmi_warnings",
     ]
     for name in message_methods:

@@ -13,7 +13,7 @@ config = get_config()
 SUBSCRIBERS_FILE = os.path.normpath(config.state_file)
 
 # Valid topics for subscriptions
-VALID_TOPICS = {"varoitukset", "onnettomuustiedotteet"}
+VALID_TOPICS = {"varoitukset", "onnettomuustiedotteet", "vaaratiedotteet"}
 
 
 def is_valid_nick_or_channel(nick: str) -> bool:

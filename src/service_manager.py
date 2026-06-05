@@ -2,7 +2,8 @@
 Service Manager Module
 
 Manages initialization and lifecycle of all external services used by the bot.
-This includes weather, GPT, electricity, YouTube, crypto, Alko, Otiedote, and FMI services.
+This includes weather, GPT, electricity, YouTube, crypto, Alko, Otiedote, FMI,
+and danger announcement services.
 """
 
 import os
@@ -54,6 +55,7 @@ class ServiceManager:
             self._initialize_leet_detector()
             self._initialize_fmi_warning_service()
             self._initialize_otiedote_service()
+            self._initialize_danger_announcement_service()
             self._initialize_dream_service()
 
             logger.info("Service manager initialization complete")
@@ -275,6 +277,30 @@ class ServiceManager:
             logger.warning(f"Otiedote service not available: {e}")
             self.services["otiedote"] = None
 
+    def _initialize_danger_announcement_service(self):
+        """Initialize 112.fi danger announcement service."""
+        try:
+            from config import get_config
+            from services.danger_announcement_service import (
+                create_danger_announcement_service,
+            )
+
+            config = get_config()
+
+            def danger_callback(announcements):
+                bot_manager = getattr(self, "_bot_manager", None)
+                if bot_manager:
+                    bot_manager._handle_danger_announcements(announcements)
+
+            self.services["danger_announcement"] = create_danger_announcement_service(
+                callback=danger_callback,
+                state_file=config.state_file,
+            )
+            logger.info("⚠️ Danger announcement service initialized.")
+        except ImportError as e:
+            logger.warning(f"Danger announcement service not available: {e}")
+            self.services["danger_announcement"] = None
+
     def start_background_services(self):
         """Start services that need background monitoring."""
         fmi = self.services.get("fmi_warning")
@@ -293,6 +319,14 @@ class ServiceManager:
             except Exception as e:
                 logger.warning(f"Could not start otiedote monitor: {e}")
 
+        danger = self.services.get("danger_announcement")
+        if danger and hasattr(danger, "start"):
+            try:
+                danger.start()
+                logger.info("⚠️ Danger announcement background monitor started.")
+            except Exception as e:
+                logger.warning(f"Could not start danger announcement monitor: {e}")
+
     def stop_background_services(self):
         """Stop services that run background monitors."""
         fmi = self.services.get("fmi_warning")
@@ -308,6 +342,15 @@ class ServiceManager:
                 otiedote.stop_background()
             except Exception as e:
                 logger.warning(f"Could not stop otiedote monitor cleanly: {e}")
+
+        danger = self.services.get("danger_announcement")
+        if danger and hasattr(danger, "stop"):
+            try:
+                danger.stop()
+            except Exception as e:
+                logger.warning(
+                    f"Could not stop danger announcement monitor cleanly: {e}"
+                )
 
     def _initialize_dream_service(self):
         """Initialize Dream service."""
@@ -401,6 +444,7 @@ class ServiceManager:
             ("leet_detector", self._initialize_leet_detector),
             ("fmi_warning", self._initialize_fmi_warning_service),
             ("otiedote", self._initialize_otiedote_service),
+            ("danger_announcement", self._initialize_danger_announcement_service),
             ("dream", self._initialize_dream_service),
         ]
 
@@ -417,6 +461,7 @@ class ServiceManager:
             "services.leet_detector",
             "services.fmi_warning_service",
             "services.otiedote_json_service",
+            "services.danger_announcement_service",
             "services.dream_service",
         ]
 
