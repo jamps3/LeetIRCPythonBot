@@ -2,6 +2,8 @@
 
 [![Run Tests](https://github.com/jamps3/LeetIRCPythonBot/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/jamps3/LeetIRCPythonBot/actions/workflows/tests.yml)
 [![Auto Format Code](https://github.com/jamps3/LeetIRCPythonBot/actions/workflows/auto-format.yml/badge.svg?branch=main)](https://github.com/jamps3/LeetIRCPythonBot/actions/workflows/auto-format.yml)
+![Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjamps3%2FLeetIRCPythonBot%2Fbadges%2Ftests.json)
+![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjamps3%2FLeetIRCPythonBot%2Fbadges%2Fcoverage.json)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
 
 ## Description

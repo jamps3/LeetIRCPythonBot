@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   test:
     name: test (3.13)
@@ -23,7 +26,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # Install minimal required dependencies for testing
-          pip install python-dotenv pytest pytest-xdist
+          pip install python-dotenv pytest pytest-cov pytest-xdist
           # Don't install optional dependencies as they are mocked in tests
           # Install test dependencies if we had a requirements.txt
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
@@ -57,7 +60,7 @@ jobs:
           # Set PYTHONPATH to include current directory
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           echo "Running all tests with pytest (parallel)..."
-          python -m pytest -v --tb=short -n auto
+          python -m pytest -v --tb=short -n auto --junitxml=test-results.xml --cov=src --cov-report=json:coverage.json
         env:
           # Set dummy environment variables for testing
           IRC_NICKNAME: test_bot
@@ -65,14 +68,88 @@ jobs:
           TAMAGOTCHI_ENABLED: true
           USE_NOTICES: false
 
+      - name: Generate Shields badge endpoints
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+
+          os.makedirs("badges", exist_ok=True)
+
+          def write_badge(filename, label, message, color):
+              with open(os.path.join("badges", filename), "w", encoding="utf-8") as f:
+                  json.dump(
+                      {
+                          "schemaVersion": 1,
+                          "label": label,
+                          "message": message,
+                          "color": color,
+                      },
+                      f,
+                      separators=(",", ":"),
+                  )
+
+          tests = failures = errors = skipped = 0
+          try:
+              root = ET.parse("test-results.xml").getroot()
+              suites = [root] if root.tag == "testsuite" else root.findall("testsuite")
+              for suite in suites:
+                  tests += int(suite.attrib.get("tests", 0))
+                  failures += int(suite.attrib.get("failures", 0))
+                  errors += int(suite.attrib.get("errors", 0))
+                  skipped += int(suite.attrib.get("skipped", 0))
+              passed = max(tests - failures - errors - skipped, 0)
+              test_color = "brightgreen" if failures == 0 and errors == 0 else "red"
+              write_badge("tests.json", "tests", f"{passed} passed", test_color)
+          except Exception:
+              write_badge("tests.json", "tests", "unknown", "lightgrey")
+
+          try:
+              with open("coverage.json", encoding="utf-8") as f:
+                  coverage = json.load(f)
+              percent = float(coverage["totals"]["percent_covered"])
+              if percent >= 90:
+                  color = "brightgreen"
+              elif percent >= 80:
+                  color = "green"
+              elif percent >= 70:
+                  color = "yellowgreen"
+              elif percent >= 60:
+                  color = "yellow"
+              else:
+                  color = "red"
+              write_badge("coverage.json", "coverage", f"{percent:.1f}%", color)
+          except Exception:
+              write_badge("coverage.json", "coverage", "unknown", "lightgrey")
+          PY
+
+      - name: Publish badge endpoints
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir badge-pages
+          cp badges/*.json badge-pages/
+          cd badge-pages
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b badges
+          git add .
+          git commit -m "Update badge endpoints"
+          git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" badges
+
       - name: Upload test results
         uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results-3.13
           path: |
-            test-results.txt
-            test-coverage.txt
+            test-results.xml
+            coverage.json
+            badges/*.json
           if-no-files-found: ignore
           retention-days: 30
 

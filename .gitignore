@@ -45,11 +45,14 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+coverage.json
+coverage-*.json
 *.cover
 *.py,cover
 .hypothesis/
 .pytest_cache/
 cover/
+badges/
 
 # Translations
 *.mo
@@ -202,6 +205,7 @@ data/~$alkon-hinnasto-tekstitiedostona.xlsx
 # Test reports & state
 test-coverage.txt
 test-results.txt
+test-results.xml
 test_state
 
 # Documentation and plans
