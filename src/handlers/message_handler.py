@@ -33,6 +33,7 @@ from logger import get_logger
 from server import Server
 from services.otiedote_json_service import (
     get_otiedote_filters,
+    get_otiedote_target_filters,
     otiedote_release_matches_filters,
 )
 from state_utils import update_json_file
@@ -471,10 +472,13 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 message += f" | {url}"
 
             # Send to each subscriber
-            state_file = getattr(self.data_manager, "state_file", None)
+            otiedote_service = self.service_manager.get_service("otiedote")
+            state_file = getattr(otiedote_service, "state_file", None) or getattr(
+                self.data_manager, "state_file", None
+            )
             filters = get_otiedote_filters(state_file)
             for nick_or_channel, server_name in subscribers:
-                target_filters = filters.get(nick_or_channel, [])
+                target_filters = get_otiedote_target_filters(filters, nick_or_channel)
                 if not otiedote_release_matches_filters(data, target_filters):
                     logger.info(
                         f"Skipping Otiedote for {nick_or_channel} on {server_name}: "

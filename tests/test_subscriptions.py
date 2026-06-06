@@ -736,6 +736,52 @@ def test_otiedote_subscriptions_respect_channel_filters(otiedote_setup, monkeypa
     ]
 
 
+def test_otiedote_filters_use_service_state_file(otiedote_setup, tmp_path):
+    manager, fake_server, sent_messages = otiedote_setup
+    service_state_file = tmp_path / "service_state.json"
+    stale_state_file = tmp_path / "stale_state.json"
+    service_state_file.write_text(
+        json.dumps(
+            {
+                "otiedote": {
+                    "filters": {
+                        "#general": ["Pohjois-Karjalan pelastuslaitos:organization"]
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    stale_state_file.write_text(
+        json.dumps({"otiedote": {"filters": {}}}), encoding="utf-8"
+    )
+
+    class MockSubscriptions:
+        def get_subscribers(self, topic):
+            if topic == "onnettomuustiedotteet":
+                return [("#general", "test_server")]
+            return []
+
+    manager.message_handler.data_manager.state_file = str(stale_state_file)
+    manager.service_manager.services["otiedote"] = Mock(
+        state_file=str(service_state_file)
+    )
+
+    with patch.object(
+        manager, "_get_subscriptions_module", return_value=MockSubscriptions()
+    ):
+        manager._handle_otiedote_release(
+            {
+                "title": "Wrong department",
+                "url": "https://example.com/wrong",
+                "description": "Test Description",
+                "organization": "Pohjois-Savon pelastuslaitos",
+            }
+        )
+
+    assert sent_messages == []
+
+
 def test_danger_announcement_subscriptions(otiedote_setup):
     manager, fake_server, sent_messages = otiedote_setup
 

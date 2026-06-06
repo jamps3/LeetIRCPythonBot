@@ -20,6 +20,7 @@ from services.otiedote_json_service import (
     OtiedoteService,
     create_otiedote_service,
     fetch_release,
+    get_otiedote_target_filters,
     load_existing_ids,
 )
 
@@ -35,6 +36,14 @@ def otiedote_service(mock_callback, tmp_path):
     """Create OtiedoteService instance with temporary state file."""
     state_file = tmp_path / "test_state.json"
     return OtiedoteService(mock_callback, state_file=str(state_file))
+
+
+def test_get_otiedote_target_filters_is_case_insensitive():
+    filters = {"#JoensuuTest": ["Pohjois-Karjalan pelastuslaitos:organization"]}
+
+    assert get_otiedote_target_filters(filters, "#joensuutest") == [
+        "Pohjois-Karjalan pelastuslaitos:organization"
+    ]
 
 
 @pytest.fixture

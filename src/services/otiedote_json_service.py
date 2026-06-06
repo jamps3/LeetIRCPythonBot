@@ -164,6 +164,24 @@ def get_otiedote_filters(state_file: Optional[str] = None) -> dict:
     return filters if isinstance(filters, dict) else {}
 
 
+def get_otiedote_target_filters(filters: dict, target: str) -> list:
+    """Return filters for an IRC target, tolerating channel case differences."""
+    target_filters = filters.get(target)
+    if isinstance(target_filters, list):
+        return target_filters
+
+    target_lower = target.lower()
+    for configured_target, configured_filters in filters.items():
+        if (
+            isinstance(configured_target, str)
+            and configured_target.lower() == target_lower
+            and isinstance(configured_filters, list)
+        ):
+            return configured_filters
+
+    return []
+
+
 def otiedote_release_matches_filters(release: dict, target_filters: list) -> bool:
     """Return True when a release should be sent for the target filters."""
     if not target_filters:
