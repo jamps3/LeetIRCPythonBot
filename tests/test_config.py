@@ -5,6 +5,7 @@ Pytest Configuration System tests
 Comprehensive tests for the configuration management system.
 """
 
+import importlib
 import json
 import os
 import sys
@@ -136,6 +137,22 @@ def test_configmanager_uses_configured_state_file(monkeypatch, tmp_path):
     assert expected_config_defaults.issubset(saved["config"])
     assert saved["config"]["quotes_source"] == "data/quotes.txt"
     assert saved["config"]["ops_allowed_channels"] == cfg.OPS_ALLOWED_CHANNELS
+
+
+def test_state_file_constant_honors_environment(monkeypatch, tmp_path):
+    original_state_file = os.environ.get("STATE_FILE")
+    state_file = tmp_path / "state.json"
+    monkeypatch.setenv("STATE_FILE", str(state_file))
+
+    reloaded = importlib.reload(cfg)
+
+    assert reloaded.STATE_FILE == str(state_file)
+
+    if original_state_file is None:
+        monkeypatch.delenv("STATE_FILE", raising=False)
+    else:
+        monkeypatch.setenv("STATE_FILE", original_state_file)
+    importlib.reload(cfg)
 
 
 def test_get_server_by_name_and_primary(monkeypatch):
