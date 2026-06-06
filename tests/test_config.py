@@ -42,6 +42,8 @@ def test_serverconfig_post_init_channel_prefix_and_keys_padding():
 def test_configmanager_loads_env_and_caching(monkeypatch, tmp_path):
     import os
 
+    monkeypatch.delenv("BOT_VERSION", raising=False)
+
     data_dir = os.path.join(
         os.path.abspath(os.path.join(os.path.dirname(cfg.__file__), "..")), "data"
     )
