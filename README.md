@@ -1,5 +1,9 @@
 # LeetIRCPythonBot
 
+[![Run Tests](https://github.com/jamps3/LeetIRCPythonBot/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/jamps3/LeetIRCPythonBot/actions/workflows/tests.yml)
+[![Auto Format Code](https://github.com/jamps3/LeetIRCPythonBot/actions/workflows/auto-format.yml/badge.svg?branch=main)](https://github.com/jamps3/LeetIRCPythonBot/actions/workflows/auto-format.yml)
+![Python](https://img.shields.io/badge/python-3.13-blue)
+
 ## Description
 
 Advanced IRC Bot made with Python. Extended API use and highly customizable.
