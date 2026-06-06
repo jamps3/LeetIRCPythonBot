@@ -35,6 +35,22 @@ class TestDataManager:
         assert os.path.exists(os.path.join(self.temp_dir, "general_words.json"))
         assert os.path.exists(self.state_file)
 
+    def test_default_state_file_honors_environment(self):
+        """Test that the default state path can be sandboxed by tests."""
+        sandbox_state_file = os.path.join(self.temp_dir, "sandbox-state.json")
+        old_state_file = os.environ.get("STATE_FILE")
+        os.environ["STATE_FILE"] = sandbox_state_file
+        try:
+            data_manager = DataManager(data_dir=self.temp_dir)
+        finally:
+            if old_state_file is None:
+                os.environ.pop("STATE_FILE", None)
+            else:
+                os.environ["STATE_FILE"] = old_state_file
+
+        assert data_manager.state_file == os.path.normpath(sandbox_state_file)
+        assert os.path.exists(sandbox_state_file)
+
     def test_load_json_valid_file(self):
         """Test loading a valid JSON file."""
         test_data = {"test": "data", "number": 42}

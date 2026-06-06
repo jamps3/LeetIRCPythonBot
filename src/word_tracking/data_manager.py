@@ -35,7 +35,7 @@ class DataManager:
         self.drink_data_file = os.path.join(data_dir, "drink_tracking.json")
         self.general_words_file = os.path.join(data_dir, "general_words.json")
         self.state_file = os.path.normpath(
-            state_file or os.path.join(data_dir, "state.json")
+            state_file or os.getenv("STATE_FILE", os.path.join(data_dir, "state.json"))
         )
 
         # Initialize data structures
