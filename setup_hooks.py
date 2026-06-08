@@ -13,7 +13,7 @@ def get_hook_content():
     r"""Generate the pre-commit hook content."""
     return r"""#!/bin/bash
 # LeetIRCPythonBot Pre-commit Hook
-# Formats and lints code with Ruff, then runs quick tests if PRECOMMIT_RUN_TESTS enabled.
+# Formats and lints code with Ruff via uv, then runs quick tests if PRECOMMIT_RUN_TESTS enabled.
 # If any step fails, the commit is aborted.
 
 set -euo pipefail
@@ -24,41 +24,24 @@ echo "Running pre-commit: Ruff format and lint..."
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-# Function to find Python executable
-find_python() {
-  # Try different Python executables in order of preference
-  for python_cmd in "python" "python3" "./venv/Scripts/python.exe" "./venv/bin/python"; do
-    if command -v "$python_cmd" >/dev/null 2>&1; then
-      # Test that Python actually works by running a simple command
-      if "$python_cmd" -c "print('test')" >/dev/null 2>&1; then
-        echo "$python_cmd"
-        return 0
-      fi
-    fi
-  done
-  return 1
-}
-
-# Find Python executable
-PYTHON_CMD=$(find_python)
-if [ $? -ne 0 ]; then
-  echo "❌ Python not found! Please ensure Python is installed and available in PATH."
-  echo "   On Windows, you can install from the Microsoft Store or use a virtual environment."
+if ! command -v uv >/dev/null 2>&1; then
+  echo "uv not found. Install it from:"
+  echo "https://docs.astral.sh/uv/getting-started/installation/"
   exit 1
 fi
 
-echo "Using Python: $PYTHON_CMD"
+echo "Using uv: $(uv --version)"
 
 # Run Ruff if available, fail if not found
-if $PYTHON_CMD -m ruff --version >/dev/null 2>&1; then
+if uv run ruff --version >/dev/null 2>&1; then
   # Get list of staged Python files to only format those
   STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | { grep -E '\.py$' || true; } | tr '\n' ' ')
   if [ -n "$STAGED_FILES" ]; then
-    echo "$PYTHON_CMD -m ruff format $STAGED_FILES"
-    $PYTHON_CMD -m ruff format $STAGED_FILES
+    echo "uv run ruff format $STAGED_FILES"
+    uv run ruff format $STAGED_FILES
 
-    echo "$PYTHON_CMD -m ruff check --fix $STAGED_FILES"
-    $PYTHON_CMD -m ruff check --fix $STAGED_FILES
+    echo "uv run ruff check --fix $STAGED_FILES"
+    uv run ruff check --fix $STAGED_FILES
 
     # Re-stage only the originally staged files that were modified
     echo "Re-staging formatted files..."
@@ -67,17 +50,17 @@ if $PYTHON_CMD -m ruff --version >/dev/null 2>&1; then
     echo "No staged Python files to format"
   fi
 else
-  echo "ERROR: Ruff not found. Install with: pip install ruff"
+  echo "ERROR: Ruff not found. Run: uv sync --dev"
   exit 1
 fi
 
-echo "$PYTHON_CMD -m ruff check ."
-$PYTHON_CMD -m ruff check .
+echo "uv run ruff check ."
+uv run ruff check .
 
 # Optionally run tests if PRECOMMIT_RUN_TESTS is enabled
 if [ "${PRECOMMIT_RUN_TESTS:-0}" != "0" ]; then
   echo "Running tests (PRECOMMIT_RUN_TESTS enabled)..."
-  $PYTHON_CMD -m pytest -q
+  uv run pytest -q
   TEST_STATUS=$?
   if [ $TEST_STATUS -ne 0 ]; then
     echo "Tests failed! Commit aborted."
@@ -88,7 +71,7 @@ fi
 
 # Increment version number as part of the commit
 echo "Incrementing version number..."
-$PYTHON_CMD -c "
+uv run python -c "
 import os
 import re
 

@@ -1,99 +1,76 @@
 #!/usr/bin/env python3
 """
-Update script for LeetIRCPythonBot dependencies.
+Update LeetIRCPythonBot dependencies with uv.
 
-This script upgrades pip and all Python dependencies to their latest versions,
-then updates requirements.txt and requirements-dev.txt with the new versions.
+The dependency source of truth is pyproject.toml. This script refreshes uv.lock
+to the latest compatible package versions, syncs the local environment, and
+prints the resulting dependency changes.
 """
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
-import platform
 
-# Project root (directory containing this script)
 PROJECT_ROOT = Path(__file__).parent.resolve()
 
-# Detect platform and set correct virtualenv Python path
-if platform.system() == "Windows":
-    VENV_PYTHON = PROJECT_ROOT / "venv" / "Scripts" / "python.exe"
-    GREP_CMD = "Select-String"
-    PYTHON_CMD = "python"
-else:
-    VENV_PYTHON = PROJECT_ROOT / "venv" / "bin" / "python"
-    GREP_CMD = "grep -E"
-    PYTHON_CMD = "python3"
 
-
-def run_command(cmd, description=""):
-    """Run a shell command and print output."""
+def run_command(args: list[str], description: str) -> bool:
+    """Run a command in the project root and stream output."""
     print(f"\n{'=' * 60}")
-    print(f"Running: {description or cmd}")
+    print(f"Running: {description}")
     print(f"{'=' * 60}")
-    result = subprocess.run(cmd, shell=True, capture_output=False, text=True)
+    result = subprocess.run(args, cwd=PROJECT_ROOT, check=False)  # noqa: S603
     if result.returncode != 0:
-        print(f"❌ Command failed with exit code {result.returncode}")
+        print(f"Command failed with exit code {result.returncode}")
         return False
     return True
 
 
-def main():
-    print("🚀 LeetIRCPythonBot Dependency Updater")
-    print(f"📁 Project root: {PROJECT_ROOT}")
+def main() -> int:
+    print("LeetIRCPythonBot uv dependency updater")
+    print(f"Project root: {PROJECT_ROOT}")
 
-    # Step 1: Upgrade pip
-    print("\n📦 Step 1: Upgrading pip...")
-    run_command(f'"{VENV_PYTHON}" -m pip install --upgrade pip', "Upgrade pip")
+    uv = shutil.which("uv")
+    if uv is None:
+        print("uv is required. Install it from:")
+        print("https://docs.astral.sh/uv/getting-started/installation/")
+        return 1
+    git = shutil.which("git")
 
-    # Step 2: Install/upgrade all runtime dependencies
-    print("\n📦 Step 2: Upgrading runtime dependencies (requirements.txt)...")
-    if (PROJECT_ROOT / "requirements.txt").exists():
-        run_command(
-            f'"{VENV_PYTHON}" -m pip install --upgrade -r requirements.txt',
-            "Upgrade runtime deps"
-        )
-    else:
-        print("⚠️  requirements.txt not found, skipping runtime deps")
+    steps = [
+        ([uv, "lock", "--upgrade"], "Resolve latest compatible dependencies"),
+        ([uv, "sync", "--dev"], "Sync local environment"),
+        ([uv, "run", "python", "-m", "pytest", "-q"], "Run tests"),
+    ]
+    for args, description in steps:
+        if not run_command(args, description):
+            return 1
 
-    # Step 3: Install/upgrade all dev dependencies
-    print("\n📦 Step 3: Upgrading dev dependencies (requirements-dev.txt)...")
-    if (PROJECT_ROOT / "requirements-dev.txt").exists():
-        run_command(
-            f'"{VENV_PYTHON}" -m pip install --upgrade -r requirements-dev.txt',
-            "Upgrade dev deps"
-        )
-    else:
-        print("⚠️  requirements-dev.txt not found, skipping dev deps")
+    if git is None:
+        print("\nGit not found; skipping dependency diff.")
+        return 0
 
-    # Step 4: Freeze exact versions to requirements files
-    print("\n📦 Step 4: Freezing exact versions to requirements.txt...")
-    run_command(
-        f'"{VENV_PYTHON}" -m pip freeze > requirements.txt',
-        "Freeze all installed packages"
-    )
-
-    # Step 5: Show what changed (compared to git)
-    print("\n📦 Step 5: Checking what changed...")
-    result = subprocess.run(
-        "git diff -- requirements.txt requirements-dev.txt",
-        shell=True, capture_output=True, text=True, cwd=PROJECT_ROOT
+    result = subprocess.run(  # noqa: S603
+        [git, "diff", "--", "pyproject.toml", "uv.lock"],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
     )
     if result.stdout:
-        print("Changes to requirements.txt:")
-        print(result.stdout[:2000])  # Limit output
+        print("\nDependency file changes:")
+        print(result.stdout[:4000])
     else:
-        print("No changes detected in requirements files (they may already be up to date)")
+        print("\nNo dependency file changes detected.")
 
-    # Step 6: List current key packages
-    print("\n📋 Current installed versions of key packages:")
-    run_command(
-        f'"{VENV_PYTHON}" -m pip list | {GREP_CMD} -E "beautifulsoup4|feedparser|google-api|openai|pandas|openpyxl|python-dotenv|pytz|requests|playwright|tzdata|urwid|psutil|pyperclip|setuptools|xdk|ruff|coverage|pytest|pytest-xdist"',
-        "List key package versions"
-    )
-
-    print("\n✅ Update complete!")
-    print(f"💡 Next: run tests with: {PYTHON_CMD} -m pytest -v --tb=short -n auto")
+    print("\nUpdate complete.")
+    print("Common commands:")
+    print("  uv run python src/main.py")
+    print("  uv run pytest -v --tb=short -n auto")
+    print("  uv run ruff check .")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

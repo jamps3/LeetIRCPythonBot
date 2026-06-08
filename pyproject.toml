@@ -2,9 +2,58 @@
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "leetircpythonbot"
+version = "2.4.74"
+description = "Python IRC bot with multi-server support, services, and a modern command system"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "beautifulsoup4",
+    "defusedxml",
+    "feedparser",
+    "google-api-python-client",
+    "isodate",
+    "openai",
+    "openpyxl",
+    "pandas",
+    "playwright",
+    "psutil",
+    "pyperclip",
+    "python-dotenv",
+    "pytz",
+    "requests",
+    "rich",
+    "urwid",
+    "xdk",
+]
+
+[dependency-groups]
+dev = [
+    "bandit",
+    "coverage",
+    "pip-audit",
+    "pre-commit",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-xdist",
+    "ruff",
+]
+
+[tool.uv]
+package = false
+
 [tool.ruff]
 line-length = 88
 target-version = "py311"
+extend-exclude = [
+    ".pytest_cache",
+    ".tmp",
+    ".uv-cache",
+    ".venv",
+    "venv",
+]
 
 [tool.ruff.lint]
 extend-ignore = [

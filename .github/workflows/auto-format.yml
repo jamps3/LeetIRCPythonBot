@@ -24,12 +24,15 @@ jobs:
       with:
         python-version: "3.13"
 
-    - name: Install Ruff
-      run: |
-        python -m pip install --upgrade pip
-        pip install ruff==0.15.13
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v8
+      with:
+        enable-cache: true
+
+    - name: Install formatter
+      run: uv sync --dev --locked
 
     - name: Check formatting with Ruff (no writes)
       run: |
-        ruff format --check --diff .
-        ruff check --select I .
+        uv run ruff format --check --diff .
+        uv run ruff check --select I .

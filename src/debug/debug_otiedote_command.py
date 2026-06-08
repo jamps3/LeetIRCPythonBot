@@ -34,7 +34,7 @@ def test_import():
     except ImportError as e:
         print(f"Failed to import otiedote service: {e}")
         print("\nMake sure playwright is installed:")
-        print("  pip install playwright")
+        print("  uv sync --dev")
         print("  python -m playwright install firefox")
         return None
 

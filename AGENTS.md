@@ -9,26 +9,24 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 1. Common commands
 
  - First-time setup (Windows PowerShell):
-   - python -m venv venv
-   - .\venv\Scripts\Activate.ps1
-   - pip install --upgrade pip
-   - if (Test-Path requirements.txt) { pip install -r requirements.txt }
-   - if (Test-Path requirements-dev.txt) { pip install -r requirements-dev.txt }
+   - uv sync --dev
 
  - First-time setup (bash/zsh):
-   - python3 -m venv venv
-   - source venv/bin/activate
-   - pip install --upgrade pip
-   - [ -f requirements.txt ] && pip install -r requirements.txt
-   - [ -f requirements-dev.txt ] && pip install -r requirements-dev.txt
+   - uv sync --dev
+
+- Dependency management:
+  - `pyproject.toml` is the source of truth for direct runtime and dev dependencies.
+  - `uv.lock` stores exact resolved versions. Do not reintroduce `requirements.txt` or `requirements-dev.txt` unless an external non-uv system truly requires exported requirements.
+  - Upgrade to latest compatible libraries with: uv lock --upgrade
+  - Sync the local environment from the lockfile with: uv sync --dev
 
 - Run the bot locally:
-  - pwsh: python .\main.py
-  - bash/zsh: python3 main.py
+  - pwsh: uv run python .\src\main.py
+  - bash/zsh: uv run python src/main.py
   - Useful flags:
-    - python main.py -l DEBUG # verbose logs
-    - python main.py -nick MyBot # override nickname
-    - python main.py -api # show API keys in logs
+    - uv run python src/main.py -l DEBUG # verbose logs
+    - uv run python src/main.py -nick MyBot # override nickname
+    - uv run python src/main.py -api # show API keys in logs
 
 - Configuration: `data/state.json` stores bot settings and IRC servers. `.env` stores API keys and optional environment overrides.
   - For local test parity with CI, a minimal .env can include:
@@ -44,28 +42,27 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
   - Optional API keys: OPENAI_API_KEY, WEATHER_API_KEY, ELECTRICITY_API_KEY, YOUTUBE_API_KEY
 
 - Linting & formatting:
-  - Ruff format: ruff format .
-  - Ruff lint: ruff check .
-  - Ruff lint with fixes, including import sorting: ruff check --fix .
+  - Ruff format: uv run ruff format .
+  - Ruff lint: uv run ruff check .
+  - Ruff lint with fixes, including import sorting: uv run ruff check --fix .
   - Pre-commit setup (runs Ruff before commit)
 
 - CI reference (GitHub Actions):
-  - Installs: python-dotenv pytest pytest-xdist (and optionally requirements.txt)
-  - Runs tests via: python -m pytest -v --tb=short -n auto
-  - Lint job uses: ruff format --check and ruff check
+  - Installs uv and syncs dependencies with: uv sync --dev --locked
+  - Runs tests via: uv run pytest -v --tb=short -n auto
+  - Lint job uses: uv run ruff format --check and uv run ruff check
 
 - Local commands matching CI (pwsh):
   - $env:PYTHONPATH = (Get-Location)
-  - python -m pytest -v --tb=short -n auto
-  - Prefer the repo venv when available: .\venv\Scripts\python.exe -m pytest -v --tb=short -n auto
+  - uv run pytest -v --tb=short -n auto
   - Full pytest runs can take time: keep `-n auto` enabled and allow a generous timeout (at least 5 minutes).
   - Lint (check-only):
-    - ruff format --check --diff .
-    - ruff check .
+    - uv run ruff format --check --diff .
+    - uv run ruff check .
   - Security (optional, mirrors CI uploads but local files only):
-    - ruff check --select S .
-    - pip-audit -r requirements.txt -r requirements-dev.txt --progress-spinner off
-    - One-time/static second opinion: bandit -r src -ll
+    - uv run ruff check --select S .
+    - uv run pip-audit --cache-dir .pip-audit-cache --progress-spinner off
+    - uv run bandit -r src -ll
   - Ruff security is intentionally stricter than before: `S110`, `S112`, and `S311` are not globally ignored. Any intentional silent exception handling is scoped through per-file ignores in `pyproject.toml`, and random choices in bot/game behavior should use `secrets.SystemRandom()` instead of `random`.
 
 2. High-level architecture
@@ -166,14 +163,14 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 - Some tests intentionally skip external integrations; CI installs only minimal deps and relies on mocks/importorskip where needed.
 - Before finishing any task, run the full test suite and ensure all tests pass. Do not treat a task as complete while any test is failing.
 - Tests must never read from or write to the development machine's `data/state.json`. Use `tmp_path`, another temporary directory, or the pytest `STATE_FILE` sandbox for state persistence.
- - All tests: python -m pytest -v --tb=short -n auto
-  - Single file: python -m pytest tests/test_config_new.py -v
-  - Single test node: python -m pytest tests/test_config_new.py::test_load_env_file -v
-  - With coverage (if pytest-cov installed): python -m pytest tests -v --cov=.
+ - All tests: uv run pytest -v --tb=short -n auto
+  - Single file: uv run pytest tests/test_config_new.py -v
+  - Single test node: uv run pytest tests/test_config_new.py::test_load_env_file -v
+  - With coverage: uv run pytest tests -v --cov=.
 - Typical selective runs while iterating on a command or service:
-  - Admin commands: python -m pytest tests/test_commands_admin.py -k password -v
-  - Crypto service: python -m pytest tests/test_service_crypto\*.py -v
-  - Flood protection: python -m pytest tests/test_server_flood_protection.py -v
+  - Admin commands: uv run pytest tests/test_commands_admin.py -k password -v
+  - Crypto service: uv run pytest tests/test_service_crypto\*.py -v
+  - Flood protection: uv run pytest tests/test_server_flood_protection.py -v
 
 5. Focus files when modifying behavior
 

@@ -36,6 +36,7 @@ def check_pytest_plugin(plugin_name):
     """Check if a pytest plugin is available."""
     try:
         import importlib.util
+
         return importlib.util.find_spec(plugin_name) is not None
     except ImportError:
         return False
@@ -46,21 +47,25 @@ def main():
     extra_args = []
 
     # Add -n 8 if pytest-xdist is available
-    if check_pytest_plugin('xdist'):
-        extra_args.extend(['-n', '12'])
+    if check_pytest_plugin("xdist"):
+        extra_args.extend(["-n", "12"])
 
     # Add coverage flags if pytest-cov is available
-    if check_pytest_plugin('pytest_cov'):
-        extra_args.extend(['--cov', '--cov-config=.coveragerc'])
+    if check_pytest_plugin("pytest_cov"):
+        extra_args.extend(["--cov", "--cov-config=.coveragerc"])
 
     # Clean up test files before starting
     cleanup_test_files()
 
     # Run pytest and forward all args, always disable warnings
-    cmd = [sys.executable, '-m', 'pytest', '-p', 'no:warnings'] + extra_args + sys.argv[1:]
+    cmd = (
+        [sys.executable, "-m", "pytest", "-p", "no:warnings"]
+        + extra_args
+        + sys.argv[1:]
+    )
 
     try:
-        result = subprocess.run(cmd)
+        result = subprocess.run(cmd)  # noqa: S603 - forwards explicit pytest args.
         return result.returncode
     except subprocess.CalledProcessError as e:
         # pytest returns non-zero on test failures - that's expected, not an error

@@ -1,29 +1,40 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-SESSION_NAME="bot"
-VENV_PYTHON="venv/bin/python"
+SESSION_NAME="${SESSION_NAME:-bot}"
 
-# Check if virtual environment exists, create if not
-if [ ! -d "venv" ]; then
-    echo "Virtual environment not found. Creating one..."
-    python3 -m venv venv || exit 1
+if ! command -v uv >/dev/null 2>&1; then
+  echo "uv is required. Install it from https://docs.astral.sh/uv/getting-started/installation/"
+  exit 1
 fi
 
-# Start tmux session or attach if already running
+BOT_ARGS=""
+if [ "$#" -gt 0 ]; then
+  printf -v BOT_ARGS " %q" "$@"
+fi
+
+START_COMMAND="uv sync && uv run python src/main.py$BOT_ARGS"
+
+if [ -n "${TMUX:-}" ]; then
+  echo "Already inside tmux; running bot in the current session."
+  bash -lc "$START_COMMAND"
+  exit $?
+fi
+
+if ! command -v tmux >/dev/null 2>&1; then
+  echo "tmux is required for ./run outside an existing tmux session."
+  echo "Use: uv run python src/main.py$BOT_ARGS"
+  exit 1
+fi
+
 if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
-    echo "Session $SESSION_NAME already exists. Attaching..."
-    tmux attach -t "$SESSION_NAME"
-else
-    echo "Starting new tmux session: $SESSION_NAME"
-
-    BOT_ARGS=""
-    if [ "$#" -gt 0 ]; then
-        printf -v BOT_ARGS " %q" "$@"
-    fi
-    START_COMMAND="$VENV_PYTHON -m pip install --upgrade -r requirements.txt && $VENV_PYTHON src/main.py$BOT_ARGS"
-
-    # Start attached so first-run configuration prompts have a live terminal.
-    # Keep the shell open after failure so the error remains visible.
-    tmux new-session -s "$SESSION_NAME" \
-        "$START_COMMAND; status=\$?; echo; echo \"Bot bootstrap exited with status \$status\"; exec bash"
+  echo "Session $SESSION_NAME already exists. Attaching..."
+  exec tmux attach -t "$SESSION_NAME"
 fi
+
+echo "Starting new tmux session: $SESSION_NAME"
+
+# Start attached so first-run configuration prompts have a live terminal.
+# Keep the shell open after failure so the error remains visible.
+exec tmux new-session -s "$SESSION_NAME" \
+  "$START_COMMAND; status=\$?; echo; echo \"Bot exited with status \$status\"; exec bash"

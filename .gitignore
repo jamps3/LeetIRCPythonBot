@@ -133,6 +133,9 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.pip-audit-cache/
+.tmp/
+.uv-cache/
 env/
 venv/
 ENV/
@@ -206,6 +209,7 @@ data/~$alkon-hinnasto-tekstitiedostona.xlsx
 test-coverage.txt
 test-results.txt
 test-results.xml
+pip-audit-report.json
 test_state
 
 # Documentation and plans

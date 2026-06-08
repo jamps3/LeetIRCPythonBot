@@ -22,14 +22,13 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          # Install minimal required dependencies for testing
-          pip install python-dotenv pytest pytest-cov pytest-xdist
-          # Don't install optional dependencies as they are mocked in tests
-          # Install test dependencies if we had a requirements.txt
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        run: uv sync --dev --locked
 
       - name: Setup test environment
         run: |
@@ -49,9 +48,9 @@ jobs:
 
           # Debug: Show the environment
           echo "Current directory: $(pwd)"
-          echo "Python version: $(python --version)"
+          echo "Python version: $(uv run python --version)"
           echo "Python path:"
-          python -c "import sys; [print(f'  {p}') for p in sys.path]"
+          uv run python -c "import sys; [print(f'  {p}') for p in sys.path]"
           echo "Files in current directory:"
           ls -la
 
@@ -60,7 +59,7 @@ jobs:
           # Set PYTHONPATH to include current directory
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           echo "Running all tests with pytest (parallel)..."
-          python -m pytest -v --tb=short -n auto --junitxml=test-results.xml --cov=src --cov-report=json:coverage.json
+          uv run pytest -v --tb=short -n auto --junitxml=test-results.xml --cov=src --cov-report=json:coverage.json
         env:
           # Set dummy environment variables for testing
           IRC_NICKNAME: test_bot
@@ -165,18 +164,21 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+
       - name: Install linting tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install ruff==0.15.13
+        run: uv sync --dev --locked
 
       - name: Check code formatting with Ruff
         run: |
-          ruff format --check --diff .
+          uv run ruff format --check --diff .
 
       - name: Lint with Ruff
         run: |
-          ruff check .
+          uv run ruff check .
 
   security:
     name: security (3.13)
@@ -190,18 +192,21 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+
       - name: Install security tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install ruff==0.15.13 pip-audit==2.10.0
+        run: uv sync --dev --locked
 
       - name: Run Ruff security checks
         run: |
-          ruff check --select S .
+          uv run ruff check --select S .
 
       - name: Check for known security vulnerabilities
         run: |
-          pip-audit -r requirements.txt -r requirements-dev.txt --progress-spinner off -f json -o pip-audit-report.json
+          uv run pip-audit --cache-dir .pip-audit-cache --progress-spinner off -f json -o pip-audit-report.json
 
       - name: Upload security reports
         uses: actions/upload-artifact@v7

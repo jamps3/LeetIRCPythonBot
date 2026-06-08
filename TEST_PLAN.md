@@ -115,13 +115,13 @@ Overall Coverage: **82%**
 
 ```bash
 # Run tests with coverage for specific file
-python -m pytest tests/test_service_otiedote_json.py -v --cov=src/services/otiedote_json_service.py
+uv run pytest tests/test_service_otiedote_json.py -v --cov=src/services/otiedote_json_service.py
 
 # Run all tests and see coverage
-python -m pytest --cov=. --cov-report=term-missing tests/
+uv run pytest --cov=. --cov-report=term-missing tests/
 
 # Run only low-coverage file tests
-python -m pytest tests/test_lemmatizer.py tests/test_service_ipfs.py tests/test_service_otiedote_json.py -v
+uv run pytest tests/test_lemmatizer.py tests/test_service_ipfs.py tests/test_service_otiedote_json.py -v
 ```
 
 ---

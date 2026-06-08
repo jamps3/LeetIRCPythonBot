@@ -38,24 +38,23 @@ Advanced IRC Bot made with Python. Extended API use and highly customizable.
 
 ## Installation
 
-Not needed!
-Run file has all this included:
+Install `uv`, then sync the locked project environment:
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+uv sync --dev
 ```
+
+Dependencies are managed in `pyproject.toml`, and exact resolved versions are stored in `uv.lock`.
+This project intentionally does not keep `requirements.txt` or `requirements-dev.txt`; export requirements only if an external system cannot use uv.
 
 ### For development: enable pre-commit hooks (format before commit)
 
 ```bash
-pip install pre-commit
-pre-commit install
+uv run pre-commit install
 # Optionally enforce on push too
-# pre-commit install --hook-type pre-push
+# uv run pre-commit install --hook-type pre-push
 # Format everything once
-pre-commit run -a
+uv run pre-commit run -a
 ```
 
 ### Or use the built-in setup script (includes test-before-push protection):
@@ -92,63 +91,39 @@ ADMIN_PASSWORD=your_secure_password_here
 
 ## Simple
 
-Options to run in: Screen, Tmux or plain Python. I prefer Tmux.
+Run the bot through uv, or use `./run` to start it in tmux:
 
 ```bash
-screen python3 main.py
-tmux new-session -d -s bot
-python3 main.py
+screen uv run python src/main.py
+uv run python src/main.py
+./run
 ```
 
-## Using run/start file to start the bot
+## Using the run script
 
 ```bash
 ./run
-
-After shutting down the bot, we can reuse the activated venv, tmux and skip installing requirements.txt and just use ./start:
-./start
 ```
 
-What does the ./run script do?
-
-✅Creates or activates virtual environment
-✅Starts new tmux session with the name "bot"
-✅Installs requirements with pip
-✅Starts the bot with python3 main.py
+The `./run` script syncs dependencies with uv and runs `uv run python src/main.py` with any forwarded arguments. If you are already inside tmux, it uses the current session. Otherwise, it starts or attaches to a tmux session named `bot`.
 
 ## .\run Script:
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-SESSION_NAME="bot"
-VENV_PATH="venv/bin/activate"
-BOT_COMMAND="python3 main.py $@"
-LOG_FILE="crashlog.txt"
+SESSION_NAME="${SESSION_NAME:-bot}"
 
-# Check if virtual environment exists, create if not
-if [ ! -d "venv" ]; then
-    echo "Virtual environment not found. Creating one..."
-    python3 -m venv venv
-fi
+START_COMMAND="uv sync && uv run python src/main.py $*"
 
-# Start tmux session or attach if already running
-if tmux has-session -t $SESSION_NAME 2>/dev/null; then
-    echo "Session $SESSION_NAME already exists. Attaching..."
-    tmux attach -t $SESSION_NAME
+if [ -n "${TMUX:-}" ]; then
+  bash -lc "$START_COMMAND"
+elif tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+  exec tmux attach -t "$SESSION_NAME"
 else
-    echo "Starting new tmux session: $SESSION_NAME"
-    tmux new-session -d -s $SESSION_NAME
-
-    # Activate venv, install requirements, and run bot inside tmux
-    tmux send-keys -t $SESSION_NAME "source $VENV_PATH" C-m
-    tmux send-keys -t $SESSION_NAME "pip install --upgrade -r requirements.txt" C-m
-    tmux send-keys -t $SESSION_NAME "$BOT_COMMAND" C-m
-    #tmux send-keys -t $SESSION_NAME "$BOT_COMMAND; exit" C-m
-    #tmux send-keys -t $SESSION_NAME "$BOT_COMMAND >> $LOG_FILE 2>&1; exit" C-m  # Redirect stdout and stderr to log file
-
-    tmux attach -t $SESSION_NAME
-fi  # This closes the if-else block correctly
+  exec tmux new-session -s "$SESSION_NAME" "$START_COMMAND; exec bash"
+fi
 ```
 
 ## Technical Implementation
@@ -205,8 +180,7 @@ Configuration & Docs /
 └── WARP.md                       # Notes for Warp terminal/Agent usage
 
 Developer Tools & Scripts /
-├── run                           # Bootstrap script: venv + tmux + install + start
-├── start                         # Fast start: reuse venv/tmux and run main.py
+├── run                           # uv + tmux launcher
 └── conftest.py                   # Pytest fixtures and shared test config
 ```
 
@@ -258,8 +232,7 @@ Developer Tools & Scripts /
 - **Documentation**: [`README.md`](README.md) - This comprehensive guide
 - **Diagrams**: [`UML.md`](UML.md) - System architecture diagrams
 - **Warp Notes**: [`WARP.md`](WARP.md) - Terminal/Agent usage notes
-- **Bootstrap**: [`run`](run) - Full setup script (venv + tmux + install + start)
-- **Quick Start**: [`start`](start) - Fast restart script (reuse existing setup)
+- **Launcher**: [`run`](run) - uv + tmux launcher
 - **Test Config**: [`conftest.py`](conftest.py) - Pytest fixtures and shared test setup
 
 Data flow overview:
@@ -321,15 +294,15 @@ git push  # Runs tests first, cancels if any fail
 ```bash
 .\test         # Run all tests (full output)
 .\test -q      # Run all tests (quiet mode)
-python -m pytest tests/specific_test.py  # Run specific test
+uv run pytest tests/specific_test.py  # Run specific test
 ```
 
 ### Security Checks
 
 ```bash
-ruff check --select S .
-pip-audit -r requirements.txt -r requirements-dev.txt --progress-spinner off
-bandit -r src -ll
+uv run ruff check --select S .
+uv run pip-audit --cache-dir .pip-audit-cache --progress-spinner off
+uv run bandit -r src -ll
 ```
 
 Ruff security checks are configured to keep `S110`, `S112`, and `S311` enabled globally. Intentional silent cleanup/parser cases are limited to file-specific ignores in `pyproject.toml`, and bot/game randomness should use `secrets.SystemRandom()` instead of Python's default `random` module.

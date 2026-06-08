@@ -105,7 +105,7 @@
 
 ### Run Individual Test Files
 ```bash
-python -m pytest tests/test_config.py -v
+uv run pytest tests/test_config.py -v
 ```
 
 ### Run All Tests
@@ -113,30 +113,30 @@ python -m pytest tests/test_config.py -v
 Run all tests with coverage and xdist:
 .\test
 or without them:
-python -m pytest -v
+uv run pytest -v
 ```
 
 ### Run with Coverage (if pytest-cov installed)
 ```bash
 pytest --cov --cov-config=.coveragerc
-python -m pytest --cov=. -v
+uv run pytest --cov=. -v
 ```
 
 ### Count tests
 ```bash
-python -m pytest --collect-only <test_file.py> | Select-String -Pattern "Function .*test_" | Measure-Object -Line
+uv run pytest --collect-only <test_file.py> | Select-String -Pattern "Function .*test_" | Measure-Object -Line
 ```
 Per-file counts
 ```bash
-python -m pytest --collect-only -q tests 2>$null | ForEach-Object { ($_ -split '::')[0] } | Group-Object | Sort-Object Name | Select-Object @{n='File';e={$.Name}}, @{n='Tests';e={$.Count}}
+uv run pytest --collect-only -q tests 2>$null | ForEach-Object { ($_ -split '::')[0] } | Group-Object | Sort-Object Name | Select-Object @{n='File';e={$.Name}}, @{n='Tests';e={$.Count}}
 ```
 Total tests
 ```bash
-python -m pytest --collect-only -q tests 2>$null | Measure-Object -Line
+uv run pytest --collect-only -q tests 2>$null | Measure-Object -Line
 ```
 Everything in one go (nice output)
 ```bash
-$nodes = python -m pytest --collect-only -qq tests 2>$null | Where-Object { $_ -match '::' }; $files = $nodes | ForEach-Object { ($_ -split '::')[0] }; $group = $files | Group-Object | Sort-Object Name; $group | Select-Object @{n='File';e={$_.Name}}, @{n='Tests';e={$_.Count}} | Format-Table -AutoSize; "Total tests: $($nodes.Count)"
+$nodes = uv run pytest --collect-only -qq tests 2>$null | Where-Object { $_ -match '::' }; $files = $nodes | ForEach-Object { ($_ -split '::')[0] }; $group = $files | Group-Object | Sort-Object Name; $group | Select-Object @{n='File';e={$_.Name}}, @{n='Tests';e={$_.Count}} | Format-Table -AutoSize; "Total tests: $($nodes.Count)"
 ```
 
 ---

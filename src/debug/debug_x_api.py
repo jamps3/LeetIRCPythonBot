@@ -173,7 +173,7 @@ if __name__ == "__main__":
     print("✅ X API debug testing complete!")
     print()
     print("To enable X API functionality:")
-    print("1. Ensure xdk package is installed: pip install xdk")
+    print("1. Ensure project dependencies are installed: uv sync --dev")
     print("2. Set X_BEARER_TOKEN environment variable")
     print("3. Restart the bot")
     print()
