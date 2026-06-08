@@ -210,6 +210,78 @@ class TestIgnoreCommand:
 
         assert result == "Ignored commands:\nLibera: ping, weather"
 
+    @pytest.mark.parametrize("server_arg", ["irc.nerv.fi", "irc.nerv.fi:6697"])
+    def test_ignorecommand_accepts_host_for_derived_server_name(
+        self, tmp_path, monkeypatch, server_arg
+    ):
+        from cmd_modules import admin_privileged
+
+        state_file = tmp_path / "state.json"
+        state_file.write_text(
+            """
+{
+  "config": {
+    "servers": [
+      {
+        "host": "irc.nerv.fi",
+        "port": 6697,
+        "channels": ["#test"],
+        "banned_commands": []
+      }
+    ]
+  }
+}
+""".strip(),
+            encoding="utf-8",
+        )
+        server_config = ServerConfig(
+            name="irc.nerv.fi:6697",
+            host="irc.nerv.fi",
+            port=6697,
+            channels=["#test"],
+            banned_commands=[],
+        )
+        monkeypatch.setattr(
+            admin_privileged,
+            "get_config",
+            lambda: SimpleNamespace(
+                admin_password="secret",
+                state_file=str(state_file),
+                servers=[server_config],
+            ),
+        )
+        monkeypatch.setattr(
+            admin_privileged,
+            "get_config_manager",
+            lambda: SimpleNamespace(reload_config=Mock()),
+        )
+        live_server = SimpleNamespace(config=server_config)
+        context = CommandContext(
+            command="ignorecommand",
+            args=["secret", server_arg, "!about"],
+            raw_message=f"!ignorecommand secret {server_arg} !about",
+            is_console=False,
+        )
+
+        result = admin_privileged.ignore_command_command(
+            context,
+            {
+                "server_manager": SimpleNamespace(
+                    servers={"irc.nerv.fi:6697": live_server}
+                )
+            },
+        )
+
+        assert result == "✅ Ignoring !about on irc.nerv.fi:6697"
+        assert live_server.config.banned_commands == ["about"]
+        saved_state = json.loads(state_file.read_text(encoding="utf-8"))
+        assert saved_state["config"]["servers"][0]["banned_commands"] == ["about"]
+
+        context.args = ["secret", "list", "irc.nerv.fi"]
+        result = admin_privileged.ignore_command_command(context, {})
+
+        assert result == "Ignored commands:\nirc.nerv.fi:6697: about"
+
     def test_ignorecommand_rejects_bad_password(self):
         from cmd_modules import admin_privileged
 

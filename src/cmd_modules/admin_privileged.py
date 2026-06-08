@@ -14,6 +14,31 @@ def _normalize_command_name(command_name: str) -> str:
     return str(command_name or "").strip().lstrip("!/").lower()
 
 
+def _normalize_server_identifier(server_name: str) -> str:
+    """Normalize a server identifier for human-entered lookups."""
+    return str(server_name or "").strip().lower()
+
+
+def _server_identifier_candidates(server) -> set[str]:
+    """Return accepted identifiers for a configured server."""
+    candidates = {
+        _normalize_server_identifier(getattr(server, "name", "")),
+        _normalize_server_identifier(getattr(server, "host", "")),
+    }
+    host = _normalize_server_identifier(getattr(server, "host", ""))
+    port = getattr(server, "port", None)
+    if host and port is not None:
+        candidates.add(f"{host}:{port}")
+    return {candidate for candidate in candidates if candidate}
+
+
+def _matches_server_identifier(server, server_name: str) -> bool:
+    """Return True when user input identifies the configured server."""
+    return _normalize_server_identifier(server_name) in _server_identifier_candidates(
+        server
+    )
+
+
 def verify_admin_password(args):
     """Check if the first argument is the correct admin password."""
     if not args:
@@ -35,13 +60,24 @@ def _get_state_server_list(state: dict) -> list:
     return []
 
 
+def _state_server_identifier_candidates(server: dict) -> set[str]:
+    """Return accepted identifiers for a state.json server entry."""
+    name = _normalize_server_identifier(server.get("name", ""))
+    host = _normalize_server_identifier(server.get("host", ""))
+    port = server.get("port")
+    candidates = {name, host}
+    if host and port is not None:
+        candidates.add(f"{host}:{port}")
+    return {candidate for candidate in candidates if candidate}
+
+
 def _find_state_server(servers: list, server_name: str) -> dict | None:
-    """Find a server entry by configured server name, case-insensitively."""
-    wanted = str(server_name or "").strip().lower()
+    """Find a server entry by configured name, host, or host:port."""
+    wanted = _normalize_server_identifier(server_name)
     for server in servers:
         if not isinstance(server, dict):
             continue
-        if str(server.get("name") or "").strip().lower() == wanted:
+        if wanted in _state_server_identifier_candidates(server):
             return server
     return None
 
@@ -57,9 +93,13 @@ def _sync_live_server_ignore(bot_functions, server_name: str, ignored_commands: 
         return
 
     for name, server in servers.items():
-        if str(name).lower() != str(server_name).lower():
-            continue
         config = getattr(server, "config", None)
+        if _normalize_server_identifier(name) != _normalize_server_identifier(
+            server_name
+        ) and not (
+            config is not None and _matches_server_identifier(config, server_name)
+        ):
+            continue
         if config is not None:
             config.banned_commands = list(ignored_commands)
         return
@@ -100,7 +140,9 @@ def ignore_command_command(context: CommandContext, bot_functions):
         requested_server = args[1] if len(args) > 1 else None
         lines = []
         for server in servers:
-            if requested_server and server.name.lower() != requested_server.lower():
+            if requested_server and not _matches_server_identifier(
+                server, requested_server
+            ):
                 continue
             ignored = sorted(
                 {_normalize_command_name(cmd) for cmd in server.banned_commands if cmd}
@@ -125,7 +167,11 @@ def ignore_command_command(context: CommandContext, bot_functions):
         return "❌ Cannot ignore !ignorecommand"
 
     server_config = next(
-        (server for server in servers if server.name.lower() == server_name.lower()),
+        (
+            server
+            for server in servers
+            if _matches_server_identifier(server, server_name)
+        ),
         None,
     )
     if not server_config:
