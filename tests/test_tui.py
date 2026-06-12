@@ -714,6 +714,16 @@ class TestTUIManager:
         assert hasattr(tui_manager, "log_entries")
         assert hasattr(tui_manager, "command_history")
 
+    def test_tui_chrome_clips_instead_of_wrapping_into_body(self):
+        """Header/footer chrome should not wrap blue styling into the log body."""
+        tui_manager = TUIManager()
+        tui_manager.update_header()
+
+        assert tui_manager.header.wrap == "clip"
+        assert tui_manager.input_field.wrap == "clip"
+        assert tui_manager.header.rows((40,)) == 2
+        assert tui_manager.input_field.rows((40,)) == 1
+
     def test_process_input_filter_command(self):
         """Test processing filter commands."""
         tui_manager = TUIManager()

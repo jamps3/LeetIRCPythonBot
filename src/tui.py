@@ -1250,10 +1250,12 @@ class TUIManager:
         self._last_completion_text = ""  # Text when completion was started
 
         # Initialize basic UI components for tests
-        self.header = urwid.Text("")
+        self.header = urwid.Text("", wrap="clip")
         self.log_walker = urwid.SimpleListWalker([])
         self.log_display = NonFocusableListBox(self.log_walker)
-        self.input_field = urwid.Edit("> Enter message (! for bot, - for AI): ")
+        self.input_field = urwid.Edit(
+            "> Enter message (! for bot, - for AI): ", wrap="clip"
+        )
         self.log_file = None
 
         if bot_manager:
@@ -1286,10 +1288,12 @@ class TUIManager:
         self.log_entries = deque(old_entries, maxlen=self.log_buffer_size)
 
         # UI components
-        self.header = urwid.Text("")
+        self.header = urwid.Text("", wrap="clip")
         self.log_walker = urwid.SimpleListWalker([])
         self.log_display = NonFocusableListBox(self.log_walker)
-        self.input_field = urwid.Edit("> Enter message (! for bot, - for AI): ")
+        self.input_field = urwid.Edit(
+            "> Enter message (! for bot, - for AI): ", wrap="clip"
+        )
 
         # Additional views
         self.stats_view = StatsView(self)
