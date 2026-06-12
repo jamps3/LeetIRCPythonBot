@@ -58,7 +58,7 @@ class GPTService:
     ):
         # Prefer explicitly provided key; fall back to environment (.env)
         self.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
-        self.client = OpenAI(api_key=self.api_key)
+        self.client = OpenAI(api_key=self.api_key) if self.api_key else None
         self.model = os.getenv("OPENAI_MODEL", "gpt-5.4")
         self.history_file = (
             history_file if history_file is not None else CONVERSATION_HISTORY_FILE
@@ -222,6 +222,9 @@ class GPTService:
         history.append(user_message)
 
         try:
+            if self.client is None:
+                return "Authentication error with AI service."
+
             transcript = self._build_transcript(user_message, network, channel)
             response = self.client.responses.create(model=self.model, input=transcript)
             reply = (response.output_text or "").strip()

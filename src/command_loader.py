@@ -90,11 +90,6 @@ async def process_irc_command(
     if message.startswith("!help"):
         reply_target = sender
 
-    logger.debug(
-        f"Command from {sender} in {'private' if is_private else 'channel'} "
-        f"'{target}' -> reply_target: {reply_target}"
-    )
-
     context = CommandContext(
         command="",  # Will be filled by process_command_message
         args=[],  # Will be filled by process_command_message
@@ -117,28 +112,20 @@ async def process_irc_command(
 
     # Process the command
     try:
-        logger.debug(f"Processing IRC command message: {message} Context:{context}")
         response = await process_command_message(
             message, context, bot_functions_with_irc
         )
-        logger.debug(f"Command response: {response}")
 
         if response is not None:
             # Send response if needed
             if response.should_respond and response.message:
                 notice_message = bot_functions.get("notice_message")
                 wrap_func = bot_functions.get("wrap_irc_message_utf8_bytes")
-                logger.debug(
-                    f"notice_message function: {notice_message}, reply_target: {reply_target}"
-                )
 
                 if notice_message:
                     try:
                         # Always split by newlines for IRC safety (IRC messages cannot contain newlines)
                         lines = str(response.message).split("\n")
-                        logger.debug(
-                            f"Message split into {len(lines)} lines, split_long_messages: {response.split_long_messages}, wrap_func: {wrap_func}"
-                        )
 
                         for line in lines:
                             line = line.rstrip()
@@ -149,14 +136,8 @@ async def process_irc_command(
                                 # Split per line to respect IRC length limits using wrap function
                                 try:
                                     parts = wrap_func(line, reply_target, max_lines=10)
-                                    logger.debug(
-                                        f"Wrapped line into {len(parts)} parts"
-                                    )
                                     for part in parts:
                                         if part:
-                                            logger.debug(
-                                                f"Sending notice (wrapped): {part[:50]}... to {reply_target}"
-                                            )
                                             notice_message(
                                                 part, irc_connection, reply_target
                                             )
@@ -168,9 +149,6 @@ async def process_irc_command(
                                     notice_message(line, irc_connection, reply_target)
                             else:
                                 # Send line as-is without wrapping
-                                logger.debug(
-                                    f"Sending notice (no wrap): {line[:50]}... to {reply_target}"
-                                )
                                 notice_message(line, irc_connection, reply_target)
                     except Exception as send_error:
                         import traceback

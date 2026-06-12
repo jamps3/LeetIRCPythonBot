@@ -232,6 +232,38 @@ def test_process_x_api_request_uses_bearer_auth(handler, server, monkeypatch):
     handler._send_response.assert_called_once_with(server, "#chan", "🐦 hello from X")
 
 
+@pytest.mark.asyncio
+async def test_process_commands_skips_loader_for_non_command_messages(
+    handler, server, monkeypatch
+):
+    """Plain IRC text should produce one debug line and avoid command dispatch."""
+    debug_messages = []
+    monkeypatch.setattr(
+        message_handler.logger, "debug", lambda message: debug_messages.append(message)
+    )
+
+    import command_loader
+
+    process_mock = Mock()
+    monkeypatch.setattr(command_loader, "process_irc_command", process_mock)
+
+    await handler._process_commands(
+        {
+            "server": server,
+            "server_name": "srv",
+            "sender": "nick",
+            "ident_host": "nick@example",
+            "target": "#chan",
+            "text": "plain text",
+        }
+    )
+
+    process_mock.assert_not_called()
+    assert debug_messages == [
+        "Non-command message from nick in #chan on srv: plain text"
+    ]
+
+
 def test_process_x_api_request_logs_api_error_detail(handler, server, monkeypatch):
     monkeypatch.setenv("X_BEARER_TOKEN", "test-token")
     logged = []

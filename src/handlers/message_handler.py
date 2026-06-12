@@ -1268,13 +1268,15 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
         bot_functions = self._create_bot_functions(server, context)
 
-        # Create the IRC message shape consumed by command_loader.
-        message = f":{sender}!{ident_host} PRIVMSG {target.lower()} :{text}"
-        logger.debug(f"Constructed IRC message: {message}")
+        if not text.startswith(("!", "/")):
+            logger.debug(
+                f"Non-command message from {sender} in {target} on {server.config.name}: {text}"
+            )
+            return
 
         try:
             logger.debug(
-                f"Processing command from {sender} on {server.config.name}: {text}"
+                f"Processing command from {sender} in {target} on {server.config.name}: {text}"
             )
             from command_loader import process_irc_command
 
@@ -1286,8 +1288,6 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 ident_host,  # ident@host
                 bot_functions,  # function table
             )
-
-            logger.debug(f"Finished processing command from {sender}")
         except Exception as e:
             logger.error(f"Error @ _process_commands: {e}")
 

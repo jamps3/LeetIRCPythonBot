@@ -543,7 +543,6 @@ async def process_command_message(
     """
     command_name, args, raw_message = parse_command_message(message, command_prefix)
     if not command_name:
-        logger.debug(f"No command found in message: {message}")
         return None
 
     # Update context with parsed command info

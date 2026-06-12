@@ -7,16 +7,6 @@ This package contains all external service integrations for the IRC bot.
 from .crypto_service import CryptoService, create_crypto_service
 from .weather_service import WeatherService, create_weather_service
 
-# Conditional imports for services that depend on feedparser
-try:
-    from .fmi_warning_service import FMIWarningService, create_fmi_warning_service
-
-    _HAS_FMI_SERVICE = True
-except ImportError:
-    FMIWarningService = None
-    create_fmi_warning_service = None
-    _HAS_FMI_SERVICE = False
-
 try:
     from .otiedote_json_service import OtiedoteService, create_otiedote_service
 
@@ -46,6 +36,18 @@ try:
 except Exception:
     pass
 
+
+def __getattr__(name):
+    """Lazily expose optional services with heavier import dependencies."""
+    if name in {"FMIWarningService", "create_fmi_warning_service"}:
+        from .fmi_warning_service import FMIWarningService, create_fmi_warning_service
+
+        globals()["FMIWarningService"] = FMIWarningService
+        globals()["create_fmi_warning_service"] = create_fmi_warning_service
+        return globals()[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 # Build __all__ based on what's available
 __all__ = [
     "WeatherService",
@@ -57,10 +59,9 @@ __all__ = [
     "ipfs_service",
     "electricity_service",
     "eurojackpot_service",
+    "FMIWarningService",
+    "create_fmi_warning_service",
 ]
-
-if _HAS_FMI_SERVICE:
-    __all__.extend(["FMIWarningService", "create_fmi_warning_service"])
 
 if _HAS_OTIEDOTE_SERVICE:
     __all__.extend(["OtiedoteService", "create_otiedote_service"])
