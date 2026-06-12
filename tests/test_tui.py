@@ -47,6 +47,7 @@ def mock_urwid():
         mock_urwid.ExitMainLoop = Exception
         mock_urwid.Frame = Mock
         mock_urwid.ListBox = Mock
+        mock_urwid.Pile = Mock
 
         # SimpleListWalker needs to behave like a list for the tests
         def mock_simple_list_walker_init(self, contents=None):
@@ -724,6 +725,50 @@ class TestTUIManager:
         assert tui_manager.header.rows((40,)) == 2
         assert tui_manager.input_field.rows((40,)) == 1
 
+    def test_channel_bar_lists_joined_channels_with_irssi_shortcuts(
+        self, mock_bot_manager
+    ):
+        """Channel bar labels use numbers, then the keyboard top row."""
+        channels = [f"#chan{i}" for i in range(1, 12)]
+        mock_bot_manager.joined_channels = {"testserver": channels}
+        mock_bot_manager.active_channel = "#chan1"
+        mock_bot_manager.active_server = "testserver"
+
+        tui_manager = TUIManager(mock_bot_manager)
+        tui_manager.update_channel_bar()
+
+        channel_text = tui_manager.channel_bar.get_text()[0]
+        assert "*[1]#chan1" in channel_text
+        assert "[9]#chan9" in channel_text
+        assert "[0]#chan10" in channel_text
+        assert "[q]#chan11" in channel_text
+
+    def test_alt_channel_shortcut_selects_matching_joined_channel(
+        self, mock_bot_manager
+    ):
+        """Alt+q selects the first channel after Alt+0."""
+        channels = [f"#chan{i}" for i in range(1, 12)]
+        mock_bot_manager.joined_channels = {"testserver": channels}
+        mock_bot_manager.active_channel = "#chan1"
+        mock_bot_manager.active_server = "testserver"
+
+        def select_channel(channel_input):
+            channel, server = channel_input.split()
+            mock_bot_manager.active_channel = channel
+            mock_bot_manager.active_server = server
+            return f"Selected {channel} on {server} (already joined)"
+
+        mock_bot_manager._console_select_channel.side_effect = select_channel
+        tui_manager = TUIManager(mock_bot_manager)
+
+        tui_manager.handle_key("meta q")
+
+        mock_bot_manager._console_select_channel.assert_called_once_with(
+            "#chan11 testserver"
+        )
+        assert mock_bot_manager.active_channel == "#chan11"
+        assert "*[q]#chan11" in tui_manager.channel_bar.get_text()[0]
+
     def test_process_input_filter_command(self):
         """Test processing filter commands."""
         tui_manager = TUIManager()
@@ -838,7 +883,7 @@ class TestTUIManager:
         assert result is True
         assert len(tui_manager.log_entries) == original_count
         tui_manager.log_display.mouse_event.assert_called_once_with(
-            (80, 17), "mouse drag", 1, 4, 3, True
+            (80, 16), "mouse drag", 1, 4, 3, True
         )
 
     def test_f1_switches_to_isolated_help_view(self):

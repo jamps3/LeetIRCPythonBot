@@ -5,6 +5,7 @@ The default interface. Use --console for the simple interface.
 """
 
 import os
+import re
 import time
 import warnings
 from collections import deque
@@ -19,6 +20,8 @@ from state_utils import load_json_file, update_json_file
 # Suppress urwid deprecation warnings globally for this module
 warnings.filterwarnings("ignore", category=DeprecationWarning, module=".*urwid.*")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module=".*")
+
+CHANNEL_SHORTCUT_LABELS = list("1234567890qwertyuiopasdfghjklzxcvbnm")
 
 # Try to import clipboard functionality
 try:
@@ -1253,6 +1256,7 @@ class TUIManager:
         self.header = urwid.Text("", wrap="clip")
         self.log_walker = urwid.SimpleListWalker([])
         self.log_display = NonFocusableListBox(self.log_walker)
+        self.channel_bar = urwid.Text("", wrap="clip")
         self.input_field = urwid.Edit(
             "> Enter message (! for bot, - for AI): ", wrap="clip"
         )
@@ -1291,6 +1295,7 @@ class TUIManager:
         self.header = urwid.Text("", wrap="clip")
         self.log_walker = urwid.SimpleListWalker([])
         self.log_display = NonFocusableListBox(self.log_walker)
+        self.channel_bar = urwid.Text("", wrap="clip")
         self.input_field = urwid.Edit(
             "> Enter message (! for bot, - for AI): ", wrap="clip"
         )
@@ -1317,8 +1322,15 @@ class TUIManager:
         # Header with status information
         header = urwid.AttrMap(self.header, "header")
 
-        # Footer with input
-        footer = urwid.AttrMap(self.input_field, "footer")
+        # Footer with channel shortcuts above the input line.
+        self.footer_pile = urwid.Pile(
+            [
+                ("pack", urwid.AttrMap(self.channel_bar, "footer")),
+                ("pack", urwid.AttrMap(self.input_field, "footer")),
+            ],
+            focus_item=1,
+        )
+        footer = self.footer_pile
 
         # Main layout - use FocusProtectingFrame to prevent focus changes on body clicks
         import warnings
@@ -1377,6 +1389,89 @@ class TUIManager:
 
         status_text = f"{status_line1}\n{status_line2}"
         self.header.set_text(status_text)
+        self.update_channel_bar()
+
+    def _get_channel_shortcuts(self):
+        """Return connected joined channels paired with shortcut labels."""
+        if not self.bot_manager:
+            return []
+
+        try:
+            servers = getattr(self.bot_manager, "servers", {}) or {}
+            joined_channels = getattr(self.bot_manager, "joined_channels", {}) or {}
+        except Exception:
+            return []
+
+        shortcuts = []
+        for server_name in sorted(joined_channels):
+            server = servers.get(server_name)
+            if server is not None and not getattr(server, "connected", False):
+                continue
+            channels_value = joined_channels.get(server_name) or []
+            if isinstance(channels_value, (list, tuple)):
+                channels = list(channels_value)
+            else:
+                try:
+                    channels = sorted(channels_value, key=self._natural_sort_key)
+                except TypeError:
+                    channels = list(channels_value)
+
+            for channel in channels:
+                if len(shortcuts) >= len(CHANNEL_SHORTCUT_LABELS):
+                    return shortcuts
+                label = CHANNEL_SHORTCUT_LABELS[len(shortcuts)]
+                shortcuts.append((label, server_name, channel))
+
+        return shortcuts
+
+    @staticmethod
+    def _natural_sort_key(value):
+        """Sort text naturally so #chan2 comes before #chan10."""
+        return [
+            int(part) if part.isdigit() else part.lower()
+            for part in re.split(r"(\d+)", str(value))
+        ]
+
+    def update_channel_bar(self):
+        """Update the footer channel shortcut row."""
+        if not hasattr(self, "channel_bar") or not self.channel_bar:
+            return
+
+        shortcuts = self._get_channel_shortcuts()
+        if not shortcuts:
+            self.channel_bar.set_text("Channels: none")
+            return
+
+        active_server = getattr(self.bot_manager, "active_server", None)
+        active_channel = getattr(self.bot_manager, "active_channel", None)
+        parts = []
+        for label, server_name, channel in shortcuts:
+            prefix = (
+                "*"
+                if server_name == active_server and channel == active_channel
+                else ""
+            )
+            server_suffix = ""
+            if self._has_multiple_connected_servers():
+                server_suffix = f"@{server_name}"
+            parts.append(f"{prefix}[{label}]{channel}{server_suffix}")
+
+        self.channel_bar.set_text(" ".join(parts))
+
+    def _has_multiple_connected_servers(self):
+        """Return true when channel labels need a server suffix."""
+        if not self.bot_manager:
+            return False
+        try:
+            servers = getattr(self.bot_manager, "servers", {}) or {}
+            connected = [
+                server
+                for server in servers.values()
+                if getattr(server, "connected", False)
+            ]
+            return len(connected) > 1
+        except Exception:
+            return False
 
     def _get_dynamic_help_text(self) -> str:
         """Get dynamic help text based on current input."""
@@ -1554,13 +1649,14 @@ class TUIManager:
                         channel_name = f"#{channel_name}"
                     # Track the channel join
                     result = self.bot_manager._console_select_channel(channel_name)
-                    if result.startswith("Joined"):
+                    if result.startswith(("Joined", "Selected")):
                         server_name = self.bot_manager.active_server
+                        channel_name = self.bot_manager.active_channel or channel_name
                         if server_name not in self.joined_channels:
                             self.joined_channels[server_name] = set()
                         self.joined_channels[server_name].add(channel_name)
                         self.active_channel = channel_name
-                        self.update_header()
+                    self.update_header()
                     self.add_log_entry(
                         datetime.now(), "Console", "INFO", result, "SYSTEM"
                     )
@@ -1631,22 +1727,27 @@ class TUIManager:
         """Handle mouse events - route them to the appropriate child widget."""
         # Get the layout of the Frame
         head_size = self.header.rows((size[0],))
-        foot_size = self.input_field.rows((size[0],))
+        foot_size = self._footer_rows(size[0])
 
         # Check if the mouse event is in the header
         if row < head_size:
             # Header area - no special handling
             return False
 
-        # Check if the mouse event is in the footer (input field)
+        # Check if the mouse event is in the footer (channel row + input field)
         elif row >= size[1] - foot_size:
+            footer_row = row - (size[1] - foot_size)
+            channel_rows = self.channel_bar.rows((size[0],))
+            if footer_row < channel_rows:
+                return False
+
             # Input field area - let it handle the event
             return self.input_field.mouse_event(
-                (size[0], foot_size),
+                (size[0], self.input_field.rows((size[0],))),
                 event,
                 button,
                 col,
-                row - (size[1] - foot_size),
+                footer_row - channel_rows,
                 focus,
             )
 
@@ -1669,6 +1770,15 @@ class TUIManager:
             else:
                 self._focus_body()
             return result
+
+    def _footer_rows(self, maxcol):
+        """Return footer height for mouse/body row calculations."""
+        if hasattr(self, "footer_pile"):
+            try:
+                return self.footer_pile.rows((maxcol,), focus=True)
+            except TypeError:
+                return self.footer_pile.rows((maxcol,))
+        return self.input_field.rows((maxcol,)) + self.channel_bar.rows((maxcol,))
 
     def _get_completions(self, text):
         """Get command completions for the given text."""
@@ -1747,6 +1857,9 @@ class TUIManager:
         """Handle keyboard input."""
         if key in ("ctrl c", "ctrl C"):
             raise urwid.ExitMainLoop()
+
+        elif self._handle_channel_shortcut(key):
+            return
 
         elif key == "esc" and self.current_view != "console":
             self.switch_view("console")
@@ -1929,7 +2042,58 @@ class TUIManager:
         if hasattr(self, "main_layout") and hasattr(self.main_layout, "set_focus"):
             if hasattr(self.main_layout, "protect_body_focus"):
                 self.main_layout.protect_body_focus = True
+            if hasattr(self, "footer_pile") and hasattr(
+                self.footer_pile, "focus_position"
+            ):
+                self.footer_pile.focus_position = 1
             self.main_layout.set_focus("footer")
+
+    def _handle_channel_shortcut(self, key):
+        """Select a joined channel from an Irssi-style Alt+key shortcut."""
+        label = self._channel_shortcut_label_from_key(key)
+        if not label:
+            return False
+
+        for shortcut_label, server_name, channel in self._get_channel_shortcuts():
+            if shortcut_label == label:
+                self._select_shortcut_channel(server_name, channel)
+                return True
+        return False
+
+    @staticmethod
+    def _channel_shortcut_label_from_key(key):
+        """Extract the channel shortcut label from an Urwid Alt/Meta key name."""
+        key_lower = str(key).lower()
+        for prefix in ("meta ", "alt "):
+            if key_lower.startswith(prefix):
+                label = key_lower[len(prefix) :]
+                if len(label) == 1 and label in CHANNEL_SHORTCUT_LABELS:
+                    return label
+        return None
+
+    def _select_shortcut_channel(self, server_name, channel):
+        """Select a channel by shortcut using the existing console selection path."""
+        if not self.bot_manager:
+            return
+
+        try:
+            result = self.bot_manager._console_select_channel(
+                f"{channel} {server_name}"
+            )
+            self.active_channel = getattr(self.bot_manager, "active_channel", channel)
+            self.joined_channels = getattr(
+                self.bot_manager, "joined_channels", self.joined_channels
+            )
+            self.update_header()
+            self.add_log_entry(datetime.now(), "Console", "INFO", result, "SYSTEM")
+        except Exception as e:
+            self.add_log_entry(
+                datetime.now(),
+                "Console",
+                "ERROR",
+                f"Channel shortcut error: {e}",
+                "SYSTEM",
+            )
 
     def _load_wrap_mode(self):
         """Load text wrapping mode from state.json."""
@@ -2444,6 +2608,7 @@ Tips:
             try:
                 self.update_header()
                 self.update_input_style()  # Update timestamp in input field
+                self.update_channel_bar()
 
                 # Auto-refresh stats only. Config/help are static, scrollable views;
                 # rebuilding them every second would reset the user's scroll position.

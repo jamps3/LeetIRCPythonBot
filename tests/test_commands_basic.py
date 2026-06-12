@@ -150,6 +150,36 @@ class TestHelpCommandNoticeRouting:
         assert messages
         assert all(target == "TestUser" for _, target in messages)
 
+    def test_general_irc_help_is_split_into_two_notices(self, irc_context):
+        """Bare !help should be split into two IRC notices."""
+        import cmd_modules  # noqa: F401
+        from cmd_modules.basic import help_command
+        from command_registry import CommandResponse
+
+        irc_context.command = "help"
+        irc_context.args = []
+        irc_context.raw_message = "!help"
+
+        server = Mock(connected=True)
+        sent = []
+
+        result = help_command(
+            irc_context,
+            {
+                "irc": server,
+                "notice_message": lambda message, irc, target: sent.append(
+                    (message, irc, target)
+                ),
+            },
+        )
+
+        assert result == CommandResponse.no_response()
+        assert len(sent) == 2
+        assert sent[0][0].startswith("Available commands: ")
+        assert sent[1][0].startswith("Available commands continued: ")
+        assert all(irc is server for _, irc, _ in sent)
+        assert all(target == "TestUser" for _, _, target in sent)
+
 
 class TestVersionCommand:
     """Tests for the !version command."""

@@ -86,22 +86,31 @@ def help_command(context: CommandContext, bot_functions):
         # Sort alphabetically
         command_names.sort()
 
-        # Join into one line
-        help_text = "Available commands: " + ", ".join(command_names)
-
         if context.is_console:
+            help_text = "Available commands: " + ", ".join(command_names)
             return help_text
         else:
             # IRC: manually send notices to nick
             notice = bot_functions.get("notice_message")
             irc = bot_functions.get("irc")
+            help_lines = _split_help_commands_for_irc(command_names)
             if notice and irc:
-                lines = str(help_text).split("\n")
-                for line in lines:
-                    if line.strip():
-                        notice(line, irc, context.sender)
+                for line in help_lines:
+                    notice(line, irc, context.sender)
                 return CommandResponse.no_response()
-            return CommandResponse.success_msg(help_text)
+            return CommandResponse.success_msg("\n".join(help_lines))
+
+
+def _split_help_commands_for_irc(command_names):
+    """Split the full IRC command list into two balanced notice lines."""
+    if not command_names:
+        return ["Available commands: none"]
+
+    midpoint = (len(command_names) + 1) // 2
+    return [
+        "Available commands: " + ", ".join(command_names[:midpoint]),
+        "Available commands continued: " + ", ".join(command_names[midpoint:]),
+    ]
 
 
 # =====================
