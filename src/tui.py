@@ -1182,6 +1182,8 @@ class ConfigEditor:
 class FocusProtectingFrame(urwid.Frame):
     """A Frame that prevents focus changes when clicking on the body area."""
 
+    protect_body_focus = True
+
     def mouse_event(self, size, event, button, col, row, focus):
         """Override mouse_event to prevent focus changes on body clicks."""
         # Get the layout of the Frame
@@ -1213,8 +1215,9 @@ class FocusProtectingFrame(urwid.Frame):
                     body_row,
                     focus,
                 )
-                # Always keep focus on footer
-                if self.focus_part != "footer":
+                # Console view keeps keyboard focus in the input field; static views
+                # let the body keep focus so PageUp/PageDown and mouse scroll work.
+                if self.protect_body_focus and self.focus_part != "footer":
                     self.set_focus("footer")
                 return body_result
 
@@ -1235,7 +1238,7 @@ class TUIManager:
         self.command_history = []
         self.history_index = 0
         self.current_filter = ""
-        self.current_view = "console"  # console, stats, config
+        self.current_view = "console"  # console, stats, config, help
 
         # Channel tracking
         self.joined_channels = None  # Will be set from bot_manager
@@ -1453,6 +1456,9 @@ class TUIManager:
         # Write to log file immediately
         self._write_log_entry_to_file(entry)
 
+        if self.current_view != "console":
+            return
+
         # Check if entry matches current filter
         if entry.matches_filter(self.current_filter):
             # Check if we were at the bottom before adding the new item
@@ -1654,8 +1660,10 @@ class TUIManager:
                 body_row,
                 focus,
             )
-            # Ensure focus stays on the input field
-            self.main_layout.set_focus("footer")
+            if self.current_view == "console":
+                self._focus_footer()
+            else:
+                self._focus_body()
             return result
 
     def _get_completions(self, text):
@@ -1735,6 +1743,9 @@ class TUIManager:
         """Handle keyboard input."""
         if key in ("ctrl c", "ctrl C"):
             raise urwid.ExitMainLoop()
+
+        elif key == "esc" and self.current_view != "console":
+            self.switch_view("console")
 
         elif key == "enter":
             # Process input
@@ -1822,20 +1833,14 @@ class TUIManager:
             self.log_display.scroll_down_page()
 
     def switch_view(self, view_name):
-        """Switch between different views (console, stats, config)."""
+        """Switch between different views (console, stats, config, help)."""
         self.current_view = view_name
 
         try:
             if view_name == "stats":
                 # Show statistics in log display
-                stats_text = self.stats_view.get_stats_display()
-                self.log_walker.clear()
-                for line in stats_text.split("\n"):
-                    text_widget = urwid.Text(line)
-                    self.log_walker.append(text_widget)
-
-                # Scroll to top for stats view
-                self.log_display.scroll_to_top()
+                self._render_static_view(self.stats_view.get_stats_display())
+                self._focus_body()
 
                 self.add_log_entry(
                     datetime.now(),
@@ -1847,14 +1852,8 @@ class TUIManager:
 
             elif view_name == "config":
                 # Show configuration editor in log display
-                config_text = self.config_editor.get_config_display()
-                self.log_walker.clear()
-                for line in config_text.split("\n"):
-                    text_widget = urwid.Text(line)
-                    self.log_walker.append(text_widget)
-
-                # Scroll to top for config view
-                self.log_display.scroll_to_top()
+                self._render_static_view(self.config_editor.get_config_display())
+                self._focus_body()
 
                 self.add_log_entry(
                     datetime.now(),
@@ -1864,9 +1863,14 @@ class TUIManager:
                     "SYSTEM",
                 )
 
+            elif view_name == "help":
+                self._render_static_view(self._get_help_text())
+                self._focus_body()
+
             elif view_name == "console_raw":
                 # Show raw console-style logs
                 self.show_raw_console_logs()
+                self._focus_body()
 
                 self.add_log_entry(
                     datetime.now(),
@@ -1879,6 +1883,7 @@ class TUIManager:
             elif view_name == "console":
                 # Restore normal log display
                 self.apply_filter(self.current_filter)  # This rebuilds the log display
+                self._focus_footer()
 
                 self.add_log_entry(
                     datetime.now(),
@@ -1900,6 +1905,27 @@ class TUIManager:
             except Exception:
                 # If even logging fails, just ignore
                 pass
+
+    def _render_static_view(self, text: str):
+        """Render static, scrollable body text without mixing it with live logs."""
+        self.log_walker.clear()
+        for line in text.strip("\n").split("\n"):
+            self.log_walker.append(SelectableText(line))
+        self.log_display.scroll_to_top()
+
+    def _focus_body(self):
+        """Move keyboard focus to the scrollable body."""
+        if hasattr(self, "main_layout") and hasattr(self.main_layout, "set_focus"):
+            if hasattr(self.main_layout, "protect_body_focus"):
+                self.main_layout.protect_body_focus = False
+            self.main_layout.set_focus("body")
+
+    def _focus_footer(self):
+        """Move keyboard focus back to the input footer."""
+        if hasattr(self, "main_layout") and hasattr(self.main_layout, "set_focus"):
+            if hasattr(self.main_layout, "protect_body_focus"):
+                self.main_layout.protect_body_focus = True
+            self.main_layout.set_focus("footer")
 
     def _load_wrap_mode(self):
         """Load text wrapping mode from state.json."""
@@ -2056,12 +2082,9 @@ class TUIManager:
             self.log_display.scroll_to_top()
         elif self.current_view == "config":
             # Refresh config display
-            config_text = self.config_editor.get_config_display()
-            self.log_walker.clear()
-            for line in config_text.split("\n"):
-                text_widget = urwid.Text(line)
-                self.log_walker.append(text_widget)
-            self.log_display.scroll_to_top()
+            self._render_static_view(self.config_editor.get_config_display())
+        elif self.current_view == "help":
+            self._render_static_view(self._get_help_text())
 
         # Log the change
         mode_str = "wrapped" if WRAP_MODE else "clipped"
@@ -2223,10 +2246,15 @@ class TUIManager:
 
     def show_help(self):
         """Show help information."""
-        help_text = """
+        self.switch_view("help")
+
+    def _get_help_text(self):
+        """Return the TUI help screen text."""
+        return """
 Leet IRC Python Bot TUI Help:
 
 Views:
+  F1 / help        - Help view
   F2 / console     - Console view (logs and messages)
   F3 / stats       - Statistics view (bot performance)
   F4 / config      - Configuration editor
@@ -2262,9 +2290,8 @@ Tips:
   - Config editor allows runtime configuration changes
   - Mouse selection: Click and drag to select text, releases to copy to clipboard
   - PageUp/PageDown scroll the log display (works from input field)
+  - Escape returns from help/config/stats/raw logs to console
         """
-
-        self.add_log_entry(datetime.now(), "Console", "INFO", help_text, "SYSTEM")
 
     def run(self):
         """Run the TUI main loop."""
@@ -2413,28 +2440,11 @@ Tips:
                 self.update_header()
                 self.update_input_style()  # Update timestamp in input field
 
-                # Auto-refresh current view if it's stats or config
+                # Auto-refresh stats only. Config/help are static, scrollable views;
+                # rebuilding them every second would reset the user's scroll position.
                 if self.current_view == "stats":
                     # Refresh stats display
-                    stats_text = self.stats_view.get_stats_display()
-                    self.log_walker.clear()
-                    for line in stats_text.split("\n"):
-                        text_widget = urwid.Text(line)
-                        self.log_walker.append(text_widget)
-
-                    # Scroll to top for refreshed stats view
-                    self.log_display.scroll_to_top()
-
-                elif self.current_view == "config":
-                    # Refresh config display
-                    config_text = self.config_editor.get_config_display()
-                    self.log_walker.clear()
-                    for line in config_text.split("\n"):
-                        text_widget = urwid.Text(line)
-                        self.log_walker.append(text_widget)
-
-                    # Scroll to top for refreshed config view
-                    self.log_display.scroll_to_top()
+                    self._render_static_view(self.stats_view.get_stats_display())
 
                 self.loop.set_alarm_in(1, lambda *args: update_callback())
             except Exception as e:

@@ -831,6 +831,35 @@ class TestTUIManager:
             (80, 17), "mouse drag", 1, 4, 3, True
         )
 
+    def test_f1_switches_to_isolated_help_view(self):
+        """F1 renders help as a static view instead of a normal log entry."""
+        tui_manager = TUIManager()
+        tui_manager.main_layout = Mock()
+
+        tui_manager.handle_key("f1")
+
+        assert tui_manager.current_view == "help"
+        assert len(tui_manager.log_entries) == 0
+        assert tui_manager.main_layout.set_focus.call_args.args == ("body",)
+        help_text = "\n".join(widget._text_content for widget in tui_manager.log_walker)
+        assert "Leet IRC Python Bot TUI Help" in help_text
+        assert "Escape returns from help/config/stats/raw logs to console" in help_text
+
+    def test_config_view_moves_focus_to_scrollable_body(self):
+        """F4 opens config as a focused scrollable body view."""
+        tui_manager = TUIManager()
+        tui_manager.config_editor = ConfigEditor(tui_manager)
+        tui_manager.main_layout = Mock()
+
+        tui_manager.handle_key("f4")
+
+        assert tui_manager.current_view == "config"
+        assert tui_manager.main_layout.set_focus.call_args.args == ("body",)
+        config_text = "\n".join(
+            widget._text_content for widget in tui_manager.log_walker
+        )
+        assert "Configuration Editor" in config_text
+
 
 class TestGlobalFunctions:
     """Test global functions and utilities."""
