@@ -1776,39 +1776,42 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             # Update last request time
             self.x_api_last_request_time = time.time()
 
-            try:
-                from xdk import Client as XClient
-
-                x_client_available = True
-            except ImportError:
-                x_client_available = False
-
-            if not x_client_available or not XClient:
-                logger.warning("X API client not available")
-                return
-
             # Get bearer token from environment
             bearer_token = os.getenv("X_BEARER_TOKEN")
             if not bearer_token:
                 logger.warning("X_BEARER_TOKEN not configured")
                 return
-
-            # Create X client
-            try:
-                x_client = XClient(bearer_token=bearer_token)
-            except Exception as e:
-                logger.error(f"Failed to create X client: {e}")
-                if hasattr(irc, "send_message"):
-                    self._send_response(
-                        irc, target, f"🐦 Error creating X API client: {str(e)[:100]}"
-                    )
-                return
+            bearer_token = bearer_token.strip()
+            if bearer_token.lower().startswith("bearer "):
+                bearer_token = bearer_token[7:].strip()
 
             # Fetch post by ID
             try:
-                response = x_client.posts.get_by_id(post_id)
-                if response and hasattr(response, "data") and response.data:
-                    post_data = response.data
+                response = requests.get(
+                    f"https://api.twitter.com/2/tweets/{post_id}",
+                    headers={
+                        "Authorization": f"Bearer {bearer_token}",
+                        "Accept": "application/json",
+                    },
+                    params={
+                        "tweet.fields": "created_at,author_id,lang,public_metrics",
+                    },
+                    timeout=10,
+                )
+
+                if response.status_code >= 400:
+                    try:
+                        error_detail = response.json()
+                    except ValueError:
+                        error_detail = response.text
+                    raise requests.HTTPError(
+                        f"{response.status_code} X API error: {error_detail}",
+                        response=response,
+                    )
+
+                response_payload = response.json()
+                post_data = response_payload.get("data") if response_payload else None
+                if post_data:
                     post_text = post_data.get("text", "")
                     if post_text:
                         post_text = re.sub(r"\s+", " ", post_text).strip()

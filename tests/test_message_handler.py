@@ -205,6 +205,61 @@ def test_fetch_x_post_content_cached_and_immediate(handler, server, monkeypatch)
     )
 
 
+def test_process_x_api_request_uses_bearer_auth(handler, server, monkeypatch):
+    handler._send_response = Mock()
+    handler._cache_x_response = Mock()
+    monkeypatch.setenv("X_BEARER_TOKEN", "Bearer test-token")
+    response = SimpleNamespace(
+        status_code=200,
+        json=Mock(return_value={"data": {"text": "hello\nfrom X"}}),
+    )
+    get_mock = Mock(return_value=response)
+    monkeypatch.setattr(message_handler.requests, "get", get_mock)
+
+    handler._process_x_api_request(
+        server,
+        "#chan",
+        "https://x.com/u/status/2060061712389378166",
+        "2060061712389378166",
+    )
+
+    get_mock.assert_called_once()
+    assert get_mock.call_args.kwargs["headers"]["Authorization"] == "Bearer test-token"
+    assert get_mock.call_args.kwargs["timeout"] == 10
+    handler._cache_x_response.assert_called_once_with(
+        "https://x.com/u/status/2060061712389378166", "hello from X"
+    )
+    handler._send_response.assert_called_once_with(server, "#chan", "🐦 hello from X")
+
+
+def test_process_x_api_request_logs_api_error_detail(handler, server, monkeypatch):
+    monkeypatch.setenv("X_BEARER_TOKEN", "test-token")
+    logged = []
+    monkeypatch.setattr(
+        message_handler.logger, "error", lambda message: logged.append(message)
+    )
+    response = SimpleNamespace(
+        status_code=403,
+        json=Mock(
+            return_value={
+                "title": "Unsupported Authentication",
+                "detail": "Authenticating with Unknown is forbidden for this endpoint.",
+            }
+        ),
+        text="",
+    )
+    monkeypatch.setattr(message_handler.requests, "get", Mock(return_value=response))
+
+    handler._process_x_api_request(
+        server,
+        "#chan",
+        "https://x.com/u/status/2060061712389378166",
+        "2060061712389378166",
+    )
+
+    assert any("Unsupported Authentication" in message for message in logged)
+
+
 def test_nanoleet_and_420_paths(handler, server, monkeypatch):
     handler._send_response = Mock()
     detector = Mock()
