@@ -870,6 +870,32 @@ class TestTUIManager:
         )
         assert "Configuration Editor" in config_text
 
+    @pytest.mark.parametrize(
+        ("key", "expected_view"),
+        [
+            ("shift f1", "help"),
+            ("shift f2", "console"),
+            ("shift f3", "stats"),
+            ("shift f4", "config"),
+            ("shift f5", "console_raw"),
+        ],
+    )
+    def test_shift_function_keys_match_regular_function_shortcuts(
+        self, key, expected_view
+    ):
+        """Shift+function keys should mirror the regular TUI view shortcuts."""
+        tui_manager = TUIManager()
+        tui_manager.stats_view = StatsView(tui_manager)
+        tui_manager.config_editor = ConfigEditor(tui_manager)
+        tui_manager.main_layout = Mock()
+        tui_manager.add_log_entry(
+            datetime.now(), "Console", "INFO", "Visible log", "SYSTEM"
+        )
+
+        tui_manager.handle_key(key)
+
+        assert tui_manager.current_view == expected_view
+
 
 class TestGlobalFunctions:
     """Test global functions and utilities."""

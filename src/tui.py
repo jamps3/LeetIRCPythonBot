@@ -1808,23 +1808,23 @@ class TUIManager:
             self.history_index = len(self.command_history)
             self.update_input_style()
 
-        elif key in ("f1", "ctrl f1"):
+        elif key in ("f1", "shift f1", "ctrl f1"):
             # Show help
             self.show_help()
 
-        elif key in ("f2", "ctrl f2"):
+        elif key in ("f2", "shift f2", "ctrl f2"):
             # Switch to console view
             self.switch_view("console")
 
-        elif key in ("f3", "ctrl f3"):
+        elif key in ("f3", "shift f3", "ctrl f3"):
             # Switch to stats view
             self.switch_view("stats")
 
-        elif key in ("f4", "ctrl f4"):
+        elif key in ("f4", "shift f4", "ctrl f4"):
             # Switch to config view
             self.switch_view("config")
 
-        elif key in ("f5", "ctrl f5"):
+        elif key in ("f5", "shift f5", "ctrl f5"):
             # Toggle console-style logging view
             self.toggle_console_logging()
 
@@ -2258,11 +2258,11 @@ class TUIManager:
 Leet IRC Python Bot TUI Help:
 
 Views:
-  F1 / help        - Help view
-  F2 / console     - Console view (logs and messages)
-  F3 / stats       - Statistics view (bot performance)
-  F4 / config      - Configuration editor
-  F5 / rawlogs     - Raw console-style logs
+  F1 / Shift+F1 / help     - Help view
+  F2 / Shift+F2 / console  - Console view (logs and messages)
+  F3 / Shift+F3 / stats    - Statistics view (bot performance)
+  F4 / Shift+F4 / config   - Configuration editor
+  F5 / Shift+F5 / rawlogs  - Raw console-style logs
 
 Commands:
   !command        - Send bot command (e.g., !help, !connect, !exit)
@@ -2276,10 +2276,11 @@ Commands:
 Keyboard Shortcuts:
   Ctrl+C          - Exit TUI immediately
   !exit, !quit    - Shutdown bot gracefully
-  F1, Ctrl+F1     - Show this help
-  F2, Ctrl+F2     - Console view
-  F3, Ctrl+F3     - Statistics view
-  F4, Ctrl+F4     - Configuration editor
+  F1, Shift+F1, Ctrl+F1 - Show this help
+  F2, Shift+F2, Ctrl+F2 - Console view
+  F3, Shift+F3, Ctrl+F3 - Statistics view
+  F4, Shift+F4, Ctrl+F4 - Configuration editor
+  F5, Shift+F5, Ctrl+F5 - Raw console-style logs
   Up/Down         - Navigate command history
   PageUp/PageDown - Scroll log display
   Enter           - Send message/command
