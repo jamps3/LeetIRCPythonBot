@@ -75,6 +75,21 @@ def _get_from_bot_functions(bot_functions, key, default_getter):
     return default_getter()
 
 
+def _context_server_name(context, bot_functions) -> str:
+    return (
+        (bot_functions or {}).get("server_name")
+        or getattr(context, "server_name", "console")
+        or "console"
+    )
+
+
+def _has_explicit_server_context(context, bot_functions) -> bool:
+    server_name = (bot_functions or {}).get("server_name") or getattr(
+        context, "server_name", ""
+    )
+    return bool(server_name and server_name != "console")
+
+
 # =====================
 # topwords Command
 # =====================
@@ -104,33 +119,35 @@ def command_topwords(context, bot_functions):
     # Get general_words and data_manager from bot_functions or use lazy getter
     words = _get_from_bot_functions(bot_functions, "general_words", _get_general_words)
     dm = _get_from_bot_functions(bot_functions, "data_manager", _get_data_manager)
+    server_name = _context_server_name(context, bot_functions)
+    servers = [server_name]
+    if not _has_explicit_server_context(context, bot_functions):
+        servers = dm.get_all_servers()
 
     if args:  # User-specific top words
         nick = " ".join(args).strip()
-        for server_name in dm.get_all_servers():
-            user_stats = words.get_user_stats(server_name, nick)
+        for search_server in servers:
+            user_stats = words.get_user_stats(search_server, nick)
             if user_stats.get("total_words", 0) > 0:
-                top_words = words.get_user_top_words(server_name, nick, limit)
+                top_words = words.get_user_top_words(search_server, nick, limit)
                 word_list = ", ".join(
                     f"{word['word']}: {word['count']}" for word in top_words
                 )
-                return f"{nick}@{server_name}: {word_list}"
+                return f"{nick}@{search_server}: {word_list}"
         return f"Käyttäjää '{nick}' ei löydy."
-    else:  # Global top words across servers
-        global_word_counts = {}
-        for server_name in dm.get_all_servers():
-            server_stats = words.get_server_stats(server_name)
-            for word, count in server_stats.get("top_words", []):
-                global_word_counts[word] = global_word_counts.get(word, 0) + count
 
-        if global_word_counts:
-            top_words = sorted(
-                global_word_counts.items(), key=lambda x: x[1], reverse=True
-            )[:limit]
-            word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
-            return f"Top {limit} sanat: {word_list}"
-        else:
-            return "Ei vielä tilastoja saatavilla."
+    word_counts = {}
+    for search_server in servers:
+        server_stats = words.get_server_stats(search_server)
+        for word, count in server_stats.get("top_words", []):
+            word_counts[word] = word_counts.get(word, 0) + count
+    if word_counts:
+        top_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[
+            :limit
+        ]
+        word_list = ", ".join(f"{word}: {count}" for word, count in top_words)
+        return f"Top {limit} sanat: {word_list}"
+    return "Ei vielä tilastoja saatavilla."
 
 
 # =====================
@@ -154,30 +171,25 @@ def command_leaderboard(context, bot_functions):
         words = _get_from_bot_functions(
             bot_functions, "general_words", _get_general_words
         )
-        dm = _get_from_bot_functions(bot_functions, "data_manager", _get_data_manager)
     else:
         # Default to drink tracker
         drink = _get_from_bot_functions(
             bot_functions, "drink_tracker", _get_drink_tracker
         )
-        dm = _get_from_bot_functions(bot_functions, "data_manager", _get_data_manager)
 
-    # Get all servers
-    servers = dm.get_all_servers()
+    server_name = _context_server_name(context, bot_functions)
 
     if board_type == "words":
         # Word leaderboard
         all_users = []
-        for server_name in servers:
-            server_stats = words.get_server_stats(server_name)
-            for user, stats in server_stats.get("users", {}).items():
-                all_users.append(
-                    {
-                        "nick": user,
-                        "server": server_name,
-                        "total": stats.get("total_words", 0),
-                    }
-                )
+        for row in words.get_leaderboard(server_name, limit=10):
+            all_users.append(
+                {
+                    "nick": row["nick"],
+                    "server": server_name,
+                    "total": row.get("total_words", 0),
+                }
+            )
 
         if not all_users:
             return "Ei vielä sanatilastoja saatavilla."
@@ -192,16 +204,9 @@ def command_leaderboard(context, bot_functions):
     else:
         # Drink leaderboard
         all_users = []
-        for server_name in servers:
-            server_stats = drink.get_server_stats(server_name)
-            for user, stats in server_stats.get("top_users", []):
-                all_users.append(
-                    {
-                        "nick": user,
-                        "server": server_name,
-                        "total": stats.get("total", 0),
-                    }
-                )
+        server_stats = drink.get_server_stats(server_name)
+        for user, total in server_stats.get("top_users", []):
+            all_users.append({"nick": user, "server": server_name, "total": total})
 
         if not all_users:
             return "Ei vielä juomatilastoja saatavilla."
@@ -243,11 +248,7 @@ def command_drinkword(context, bot_functions):
         return "Käyttö: !drinkword <word> <drink_name>"
 
     # Derive server name
-    server_name = (
-        bot_functions.get("server_name")
-        or getattr(context, "server_name", "console")
-        or "console"
-    )
+    server_name = _context_server_name(context, bot_functions)
 
     # Add the drink word mapping
     success = drink.add_drink_word_mapping(word, drink_name, server_name)
@@ -278,11 +279,7 @@ def command_drink(context, bot_functions):
     if not context.args_text:
         return "Käyttö: !drink <juoman nimi>"
 
-    server_name = (
-        bot_functions.get("server_name")
-        or getattr(context, "server_name", "console")
-        or "console"
-    )
+    server_name = _context_server_name(context, bot_functions)
     query = context.args_text.strip()
 
     results = drink.search_specific_drink(query, server_filter=server_name)
@@ -387,11 +384,7 @@ def command_kraks(context, bot_functions):
         return "Drink tracker ei ole käytettävissä."
 
     # Derive server name (works for both IRC and console)
-    server_name = (
-        bot_functions.get("server_name")
-        or getattr(context, "server_name", "console")
-        or "console"
-    )
+    server_name = _context_server_name(context, bot_functions)
 
     stats = drink.get_server_stats(server_name)
     start_date = _get_statistics_start_date()
@@ -448,18 +441,17 @@ def command_tamagotchi(context, bot_functions):
     nick = context.sender
 
     # Load state
-    tamagotchi._load_state(data_manager)
-
     subcommand = context.args[0].lower() if context.args else "status"
 
     if subcommand == "status":
-        return tamagotchi.get_status(nick, server_name)
+        return tamagotchi.get_status(server_name)
     elif subcommand == "feed":
-        return tamagotchi.feed(nick, server_name)
+        food = " ".join(context.args[1:]) if len(context.args) > 1 else None
+        return tamagotchi.feed(server_name, food)
     elif subcommand == "play":
-        return tamagotchi.play(nick, server_name)
+        return tamagotchi.pet(server_name)
     elif subcommand == "stats":
-        return tamagotchi.get_detailed_stats(nick, server_name)
+        return tamagotchi.get_status(server_name)
     else:
         return "Käyttö: !tamagotchi [status|feed|play|stats]"
 
@@ -488,11 +480,8 @@ def command_feed(context, bot_functions):
         or getattr(context, "server_name", "console")
         or "console"
     )
-    nick = context.sender
-
-    # Load state and feed
-    tamagotchi._load_state(data_manager)
-    return tamagotchi.feed(nick, server_name)
+    food = context.args_text.strip() if context.args_text else None
+    return tamagotchi.feed(server_name, food)
 
 
 # =====================
@@ -519,11 +508,7 @@ def command_pet(context, bot_functions):
         or getattr(context, "server_name", "console")
         or "console"
     )
-    nick = context.sender
-
-    # Load state and play/pet
-    tamagotchi._load_state(data_manager)
-    return tamagotchi.play(nick, server_name)
+    return tamagotchi.pet(server_name)
 
 
 # =====================
@@ -696,7 +681,23 @@ def command_sana(context, bot_functions):
     words.record_word(word, nick, server_name)
 
     # Get stats for the word
-    stats = words.get_word_stats(server_name, word)
+    try:
+        stats = words.get_word_stats(server_name, word, server_only=True)
+    except TypeError:
+        try:
+            stats = words.get_word_stats(server_name, word)
+        except TypeError:
+            stats = None
+    except AttributeError:
+        stats = None
+
+    if stats is None and hasattr(words, "search_word"):
+        result = words.search_word(word)
+        if result.get("total_occurrences", 0) > 0:
+            stats = {
+                "count": result["total_occurrences"],
+                "top_user": result.get("users", [{}])[0].get("nick", "unknown"),
+            }
     if stats:
         return f"'{word}': {stats['count']} kertaa (top: {stats['top_user']})"
     else:

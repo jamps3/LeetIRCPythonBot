@@ -284,6 +284,7 @@ class LeetDetector:
         timestamp: str,
         achievement_level: str,
         user_message: Optional[str] = None,
+        server: Optional[str] = None,
     ) -> None:
         """
         Save a leet detection to the history file.
@@ -303,6 +304,8 @@ class LeetDetector:
             "achievement_name": self.achievement_levels[achievement_level]["name"],
             "emoji": self.achievement_levels[achievement_level]["emoji"],
         }
+        if server:
+            detection_record["server"] = server
 
         try:
             history = self._load_leet_history()
@@ -315,7 +318,9 @@ class LeetDetector:
         except IOError as e:
             self.logger.error(f"Failed to save leet detection: {e}")
 
-    def get_leet_history(self, limit: Optional[int] = None) -> List[Dict]:
+    def get_leet_history(
+        self, limit: Optional[int] = None, server: Optional[str] = None
+    ) -> List[Dict]:
         """
         Get leet detection history.
 
@@ -326,6 +331,8 @@ class LeetDetector:
             List of leet detection records
         """
         history = self._load_leet_history()
+        if server:
+            history = [item for item in history if item.get("server") == server]
         # Sort by datetime descending (most recent first)
         history.sort(key=lambda x: x.get("datetime", ""), reverse=True)
 
@@ -338,6 +345,7 @@ class LeetDetector:
         nick: str,
         message_time: Optional[str] = None,
         user_message: Optional[str] = None,
+        server: Optional[str] = None,
     ) -> Optional[Tuple[str, str]]:
         """
         Check if a message timestamp contains leet patterns.
@@ -363,7 +371,7 @@ class LeetDetector:
 
             # Save the detection to history
             self._save_leet_detection(
-                nick, message_time, achievement_level, user_message
+                nick, message_time, achievement_level, user_message, server
             )
 
             self.logger.info(

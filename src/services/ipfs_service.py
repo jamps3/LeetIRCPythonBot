@@ -332,6 +332,8 @@ def handle_ipfs_command(command_text: str, admin_password: Optional[str] = None)
 
     # Parse command
     parts = command_text.strip().split()
+    if parts and parts[0].lower() == "!ipfs":
+        parts = parts[1:]
 
     if len(parts) < 1:
         return "Usage: !ipfs add <url> or !ipfs <password> <url>"

@@ -227,7 +227,7 @@ class GeneralWords:
             "top_words": top_words,
         }
 
-    def search_word(self, word: str) -> Dict[str, Any]:
+    def search_word(self, word: str, server_filter: str = None) -> Dict[str, Any]:
         """
         Search for statistics about a specific word across all servers.
 
@@ -242,7 +242,13 @@ class GeneralWords:
 
         results = {"word": word, "total_occurrences": 0, "users": [], "servers": {}}
 
-        for server_name, server_data in data.get("servers", {}).items():
+        servers_to_search = data.get("servers", {})
+        if server_filter:
+            servers_to_search = {
+                server_filter: servers_to_search.get(server_filter, {})
+            }
+
+        for server_name, server_data in servers_to_search.items():
             server_total = 0
             server_users = []
 
@@ -335,7 +341,9 @@ class GeneralWords:
         """
         self._update_word_stats(server, nick, [word.lower()])
 
-    def get_word_stats(self, server: str, word: str) -> Dict[str, Any]:
+    def get_word_stats(
+        self, server: str, word: str, server_only: bool = False
+    ) -> Dict[str, Any]:
         """
         Get statistics for a specific word.
 
@@ -346,7 +354,7 @@ class GeneralWords:
         Returns:
             Dictionary with word statistics or None
         """
-        result = self.search_word(word)
+        result = self.search_word(word, server_filter=server if server_only else None)
         if result and result.get("total_occurrences", 0) > 0:
             # Get top user
             users = result.get("users", [])

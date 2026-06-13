@@ -94,7 +94,7 @@ class ServerManager:
                 config.channels.append(observer_channel)
             server = Server(config, self.bot_name, self.stop_event, self.bot_config)
             # Set the quit message
-            server.quit_message = self.quit_message
+            server.quit_message = config.quit_message or self.quit_message
             self.servers[config.name] = server
             self.joined_channels[config.name] = []
             logger.info(
@@ -221,7 +221,6 @@ class ServerManager:
             True if any servers were disconnected, False otherwise
         """
         servers_to_disconnect = server_names or list(self.servers.keys())
-        quit_msg = quit_message or self.quit_message
         disconnected_any = False
 
         for server_name in servers_to_disconnect:
@@ -230,6 +229,7 @@ class ServerManager:
                 continue
 
             server = self.servers[server_name]
+            quit_msg = quit_message or server.config.quit_message or self.quit_message
             if server.connected:
                 try:
                     logger.info(f"Sent quit command to {server_name}")
@@ -287,7 +287,7 @@ class ServerManager:
 
         # Create and register server
         server = Server(config, self.bot_name, self.stop_event, self.bot_config)
-        server.quit_message = self.quit_message
+        server.quit_message = config.quit_message or self.quit_message
         self.servers[name] = server
         self.joined_channels[name] = []
 

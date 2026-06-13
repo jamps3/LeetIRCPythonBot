@@ -975,7 +975,15 @@ def leetwinners_command(context: CommandContext, bot_functions):
     show_today = "last" in (context.args or [])
 
     # Expected structure: { winner: {category: count, ...}, ... }
-    data = load_leet_winners() or {}
+    server_name = (
+        bot_functions.get("server_name")
+        or getattr(context, "server_name", "console")
+        or "console"
+    )
+    try:
+        data = load_leet_winners(server_name) or {}
+    except TypeError:
+        data = load_leet_winners() or {}
 
     # Extract metadata if present
     metadata = data.get("_metadata", {})

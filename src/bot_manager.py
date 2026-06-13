@@ -295,7 +295,7 @@ class BotManager:
         self._quit_message = value
         # Also set on servers
         for server in self.server_manager.get_all_servers().values():
-            server.quit_message = value
+            server.quit_message = getattr(server.config, "quit_message", "") or value
 
     # Delegate message handler methods
     def _wrap_irc_message_utf8_bytes(self, *args, **kwargs):

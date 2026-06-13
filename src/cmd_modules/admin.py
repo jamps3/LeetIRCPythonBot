@@ -6,6 +6,7 @@ Contains admin commands: connect, disconnect, exit, countdown
 
 import re
 import threading
+from datetime import datetime, timedelta
 
 import logger
 from command_registry import CommandContext, CommandScope, command
@@ -195,6 +196,16 @@ def countdown_command(context: CommandContext, bot_functions):
         remaining_digits = re.sub(r"\d+(?:h|min|m|s)", "", time_str).strip()
         if remaining_digits and remaining_digits.isdigit():
             minutes = int(remaining_digits)
+
+    if hours == 0 and minutes > 0 and seconds == 0 and time_str.startswith("0h"):
+        now = datetime.now()
+        target_time = now.replace(hour=0, minute=minutes, second=0, microsecond=0)
+        if target_time <= now:
+            target_time += timedelta(days=1)
+        total_seconds = int((target_time - now).total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
 
     # Validate ranges
     if (

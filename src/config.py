@@ -122,6 +122,7 @@ class ServerConfig:
     nick: Optional[str] = None  # Bot nickname for this server
     nickserv_password: Optional[str] = None  # NickServ password for identification
     nickserv_email: Optional[str] = None  # Email for NickServ registration
+    quit_message: str = ""  # Empty means use global quit_message
     banned_commands: List[str] = field(
         default_factory=list
     )  # Commands banned on this server
@@ -420,6 +421,13 @@ class ConfigManager:
                 state_config[key] = value.copy() if isinstance(value, list) else value
                 updated = True
 
+        server_list = state_config.get("servers", [])
+        if isinstance(server_list, list):
+            for server in server_list:
+                if isinstance(server, dict) and "quit_message" not in server:
+                    server["quit_message"] = ""
+                    updated = True
+
         return updated
 
     def _load_state_config(self) -> dict:
@@ -567,6 +575,8 @@ class ConfigManager:
         print("\n🖥️ Server Configuration:")
         existing_servers = existing_config.get("servers", [])
         servers = existing_servers.copy()  # Start with existing servers
+        for server in servers:
+            server.setdefault("quit_message", "")
 
         if existing_servers:
             print(f"Found {len(existing_servers)} existing server(s):")
@@ -652,6 +662,12 @@ class ConfigManager:
                             ).strip()
                             server["nickserv_email"] = email_str if email_str else None
 
+                            current_quit = server.get("quit_message", "")
+                            quit_str = input(
+                                f"Quit message (optional, empty uses global, current: {current_quit or 'global'}): "
+                            )
+                            server["quit_message"] = quit_str
+
                             print(f"Server {idx + 1} updated.")
                         else:
                             print("Invalid server number.")
@@ -705,6 +721,9 @@ class ConfigManager:
                     "NickServ email (optional, for first-time registration): "
                 ).strip()
                 server["nickserv_email"] = email if email else None
+            server["quit_message"] = input(
+                "Quit message for this server (optional, empty uses global): "
+            )
 
             servers.append(server)
 
@@ -767,6 +786,7 @@ class ConfigManager:
                     nick=server_data.get("nick"),
                     nickserv_password=server_data.get("nickserv_password"),
                     nickserv_email=server_data.get("nickserv_email"),
+                    quit_message=server_data.get("quit_message", ""),
                     banned_commands=server_data.get("banned_commands", []),
                 )
                 servers.append(config)
@@ -888,6 +908,7 @@ class ConfigManager:
                     "port": server.port,
                     "channels": server.channels,
                     "keys": server.keys or [],
+                    "quit_message": server.quit_message,
                 }
                 for server in self.config.servers
             ],

@@ -410,11 +410,27 @@ class BlackjackGame:
 
 # Global blackjack game instance
 _blackjack_game = BlackjackGame()
+_blackjack_games: Dict[str, BlackjackGame] = {}
 
 
-def get_blackjack_game() -> BlackjackGame:
+def _context_server_name(context: CommandContext, bot_functions) -> str:
+    return (
+        (bot_functions or {}).get("server_name")
+        or getattr(context, "server_name", "console")
+        or "console"
+    )
+
+
+def _game_key(context: CommandContext, bot_functions) -> str:
+    channel = context.target or context.sender or "console"
+    return f"{_context_server_name(context, bot_functions)}:{channel}".lower()
+
+
+def get_blackjack_game(game_key: Optional[str] = None) -> BlackjackGame:
     """Get the global blackjack game instance."""
-    return _blackjack_game
+    if game_key is None:
+        return _blackjack_game
+    return _blackjack_games.setdefault(game_key, BlackjackGame())
 
 
 # =====================
@@ -525,7 +541,8 @@ def ksp_command(context: CommandContext, bot_functions):
         return f"Virheellinen valinta. Käytä: {', '.join(valid_choices)}"
 
     # Load current game state
-    current_game = _get_data_manager().load_ksp_state()
+    server_name = _context_server_name(context, bot_functions)
+    current_game = _get_data_manager().load_ksp_state(server_name)
 
     def determine_winner(c1, c2):
         if c1 == c2:
@@ -538,7 +555,7 @@ def ksp_command(context: CommandContext, bot_functions):
     if current_game is None:
         # Start new game
         game_state = {"choice": choice, "sender": context.sender}
-        _get_data_manager().save_ksp_state(game_state)
+        _get_data_manager().save_ksp_state(game_state, server_name)
         return f"Peli aloitettu: {choice} pelaajalta {context.sender}"
     else:
         player1_sender = current_game["sender"]
@@ -549,7 +566,7 @@ def ksp_command(context: CommandContext, bot_functions):
         if player1_sender == player2_sender:
             # Same player changing choice
             game_state = {"choice": choice, "sender": context.sender}
-            _get_data_manager().save_ksp_state(game_state)
+            _get_data_manager().save_ksp_state(game_state, server_name)
             return f"Valinta vaihdettu: {choice} (aiempi: {player1_choice})"
 
         # Different player, play the game
@@ -562,7 +579,7 @@ def ksp_command(context: CommandContext, bot_functions):
             result = f"{player2_sender} voitti {player1_sender}: {player2_choice} vs {player1_choice}"
 
         # Reset game
-        _get_data_manager().save_ksp_state(None)
+        _get_data_manager().save_ksp_state(None, server_name)
         return result
 
 
@@ -584,7 +601,7 @@ def ksp_command(context: CommandContext, bot_functions):
 )
 def blackjack_command(context: CommandContext, bot_functions):
     """Main blackjack command with subcommands."""
-    game = get_blackjack_game()
+    game = get_blackjack_game(_game_key(context, bot_functions))
 
     if not context.args:
         return "Usage: !blackjack <start|join|leave|deal|hit|stand|status>"
@@ -758,13 +775,16 @@ class SanaketjuGame:
     start_time: Optional[datetime] = None
     notice_whitelist: set = field(default_factory=set)
 
-    def start_game(self, channel: str, data_manager) -> Optional[str]:
+    def start_game(
+        self, channel: str, data_manager, game_key: Optional[str] = None
+    ) -> Optional[str]:
         """Start a new game. Returns starting word or None if failed."""
         if self.active:
             return None
 
         # Get random starting word from collected words
-        starting_word = self._get_random_starting_word(data_manager)
+        server_name = game_key.split(":", 1)[0] if game_key else None
+        starting_word = self._get_random_starting_word(data_manager, server_name)
         if not starting_word:
             return None
 
@@ -777,17 +797,22 @@ class SanaketjuGame:
         self.start_time = datetime.now()
 
         # Save state
-        self._save_state(data_manager)
+        self._save_state(data_manager, game_key)
         return starting_word
 
-    def _get_random_starting_word(self, data_manager) -> Optional[str]:
+    def _get_random_starting_word(
+        self, data_manager, server_name: Optional[str] = None
+    ) -> Optional[str]:
         """Get a random word from collected words for starting the game."""
         try:
             # Get all words from general words data
             general_data = data_manager.load_general_words_data()
             all_words = set()
 
-            for server_data in general_data.get("servers", {}).values():
+            servers = general_data.get("servers", {})
+            if server_name:
+                servers = {server_name: servers.get(server_name, {})}
+            for server_data in servers.values():
                 for nick_data in server_data.get("nicks", {}).values():
                     all_words.update(nick_data.get("general_words", {}).keys())
 
@@ -808,7 +833,7 @@ class SanaketjuGame:
             return None
 
     def process_word(
-        self, word: str, nick: str, data_manager
+        self, word: str, nick: str, data_manager, game_key: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Process a potential word continuation.
@@ -841,7 +866,7 @@ class SanaketjuGame:
         self.participants[nick] += score
 
         # Save state
-        self._save_state(data_manager)
+        self._save_state(data_manager, game_key)
 
         return {
             "valid": True,
@@ -899,7 +924,7 @@ class SanaketjuGame:
             f"Osallistujat: {participants_str}"
         )
 
-    def end_game(self, data_manager) -> Optional[str]:
+    def end_game(self, data_manager, game_key: Optional[str] = None) -> Optional[str]:
         """End the current game. Returns final results or None if no active game."""
         if not self.active:
             return None
@@ -937,10 +962,10 @@ class SanaketjuGame:
         self.start_time = None
 
         # Save state
-        self._save_state(data_manager)
+        self._save_state(data_manager, game_key)
         return result
 
-    def _save_state(self, data_manager):
+    def _save_state(self, data_manager, game_key: Optional[str] = None):
         """Save current game state."""
         state = {
             "active": self.active,
@@ -952,11 +977,11 @@ class SanaketjuGame:
             "start_time": self.start_time.isoformat() if self.start_time else None,
             "notice_whitelist": list(self.notice_whitelist),
         }
-        data_manager.save_sanaketju_state(state)
+        data_manager.save_sanaketju_state(state, game_key)
 
-    def _load_state(self, data_manager):
+    def _load_state(self, data_manager, game_key: Optional[str] = None):
         """Load game state from data manager."""
-        state = data_manager.load_sanaketju_state()
+        state = data_manager.load_sanaketju_state(game_key)
         if state:
             self.active = state.get("active", False)
             self.channel = state.get("channel", "")
@@ -975,11 +1000,14 @@ class SanaketjuGame:
 
 # Global sanaketju game instance
 _sanaketju_game = SanaketjuGame()
+_sanaketju_games: Dict[str, SanaketjuGame] = {}
 
 
-def get_sanaketju_game() -> SanaketjuGame:
+def get_sanaketju_game(game_key: Optional[str] = None) -> SanaketjuGame:
     """Get the global sanaketju game instance."""
-    return _sanaketju_game
+    if game_key is None:
+        return _sanaketju_game
+    return _sanaketju_games.setdefault(game_key, SanaketjuGame())
 
 
 # =====================
@@ -1005,12 +1033,18 @@ def sanaketju_command(context: CommandContext, bot_functions):
     if not data_manager:
         return "❌ Data manager not available"
 
-    game = get_sanaketju_game()
-    game._load_state(data_manager)  # Load latest state
+    game_key = _game_key(context, bot_functions)
+    game = get_sanaketju_game(game_key)
+    game._load_state(data_manager, game_key)  # Load latest state
 
     if not context.args:
         # Show current status
-        return game.get_status()
+        status = game.get_status()
+        if not game.active:
+            return (
+                f"{status} Käyttö: !sanaketju start | !sanaketju add | !sanaketju stop"
+            )
+        return status
 
     subcommand = context.args[0].lower()
 
@@ -1018,14 +1052,14 @@ def sanaketju_command(context: CommandContext, bot_functions):
         if game.active:
             return "Sanaketju on jo käynnissä!"
 
-        starting_word = game.start_game(context.target, data_manager)
+        starting_word = game.start_game(context.target, data_manager, game_key)
         if starting_word:
             return f"🎯 Sanaketju aloitettu! Aloitussana: {starting_word}"
         else:
             return "❌ Ei voitu aloittaa sanaketjua - ei sanoja saatavilla."
 
     elif subcommand == "stop":
-        result = game.end_game(data_manager)
+        result = game.end_game(data_manager, game_key)
         if result:
             return result
         else:

@@ -316,7 +316,11 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         text = context.get("text", "")
 
         # Load existing winners
-        winners = self._load_leet_winners()
+        server_name = context.get("server_name", "console")
+        try:
+            winners = self._load_leet_winners(server_name)
+        except TypeError:
+            winners = self._load_leet_winners()
         if not winners:
             winners = {}
 
@@ -336,7 +340,10 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 winners[nick][winner_type] = winners[nick].get(winner_type, 0) + 1
 
         # Save updated winners
-        self._save_leet_winners(winners)
+        try:
+            self._save_leet_winners(winners, server_name)
+        except TypeError:
+            self._save_leet_winners(winners)
 
     def _process_ekavika_winner_summary(self, context: Dict[str, Any]):
         """Process ekavika winner summary lines."""
@@ -690,9 +697,14 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             timestamp = leet_detector.get_timestamp_with_nanoseconds()
 
             # Check for leet achievement, including the user's message text
-            result = leet_detector.check_message_for_leet(
-                sender, timestamp, user_message
-            )
+            try:
+                result = leet_detector.check_message_for_leet(
+                    sender, timestamp, user_message, server.config.name
+                )
+            except TypeError:
+                result = leet_detector.check_message_for_leet(
+                    sender, timestamp, user_message
+                )
 
             if result:
                 achievement_message, achievement_level = result
@@ -915,9 +927,15 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
                 self._sanaketju_game = get_sanaketju_game()
 
-            self._sanaketju_game._load_state(self.data_manager)
+            game_key = f"{server_name}:{target}".lower()
+            self._sanaketju_game = get_sanaketju_game(game_key)
+            self._sanaketju_game._load_state(self.data_manager, game_key)
 
-            if self._sanaketju_game.active and target.startswith("#"):
+            if (
+                self._sanaketju_game.active
+                and self._sanaketju_game.channel.lower() == target.lower()
+                and target.startswith("#")
+            ):
                 # Only process words from whitelisted users
                 sender_lower = sender.lower()
                 if sender_lower not in self._sanaketju_game.notice_whitelist:
@@ -928,7 +946,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                     words = re.findall(r"\b\w+\b", text.lower())
                     for word in words:
                         result = self._sanaketju_game.process_word(
-                            word, sender, self.data_manager
+                            word, sender, self.data_manager, game_key
                         )
                         if result:
                             # Valid word found! Send notice to all whitelisted participants
@@ -2468,13 +2486,13 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 logger.error(f"Error getting crypto price: {e}")
         return "N/A"
 
-    def _load_leet_winners(self):
+    def _load_leet_winners(self, server_name=None):
         """Load leet winners data."""
-        return self.data_manager.load_leet_winners_state()
+        return self.data_manager.load_leet_winners_state(server_name)
 
-    def _save_leet_winners(self, data):
+    def _save_leet_winners(self, data, server_name=None):
         """Save leet winners data."""
-        self.data_manager.save_leet_winners_state(data)
+        self.data_manager.save_leet_winners_state(data, server_name)
 
     def _get_alko_product(self, query: str) -> str:
         """Get Alko product information."""

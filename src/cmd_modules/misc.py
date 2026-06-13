@@ -622,8 +622,16 @@ def command_leets(context, bot_functions):
         except Exception:
             limit = 5
 
+    server_name = (
+        bot_functions.get("server_name")
+        or getattr(context, "server_name", "console")
+        or "console"
+    )
     detector = create_leet_detector()
-    history = detector.get_leet_history(limit=limit)
+    try:
+        history = detector.get_leet_history(limit=limit, server=server_name)
+    except TypeError:
+        history = detector.get_leet_history(limit=limit)
 
     if not history:
         return "No leet detections found."

@@ -99,7 +99,16 @@ def test_configmanager_loads_env_and_caching(monkeypatch, tmp_path):
 def test_configmanager_uses_configured_state_file(monkeypatch, tmp_path):
     state_file = tmp_path / "state.json"
     state_file.write_text(
-        json.dumps({"config": {"bot_name": "TemporaryBot"}}),
+        json.dumps(
+            {
+                "config": {
+                    "bot_name": "TemporaryBot",
+                    "servers": [
+                        {"host": "irc.example", "port": 6697, "channels": ["#test"]}
+                    ],
+                }
+            }
+        ),
         encoding="utf-8",
     )
     monkeypatch.setenv("STATE_FILE", str(state_file))
@@ -139,6 +148,7 @@ def test_configmanager_uses_configured_state_file(monkeypatch, tmp_path):
     assert expected_config_defaults.issubset(saved["config"])
     assert saved["config"]["quotes_source"] == "data/quotes.txt"
     assert saved["config"]["ops_allowed_channels"] == cfg.OPS_ALLOWED_CHANNELS
+    assert saved["config"]["servers"][0]["quit_message"] == ""
 
 
 def test_state_file_constant_honors_environment(monkeypatch, tmp_path):
@@ -510,6 +520,7 @@ def test_load_server_configs_accepts_inner_and_full_state():
         "port": 6697,
         "channels": ["#test"],
         "tls": True,
+        "quit_message": "Server bye",
     }
 
     inner = manager._load_server_configs_from_state({"servers": [server_data.copy()]})
@@ -520,3 +531,4 @@ def test_load_server_configs_accepts_inner_and_full_state():
     assert len(inner) == 1
     assert len(full) == 1
     assert inner[0].host == full[0].host == "irc.example.com"
+    assert inner[0].quit_message == full[0].quit_message == "Server bye"

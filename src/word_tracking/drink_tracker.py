@@ -45,6 +45,7 @@ class DrinkTracker:
             "plop",
             "tsirp",
         }
+        self._load_custom_drink_words()
 
         # Regex pattern for detecting drink words with specific drinks and optional opening time
         # Matches: "krak (Karhu 5,5%)" or "krak (karhu)" or "krak (5,0% 0.5L) @ 02:15" or just "krak"
@@ -63,6 +64,43 @@ class DrinkTracker:
         self.DEFAULT_VOLUME_L = 0.33  # ~33cl standard drink
         self.DEFAULT_ABV = 4.7  # ABV for standard drink
         self.ALCOHOL_DENSITY = 0.789  # g/ml density of pure ethanol
+
+    def _load_custom_drink_words(self) -> None:
+        """Load persisted custom drink words into the active matcher set."""
+        data = self.data_manager.load_drink_data()
+        for server_data in data.get("servers", {}).values():
+            mappings = server_data.get("drink_word_mappings", {})
+            if isinstance(mappings, dict):
+                self.drink_words.update(word.lower() for word in mappings)
+
+    def add_drink_word_mapping(
+        self, word: str, drink_name: str, server: str = "console"
+    ) -> bool:
+        """Persist a server-local custom drink word and its default drink name."""
+        word = (word or "").strip().lower()
+        drink_name = (drink_name or "").strip()
+        if not word or not drink_name or not re.fullmatch(r"\w+", word):
+            return False
+
+        data = self.data_manager.load_drink_data()
+        data.setdefault("servers", {})
+        server_data = data["servers"].setdefault(server, {"nicks": {}})
+        server_data.setdefault("nicks", {})
+        mappings = server_data.setdefault("drink_word_mappings", {})
+        mappings[word] = drink_name
+        data["last_updated"] = datetime.now().isoformat()
+        self.data_manager.save_drink_data(data)
+
+        self.drink_words.add(word)
+        self.drink_pattern = re.compile(
+            r"(?:^|\|\s*)("
+            + "|".join(
+                re.escape(w) for w in sorted(self.drink_words, key=len, reverse=True)
+            )
+            + r")\s*(?:\(([^)]+)\))?\s*(?:@\s*(\d{1,2}:\d{2}))?(?!\w)",
+            re.IGNORECASE,
+        )
+        return True
 
     def set_alko_service(self, alko_service):
         """
@@ -97,6 +135,14 @@ class DrinkTracker:
             drink_word = match.group(1).lower()
             specific_drink = match.group(2) if match.group(2) else "unspecified"
             opened_time = match.group(3) if match.group(3) else None
+            if specific_drink == "unspecified":
+                mappings = (
+                    self.data_manager.load_drink_data()
+                    .get("servers", {})
+                    .get(server, {})
+                    .get("drink_word_mappings", {})
+                )
+                specific_drink = mappings.get(drink_word, specific_drink)
 
             # Clean up specific drink name
             if specific_drink != "unspecified":

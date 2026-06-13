@@ -299,12 +299,20 @@ class DataManager:
 
         return opt_out_data
 
-    def load_ksp_state(self) -> Optional[Dict[str, str]]:
+    def load_ksp_state(self, server: Optional[str] = None) -> Optional[Dict[str, str]]:
         """Load KSP game state from merged state.json."""
         state_data = self.load_json(self.state_file)
-        return state_data.get("ksp")
+        state = state_data.get("ksp")
+        if server is None or not isinstance(state, dict):
+            return state
+        games = state.get("servers")
+        if isinstance(games, dict):
+            return games.get(server)
+        return state
 
-    def save_ksp_state(self, data: Optional[Dict[str, str]]):
+    def save_ksp_state(
+        self, data: Optional[Dict[str, str]], server: Optional[str] = None
+    ):
         """Save KSP game state to merged state.json."""
         # Load the full state file
         state_data = self.load_json(self.state_file)
@@ -318,20 +326,30 @@ class DataManager:
                 "drink_tracking_opt_out": {},
             }
 
-        # Update the ksp section
-        if data is None:
-            state_data.pop("ksp", None)
-        else:
-            state_data["ksp"] = data
-
-        # Save the full state file
-        self.update_state(
-            lambda state: (
-                {k: v for k, v in state.items() if k != "ksp"}
-                if data is None
-                else {**state, "ksp": data}
+        if server is None:
+            self.update_state(
+                lambda state: (
+                    {k: v for k, v in state.items() if k != "ksp"}
+                    if data is None
+                    else {**state, "ksp": data}
+                )
             )
-        )
+            return
+
+        def updater(state):
+            ksp_state = state.get("ksp")
+            if not isinstance(ksp_state, dict) or "servers" not in ksp_state:
+                ksp_state = {"servers": {}}
+            servers = dict(ksp_state.get("servers", {}))
+            if data is None:
+                servers.pop(server, None)
+            else:
+                servers[server] = data
+            if servers:
+                return {**state, "ksp": {"servers": servers}}
+            return {k: v for k, v in state.items() if k != "ksp"}
+
+        self.update_state(updater)
 
     def load_kraksdebug_state(self) -> Dict[str, Any]:
         """Load kraksdebug state data from merged state.json."""
@@ -363,12 +381,20 @@ class DataManager:
         # Save the full state file
         self.update_state_section("kraksdebug", data)
 
-    def load_leet_winners_state(self) -> Dict[str, Any]:
+    def load_leet_winners_state(self, server: Optional[str] = None) -> Dict[str, Any]:
         """Load leet winners state data from merged state.json."""
         state_data = self.load_json(self.state_file)
-        return state_data.get("leet_winners", {})
+        winners = state_data.get("leet_winners", {})
+        if server is None or not isinstance(winners, dict):
+            return winners
+        servers = winners.get("servers")
+        if isinstance(servers, dict):
+            return servers.get(server, {})
+        return winners
 
-    def save_leet_winners_state(self, data: Dict[str, Any]):
+    def save_leet_winners_state(
+        self, data: Dict[str, Any], server: Optional[str] = None
+    ):
         """Save leet winners state data to merged state.json."""
         # Load the full state file
         state_data = self.load_json(self.state_file)
@@ -382,18 +408,34 @@ class DataManager:
                 "drink_tracking_opt_out": {},
             }
 
-        # Update the leet_winners section
-        state_data["leet_winners"] = data
+        if server is None:
+            self.update_state_section("leet_winners", data)
+            return
 
-        # Save the full state file
-        self.update_state_section("leet_winners", data)
+        def updater(state):
+            winners = state.get("leet_winners")
+            if not isinstance(winners, dict) or "servers" not in winners:
+                winners = {"servers": {}}
+            servers = dict(winners.get("servers", {}))
+            servers[server] = data
+            return {**state, "leet_winners": {"servers": servers}}
 
-    def load_sanaketju_state(self) -> Dict[str, Any]:
+        self.update_state(updater)
+
+    def load_sanaketju_state(self, game_key: Optional[str] = None) -> Dict[str, Any]:
         """Load sanaketju game state data from merged state.json."""
         state_data = self.load_json(self.state_file)
-        return state_data.get("sanaketju", {})
+        state = state_data.get("sanaketju", {})
+        if game_key is None or not isinstance(state, dict):
+            return state
+        games = state.get("games")
+        if isinstance(games, dict):
+            return games.get(game_key, {})
+        return state
 
-    def save_sanaketju_state(self, data: Dict[str, Any]):
+    def save_sanaketju_state(
+        self, data: Dict[str, Any], game_key: Optional[str] = None
+    ):
         """Save sanaketju game state data to merged state.json."""
         # Load the full state file
         state_data = self.load_json(self.state_file)
@@ -407,11 +449,19 @@ class DataManager:
                 "drink_tracking_opt_out": {},
             }
 
-        # Update the sanaketju section
-        state_data["sanaketju"] = data
+        if game_key is None:
+            self.update_state_section("sanaketju", data)
+            return
 
-        # Save the full state file
-        self.update_state_section("sanaketju", data)
+        def updater(state):
+            sanaketju_state = state.get("sanaketju")
+            if not isinstance(sanaketju_state, dict) or "games" not in sanaketju_state:
+                sanaketju_state = {"games": {}}
+            games = dict(sanaketju_state.get("games", {}))
+            games[game_key] = data
+            return {**state, "sanaketju": {"games": games}}
+
+        self.update_state(updater)
 
     def load_state(self) -> Dict[str, Any]:
         """Load the full state file."""
