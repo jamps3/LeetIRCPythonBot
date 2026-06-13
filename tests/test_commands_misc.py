@@ -5,6 +5,7 @@ Tests for miscellaneous service commands: leetwinners, euribor, url, wrap, tilaa
 
 import os
 import sys
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
@@ -372,7 +373,7 @@ class TestShortForecastCommand:
             assert "Joensuu:" in result
             assert "15°C" in result
             assert "cloudy" in result
-            mock_format.assert_called_once_with(None, None)
+            mock_format.assert_called_once_with("Joensuu", None)
 
     def test_short_forecast_command_with_params(
         self, console_context, mock_bot_functions
@@ -394,6 +395,32 @@ class TestShortForecastCommand:
             assert "12°C" in result
             assert "sunny" in result
             mock_format.assert_called_once_with("Helsinki", 12)
+
+    def test_short_forecast_uses_server_default_city(self):
+        """Test short forecast uses the current server's configured default city."""
+        from cmd_modules.services import short_forecast_command
+
+        irc_context = CommandContext(
+            command="se",
+            args=[],
+            raw_message="!se",
+            sender="tester",
+            target="#test",
+            is_private=False,
+            is_console=False,
+            server_name="srv",
+        )
+        irc_context.server = SimpleNamespace(
+            config=SimpleNamespace(default_city="Tampere")
+        )
+
+        with patch("cmd_modules.services.format_single_line") as mock_format:
+            mock_format.return_value = "Tampere: 12°C"
+
+            result = short_forecast_command(irc_context, {})
+
+            assert "Tampere:" in result
+            mock_format.assert_called_once_with("Tampere", None)
 
 
 class TestShortForecastListCommand:
@@ -419,7 +446,7 @@ class TestShortForecastListCommand:
             assert "15°C" in result
             assert "16°C" in result
             assert "14°C" in result
-            mock_format.assert_called_once_with(None, None)
+            mock_format.assert_called_once_with("Joensuu", None)
 
     def test_short_forecast_list_command_with_params(
         self, console_context, mock_bot_functions

@@ -864,7 +864,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             self._track_urls(context)
 
         # Check kraksdebug configuration for notifications
-        kraksdebug_config = self.data_manager.load_kraksdebug_state()
+        kraksdebug_config = self.data_manager.load_kraksdebug_state(server_name)
 
         # Handle drink word notifications BEFORE adding to BAC tracker
         if drink_words_found:

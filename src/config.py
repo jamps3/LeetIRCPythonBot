@@ -123,6 +123,7 @@ class ServerConfig:
     nickserv_password: Optional[str] = None  # NickServ password for identification
     nickserv_email: Optional[str] = None  # Email for NickServ registration
     quit_message: str = ""  # Empty means use global quit_message
+    default_city: str = ""  # Empty means use Joensuu
     banned_commands: List[str] = field(
         default_factory=list
     )  # Commands banned on this server
@@ -427,6 +428,9 @@ class ConfigManager:
                 if isinstance(server, dict) and "quit_message" not in server:
                     server["quit_message"] = ""
                     updated = True
+                if isinstance(server, dict) and "default_city" not in server:
+                    server["default_city"] = ""
+                    updated = True
 
         return updated
 
@@ -577,6 +581,7 @@ class ConfigManager:
         servers = existing_servers.copy()  # Start with existing servers
         for server in servers:
             server.setdefault("quit_message", "")
+            server.setdefault("default_city", "")
 
         if existing_servers:
             print(f"Found {len(existing_servers)} existing server(s):")
@@ -668,6 +673,12 @@ class ConfigManager:
                             )
                             server["quit_message"] = quit_str
 
+                            current_city = server.get("default_city", "")
+                            city_str = input(
+                                f"Default city (optional, empty uses Joensuu, current: {current_city or 'Joensuu'}): "
+                            ).strip()
+                            server["default_city"] = city_str
+
                             print(f"Server {idx + 1} updated.")
                         else:
                             print("Invalid server number.")
@@ -724,6 +735,9 @@ class ConfigManager:
             server["quit_message"] = input(
                 "Quit message for this server (optional, empty uses global): "
             )
+            server["default_city"] = input(
+                "Default city for this server (optional, empty uses Joensuu): "
+            ).strip()
 
             servers.append(server)
 
@@ -787,6 +801,7 @@ class ConfigManager:
                     nickserv_password=server_data.get("nickserv_password"),
                     nickserv_email=server_data.get("nickserv_email"),
                     quit_message=server_data.get("quit_message", ""),
+                    default_city=server_data.get("default_city", ""),
                     banned_commands=server_data.get("banned_commands", []),
                 )
                 servers.append(config)
@@ -909,6 +924,7 @@ class ConfigManager:
                     "channels": server.channels,
                     "keys": server.keys or [],
                     "quit_message": server.quit_message,
+                    "default_city": server.default_city,
                 }
                 for server in self.config.servers
             ],
@@ -1033,6 +1049,7 @@ def get_server_configs() -> List[ServerConfig]:
         nick = (
             os.environ.get(f"{prefix}NICK", "").strip() or None
         )  # Optional per-server nick
+        default_city = os.environ.get(f"{prefix}DEFAULT_CITY", "").strip()
 
         channels = parse_comma_separated_values(channels_str)
         keys = parse_comma_separated_values(keys_str) if keys_str else None
@@ -1051,6 +1068,7 @@ def get_server_configs() -> List[ServerConfig]:
             tls=tls,
             allow_insecure_tls=allow_insecure_tls,  # Default to allow insecure TLS connections
             nick=nick,
+            default_city=default_city,
         )
 
         server_configs.append(config)

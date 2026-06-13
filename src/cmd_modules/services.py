@@ -111,6 +111,14 @@ from command_registry import (
 )
 
 
+def _get_default_city(context: CommandContext, bot_functions) -> str:
+    """Return the current server's configured default city, or Joensuu."""
+    server = getattr(context, "server", None) or (bot_functions or {}).get("server")
+    config = getattr(server, "config", None)
+    city = getattr(config, "default_city", "") if config is not None else ""
+    return city.strip() if isinstance(city, str) and city.strip() else "Joensuu"
+
+
 @command(
     "s",
     aliases=["sää", "weather"],
@@ -120,7 +128,11 @@ from command_registry import (
 )
 def weather_command(context: CommandContext, bot_functions):
     """Get weather information for a location."""
-    location = context.args_text.strip() if context.args_text else "Joensuu"
+    location = (
+        context.args_text.strip()
+        if context.args_text
+        else _get_default_city(context, bot_functions)
+    )
 
     # Call the weather function from bot_functions
     send_weather = bot_functions.get("send_weather")
@@ -169,6 +181,8 @@ def short_forecast_command(context: CommandContext, bot_functions):
         except Exception:
             pass
         city = " ".join(parts).strip() if parts else None
+    if not city:
+        city = _get_default_city(context, bot_functions)
 
     try:
         line = format_single_line(city, hours)
@@ -202,6 +216,8 @@ def short_forecast_list_command(context: CommandContext, bot_functions):
         except Exception:
             pass
         city = " ".join(parts).strip() if parts else None
+    if not city:
+        city = _get_default_city(context, bot_functions)
 
     try:
         lines = format_multi_line(city, hours)

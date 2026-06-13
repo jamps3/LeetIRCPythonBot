@@ -246,6 +246,21 @@ class TestCommandExecution:
         # Weather command should return CommandResponse
         assert isinstance(result, CommandResponse)
 
+    def test_weather_command_uses_server_default_city(
+        self, irc_context, mock_bot_functions
+    ):
+        """Test weather command uses per-server default city when no location is given."""
+        from cmd_modules.services import weather_command
+
+        irc_context.server = Mock(config=Mock(default_city="Tampere"))
+
+        result = weather_command(irc_context, mock_bot_functions)
+
+        assert isinstance(result, CommandResponse)
+        mock_bot_functions["send_weather"].assert_called_once_with(
+            None, "#test", "Tampere"
+        )
+
     def test_weather_command_no_service(self, console_context, mock_bot_functions):
         """Test weather command when service is not available."""
         from cmd_modules.services import weather_command

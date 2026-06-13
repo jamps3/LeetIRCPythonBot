@@ -351,7 +351,7 @@ class DataManager:
 
         self.update_state(updater)
 
-    def load_kraksdebug_state(self) -> Dict[str, Any]:
+    def load_kraksdebug_state(self, server: Optional[str] = None) -> Dict[str, Any]:
         """Load kraksdebug state data from merged state.json."""
         state_data = self.load_json(self.state_file)
         default_kraksdebug = {"channels": [], "nick_notices": True, "nicks": []}
@@ -359,9 +359,15 @@ class DataManager:
         if "kraksdebug" not in state_data:
             state_data["kraksdebug"] = kraksdebug
             self.update_state_section("kraksdebug", kraksdebug)
+        if server is not None:
+            if isinstance(kraksdebug, dict) and isinstance(
+                kraksdebug.get("servers"), dict
+            ):
+                return kraksdebug["servers"].get(server, default_kraksdebug.copy())
+            return default_kraksdebug.copy()
         return kraksdebug
 
-    def save_kraksdebug_state(self, data: Dict[str, Any]):
+    def save_kraksdebug_state(self, data: Dict[str, Any], server: Optional[str] = None):
         """Save kraksdebug state data to merged state.json."""
         # Load the full state file
         state_data = self.load_json(self.state_file)
@@ -375,11 +381,21 @@ class DataManager:
                 "drink_tracking_opt_out": {},
             }
 
-        # Update the kraksdebug section
-        state_data["kraksdebug"] = data
+        if server is None:
+            self.update_state_section("kraksdebug", data)
+            return
 
-        # Save the full state file
-        self.update_state_section("kraksdebug", data)
+        def updater(state):
+            kraksdebug_state = state.get("kraksdebug")
+            if not isinstance(kraksdebug_state, dict) or not isinstance(
+                kraksdebug_state.get("servers"), dict
+            ):
+                kraksdebug_state = {"servers": {}}
+            servers = dict(kraksdebug_state.get("servers", {}))
+            servers[server] = data
+            return {**state, "kraksdebug": {"servers": servers}}
+
+        self.update_state(updater)
 
     def load_leet_winners_state(self, server: Optional[str] = None) -> Dict[str, Any]:
         """Load leet winners state data from merged state.json."""
