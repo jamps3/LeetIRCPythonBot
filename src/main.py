@@ -48,11 +48,9 @@ from config import load_env_file  # noqa: E402
 # Import log rotation functions from logger
 from logger import check_log_rotation, rotate_logs
 
-# Suppress Voikko's buggy __del__ error messages during startup
-# This is a known bug in libvoikko where it accesses a non-existent attribute during garbage collection
-# Redirect stderr to a file that we can discard after startup
-_stderr_file = open(os.devnull, "w")
-sys.stderr = _stderr_file
+# Keep stderr visible for VS Code/debugpy startup failures. Older versions hid
+# libvoikko shutdown noise by redirecting stderr globally, but that also hid real
+# tracebacks and made F5 exits look like clean returns.
 
 # Create logger with MAIN context
 main_logger = logger.get_logger("MAIN")

@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 from datetime import date, datetime, timedelta
 
 from playwright.sync_api import sync_playwright
@@ -13,10 +14,10 @@ if os.path.basename(project_root) == "src":
     project_root = os.path.dirname(project_root)
 data_dir = os.path.join(project_root, "data")
 
-BASE_URL = "https://almanakka.helsinki.fi/fi/nimipaivat"
+BASE_URL = "https://example.invalid/nimipaivat"
 
 
-def scrape_category_namedays(playwright, year, category_filter):
+def scrape_category_namedays(playwright, year, category_filter, base_url):
     """Scrape namedays by navigating to date search and extracting results"""
     namedays = {}
     start = date(year, 1, 1)
@@ -31,7 +32,7 @@ def scrape_category_namedays(playwright, year, category_filter):
     page = browser.new_page()
 
     print("Loading main page...")
-    page.goto(BASE_URL, wait_until="networkidle", timeout=30000)
+    page.goto(base_url, wait_until="networkidle", timeout=30000)
     page.wait_for_timeout(2000)
 
     # Step 1: Click the .namedays-btn to go to search page
@@ -173,16 +174,20 @@ def scrape_category_namedays(playwright, year, category_filter):
 
 
 if __name__ == "__main__":
-    import sys
+    if len(sys.argv) < 2:
+        print(f"Usage: python {sys.argv[0]} <base-url> [hevonen|historiallinen|both]")
+        print(f"Example: python {sys.argv[0]} {BASE_URL} both")
+        sys.exit(1)
 
+    base_url = sys.argv[1]
     year = date.today().year
     print(f"Starting scraping for {year}...")
-    print(f"Base URL: {BASE_URL}")
+    print(f"Base URL: {base_url}")
 
     # Parse command line arguments
     category = None
-    if len(sys.argv) > 1:
-        category = sys.argv[1]
+    if len(sys.argv) > 2:
+        category = sys.argv[2]
         # Validate category
         valid_categories = ["hevonen", "historiallinen", "both"]
         if category.lower() not in valid_categories:
@@ -208,7 +213,7 @@ if __name__ == "__main__":
             or category.lower() == "hevonen"
         ):
             print("\n=== Scraping horse (hevonen) namedays ===")
-            horse_data = scrape_category_namedays(p, year, "Hevonen")
+            horse_data = scrape_category_namedays(p, year, "Hevonen", base_url)
             print(f"Horse names: {len(horse_data)} days found")
 
         # Scrape historical names if requested or if no category specified (default is both)
@@ -218,7 +223,9 @@ if __name__ == "__main__":
             or category.lower() == "historiallinen"
         ):
             print("\n=== Scraping historical (historiallinen) namedays ===")
-            historical_data = scrape_category_namedays(p, year, "Historiallinen")
+            historical_data = scrape_category_namedays(
+                p, year, "Historiallinen", base_url
+            )
             print(f"Historical names: {len(historical_data)} days found")
 
     # Combine into one structure

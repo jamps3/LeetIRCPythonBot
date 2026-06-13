@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-Robust scraper for nimipaivat data from almanakka.helsinki.fi
-Saves incrementally and restarts browser when needed.
-"""
+"""Robust nameday scraper that requires an explicit source URL."""
 
 import json
 import os
@@ -11,7 +8,7 @@ from datetime import date, timedelta
 
 from playwright.sync_api import sync_playwright
 
-BASE_URL = "https://almanakka.helsinki.fi/fi/nimipaivat"
+BOGUS_BASE_URL = "https://example.invalid/nimipaivat"
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(script_dir)
@@ -41,7 +38,7 @@ def init_data():
     }
 
 
-def scrape_batch(playwright, year, start_day, end_day, website_data):
+def scrape_batch(playwright, year, start_day, end_day, website_data, base_url):
     """Scrape a batch of days"""
     start = date(year, 1, 1) + timedelta(days=start_day)
     if start > date(year, 12, 31):
@@ -53,7 +50,7 @@ def scrape_batch(playwright, year, start_day, end_day, website_data):
     page = browser.new_page()
 
     try:
-        page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30000)
+        page.goto(base_url, wait_until="domcontentloaded", timeout=30000)
         page.wait_for_timeout(1500)
 
         # Click search button
@@ -174,6 +171,12 @@ def scrape_batch(playwright, year, start_day, end_day, website_data):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print(f"Usage: python {sys.argv[0]} <base-url>")
+        print(f"Example: python {sys.argv[0]} {BOGUS_BASE_URL}")
+        sys.exit(1)
+
+    base_url = sys.argv[1]
     year = 2026
     total_days = 366  # 2026 is leap year
 
@@ -201,7 +204,7 @@ if __name__ == "__main__":
     with sync_playwright() as p:
         while batch_start < total_days:
             success = scrape_batch(
-                p, year, batch_start, batch_start + BATCH_SIZE, website_data
+                p, year, batch_start, batch_start + BATCH_SIZE, website_data, base_url
             )
             if not success:
                 print("Batch failed, retrying...")

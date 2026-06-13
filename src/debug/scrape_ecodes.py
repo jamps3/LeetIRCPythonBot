@@ -2,6 +2,7 @@ import json
 import logging
 import random
 import re
+import sys
 import time
 
 from bs4 import BeautifulSoup
@@ -302,7 +303,10 @@ def parse_ecode_details(soup):
     return ecode_data
 
 
-def scrape_all_ecodes_adi():
+BOGUS_ECODES_URL = "https://example.invalid/ecodes"
+
+
+def scrape_all_ecodes_adi(url):
     """Main function to scrape all E-codes and their ADI information"""
     driver = None
     try:
@@ -310,7 +314,6 @@ def scrape_all_ecodes_adi():
         driver = setup_chrome_driver()
 
         # Navigate to the page
-        url = "https://www.ruokavirasto.fi/elintarvikkeet/ohjeita-kuluttajille/e-kooditlisaaineet/e-koodit/"
         logger.info(f"Fetching data from: {url}")
 
         driver.get(url)
@@ -496,13 +499,18 @@ def save_ecodes_data(data):
 
 def main():
     """Main execution function"""
+    if len(sys.argv) < 2:
+        print(f"Usage: python {sys.argv[0]} <source-url>")
+        print(f"Example: python {sys.argv[0]} {BOGUS_ECODES_URL}")
+        return False
+
     logger.info("Starting comprehensive E-codes ADI scraping...")
 
     # Load existing data
     existing_data = load_existing_ecodes()
 
     # Scrape new data
-    scraped_data, unique_ecodes = scrape_all_ecodes_adi()
+    scraped_data, unique_ecodes = scrape_all_ecodes_adi(sys.argv[1])
 
     if not scraped_data:
         logger.error("No E-code data was scraped. Exiting.")

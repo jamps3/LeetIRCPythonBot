@@ -1,10 +1,11 @@
 import json
 import os
+import sys
 
 import requests
 from bs4 import BeautifulSoup
 
-BASE_URL = "https://otiedote.fi/release_view/{}"
+BASE_URL = "https://example.invalid/release_view/{}"
 JSON_FILE = "data/otiedote.json"
 
 
@@ -28,8 +29,8 @@ def load_existing_ids():
 # ----------------------------------------------------------------------
 # Parsitaan yksittäinen tiedote
 # ----------------------------------------------------------------------
-def fetch_release(id):
-    url = BASE_URL.format(id)
+def fetch_release(id, base_url):
+    url = base_url.format(id)
     r = requests.get(url, timeout=10)
     if r.status_code != 200:
         return None
@@ -113,7 +114,7 @@ def fetch_release(id):
 # ----------------------------------------------------------------------
 # Hakuun sisältyvä logiikka
 # ----------------------------------------------------------------------
-def fetch_until_limit(start_id=50, found_limit=10, missing_streak_limit=10):
+def fetch_until_limit(base_url, start_id=50, found_limit=10, missing_streak_limit=10):
     id_map, existing_ids = load_existing_ids()
     results = list(id_map.values())
 
@@ -131,7 +132,7 @@ def fetch_until_limit(start_id=50, found_limit=10, missing_streak_limit=10):
             existing_item = id_map[current_id]
             # Päivitä organisaatio, jos puuttuu
             if not existing_item.get("organization"):
-                data = fetch_release(current_id)
+                data = fetch_release(current_id, base_url)
                 if data and data.get("organization"):
                     existing_item["organization"] = data["organization"]
                     print(
@@ -143,7 +144,7 @@ def fetch_until_limit(start_id=50, found_limit=10, missing_streak_limit=10):
             if existing_item.get(
                 "content", ""
             ).strip() == "Tapahtuman kuvaus:" or not existing_item.get("content"):
-                data = fetch_release(current_id)
+                data = fetch_release(current_id, base_url)
                 if data and data.get("content"):
                     existing_item["content"] = data["content"]
                     print(
@@ -156,7 +157,7 @@ def fetch_until_limit(start_id=50, found_limit=10, missing_streak_limit=10):
 
         print(f"Checking ID {current_id}...", end=" ")
 
-        data = fetch_release(current_id)
+        data = fetch_release(current_id, base_url)
         if data:
             print(f"FOUND → {data['title']}")
             results.append(data)
@@ -187,4 +188,17 @@ def fetch_until_limit(start_id=50, found_limit=10, missing_streak_limit=10):
 
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
-    fetch_until_limit(start_id=2835, found_limit=10, missing_streak_limit=10)
+    if len(sys.argv) < 2:
+        print(f"Usage: python {sys.argv[0]} <release-url-template>")
+        print(f"Example: python {sys.argv[0]} {BASE_URL}")
+        print("Template must contain '{}' where the numeric release ID belongs.")
+        sys.exit(1)
+
+    release_url_template = sys.argv[1]
+    if "{}" not in release_url_template:
+        print("Error: release-url-template must contain '{}'.")
+        sys.exit(1)
+
+    fetch_until_limit(
+        release_url_template, start_id=2835, found_limit=10, missing_streak_limit=10
+    )

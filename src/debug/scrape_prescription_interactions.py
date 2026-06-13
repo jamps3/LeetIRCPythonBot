@@ -2,12 +2,13 @@
 
 import json
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-SOURCE_URL = "https://drug-interactions.medicine.iu.edu/main-table"
+SOURCE_URL = "https://example.invalid/main-table"
 OUTPUT_FILE = Path("data/prescription_interactions.json")
 STRENGTHS = {"S": "strong", "M": "moderate", "W": "weak", "I": "in-vitro", "T": "tbd"}
 
@@ -31,11 +32,11 @@ def add_relationship(drugs, name, enzyme, role, strength=None, references=None):
         drug["relationships"].append(relationship)
 
 
-def scrape():
+def scrape(source_url):
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page()
-        page.goto(SOURCE_URL, wait_until="networkidle", timeout=60_000)
+        page.goto(source_url, wait_until="networkidle", timeout=60_000)
         page.wait_for_selector("[data-rvt-dialog-trigger]", timeout=30_000)
         payload = {}
         extract_visible = """() => {
@@ -82,7 +83,7 @@ def scrape():
     return payload.values()
 
 
-def build_snapshot(entries):
+def build_snapshot(entries, source_url):
     drugs = {}
     for entry in entries:
         references = sorted(set(entry["references"]))
@@ -102,7 +103,7 @@ def build_snapshot(entries):
         drug["relationships"].sort(key=lambda item: (item["enzyme"], item["role"]))
     return {
         "metadata": {
-            "source_url": SOURCE_URL,
+            "source_url": source_url,
             "scraped_at": datetime.now(timezone.utc).isoformat(),
         },
         "drugs": dict(sorted(drugs.items())),
@@ -110,12 +111,19 @@ def build_snapshot(entries):
 
 
 def main():
-    snapshot = build_snapshot(scrape())
+    if len(sys.argv) < 2:
+        print(f"Usage: python {sys.argv[0]} <source-url>")
+        print(f"Example: python {sys.argv[0]} {SOURCE_URL}")
+        return 1
+
+    source_url = sys.argv[1]
+    snapshot = build_snapshot(scrape(source_url), source_url)
     OUTPUT_FILE.parent.mkdir(exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as file:
         json.dump(snapshot, file, ensure_ascii=False, indent=2)
     print(f"Saved {len(snapshot['drugs'])} drugs to {OUTPUT_FILE}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

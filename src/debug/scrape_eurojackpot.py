@@ -9,6 +9,7 @@ using a headless browser to execute JavaScript and render the page.
 import json
 import logging
 import os
+import sys
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -19,15 +20,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # URLs to try
-EUROJACKPOT_OFFICIAL_URL = "https://www.eurojackpot.com/"
+EUROJACKPOT_OFFICIAL_URL = "https://example.invalid/eurojackpot/"
 EUROJACKPOT_URL = EUROJACKPOT_OFFICIAL_URL  # Use official Eurojackpot website
+EUROJACKPOT_API_URL = "https://example.invalid/eurojackpot/WL_InfoService"
 
 
 class EurojackpotScraper:
     """Scraper for Eurojackpot draw results from Veikkaus.fi"""
 
-    def __init__(self):
-        self.url = EUROJACKPOT_URL
+    def __init__(self, url=EUROJACKPOT_URL, api_url=EUROJACKPOT_API_URL):
+        self.url = url
+        self.api_url = api_url
 
     def scrape_draw_results(self, start_date: str = "2022-03-25") -> list:
         """
@@ -51,7 +54,7 @@ class EurojackpotScraper:
             logger.info(f"Generated {len(draw_dates)} potential draw dates to check")
 
             all_draws = []
-            base_url = "https://www.eurojackpot.com/wlinfo/WL_InfoService"
+            base_url = self.api_url
 
             for i, draw_date in enumerate(draw_dates):
                 if i % 2 == 0:  # Progress logging every 2 draws
@@ -462,7 +465,15 @@ def save_draw_to_database(draw_data: Dict, filename: str = "eurojackpot.json"):
 
 def main():
     """Main function to run the scraper"""
-    scraper = EurojackpotScraper()
+    if len(sys.argv) < 2:
+        print(f"Usage: python {sys.argv[0]} <api-url> [page-url]")
+        print(f"Example: python {sys.argv[0]} {EUROJACKPOT_API_URL} {EUROJACKPOT_URL}")
+        return 1
+
+    scraper = EurojackpotScraper(
+        api_url=sys.argv[1],
+        url=sys.argv[2] if len(sys.argv) > 2 else EUROJACKPOT_URL,
+    )
     results = scraper.scrape_draw_results(start_date="2022-03-25")
 
     if results and len(results) > 0:

@@ -1,7 +1,7 @@
 """
-Scrape additional namedays (Swedish, Sami, Orthodox) from nimipaivat.fi using Playwright
+Scrape additional namedays (Swedish, Sami, Orthodox) from an explicit source URL
 Usage: python scrape_nimipaivat-others-playwright.py <url>
-Example: python scrape_nimipaivat-others-playwright.py https://almanakka.helsinki.fi/fi/nimipaivat
+Example: python scrape_nimipaivat-others-playwright.py https://example.invalid/nimipaivat
 
 This script uses the same Playwright approach as scrape_nimipaivat-hevonen-historiallinen.py
 but allows URL as parameter (not hardcoded).
@@ -153,7 +153,7 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python scrape_nimipaivat-others-playwright.py <url>")
         print(
-            "Example: python scrape_nimipaivat-others-playwright.py https://almanakka.helsinki.fi/fi/nimipaivat"
+            "Example: python scrape_nimipaivat-others-playwright.py https://example.invalid/nimipaivat"
         )
         sys.exit(1)
 

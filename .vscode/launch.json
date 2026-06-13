@@ -5,9 +5,13 @@
       "name": "Python Debugger: Current File",
       "type": "debugpy",
       "request": "launch",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "program": "${workspaceFolder}/src/main.py",
       "console": "integratedTerminal",
-      "args": ["-l", "DEBUG"] // , "-console"
+      "args": ["-l", "DEBUG"],
+      "env": {
+        "UV_PROJECT_ENVIRONMENT": "${workspaceFolder}/.venv"
+      }
     }
   ]
 }

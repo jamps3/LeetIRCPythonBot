@@ -1,7 +1,7 @@
 """
-Scrape additional namedays from nimipaivat.fi using Playwright
+Scrape additional namedays from an explicit source URL using Playwright
 Usage: python scrape_nimipaivat-others.py <url>
-Example: python scrape_nimipaivat-others.py https://www.nimipaivat.fi
+Example: python scrape_nimipaivat-others.py https://example.invalid/nimipaivat
 
 Ruotsinkieliset, Saamenkieliset ja Ortodoksiset (Orthodox) nimet.
 """
@@ -140,7 +140,10 @@ def scrape_with_playwright(base_url, year=2026):
 def main():
     if len(sys.argv) < 2:
         print("Usage: python scrape_nimipaivat-others.py <url>")
-        print("Example: python scrape_nimipaivat-others.py https://www.nimipaivat.fi")
+        print(
+            "Example: python scrape_nimipaivat-others.py "
+            "https://example.invalid/nimipaivat"
+        )
         sys.exit(1)
 
     base_url = sys.argv[1].rstrip("/")

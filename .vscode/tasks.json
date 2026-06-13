@@ -1,0 +1,43 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "uv: sync dev",
+      "type": "shell",
+      "command": "uv",
+      "args": ["sync", "--dev"],
+      "problemMatcher": []
+    },
+    {
+      "label": "uv: run bot",
+      "type": "shell",
+      "command": "uv",
+      "args": ["run", "python", "src/main.py", "-l", "DEBUG"],
+      "problemMatcher": []
+    },
+    {
+      "label": "uv: test",
+      "type": "shell",
+      "command": "uv",
+      "args": ["run", "pytest", "-v", "--tb=short", "-n", "auto"],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "uv: ruff check",
+      "type": "shell",
+      "command": "uv",
+      "args": ["run", "ruff", "check", "."],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "uv: ruff format",
+      "type": "shell",
+      "command": "uv",
+      "args": ["run", "ruff", "format", "."],
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}

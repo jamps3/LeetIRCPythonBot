@@ -1,14 +1,16 @@
 import json
+import sys
 from datetime import date, datetime, timedelta
 
 import requests
 from bs4 import BeautifulSoup
 
-BASE_URL = "https://www.nimipaivat.fi/"
+BASE_URL = "https://example.invalid/nimipaivat/"
 
 
-def scrape_namedays(year):
+def scrape_namedays(year, base_url):
     namedays = {}
+    base_url = base_url.rstrip("/") + "/"
     start = date(year, 1, 1)
     end = date(year, 12, 31)
     delta = timedelta(days=1)
@@ -17,7 +19,7 @@ def scrape_namedays(year):
     while current <= end:
         day = current.day
         month = current.month
-        url = f"{BASE_URL}{day}.{month}."
+        url = f"{base_url}{day}.{month}."
         response = requests.get(url)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")
@@ -58,8 +60,13 @@ def scrape_namedays(year):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print(f"Usage: python {sys.argv[0]} <base-url>")
+        print(f"Example: python {sys.argv[0]} https://example.invalid/nimipaivat")
+        sys.exit(1)
+
     year = date.today().year
-    data = scrape_namedays(year)
+    data = scrape_namedays(year, sys.argv[1])
 
     # Add scrape timestamp
     data["_scrape_timestamp"] = datetime.now().isoformat()

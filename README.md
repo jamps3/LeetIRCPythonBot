@@ -60,7 +60,7 @@ uv run pre-commit run -a
 ### Or use the built-in setup script (includes test-before-push protection):
 
 ```bash
-python setup_hooks.py
+uv run python setup_hooks.py
 ```
 
 This sets up:
@@ -75,6 +75,16 @@ If you want to use Voikko -features you need to install these packages with apt:
 ```bash
 sudo apt install -y libvoikko1 voikko-fi python3-libvoikko
 ```
+
+## VS Code
+
+The workspace is configured for uv:
+
+- Debug/F5 uses `${workspaceFolder}/.venv/Scripts/python.exe`, created by `uv sync --dev`.
+- Test discovery runs through `uv run pytest`.
+- Formatting and import organization use Ruff from `pyproject.toml`.
+
+If VS Code previously selected `venv\Scripts\python.exe`, run `uv sync --dev` and reload the window so it picks up `.venv`.
 
 ## .env file for configuration:
 

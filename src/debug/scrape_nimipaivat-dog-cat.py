@@ -1,11 +1,11 @@
 import json
+import sys
 
 import requests
 from bs4 import BeautifulSoup
 
 
-def fetch_pet_namedays(date_str):
-    base_url = "https://url"
+def fetch_pet_namedays(date_str, base_url):
     result = {"dogs": [], "cats": []}
 
     for animal in ["dog", "cat"]:
@@ -37,13 +37,13 @@ def fetch_pet_namedays(date_str):
     return result
 
 
-def merge_namedays(human_json_path, output_path):
+def merge_namedays(human_json_path, output_path, base_url):
     """Yhdistää ihmisten nimipäivät ja lemmikkien nimipäivät samaan JSONiin."""
     with open(human_json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     for date_str in data.keys():
-        pets = fetch_pet_namedays(date_str)
+        pets = fetch_pet_namedays(date_str, base_url)
         data[date_str]["dogs"] = pets["dogs"]
         data[date_str]["cats"] = pets["cats"]
 
@@ -54,4 +54,11 @@ def merge_namedays(human_json_path, output_path):
 
 
 if __name__ == "__main__":
-    merge_namedays("ihmisten_nimipaivat.json", "nimipaivat_yhdistetty.json")
+    if len(sys.argv) < 2:
+        print(f"Usage: python {sys.argv[0]} <base-url>")
+        print(f"Example: python {sys.argv[0]} https://example.invalid/nimipaivat")
+        sys.exit(1)
+
+    merge_namedays(
+        "ihmisten_nimipaivat.json", "nimipaivat_yhdistetty.json", sys.argv[1]
+    )
