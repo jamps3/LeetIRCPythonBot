@@ -250,6 +250,30 @@ def test_chat_api_error(tmp_path, capsys):
     assert msg.startswith("Sorry, AI service error:")
 
 
+def test_chat_quota_error_returns_short_message(tmp_path):
+    svc, _ = make_service(tmp_path)
+
+    def raise_quota(*a, **k):
+        mock_request = Mock()
+        mock_request.url = "https://api.openai.com/v1/responses"
+        mock_request.method = "POST"
+        raise gpt_mod.APIError(
+            "Error code: 429 - {'error': {'message': 'You  exceeded your current quota, please check your plan and billing details.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}",
+            request=mock_request,
+            body={
+                "error": {
+                    "message": "You  exceeded your current quota, please check your plan and billing details.",
+                    "type": "insufficient_quota",
+                    "param": None,
+                    "code": "insufficient_quota",
+                }
+            },
+        )
+
+    svc.client.responses.create = raise_quota
+    assert svc.chat("hi") == "No quota."
+
+
 def test_chat_unexpected_error(tmp_path, capsys):
     svc, _ = make_service(tmp_path)
 

@@ -4,103 +4,56 @@ Tests for drug data APIs and services.
 """
 
 import json
-from pathlib import Path
 
 import pytest
-import requests
+
+DRUGS_DATA = {
+    "cannabis": {
+        "name": "Cannabis",
+        "aliases": ["weed", "marijuana"],
+        "categories": ["depressant", "psychedelic"],
+        "summary": "A test fixture entry for cannabis.",
+    },
+    "alcohol": {
+        "name": "Alcohol",
+        "aliases": ["ethanol"],
+        "categories": ["depressant"],
+        "summary": "A test fixture entry for alcohol.",
+    },
+}
+
+INTERACTIONS_DATA = {
+    "cannabis": {
+        "alcohol": {
+            "status": "Caution",
+            "note": "Fixture interaction used by tests.",
+        }
+    }
+}
 
 
-class TestDrugAPIs:
-    """Test various drug data API endpoints."""
+@pytest.fixture
+def drug_data_dir(tmp_path):
+    """Create local drug data files without touching the repository data dir."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "drugs.json").write_text(json.dumps(DRUGS_DATA), encoding="utf-8")
+    (data_dir / "interactions.json").write_text(
+        json.dumps(INTERACTIONS_DATA), encoding="utf-8"
+    )
+    return data_dir
 
-    def test_tripsit_api_endpoints(self):
-        """Test TripSit API endpoints for drug data (may not all work)."""
-        endpoints = [
-            "https://tripsit.me/api/factsheets",
-            "https://api.tripsit.me/factsheets",
-            "https://tripsit.me/api/drugs",
-            "https://api.tripsit.me/drugs",
-            "https://tripsit.me/api/substances",
-            "https://api.tripsit.me/substances",
-            "https://drugs.tripsit.me/api/factsheets",
-            "https://combo.tripsit.me/api/factsheets",
-        ]
 
-        found_data = False
-        tested_endpoints = 0
+class TestDrugDataSnapshots:
+    """Test the local TripSit-style data structure used by the service."""
 
-        for url in endpoints:
-            try:
-                response = requests.get(url, timeout=10)
-                tested_endpoints += 1
-                if response.status_code == 200:
-                    try:
-                        data = response.json()
-                        if isinstance(data, list) and len(data) > 10:
-                            found_data = True
-                            assert len(data) > 0, f"No data in {url}"
-                            assert isinstance(data[0], dict), (
-                                f"First item not a dict in {url}"
-                            )
-                            break
-                        elif isinstance(data, dict):
-                            # Check for nested data
-                            for key in ["data", "factsheets", "drugs", "substances"]:
-                                if (
-                                    key in data
-                                    and isinstance(data[key], list)
-                                    and len(data[key]) > 10
-                                ):
-                                    found_data = True
-                                    assert len(data[key]) > 0, f"No data in {url}.{key}"
-                                    assert isinstance(data[key][0], dict), (
-                                        f"First item not a dict in {url}.{key}"
-                                    )
-                                    break
-                    except json.JSONDecodeError:
-                        pass  # Not JSON, skip
-            except requests.RequestException:
-                pass  # Connection error, skip
+    def test_drugs_snapshot_structure(self, drug_data_dir):
+        """Test the local TripSit-style drugs snapshot structure."""
+        with open(drug_data_dir / "drugs.json", encoding="utf-8") as f:
+            data = json.load(f)
 
-        # Just verify we tested some endpoints - the GitHub API is the reliable one
-        assert tested_endpoints > 0, "No endpoints were testable"
-
-    def test_combo_api_endpoints(self):
-        """Test combo.tripsit.me specific endpoints."""
-        endpoints = [
-            "https://combo.tripsit.me/api",
-            "https://combo.tripsit.me/api/drugs",
-            "https://combo.tripsit.me/api/factsheets",
-            "https://combo.tripsit.me/drugs.json",
-            "https://combo.tripsit.me/factsheets.json",
-        ]
-
-        for url in endpoints:
-            try:
-                response = requests.get(url, timeout=10)
-                if response.status_code == 200:
-                    content_type = response.headers.get("content-type", "")
-                    if "json" in content_type.lower():
-                        try:
-                            data = response.json()
-                            if isinstance(data, list) and len(data) > 5:
-                                assert len(data) > 0, f"No data in {url}"
-                                break
-                        except json.JSONDecodeError:
-                            pass
-            except requests.RequestException:
-                pass
-
-    def test_github_drugs_api(self):
-        """Test the GitHub TripSit drugs repository API."""
-        url = "https://raw.githubusercontent.com/TripSit/drugs/master/drugs.json"
-
-        response = requests.get(url, timeout=15)
-        assert response.status_code == 200, f"GitHub API failed: {response.status_code}"
-
-        data = response.json()
-        assert isinstance(data, dict), "GitHub data should be a dict"
-        assert len(data) > 100, f"Expected >100 drugs, got {len(data)}"
+        assert isinstance(data, dict), "Drug data should be a dict"
+        assert len(data) >= 2
 
         # Check that it's properly structured
         sample_key = list(data.keys())[0]
@@ -112,29 +65,37 @@ class TestDrugAPIs:
         for field in expected_fields:
             assert field in drug_info, f"Missing {field} in drug {sample_key}"
 
-    def test_tripbot_api(self):
-        """Test the TripBot API."""
-        url = "https://tripbot.tripsit.me/api/tripsit/getAllDrugs"
+    def test_interactions_snapshot_structure(self, drug_data_dir):
+        """Test the local TripSit-style interaction snapshot structure."""
+        with open(drug_data_dir / "interactions.json", encoding="utf-8") as f:
+            data = json.load(f)
 
-        response = requests.get(url, timeout=10)
-        assert response.status_code == 200, (
-            f"TripBot API failed: {response.status_code}"
+        assert isinstance(data, dict), "Interaction data should be a dict"
+        assert data
+
+        interaction_groups = [
+            value for value in data.values() if isinstance(value, dict)
+        ]
+        assert interaction_groups, "Expected at least one interaction group"
+
+        sample_group = next(
+            value for value in interaction_groups if any(value.values())
         )
-
-        data = response.json()
-        assert isinstance(data, dict), "TripBot data should be a dict"
-        assert "data" in data, "TripBot data should have 'data' key"
+        sample_interaction = next(
+            value for value in sample_group.values() if isinstance(value, dict)
+        )
+        assert "status" in sample_interaction
 
 
 class TestDrugService:
     """Test the drug service functionality."""
 
     @pytest.fixture
-    def drug_service(self):
+    def drug_service(self, drug_data_dir):
         """Create a drug service instance."""
         from services.drug_service import DrugService
 
-        return DrugService()
+        return DrugService(data_dir=str(drug_data_dir))
 
     def test_service_initialization(self, drug_service):
         """Test that drug service initializes properly."""
@@ -144,23 +105,20 @@ class TestDrugService:
 
     def test_drug_lookup(self, drug_service):
         """Test basic drug lookup functionality."""
-        # Test with a common drug
         drug_info = drug_service.get_drug_info("cannabis")
-        if drug_info:  # Only test if data is loaded
-            assert isinstance(drug_info, dict)
-            assert "name" in drug_info
+        assert isinstance(drug_info, dict)
+        assert drug_info["name"] == "Cannabis"
 
     def test_drug_search(self, drug_service):
         """Test drug search functionality."""
-        if drug_service.get_stats()["total_drugs"] > 0:
-            results = drug_service.search_drugs("can", limit=5)
-            assert isinstance(results, list)
-            assert len(results) <= 5
+        results = drug_service.search_drugs("can", limit=5)
+        assert isinstance(results, list)
+        assert len(results) == 1
+        assert results[0]["name"] == "Cannabis"
 
     def test_drug_interactions(self, drug_service):
         """Test drug interaction checking."""
-        if drug_service.get_stats()["total_drugs"] > 0:
-            result = drug_service.check_interactions(["cannabis", "alcohol"])
-            assert isinstance(result, dict)
-            assert "interactions" in result
-            assert "warnings" in result
+        result = drug_service.check_interactions(["cannabis", "alcohol"])
+        assert isinstance(result, dict)
+        assert result["interactions"] == [("cannabis", "alcohol", "Caution")]
+        assert result["warnings"]

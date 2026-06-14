@@ -190,8 +190,6 @@ data/ekavika.json
 data/*_words.json
 data/eurojackpot.json
 data/drink_tracking.json
-data/drugs.json
-data/interactions.json
 data/urls.json
 data/otiedote.json
 data/word_associations.json
@@ -211,6 +209,7 @@ test-results.txt
 test-results.xml
 pip-audit-report.json
 test_state
+.pytest-tmp*/
 
 # Documentation and plans
 #docs/

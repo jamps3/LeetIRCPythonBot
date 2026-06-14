@@ -7,6 +7,7 @@ and related classes with comprehensive coverage.
 """
 
 import os
+from collections import deque
 from datetime import datetime
 from unittest.mock import Mock, patch
 
@@ -543,13 +544,12 @@ class TestStatsView:
         """Test stats display with bot manager."""
         tui_manager = Mock()
         tui_manager.bot_manager = mock_bot_manager
+        tui_manager.log_entries = deque(maxlen=1000)
+        tui_manager.current_filter = None
 
         stats_view = StatsView(tui_manager)
 
-        # Mock len to avoid recursion issues
-        with patch("builtins.len", return_value=1), patch("builtins.str") as mock_str:
-            mock_str.return_value = "MockServer"
-            stats = stats_view.get_stats_display()
+        stats = stats_view.get_stats_display()
 
         # Just check that we get some output without crashing
         assert isinstance(stats, str)

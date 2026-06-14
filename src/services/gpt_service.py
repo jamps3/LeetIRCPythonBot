@@ -186,6 +186,27 @@ class GPTService:
         )
         return "\n".join(parts)
 
+    @staticmethod
+    def _is_quota_error(error: Exception) -> bool:
+        """Detect OpenAI insufficient quota errors across SDK exception shapes."""
+        body = getattr(error, "body", None)
+        if isinstance(body, dict):
+            error_body = body.get("error", body)
+            if isinstance(error_body, dict):
+                code = str(error_body.get("code", "")).lower()
+                message = str(error_body.get("message", "")).lower()
+                if (
+                    code == "insufficient_quota"
+                    or "exceeded your current quota" in message
+                ):
+                    return True
+
+        error_text = str(error).lower()
+        return (
+            "insufficient_quota" in error_text
+            or "exceeded your current quota" in error_text
+        )
+
     def _get_teachings_context(
         self, max_items: int = 100, network: str = None, channel: str = None
     ) -> str:
@@ -243,9 +264,13 @@ class GPTService:
             return "Authentication error with AI service."
         except APIError as e:
             get_logger(__name__).error(f"OpenAI API error: {e}")
+            if self._is_quota_error(e):
+                return "No quota."
             return f"Sorry, AI service error: {e}"
         except Exception as e:
             get_logger(__name__).error(f"Unexpected error: {e}")
+            if self._is_quota_error(e):
+                return "No quota."
             return f"Sorry, something went wrong: {e}"
 
     def reset_conversation(self, network: str = None, channel: str = None) -> str:

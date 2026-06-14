@@ -1973,7 +1973,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         """Check if a title should be banned from being displayed."""
         banned_titles = os.getenv(
             "TITLE_BANNED_TEXTS",
-            "Bevor Sie zu Google Maps weitergehen;Just a moment...;403 Forbidden;404 Not Found;Access Denied",
+            "Bevor Sie zu Google Maps weitergehen;Bevor Sie zur Google Suche weitergehen;Just a moment...;403 Forbidden;404 Not Found;Access Denied",
         ).split(";")
 
         title_lower = title.lower().strip()
