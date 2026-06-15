@@ -922,9 +922,9 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
         # Check for sanaketju word continuations (lazy load to prevent duplicate command imports)
         try:
-            if self._sanaketju_game is None:
-                from cmd_modules.games import get_sanaketju_game
+            from cmd_modules.games import get_sanaketju_game
 
+            if self._sanaketju_game is None:
                 self._sanaketju_game = get_sanaketju_game()
 
             game_key = f"{server_name}:{target}".lower()
