@@ -356,16 +356,34 @@ class TestSelectableText:
 
             mock_open.assert_called_once_with("https://example.com")
 
-    def test_selectable_text_open_link_fallback(self):
-        """Test opening links with webbrowser fallback."""
+    def test_selectable_text_open_link_linux_detached(self):
+        """Test opening links with a detached Linux opener."""
         with (
             patch("sys.platform", "linux"),
-            patch("webbrowser.open", return_value=True) as mock_open,
+            patch("shutil.which", return_value="/usr/bin/xdg-open"),
+            patch("subprocess.Popen") as mock_popen,
         ):
             text = SelectableText("Test")
             text._open_link_in_browser("https://example.com")
 
-            mock_open.assert_called_once_with("https://example.com")
+            mock_popen.assert_called_once()
+            assert mock_popen.call_args.args[0] == [
+                "/usr/bin/xdg-open",
+                "https://example.com",
+            ]
+            assert mock_popen.call_args.kwargs["start_new_session"] is True
+
+    def test_selectable_text_open_link_no_detached_opener(self):
+        """Missing detached opener is logged without invoking terminal browsers."""
+        with (
+            patch("sys.platform", "linux"),
+            patch("shutil.which", return_value=None),
+            patch("webbrowser.open") as mock_open,
+        ):
+            text = SelectableText("Test")
+            text._open_link_in_browser("https://example.com")
+
+            mock_open.assert_not_called()
 
     def test_visual_to_logical_pos_uses_rendered_wrap_layout(self):
         """Wrapped visual rows map back to offsets in the original text."""

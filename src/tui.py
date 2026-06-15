@@ -811,6 +811,9 @@ class SelectableText(urwid.WidgetWrap):
 
     def _open_link_in_browser(self, url):
         """Open URL in default browser."""
+        import shutil
+        import subprocess
+        import sys
         import webbrowser
 
         # Log the attempt to open URL
@@ -820,8 +823,31 @@ class SelectableText(urwid.WidgetWrap):
         log.info(f"Trying to open URL: {url}")
 
         try:
-            result = webbrowser.open(url)
-            log.info(f"webbrowser.open returned: {result} for URL: {url}")
+            if sys.platform == "win32":
+                result = webbrowser.open(url)
+                log.info(f"webbrowser.open returned: {result} for URL: {url}")
+                return
+
+            opener = None
+            if sys.platform == "darwin":
+                opener = shutil.which("open")
+            else:
+                opener = shutil.which("xdg-open")
+
+            if opener:
+                # Opener is resolved from a fixed OS command name, and url is
+                # passed as argv without shell interpolation.
+                subprocess.Popen(  # noqa: S603
+                    [opener, url],
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
+                log.info(f"Started detached browser opener for URL: {url}")
+                return
+
+            log.warning(f"No detached browser opener available for URL: {url}")
 
         except Exception as e:
             log.error(f"Error opening browser for URL {url}: {e}")
