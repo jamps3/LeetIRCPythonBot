@@ -162,9 +162,14 @@ class BlackjackGame:
     started_at: Optional[datetime] = None
     last_action_at: Optional[datetime] = None
     join_timer: Optional[threading.Timer] = None
+    play_timer: Optional[threading.Timer] = None
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def start_game(self, starter: str, channel: str, server=None):
         """Start a new game in joining state."""
+        # Cancel any existing timers before resetting
+        self._cancel_timers()
+
         self.channel = channel
         self.server = server
         self.state = GameState.JOINING
@@ -180,108 +185,119 @@ class BlackjackGame:
 
         # Start 5-minute join timer
         self.join_timer = threading.Timer(300.0, self._auto_deal)
+        self.join_timer.daemon = True
         self.join_timer.start()
 
     def join_player(self, nick: str) -> bool:
         """Add a player to the game. Returns True if successful."""
-        if self.state != GameState.JOINING:
-            return False
-        if nick in self.players:
-            return False  # Already joined
+        with self._lock:
+            if self.state != GameState.JOINING:
+                return False
+            if nick in self.players:
+                return False  # Already joined
 
-        self.players[nick] = Hand()
-        self.last_action_at = datetime.now()
-        return True
+            self.players[nick] = Hand()
+            self.last_action_at = datetime.now()
+            return True
 
     def leave_player(self, nick: str) -> bool:
         """Remove a player from the game. Returns True if successful."""
-        if self.state != GameState.JOINING:
-            return False
-        if nick not in self.players:
-            return False
+        with self._lock:
+            if self.state != GameState.JOINING:
+                return False
+            if nick not in self.players:
+                return False
 
-        del self.players[nick]
-        self.last_action_at = datetime.now()
+            del self.players[nick]
+            self.last_action_at = datetime.now()
 
-        # If no players left, cancel the game
-        if not self.players:
-            self._cleanup()
+            # If no players left, cancel the game
+            if not self.players:
+                self._cleanup()
 
-        return True
+            return True
 
     def deal_cards(self, dealer: str) -> bool:
         """Deal initial cards and start playing. Returns True if successful."""
-        if self.state != GameState.JOINING:
-            return False
-        if dealer not in self.players:
-            return False  # Only joined players can deal
-        if len(self.players) < 1:
-            return False
+        with self._lock:
+            if self.state != GameState.JOINING:
+                return False
+            if dealer not in self.players:
+                return False  # Only joined players can deal
+            if len(self.players) < 1:
+                return False
 
-        # Cancel join timer
-        if self.join_timer:
-            self.join_timer.cancel()
-            self.join_timer = None
+            # Cancel join timer
+            if self.join_timer:
+                self.join_timer.cancel()
+                self.join_timer = None
 
-        self.state = GameState.PLAYING
-        self.last_action_at = datetime.now()
+            self.state = GameState.PLAYING
+            self.last_action_at = datetime.now()
 
-        # Deal 2 cards to each player
-        for _ in range(2):
-            for player_hand in self.players.values():
-                player_hand.add_card(self.deck.draw())
+            # Deal 2 cards to each player
+            for _ in range(2):
+                for player_hand in self.players.values():
+                    player_hand.add_card(self.deck.draw())
 
-        # Deal 2 cards to dealer (one face up, one face down)
-        self.dealer_hand.add_card(self.deck.draw())
-        self.dealer_hand.add_card(self.deck.draw())
+            # Deal 2 cards to dealer (one face up, one face down)
+            self.dealer_hand.add_card(self.deck.draw())
+            self.dealer_hand.add_card(self.deck.draw())
 
-        return True
+            # Start play phase timer
+            self._start_play_timer()
+
+            return True
 
     def player_hit(self, nick: str) -> Optional[Card]:
         """Player draws a card. Returns the card if successful."""
-        if self.state != GameState.PLAYING:
-            return None
-        if nick not in self.players:
-            return None
+        with self._lock:
+            if self.state != GameState.PLAYING:
+                return None
+            if nick not in self.players:
+                return None
 
-        player_names = list(self.players.keys())
-        if player_names[self.current_turn_index] != nick:
-            return None  # Not player's turn
+            player_names = list(self.players.keys())
+            if player_names[self.current_turn_index] != nick:
+                return None  # Not player's turn
 
-        player_hand = self.players[nick]
-        if player_hand.is_stand or player_hand.is_bust:
-            return None  # Can't hit if stood or bust
+            player_hand = self.players[nick]
+            if player_hand.is_stand or player_hand.is_bust:
+                return None  # Can't hit if stood or bust
 
-        card = self.deck.draw()
-        player_hand.add_card(card)
-        self.last_action_at = datetime.now()
+            card = self.deck.draw()
+            player_hand.add_card(card)
+            self.last_action_at = datetime.now()
+            self._reset_play_timer()
 
-        # If bust or blackjack, auto-stand
-        if player_hand.is_bust or player_hand.is_blackjack:
-            player_hand.is_stand = True
-            self._next_turn()
+            # If bust or blackjack, auto-stand
+            if player_hand.is_bust or player_hand.is_blackjack:
+                player_hand.is_stand = True
+                self._next_turn()
 
-        return card
+            return card
 
     def player_stand(self, nick: str) -> bool:
         """Player stands. Returns True if successful."""
-        if self.state != GameState.PLAYING:
-            return False
-        if nick not in self.players:
-            return False
+        with self._lock:
+            if self.state != GameState.PLAYING:
+                return False
+            if nick not in self.players:
+                return False
 
-        player_names = list(self.players.keys())
-        if player_names[self.current_turn_index] != nick:
-            return False  # Not player's turn
+            player_names = list(self.players.keys())
+            if player_names[self.current_turn_index] != nick:
+                return False  # Not player's turn
 
-        player_hand = self.players[nick]
-        if player_hand.is_stand or player_hand.is_bust:
-            return False  # Already stood or bust
+            player_hand = self.players[nick]
+            if player_hand.is_stand or player_hand.is_bust:
+                return False  # Already stood or bust
 
-        player_hand.is_stand = True
-        self.last_action_at = datetime.now()
-        self._next_turn()
-        return True
+            player_hand.is_stand = True
+            self.last_action_at = datetime.now()
+            self._reset_play_timer()
+            self._next_turn()
+            return True
 
     def get_status(self, nick: str = None) -> str:
         """Get current game status."""
@@ -342,49 +358,52 @@ class BlackjackGame:
 
     def end_game(self) -> Dict[str, str]:
         """End the game and calculate results. Returns results dict."""
-        if self.state not in [GameState.PLAYING, GameState.DEALER_TURN]:
-            return {}
+        with self._lock:
+            if self.state not in [GameState.PLAYING, GameState.DEALER_TURN]:
+                return {}
 
-        self.state = GameState.ENDED
+            self.state = GameState.ENDED
 
-        # Dealer plays
-        while self.dealer_hand.value < 17:
-            self.dealer_hand.add_card(self.deck.draw())
+            # Cancel play timer
+            self._cancel_play_timer()
 
-        # Calculate results with hand information
-        results = {}
-        dealer_value = self.dealer_hand.value
-        dealer_bust = self.dealer_hand.is_bust
+            # Dealer plays
+            while self.dealer_hand.value < 17:
+                self.dealer_hand.add_card(self.deck.draw())
 
-        # Format dealer hand
-        dealer_cards = [str(card) for card in self.dealer_hand.cards]
-        dealer_hand_str = f"[{', '.join(dealer_cards)}] ({dealer_value})"
+            # Calculate results with hand information
+            results = {}
+            dealer_value = self.dealer_hand.value
+            dealer_bust = self.dealer_hand.is_bust
 
-        for nick, hand in self.players.items():
-            # Format player hand
-            player_cards = [str(card) for card in hand.cards]
-            player_hand_str = f"[{', '.join(player_cards)}] ({hand.value})"
+            # Format dealer hand
+            dealer_cards = [str(card) for card in self.dealer_hand.cards]
+            dealer_hand_str = f"[{', '.join(dealer_cards)}] ({dealer_value})"
 
-            if hand.is_bust:
-                results[nick] = f"BUST {player_hand_str} vs {dealer_hand_str}"
-            elif hand.is_blackjack and not self.dealer_hand.is_blackjack:
-                results[nick] = f"BLACKJACK {player_hand_str} vs {dealer_hand_str}"
-            elif dealer_bust:
-                results[nick] = f"VOITTO {player_hand_str} vs {dealer_hand_str}"
-            elif hand.value > dealer_value:
-                results[nick] = f"VOITTO {player_hand_str} vs {dealer_hand_str}"
-            elif hand.value < dealer_value:
-                results[nick] = f"HÄVIÖ {player_hand_str} vs {dealer_hand_str}"
-            else:
-                results[nick] = f"TASAPELI {player_hand_str} vs {dealer_hand_str}"
+            for nick, hand in self.players.items():
+                # Format player hand
+                player_cards = [str(card) for card in hand.cards]
+                player_hand_str = f"[{', '.join(player_cards)}] ({hand.value})"
 
-        self._cleanup()
-        return results
+                if hand.is_bust:
+                    results[nick] = f"BUST {player_hand_str} vs {dealer_hand_str}"
+                elif hand.is_blackjack and not self.dealer_hand.is_blackjack:
+                    results[nick] = f"BLACKJACK {player_hand_str} vs {dealer_hand_str}"
+                elif dealer_bust:
+                    results[nick] = f"VOITTO {player_hand_str} vs {dealer_hand_str}"
+                elif hand.value > dealer_value:
+                    results[nick] = f"VOITTO {player_hand_str} vs {dealer_hand_str}"
+                elif hand.value < dealer_value:
+                    results[nick] = f"HÄVIÖ {player_hand_str} vs {dealer_hand_str}"
+                else:
+                    results[nick] = f"TASAPELI {player_hand_str} vs {dealer_hand_str}"
+
+            self._cleanup()
+            return results
 
     def _next_turn(self):
         """Advance to the next player's turn."""
         self.current_turn_index += 1
-        player_names = list(self.players.keys())
 
         # Check if all players have finished
         active_players = [
@@ -392,20 +411,137 @@ class BlackjackGame:
         ]
         if not active_players:
             self.state = GameState.DEALER_TURN
+            # Cancel play timer since game is ending
+            self._cancel_play_timer()
             # Auto-end game after a short delay
-            threading.Timer(2.0, self.end_game).start()
+            timer = threading.Timer(2.0, self._auto_end_game)
+            timer.daemon = True
+            timer.start()
+
+    def _auto_end_game(self):
+        """Auto-end game from timer thread (handles dealer turn and announcements)."""
+        with self._lock:
+            if self.state not in [GameState.PLAYING, GameState.DEALER_TURN]:
+                return
+
+            # Dealer plays
+            while self.dealer_hand.value < 17:
+                self.dealer_hand.add_card(self.deck.draw())
+
+            self.state = GameState.ENDED
+
+            # Calculate results
+            results = {}
+            dealer_value = self.dealer_hand.value
+            dealer_bust = self.dealer_hand.is_bust
+
+            dealer_cards = [str(card) for card in self.dealer_hand.cards]
+            dealer_hand_str = f"[{', '.join(dealer_cards)}] ({dealer_value})"
+
+            for nick, hand in self.players.items():
+                player_cards = [str(card) for card in hand.cards]
+                player_hand_str = f"[{', '.join(player_cards)}] ({hand.value})"
+
+                if hand.is_bust:
+                    results[nick] = f"BUST {player_hand_str} vs {dealer_hand_str}"
+                elif hand.is_blackjack and not self.dealer_hand.is_blackjack:
+                    results[nick] = f"BLACKJACK {player_hand_str} vs {dealer_hand_str}"
+                elif dealer_bust:
+                    results[nick] = f"VOITTO {player_hand_str} vs {dealer_hand_str}"
+                elif hand.value > dealer_value:
+                    results[nick] = f"VOITTO {player_hand_str} vs {dealer_hand_str}"
+                elif hand.value < dealer_value:
+                    results[nick] = f"HÄVIÖ {player_hand_str} vs {dealer_hand_str}"
+                else:
+                    results[nick] = f"TASAPELI {player_hand_str} vs {dealer_hand_str}"
+
+            # Announce results to channel
+            if self.server and self.channel and results:
+                result_str = " | ".join(
+                    f"{nick} {result}" for nick, result in results.items()
+                )
+                try:
+                    self.server.send_message(
+                        self.channel, f"Blackjack results (timeout): {result_str}"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send auto-end results: {e}")
+
+            self._cleanup()
 
     def _auto_deal(self):
         """Automatically deal cards when join timer expires."""
-        if self.state == GameState.JOINING and len(self.players) >= 1:
-            self.deal_cards(list(self.players.keys())[0])
+        with self._lock:
+            if self.state != GameState.JOINING or len(self.players) < 1:
+                return
 
-    def _cleanup(self):
-        """Clean up the game."""
-        self.state = GameState.IDLE
+            first_player = list(self.players.keys())[0]
+            self.deal_cards(first_player)
+
+            # Announce auto-deal to channel
+            if self.server and self.channel:
+                players_list = ", ".join(self.players.keys())
+                player_names = list(self.players.keys())
+                current_player = player_names[0] if player_names else "Unknown"
+                try:
+                    self.server.send_message(
+                        self.channel,
+                        f"⏰ Join phase ended. Auto-dealing to: {players_list} | "
+                        f"It's {current_player}'s turn! Use !blackjack hit or !blackjack stand",
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send auto-deal announcement: {e}")
+
+    def _auto_timeout(self):
+        """Auto-end game when play phase times out."""
+        with self._lock:
+            if self.state not in [GameState.PLAYING, GameState.DEALER_TURN]:
+                return
+
+            logger.info(f"Blackjack game timed out in {self.channel} on play phase")
+
+            # Announce timeout to channel
+            if self.server and self.channel:
+                try:
+                    self.server.send_message(
+                        self.channel,
+                        "⏰ Blackjack game timed out! No action for too long. Game ended.",
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send timeout message: {e}")
+
+            # Force end the game
+            self._auto_end_game()
+
+    def _start_play_timer(self):
+        """Start (or restart) the play phase inactivity timer."""
+        self._cancel_play_timer()
+        # 5 minute inactivity timeout during play phase
+        self.play_timer = threading.Timer(300.0, self._auto_timeout)
+        self.play_timer.daemon = True
+        self.play_timer.start()
+
+    def _reset_play_timer(self):
+        """Reset the play phase inactivity timer after player action."""
+        self._start_play_timer()
+
+    def _cancel_play_timer(self):
+        """Cancel the play phase timer if running."""
+        if self.play_timer:
+            self.play_timer.cancel()
+            self.play_timer = None
+
+    def _cancel_timers(self):
+        """Cancel all running timers."""
+        self._cancel_play_timer()
         if self.join_timer:
             self.join_timer.cancel()
             self.join_timer = None
+
+    def _cleanup(self):
+        """Clean up the game."""
+        self._cancel_timers()
+        self.state = GameState.IDLE
 
 
 # Global blackjack game instance
