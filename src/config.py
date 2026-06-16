@@ -119,6 +119,7 @@ class ServerConfig:
     tls: bool = False  # Enable TLS if needed
     allow_insecure_tls: bool = False  # Allow insecure TLS connections
     name: str = ""
+    network: str = ""
     nick: Optional[str] = None  # Bot nickname for this server
     nickserv_password: Optional[str] = None  # NickServ password for identification
     nickserv_email: Optional[str] = None  # Email for NickServ registration
@@ -133,6 +134,9 @@ class ServerConfig:
         self.channels = [
             f"#{channel.lstrip('#')}" if channel else "#" for channel in self.channels
         ]
+
+        # Normalize network label
+        self.network = (self.network or "").strip()
 
         # Ensure keys list matches channels length if provided
         if self.keys and len(self.keys) < len(self.channels):
@@ -717,6 +721,9 @@ class ConfigManager:
             server["keys"] = (
                 [k.strip() for k in keys.split(",") if k.strip()] if keys else None
             )
+            server["network"] = input(
+                "Server network label (optional, empty uses server number): "
+            ).strip()
             server["nick"] = (
                 input(
                     "Bot nick for this server (optional, defaults to bot_name): "
@@ -797,6 +804,7 @@ class ConfigManager:
                     tls=server_data.get("tls", False),
                     allow_insecure_tls=server_data.get("allow_insecure_tls", False),
                     name=_derive_state_server_name(server_data, i),
+                    network=server_data.get("network", ""),
                     nick=server_data.get("nick"),
                     nickserv_password=server_data.get("nickserv_password"),
                     nickserv_email=server_data.get("nickserv_email"),
@@ -923,6 +931,7 @@ class ConfigManager:
                     "port": server.port,
                     "channels": server.channels,
                     "keys": server.keys or [],
+                    "network": server.network,
                     "quit_message": server.quit_message,
                     "default_city": server.default_city,
                 }
@@ -1059,12 +1068,15 @@ def get_server_configs() -> List[ServerConfig]:
         hostname = os.environ.get(f"{prefix}HOSTNAME")
         server_name = hostname if hostname else host
 
+        network = os.environ.get(f"{prefix}NETWORK", "").strip()
+
         config = ServerConfig(
             host=host,
             port=port,
             channels=channels,
             keys=keys,
             name=server_name,
+            network=network,
             tls=tls,
             allow_insecure_tls=allow_insecure_tls,  # Default to allow insecure TLS connections
             nick=nick,

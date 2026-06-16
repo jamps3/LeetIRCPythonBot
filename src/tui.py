@@ -1260,10 +1260,21 @@ class TUIManager:
         self.bot_manager = bot_manager
 
         # Always initialize basic attributes
-        self.log_buffer_size = (
-            self.bot_manager.config.log_buffer_size if self.bot_manager else 1000
-        )
-        self.log_entries = deque(maxlen=self.log_buffer_size)
+        default_log_buf = 1000
+        log_buf = default_log_buf
+        if self.bot_manager:
+            cfg = getattr(self.bot_manager, "config", None)
+            val = getattr(cfg, "log_buffer_size", None) if cfg is not None else None
+            try:
+                if isinstance(val, int):
+                    log_buf = val
+                elif val is not None:
+                    log_buf = int(val)
+            except Exception:
+                log_buf = default_log_buf
+
+        self.log_buffer_size = log_buf
+        self.log_entries = deque(maxlen=int(self.log_buffer_size))
         self.command_history = []
         self.history_index = 0
         self.current_filter = ""
@@ -1311,11 +1322,23 @@ class TUIManager:
         self.joined_channels = self.bot_manager.joined_channels
         self.active_channel = self.bot_manager.active_channel
 
-        # Update log buffer size from config
-        self.log_buffer_size = self.bot_manager.config.log_buffer_size
+        # Update log buffer size from config (defensive)
+        default_log_buf = 1000
+        log_buf = default_log_buf
+        cfg = getattr(self.bot_manager, "config", None)
+        val = getattr(cfg, "log_buffer_size", None) if cfg is not None else None
+        try:
+            if isinstance(val, int):
+                log_buf = val
+            elif val is not None:
+                log_buf = int(val)
+        except Exception:
+            log_buf = default_log_buf
+
+        self.log_buffer_size = log_buf
         # Recreate log_entries with new maxlen
         old_entries = list(self.log_entries)
-        self.log_entries = deque(old_entries, maxlen=self.log_buffer_size)
+        self.log_entries = deque(old_entries, maxlen=int(self.log_buffer_size))
 
         # UI components
         self.header = urwid.Text("", wrap="clip")
@@ -1479,7 +1502,7 @@ class TUIManager:
             )
             server_suffix = ""
             if self._has_multiple_connected_servers():
-                server_suffix = f"@{server_name}"
+                server_suffix = f"@{self._get_channel_server_label(server_name)}"
             parts.append(f"{prefix}[{label}]{channel}{server_suffix}")
 
         self.channel_bar.set_text(" ".join(parts))
@@ -1498,6 +1521,31 @@ class TUIManager:
             return len(connected) > 1
         except Exception:
             return False
+
+    def _get_channel_server_label(self, server_name: str) -> str:
+        """Return the short server label for the channel status row."""
+        if not self.bot_manager:
+            return server_name
+        servers = getattr(self.bot_manager, "servers", {}) or {}
+        server = servers.get(server_name)
+        if server is not None:
+            config = getattr(server, "config", None)
+            network = getattr(config, "network", "") if config else ""
+            if network:
+                return network
+
+        try:
+            connected_names = [
+                name
+                for name, srv in sorted(servers.items())
+                if getattr(srv, "connected", False)
+            ]
+            if server_name in connected_names:
+                return str(connected_names.index(server_name) + 1)
+        except Exception:
+            pass
+
+        return server_name
 
     def _get_dynamic_help_text(self) -> str:
         """Get dynamic help text based on current input."""

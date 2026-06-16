@@ -36,5 +36,8 @@
   // PlantUML
   // ------------------------
   "plantuml.exportFormat": "svg",
-  "plantuml.exportOutDir": "."
+  "plantuml.exportOutDir": ".",
+  "chat.tools.terminal.autoApprove": {
+    "uv": true
+  }
 }

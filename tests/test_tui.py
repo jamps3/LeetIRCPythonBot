@@ -761,6 +761,52 @@ class TestTUIManager:
         assert "[0]#chan10" in channel_text
         assert "[q]#chan11" in channel_text
 
+    def test_channel_bar_uses_server_network_label_when_available(self):
+        """Channel bar should use configured server network labels."""
+        server_a = Mock(connected=True, name="ServerA")
+        server_a.config = Mock(network="Libera")
+        server_b = Mock(connected=True, name="ServerB")
+        server_b.config = Mock(network="Freenode")
+
+        mock_bot_manager = Mock()
+        mock_bot_manager.servers = {"server_a": server_a, "server_b": server_b}
+        mock_bot_manager.joined_channels = {
+            "server_a": ["#hi"],
+            "server_b": ["#hello"],
+        }
+        mock_bot_manager.active_channel = "#hi"
+        mock_bot_manager.active_server = "server_a"
+
+        tui_manager = TUIManager(mock_bot_manager)
+        tui_manager.update_channel_bar()
+
+        channel_text = tui_manager.channel_bar.get_text()[0]
+        assert "*[1]#hi@Libera" in channel_text
+        assert "[2]#hello@Freenode" in channel_text
+
+    def test_channel_bar_uses_server_number_when_network_missing(self):
+        """Channel bar should fallback to numeric server labels when network is missing."""
+        server_a = Mock(connected=True, name="ServerA")
+        server_a.config = Mock(network="")
+        server_b = Mock(connected=True, name="ServerB")
+        server_b.config = Mock(network="")
+
+        mock_bot_manager = Mock()
+        mock_bot_manager.servers = {"server_a": server_a, "server_b": server_b}
+        mock_bot_manager.joined_channels = {
+            "server_a": ["#hi"],
+            "server_b": ["#hello"],
+        }
+        mock_bot_manager.active_channel = "#hi"
+        mock_bot_manager.active_server = "server_a"
+
+        tui_manager = TUIManager(mock_bot_manager)
+        tui_manager.update_channel_bar()
+
+        channel_text = tui_manager.channel_bar.get_text()[0]
+        assert "*[1]#hi@1" in channel_text
+        assert "[2]#hello@2" in channel_text
+
     def test_alt_channel_shortcut_selects_matching_joined_channel(
         self, mock_bot_manager
     ):
