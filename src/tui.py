@@ -84,7 +84,7 @@ class LogEntry:
         self.message = message
         self.source_type = source_type  # SYSTEM, IRC, BOT, AI
 
-    def matches_filter(self, filter_text: str) -> bool:
+    def matches_filter(self, filter_text: str | None) -> bool:
         """Check if this log entry matches the given filter."""
         if not filter_text:
             return True
