@@ -1523,10 +1523,18 @@ class TUIManager:
             return False
 
     def _get_channel_server_label(self, server_name: str) -> str:
-        """Return the short server label for the channel status row."""
+        """Return the short server label for the channel status row.
+
+        Prefer the ``network`` label from the server configuration.  When
+        that is empty fall back to a sequential index derived from the
+        connected servers so that raw host:port values are never shown.
+        """
         if not self.bot_manager:
             return server_name
+
         servers = getattr(self.bot_manager, "servers", {}) or {}
+
+        # 1. Try to use the explicit network name from the config.
         server = servers.get(server_name)
         if server is not None:
             config = getattr(server, "config", None)
@@ -1534,6 +1542,7 @@ class TUIManager:
             if network:
                 return network
 
+        # 2. Fall back to a sequential index among connected servers.
         try:
             connected_names = [
                 name
@@ -1545,7 +1554,19 @@ class TUIManager:
         except Exception:
             pass
 
-        return server_name
+        # 3. Last resort: use the position in the full (sorted) server dict
+        #    so that the label is always a short identifier, never the raw
+        #    host:port value.
+        try:
+            all_names = sorted(servers.keys())
+            if server_name in all_names:
+                return str(all_names.index(server_name) + 1)
+        except Exception:
+            pass
+
+        # 4. Absolute fallback – use a generic label rather than the raw
+        #    server address.
+        return "?"
 
     def _get_dynamic_help_text(self) -> str:
         """Get dynamic help text based on current input."""
