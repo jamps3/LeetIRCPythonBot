@@ -75,7 +75,8 @@ async def process_irc_command(
     from config import get_config
 
     config = get_config()
-    is_private = target.lower() == config.name.lower()
+    server_bot_name = getattr(irc_connection, "bot_name", None) or config.name
+    is_private = target.lower() == server_bot_name.lower()
     # For private messages, we should reply to the sender nick instead of the target (bot's nick)
     # For channel messages, ALWAYS reply to the channel (target), not the sender
     # Ensure we never accidentally send channel responses to individual users
