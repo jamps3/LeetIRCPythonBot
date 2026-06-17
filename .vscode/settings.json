@@ -1,43 +1,10 @@
 {
-  // ------------------------
-  // Python / uv
-  // ------------------------
-  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
-  "python.terminal.activateEnvironment": true,
-
-  // ------------------------
-  // Formatting and linting
-  // ------------------------
-  "editor.formatOnSave": true,
-  "[python]": {
-    "editor.defaultFormatter": "charliermarsh.ruff"
+  "terminal.integrated.env.windows": {
+    "VIRTUAL_ENV": "${workspaceFolder}\\.venv",
+    "PATH": "${workspaceFolder}\\.venv\\Scripts\\${env:PATH}"
   },
-  "editor.codeActionsOnSave": {
-    "source.fixAll.ruff": "explicit",
-    "source.organizeImports.ruff": "explicit"
-  },
-  "ruff.nativeServer": "on",
-  "ruff.configuration": "${workspaceFolder}/pyproject.toml",
-
-  // ------------------------
-  // Testing through uv
-  // ------------------------
-  "python.testing.pytestEnabled": true,
-  "python.testing.unittestEnabled": false,
-  "python.testing.pytestPath": "uv",
-  "python.testing.pytestArgs": ["run", "pytest", "tests"],
-
-  // ------------------------
-  // Language Server / Analysis
-  // ------------------------
-  "python.analysis.extraPaths": ["./src"],
-
-  // ------------------------
-  // PlantUML
-  // ------------------------
-  "plantuml.exportFormat": "svg",
-  "plantuml.exportOutDir": ".",
-  "chat.tools.terminal.autoApprove": {
-    "uv": true
-  }
+  "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+  "git.terminalAuthentication": false,
+  "git.useIntegratedTerminal": true,
+  "git.enableCommitSigning": false
 }
