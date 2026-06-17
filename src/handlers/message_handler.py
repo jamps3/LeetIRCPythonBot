@@ -936,23 +936,18 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 and self._sanaketju_game.channel.lower() == target.lower()
                 and target.startswith("#")
             ):
-                # Only process words from whitelisted users
-                sender_lower = sender.lower()
-                if sender_lower not in self._sanaketju_game.notice_whitelist:
-                    # User is not whitelisted, skip processing
-                    pass
-                else:
-                    # Process words for potential chain continuation
-                    words = re.findall(r"\b\w+\b", text.lower())
-                    for word in words:
-                        result = self._sanaketju_game.process_word(
-                            word, sender, self.data_manager, game_key
-                        )
-                        if result:
-                            # Valid word found! Send notice to all whitelisted participants
-                            notice_msg = f"✅ {sender}: {word} (+{result['score']} pistettä, yhteensä {result['total_score']})"
+                # Allow any user to submit words; the notice_whitelist only controls
+                # who receives turn notifications, not who can play.
+                words = re.findall(r"\b\w+\b", text.lower())
+                for word in words:
+                    result = self._sanaketju_game.process_word(
+                        word, sender, self.data_manager, game_key
+                    )
+                    if result:
+                        # Valid word found! Send notice to all whitelisted participants.
+                        notice_msg = f"✅ {sender}: {word} (+{result['score']} pistettä, yhteensä {result['total_score']})"
 
-                            # Send notice to all whitelisted participants (so the game can be played)
+                        if self._sanaketju_game.notice_whitelist:
                             for participant in self._sanaketju_game.notice_whitelist:
                                 try:
                                     if self.use_notices:
@@ -968,7 +963,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                                         f"Failed to send sanaketju notice to {participant}: {e}"
                                     )
 
-                            break  # Only process the first valid word in the message
+                        break  # Only process the first valid word in the message
         except Exception as e:
             logger.warning(f"Error processing sanaketju: {e}")
 
