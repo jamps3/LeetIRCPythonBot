@@ -6,5 +6,12 @@
   "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
   "git.terminalAuthentication": false,
   "git.useIntegratedTerminal": true,
-  "git.enableCommitSigning": false
+  "git.enableCommitSigning": false,
+  "python-envs.pythonProjects": [
+    {
+      "path": ".",
+      "envManager": "ms-python.python:venv",
+      "packageManager": "ms-python.python:uv"
+    }
+  ]
 }
