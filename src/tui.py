@@ -2179,6 +2179,7 @@ class TUIManager:
                 self.bot_manager, "joined_channels", self.joined_channels
             )
             self.update_header()
+            self.update_channel_bar()
             self.add_log_entry(datetime.now(), "Console", "INFO", result, "SYSTEM")
         except Exception as e:
             self.add_log_entry(
