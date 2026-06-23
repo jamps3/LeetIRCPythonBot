@@ -819,7 +819,7 @@ class BotManager:
             server, self.active_channel, message
         )
         server.send_message(self.active_channel, message)
-        return f"<{self.bot_name}> {message}\nSent to {self.active_server}:{self.active_channel}: {message}"
+        return f"<{server.bot_name}> {message}\nSent to {self.active_server}:{self.active_channel}: {message}"
 
     def _console_connect(self, *args):
         """Console command to connect to servers."""

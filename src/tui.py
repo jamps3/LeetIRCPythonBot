@@ -1438,7 +1438,6 @@ class TUIManager:
 
         status_text = f"{status_line1}\n{status_line2}"
         self.header.set_text(status_text)
-        self.update_channel_bar()
 
     def _get_channel_shortcuts(self):
         """Return connected joined channels paired with shortcut labels."""
@@ -2703,7 +2702,6 @@ Tips:
             try:
                 self.update_header()
                 self.update_input_style()  # Update timestamp in input field
-                self.update_channel_bar()
 
                 # Auto-refresh stats only. Config/help are static, scrollable views;
                 # rebuilding them every second would reset the user's scroll position.

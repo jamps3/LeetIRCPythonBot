@@ -133,7 +133,7 @@ def test_server_connect_disconnect_and_status(manager):
 
 
 def test_join_part_send_and_channel_status(manager):
-    server = Mock(connected=True)
+    server = Mock(connected=True, bot_name="Bot")
     manager.server_manager.servers = {"srv": server}
     manager.server_manager.server_threads = {"srv": Mock(is_alive=lambda: True)}
     manager.server_manager.get_server.return_value = server
@@ -153,6 +153,19 @@ def test_join_part_send_and_channel_status(manager):
     assert manager._console_join_or_part_channel("#chat") == "Parted #chat on srv"
     assert manager.active_channel is None
     assert manager._normalize_channel("chat") == "#chat"
+
+
+def test_console_send_uses_server_bot_name(manager):
+    server = Mock(connected=True, bot_name="ServerBot")
+    manager.server_manager.servers = {"srv": server}
+    manager.server_manager.server_threads = {"srv": Mock(is_alive=lambda: True)}
+    manager.server_manager.get_server.return_value = server
+    manager.bot_manager = SimpleNamespace(
+        joined_channels={}, active_channel=None, active_server=None
+    )
+    manager.message_handler._record_passive_latency_start = Mock()
+    manager._console_join_or_part_channel("chat")
+    assert manager._console_send_to_channel("hello") == "[srv:#chat] <ServerBot> hello"
 
 
 def test_ai_weather_electricity_and_models(manager, tmp_path, monkeypatch):

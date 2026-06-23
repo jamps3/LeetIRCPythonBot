@@ -566,7 +566,7 @@ class ConsoleManager:
                 server, self.active_channel, message
             )
             server.send_message(self.active_channel, message)
-            return f"[{self.active_server}:{self.active_channel}] <{self.server_manager.bot_name}> {message}"
+            return f"[{self.active_server}:{self.active_channel}] <{server.bot_name}> {message}"
         except Exception as e:
             return f"Error sending message: {e}"
 

@@ -142,3 +142,13 @@ def test_console_send_and_join_part_paths(bare_manager):
     bare_manager.joined_channels = {}
     assert bare_manager._console_join_or_part_channel("chat") == "Joined #chat"
     assert bare_manager._console_join_or_part_channel("#chat") == "Parted #chat"
+
+
+def test_console_send_uses_server_bot_name(bare_manager):
+    server = Mock(connected=True, bot_name="ServerBot")
+    bare_manager._servers = {"srv": server}
+    bare_manager.active_channel = "#chat"
+    bare_manager.active_server = "srv"
+    result = bare_manager._console_send_to_channel("hello")
+    assert result.startswith("<ServerBot>")
+    assert "Sent to srv:#chat" in result
