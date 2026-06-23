@@ -1,10 +1,10 @@
 {
   "terminal.integrated.env.windows": {
     "VIRTUAL_ENV": "${workspaceFolder}\\.venv",
-    "PATH": "${workspaceFolder}\\.venv\\Scripts\\${env:PATH}"
+    "PATH": "${workspaceFolder}\\.venv\\Scripts;${env:PATH}"
   },
   "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
-  "git.terminalAuthentication": false,
+  "git.terminalAuthentication": true,
   "git.useIntegratedTerminal": true,
   "git.enableCommitSigning": false,
   "python-envs.pythonProjects": [
