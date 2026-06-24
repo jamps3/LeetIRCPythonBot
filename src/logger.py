@@ -255,7 +255,7 @@ class PrecisionLogger:
             return False
         return _LEVEL_ORDER.index(level) >= _LEVEL_ORDER.index(_LOG_LEVEL)
 
-    def _get_timestamp(self) -> str:
+    def _get_timestamp(self, ns: int | None = None) -> str:
         """
         Get high-precision timestamp with nanosecond accuracy.
 
@@ -266,7 +266,8 @@ class PrecisionLogger:
         """
         # Use time.time_ns() as single source for both seconds and nanoseconds
         # This ensures the datetime and nanoseconds are from the same moment
-        ns = time.time_ns()
+        if ns is None:
+            ns = time.time_ns()
         seconds = ns // 1_000_000_000
         nanoseconds = ns % 1_000_000_000
 
@@ -301,7 +302,11 @@ class PrecisionLogger:
         try:
             if not self._should_log(level):  # Check log level
                 return  # skip lower-level messages
-            timestamp = self._get_timestamp()
+            timestamp_ns = time.time_ns()
+            timestamp = self._get_timestamp(timestamp_ns)
+            timestamp_dt = datetime.fromtimestamp(
+                timestamp_ns // 1_000_000_000, tz=timezone.utc
+            ).astimezone()
             context = context if context else self.context  # Use instance context
 
             # Build message
@@ -339,14 +344,13 @@ class PrecisionLogger:
                     elif level.upper() == "MSG":
                         source_type = "IRC"
 
-                    # Pass datetime to TUI - TUI recalculates nanoseconds when displaying
-                    # using its own time.time_ns() call in get_display_text()
                     _tui_hook(
-                        datetime.now(),
+                        timestamp_dt,
                         context or "System",
                         level.upper(),
                         message,
                         source_type,
+                        timestamp_ns,
                     )
                 except Exception as e:
                     # Don't let TUI hook errors break logging
@@ -365,11 +369,12 @@ class PrecisionLogger:
                 elif level.upper() == "MSG":
                     source_type = "IRC"
                 add_to_log_buffer(
-                    datetime.now(),
+                    timestamp_dt,
                     context or "System",
                     level.upper(),
                     message,
                     source_type,
+                    timestamp_ns,
                 )
 
         except UnicodeEncodeError:
@@ -405,13 +410,13 @@ class PrecisionLogger:
                         elif level.upper() == "MSG":
                             source_type = "IRC"
 
-                        # Pass datetime to TUI - TUI recalculates nanoseconds when displaying
                         _tui_hook(
-                            datetime.now(),
+                            timestamp_dt,
                             context or "System",
                             level.upper(),
                             safe_message,
                             source_type,
+                            timestamp_ns,
                         )
                     except Exception as e:
                         _safe_console_print(
@@ -429,9 +434,17 @@ class PrecisionLogger:
                 error_msg = f"Could not display Unicode message: {repr(message)}"
                 if _tui_hook:
                     try:
-                        # Pass datetime to TUI - TUI recalculates nanoseconds when displaying
+                        fallback_ns = time.time_ns()
+                        fallback_dt = datetime.fromtimestamp(
+                            fallback_ns // 1_000_000_000, tz=timezone.utc
+                        ).astimezone()
                         _tui_hook(
-                            datetime.now(), "Logger", "ERROR", error_msg, "SYSTEM"
+                            fallback_dt,
+                            "Logger",
+                            "ERROR",
+                            error_msg,
+                            "SYSTEM",
+                            fallback_ns,
                         )
                     except Exception:
                         _safe_console_print(f"[LOGGER ERROR] {error_msg}")
@@ -473,9 +486,11 @@ _file_lock = threading.Lock()
 _log_buffer = []
 
 
-def add_to_log_buffer(timestamp, server, level, message, source_type):
+def add_to_log_buffer(
+    timestamp, server, level, message, source_type, timestamp_ns=None
+):
     """Add a log entry to the buffer for later display in TUI."""
-    _log_buffer.append((timestamp, server, level, message, source_type))
+    _log_buffer.append((timestamp, server, level, message, source_type, timestamp_ns))
 
 
 def get_and_clear_log_buffer():
@@ -506,7 +521,8 @@ def set_tui_hook(hook_function):
     """Set a hook function to forward log messages to TUI.
 
     Args:
-        hook_function: Function that accepts (timestamp, server, level, message, source_type)
+        hook_function: Function that accepts
+            (timestamp, server, level, message, source_type, timestamp_ns)
     """
     global _tui_hook
     _tui_hook = hook_function

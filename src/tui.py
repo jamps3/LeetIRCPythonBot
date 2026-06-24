@@ -10,6 +10,7 @@ import time
 import warnings
 from collections import deque
 from datetime import datetime
+from typing import Any, cast
 
 import urwid
 
@@ -29,6 +30,7 @@ try:
 
     CLIPBOARD_AVAILABLE = True
 except ImportError:
+    pyperclip = None
     CLIPBOARD_AVAILABLE = False
 
 # Global wrapping mode for log display (will be loaded from state)
@@ -77,8 +79,14 @@ class LogEntry:
         level: str,
         message: str,
         source_type: str = "SYSTEM",
+        timestamp_ns: int | None = None,
     ):
         self.timestamp = timestamp
+        self.timestamp_ns = (
+            timestamp_ns
+            if timestamp_ns is not None
+            else _datetime_to_epoch_ns(timestamp)
+        )
         self.server = server
         self.level = level.upper()
         self.message = message
@@ -99,20 +107,7 @@ class LogEntry:
 
     def get_display_text(self) -> str:
         """Get formatted display text for this log entry."""
-        # Include nanoseconds for maximum accuracy.
-        import time
-
-        # Get current nanoseconds - use stored timestamp if possible, otherwise current time
-        # The timestamp is created when LogEntry is created, so we use that
-        # Convert datetime to nanoseconds since epoch for consistent display
-        if hasattr(self.timestamp, "nanosecond") and self.timestamp.nanosecond > 0:
-            nanoseconds = self.timestamp.nanosecond
-        elif hasattr(self.timestamp, "microsecond"):
-            nanoseconds = self.timestamp.microsecond * 1000  # Convert to nanoseconds
-        else:
-            # Fall back to current time's nanoseconds
-            now_ns = time.time_ns()
-            nanoseconds = now_ns % 1_000_000_000
+        nanoseconds = _epoch_nanosecond_fraction(self.timestamp_ns)
         time_str = self.timestamp.strftime("%H.%M.%S") + f".{nanoseconds:09d}"
         return f"[{time_str}] [{self.server}] [{self.level}] {self.message}"
 
@@ -139,6 +134,21 @@ class LogEntry:
         return level_colors.get(self.level, "log_info")
 
 
+def _datetime_from_epoch_ns(timestamp_ns: int) -> datetime:
+    """Create a local datetime from an epoch nanosecond timestamp."""
+    return datetime.fromtimestamp(timestamp_ns // 1_000_000_000)
+
+
+def _datetime_to_epoch_ns(timestamp: datetime) -> int:
+    """Best-effort conversion for callers that only have datetime precision."""
+    return int(timestamp.timestamp()) * 1_000_000_000 + timestamp.microsecond * 1000
+
+
+def _epoch_nanosecond_fraction(timestamp_ns: int) -> int:
+    """Return the fractional nanoseconds for an epoch nanosecond timestamp."""
+    return timestamp_ns % 1_000_000_000
+
+
 class NonFocusableListBox(urwid.ListBox):
     """A ListBox that is not focusable but allows mouse interactions and scrolling."""
 
@@ -148,10 +158,23 @@ class NonFocusableListBox(urwid.ListBox):
 
         # Multi-line text selection state
         self._selection_active = False
-        self._selection_start_line = None
-        self._selection_end_line = None
-        self._selection_start_col = None
-        self._selection_end_col = None
+        self._selection_start_line: int | None = None
+        self._selection_end_line: int | None = None
+        self._selection_start_col: int | None = None
+        self._selection_end_col: int | None = None
+
+    def _body_walker(self) -> Any:
+        """Return urwid's list-like body with runtime methods visible to type checkers."""
+        return cast(Any, self.body)
+
+    def _body_len(self) -> int:
+        return len(self._body_walker())
+
+    def _body_item(self, index: int) -> Any:
+        return self._body_walker()[index]
+
+    def _body_set_focus(self, index: int) -> None:
+        self._body_walker().set_focus(index)
 
     def selectable(self):
         return True  # Allow mouse events to reach child widgets
@@ -190,8 +213,8 @@ class NonFocusableListBox(urwid.ListBox):
             return None
 
         _offset, focus_widget, focus_pos, focus_rows, _cursor = middle
-        trim_top, fill_above = top
-        _trim_bottom, fill_below = bottom
+        trim_top, fill_above = top or (0, [])
+        _trim_bottom, fill_below = bottom or (0, [])
         visible_items = [
             *reversed(fill_above),
             (focus_widget, focus_pos, focus_rows),
@@ -216,7 +239,7 @@ class NonFocusableListBox(urwid.ListBox):
         if point is None:
             return
         list_index, logical_col = point
-        if 0 <= list_index < len(self.body):
+        if 0 <= list_index < self._body_len():
             self._selection_active = True
             self._selection_start_line = list_index
             self._selection_end_line = list_index
@@ -233,7 +256,7 @@ class NonFocusableListBox(urwid.ListBox):
         if point is None:
             return
         list_index, logical_col = point
-        if 0 <= list_index < len(self.body):
+        if 0 <= list_index < self._body_len():
             self._selection_end_line = list_index
             self._selection_end_col = logical_col
             self._update_multi_line_display()
@@ -241,7 +264,7 @@ class NonFocusableListBox(urwid.ListBox):
     def _calculate_scroll_offset(self):
         """Calculate the index of the top visible item (scroll offset)."""
         try:
-            total_items = len(self.body)
+            total_items = self._body_len()
             focus_pos = self.focus_position
             focus_offset = getattr(self, "focus_position_offset", 0)
 
@@ -311,7 +334,7 @@ class NonFocusableListBox(urwid.ListBox):
 
         # Extract and copy selected text (before clearing selection)
         selected_text = self._extract_multi_line_selected_text()
-        if selected_text and CLIPBOARD_AVAILABLE:
+        if selected_text and CLIPBOARD_AVAILABLE and pyperclip is not None:
             try:
                 pyperclip.copy(selected_text)
                 # Flash all selected lines
@@ -332,17 +355,20 @@ class NonFocusableListBox(urwid.ListBox):
         """Update the visual display of all affected lines."""
         if not self._selection_active:
             # Clear all selections
-            for i, item in enumerate(self.body):
+            for i, item in enumerate(self._body_walker()):
                 if hasattr(item, "_update_selection_display"):
                     item._selection_start = None
                     item._selection_end = None
                     item._update_selection_display()
             return
 
-        start_line, start_col, end_line, end_col = self._ordered_selection()
+        selection = self._ordered_selection()
+        if selection is None:
+            return
+        start_line, start_col, end_line, end_col = selection
 
         # Update each line in the selection
-        for i, item in enumerate(self.body):
+        for i, item in enumerate(self._body_walker()):
             if hasattr(item, "_update_selection_display"):
                 if start_line <= i <= end_line:
                     # This line is in the selection range
@@ -379,6 +405,13 @@ class NonFocusableListBox(urwid.ListBox):
 
     def _ordered_selection(self):
         """Return selection endpoints in document order."""
+        if (
+            self._selection_start_line is None
+            or self._selection_start_col is None
+            or self._selection_end_line is None
+            or self._selection_end_col is None
+        ):
+            return None
         start = (self._selection_start_line, self._selection_start_col)
         end = (self._selection_end_line, self._selection_end_col)
         if start <= end:
@@ -391,11 +424,14 @@ class NonFocusableListBox(urwid.ListBox):
             return None
 
         selected_lines = []
-        start_line, start_col, end_line, end_col = self._ordered_selection()
+        selection = self._ordered_selection()
+        if selection is None:
+            return None
+        start_line, start_col, end_line, end_col = selection
 
         for i in range(start_line, end_line + 1):
-            if i < len(self.body):
-                item = self.body[i]
+            if i < self._body_len():
+                item = self._body_item(i)
                 if hasattr(item, "_text_content"):
                     line_content = item._text_content
 
@@ -423,11 +459,14 @@ class NonFocusableListBox(urwid.ListBox):
             return None
 
         selected_lines = []
-        start_line, start_col, end_line, end_col = self._ordered_selection()
+        selection = self._ordered_selection()
+        if selection is None:
+            return None
+        start_line, start_col, end_line, end_col = selection
 
         for i in range(start_line, end_line + 1):
-            if i < len(self.body):
-                item = self.body[i]
+            if i < self._body_len():
+                item = self._body_item(i)
                 if hasattr(item, "_text_content"):
                     line_content = item._text_content
 
@@ -454,12 +493,14 @@ class NonFocusableListBox(urwid.ListBox):
         if not self._selection_active:
             return
 
-        start_line = min(self._selection_start_line, self._selection_end_line)
-        end_line = max(self._selection_start_line, self._selection_end_line)
+        selection = self._ordered_selection()
+        if selection is None:
+            return
+        start_line, _start_col, end_line, _end_col = selection
 
         for i in range(start_line, end_line + 1):
-            if i < len(self.body):
-                item = self.body[i]
+            if i < self._body_len():
+                item = self._body_item(i)
                 if hasattr(item, "_flash"):
                     item._flash()
 
@@ -467,62 +508,62 @@ class NonFocusableListBox(urwid.ListBox):
         """Scroll up by one page (20 lines) and mark as user scrolled."""
         self._user_scrolled = True
         # Scroll up by changing walker focus position
-        if hasattr(self, "body") and len(self.body) > 0:
+        if hasattr(self, "body") and self._body_len() > 0:
             try:
                 current_focus = self.focus_position
                 if current_focus is not None:
                     new_focus = max(0, current_focus - 20)
-                    self.body.set_focus(new_focus)
+                    self._body_set_focus(new_focus)
             except (AttributeError, TypeError):
                 # If we can't get current focus, just set to top
-                self.body.set_focus(0)
+                self._body_set_focus(0)
 
     def scroll_down_page(self):
         """Scroll down by one page (20 lines) and mark as user scrolled."""
         self._user_scrolled = True
         # Scroll down by changing walker focus position
-        if hasattr(self, "body") and len(self.body) > 0:
+        if hasattr(self, "body") and self._body_len() > 0:
             try:
                 current_focus = self.focus_position
                 if current_focus is not None:
-                    new_focus = min(len(self.body) - 1, current_focus + 20)
-                    self.body.set_focus(new_focus)
+                    new_focus = min(self._body_len() - 1, current_focus + 20)
+                    self._body_set_focus(new_focus)
             except (AttributeError, TypeError):
                 # If we can't get current focus, just set to bottom
-                self.body.set_focus(len(self.body) - 1)
+                self._body_set_focus(self._body_len() - 1)
 
     def scroll_up(self):
         """Scroll up by one line and mark as user scrolled."""
         self._user_scrolled = True
         # Scroll up by changing walker focus position
-        if hasattr(self, "body") and len(self.body) > 0:
+        if hasattr(self, "body") and self._body_len() > 0:
             try:
                 current_focus = self.focus_position
                 if current_focus is not None and current_focus > 0:
-                    self.body.set_focus(current_focus - 1)
+                    self._body_set_focus(current_focus - 1)
             except (AttributeError, TypeError):
                 # If we can't get current focus, just set to top
-                self.body.set_focus(0)
+                self._body_set_focus(0)
 
     def scroll_down(self):
         """Scroll down by one line and mark as user scrolled."""
         self._user_scrolled = True
         # Scroll down by changing walker focus position
-        if hasattr(self, "body") and len(self.body) > 0:
+        if hasattr(self, "body") and self._body_len() > 0:
             try:
                 current_focus = self.focus_position
-                if current_focus is not None and current_focus < len(self.body) - 1:
-                    self.body.set_focus(current_focus + 1)
+                if current_focus is not None and current_focus < self._body_len() - 1:
+                    self._body_set_focus(current_focus + 1)
             except (AttributeError, TypeError):
                 # If we can't get current focus, just set to bottom
-                self.body.set_focus(len(self.body) - 1)
+                self._body_set_focus(self._body_len() - 1)
 
     def scroll_to_bottom(self):
         """Scroll to the bottom and reset user scroll flag."""
         # Scroll to bottom by setting focus to the last item in the walker
-        if hasattr(self, "body") and len(self.body) > 0:
+        if hasattr(self, "body") and self._body_len() > 0:
             # Set focus to the last item
-            self.body.set_focus(len(self.body) - 1)
+            self._body_set_focus(self._body_len() - 1)
         # Reset user scroll flag after scrolling is complete
         self._user_scrolled = False
 
@@ -530,19 +571,19 @@ class NonFocusableListBox(urwid.ListBox):
         """Scroll to the top and mark as user scrolled."""
         self._user_scrolled = True
         # Scroll to top by setting focus to the first item in the walker
-        if hasattr(self, "body") and len(self.body) > 0:
+        if hasattr(self, "body") and self._body_len() > 0:
             # Set focus to the first item
-            self.body.set_focus(0)
+            self._body_set_focus(0)
 
     def is_at_bottom(self):
         """Check if currently at the bottom."""
-        if not hasattr(self, "body") or len(self.body) == 0:
+        if not hasattr(self, "body") or self._body_len() == 0:
             return True
         # Get the current focus position from the body
         try:
             focus_position = self.focus_position
             if focus_position is not None:
-                return focus_position >= len(self.body) - 2  # Within 2 lines of bottom
+                return focus_position >= self._body_len() - 2
         except (AttributeError, TypeError):
             pass
         return True  # Default to True if we can't determine
@@ -555,7 +596,7 @@ class NonFocusableListBox(urwid.ListBox):
 class SelectableText(urwid.WidgetWrap):
     """Text widget that supports mouse selection and clipboard copying."""
 
-    def __init__(self, text, original_attr=None):
+    def __init__(self, text: str, original_attr=None):
         self._text_content = text  # Store the actual text content
         self.original_attr = original_attr or "default"
         self._flash_handle = None
@@ -564,7 +605,7 @@ class SelectableText(urwid.WidgetWrap):
         self._is_flashing = False
 
         # Parse text for URLs and create markup
-        self.markup_text = self._parse_text_with_links(text)
+        self.markup_text: Any = self._parse_text_with_links(text)
 
         # Create the underlying Text widget with current wrap mode
         wrap_mode = "any" if WRAP_MODE else "clip"
@@ -583,9 +624,9 @@ class SelectableText(urwid.WidgetWrap):
 
     def keypress(self, size, key):
         if key in ("ctrl c", "ctrl C"):
-            text_widget = self._w._original_widget  # Get the Text widget
+            text_widget = cast(Any, self._w)._original_widget
             text = text_widget.get_text()[0]  # Get the actual text content
-            if text and CLIPBOARD_AVAILABLE:
+            if text and CLIPBOARD_AVAILABLE and pyperclip is not None:
                 try:
                     pyperclip.copy(text)
                     return None
@@ -593,11 +634,14 @@ class SelectableText(urwid.WidgetWrap):
                     pass
         return key
 
-    def mouse_event(self, size, event, button, col, row, focus):
+    def mouse_event(
+        self, size: tuple[int], event: str, button: int, col: int, row: int, focus: bool
+    ):
         """Handle mouse events for link clicking and text selection."""
+        maxcol = size[0]
         # Handle link clicking on mouse press
         if event == "mouse press" and button == 1:
-            link_url = self._get_link_at_position(size[0], row, col)
+            link_url = self._get_link_at_position(maxcol, row, col)
             if link_url:
                 self._open_link_in_browser(link_url)
                 self._flash()  # Flash to indicate click
@@ -1215,19 +1259,24 @@ class FocusProtectingFrame(urwid.Frame):
 
     def mouse_event(self, size, event, button, col, row, focus):
         """Override mouse_event to prevent focus changes on body clicks."""
+        maxcol, maxrow = cast(tuple[int, int], size)
+        header = cast(Any, self.header)
+        footer = cast(Any, self.footer)
+        body = cast(Any, self.body)
+
         # Get the layout of the Frame
-        head_size = self.header.rows((size[0],)) if self.header else 0
-        foot_size = self.footer.rows((size[0],)) if self.footer else 0
+        head_size = header.rows((maxcol,)) if self.header else 0
+        foot_size = footer.rows((maxcol,)) if self.footer else 0
 
         # Check if the mouse event is in the header
         if row < head_size:
             # Header area - let parent handle
-            return super().mouse_event(size, event, button, col, row, focus)
+            return cast(Any, super()).mouse_event(size, event, button, col, row, focus)
 
         # Check if the mouse event is in the footer (input field)
-        elif row >= size[1] - foot_size:
+        elif row >= maxrow - foot_size:
             # Input field area - let parent handle (this will focus footer)
-            return super().mouse_event(size, event, button, col, row, focus)
+            return cast(Any, super()).mouse_event(size, event, button, col, row, focus)
 
         # Mouse event is in the body area
         else:
@@ -1235,9 +1284,9 @@ class FocusProtectingFrame(urwid.Frame):
             body_row = row - head_size
 
             # Let the body handle the mouse event WITHOUT changing focus
-            if self.body and hasattr(self.body, "mouse_event"):
-                body_result = self.body.mouse_event(
-                    (size[0], size[1] - head_size - foot_size),
+            if body and hasattr(body, "mouse_event"):
+                body_result = body.mouse_event(
+                    (maxcol, maxrow - head_size - foot_size),
                     event,
                     button,
                     col,
@@ -1641,9 +1690,10 @@ class TUIManager:
         level: str,
         message: str,
         source_type: str = "SYSTEM",
+        timestamp_ns: int | None = None,
     ):
         """Add a new log entry to the display."""
-        entry = LogEntry(timestamp, server, level, message, source_type)
+        entry = LogEntry(timestamp, server, level, message, source_type, timestamp_ns)
         self.log_entries.append(entry)
 
         # Write to log file immediately
@@ -1736,16 +1786,26 @@ class TUIManager:
         elif text.startswith("#"):
             # Channel select command - handle through bot manager
             try:
+                bot_manager = self.bot_manager
+                if bot_manager is None:
+                    self.add_log_entry(
+                        datetime.now(),
+                        "Console",
+                        "WARNING",
+                        "Bot manager not available",
+                        "SYSTEM",
+                    )
+                    return True
                 channel_name = text[1:].strip()
                 if channel_name:
                     # Normalize channel name to always have # prefix
                     if not channel_name.startswith("#"):
                         channel_name = f"#{channel_name}"
                     # Track the channel join
-                    result = self.bot_manager._console_select_channel(channel_name)
+                    result = bot_manager._console_select_channel(channel_name)
                     if result.startswith(("Joined", "Selected")):
-                        server_name = self.bot_manager.active_server
-                        channel_name = self.bot_manager.active_channel or channel_name
+                        server_name = bot_manager.active_server
+                        channel_name = bot_manager.active_channel or channel_name
                         if server_name not in self.joined_channels:
                             self.joined_channels[server_name] = set()
                         self.joined_channels[server_name].add(channel_name)
@@ -1756,7 +1816,7 @@ class TUIManager:
                     )
                 else:
                     # Get channel status directly from bot manager
-                    result = self.bot_manager._get_channel_status()
+                    result = bot_manager._get_channel_status()
                     self.add_log_entry(
                         datetime.now(), "Console", "INFO", result, "SYSTEM"
                     )
@@ -1820,8 +1880,14 @@ class TUIManager:
     def mouse_event(self, size, event, button, col, row, focus):
         """Handle mouse events - route them to the appropriate child widget."""
         # Get the layout of the Frame
-        head_size = self.header.rows((size[0],))
-        foot_size = self._footer_rows(size[0])
+        maxcol, maxrow = cast(tuple[int, int], size)
+        header = cast(Any, self.header)
+        input_field = cast(Any, self.input_field)
+        channel_bar = cast(Any, self.channel_bar)
+        log_display = cast(Any, self.log_display)
+
+        head_size = header.rows((maxcol,))
+        foot_size = self._footer_rows(maxcol)
 
         # Check if the mouse event is in the header
         if row < head_size:
@@ -1829,15 +1895,15 @@ class TUIManager:
             return False
 
         # Check if the mouse event is in the footer (channel row + input field)
-        elif row >= size[1] - foot_size:
-            footer_row = row - (size[1] - foot_size)
-            channel_rows = self.channel_bar.rows((size[0],))
+        elif row >= maxrow - foot_size:
+            footer_row = row - (maxrow - foot_size)
+            channel_rows = channel_bar.rows((maxcol,))
             if footer_row < channel_rows:
                 return False
 
             # Input field area - let it handle the event
-            return self.input_field.mouse_event(
-                (size[0], self.input_field.rows((size[0],))),
+            return input_field.mouse_event(
+                (maxcol, input_field.rows((maxcol,))),
                 event,
                 button,
                 col,
@@ -1851,8 +1917,8 @@ class TUIManager:
             body_row = row - head_size
 
             # Let the log display handle the mouse event
-            result = self.log_display.mouse_event(
-                (size[0], size[1] - head_size - foot_size),
+            result = log_display.mouse_event(
+                (maxcol, maxrow - head_size - foot_size),
                 event,
                 button,
                 col,
@@ -1869,10 +1935,12 @@ class TUIManager:
         """Return footer height for mouse/body row calculations."""
         if hasattr(self, "footer_pile"):
             try:
-                return self.footer_pile.rows((maxcol,), focus=True)
+                return cast(Any, self.footer_pile).rows((maxcol,), focus=True)
             except TypeError:
-                return self.footer_pile.rows((maxcol,))
-        return self.input_field.rows((maxcol,)) + self.channel_bar.rows((maxcol,))
+                return cast(Any, self.footer_pile).rows((maxcol,))
+        return cast(Any, self.input_field).rows((maxcol,)) + cast(
+            Any, self.channel_bar
+        ).rows((maxcol,))
 
     def _get_completions(self, text):
         """Get command completions for the given text."""
@@ -1922,8 +1990,9 @@ class TUIManager:
     def _handle_tab_completion(self):
         """Handle tab key for command completion."""
         try:
-            current_text = self.input_field.get_edit_text()
-            cursor_pos = self.input_field.get_edit_pos()
+            input_field = cast(Any, self.input_field)
+            current_text = input_field.get_edit_text()
+            cursor_pos = input_field.get_edit_pos()
         except AttributeError:
             # Some urwid versions don't have these methods
             return
@@ -2167,16 +2236,15 @@ class TUIManager:
 
     def _select_shortcut_channel(self, server_name, channel):
         """Select a channel by shortcut using the existing console selection path."""
-        if not self.bot_manager:
+        bot_manager = self.bot_manager
+        if not bot_manager:
             return
 
         try:
-            result = self.bot_manager._console_select_channel(
-                f"{channel} {server_name}"
-            )
-            self.active_channel = getattr(self.bot_manager, "active_channel", channel)
+            result = bot_manager._console_select_channel(f"{channel} {server_name}")
+            self.active_channel = getattr(bot_manager, "active_channel", channel)
             self.joined_channels = getattr(
-                self.bot_manager, "joined_channels", self.joined_channels
+                bot_manager, "joined_channels", self.joined_channels
             )
             self.update_header()
             self.update_channel_bar()
@@ -2427,23 +2495,7 @@ class TUIManager:
             return
 
         try:
-            # Write each log entry with precision
-            # Get nanoseconds from the timestamp - handle both datetime and string formats
-            if (
-                hasattr(entry.timestamp, "nanosecond")
-                and entry.timestamp.nanosecond > 0
-            ):
-                nanoseconds = entry.timestamp.nanosecond
-            elif hasattr(entry.timestamp, "microsecond"):
-                nanoseconds = (
-                    entry.timestamp.microsecond * 1000
-                )  # Convert microseconds to nanoseconds
-            else:
-                # Timestamp might be a string or datetime without microsecond, try to get current time
-                import time
-
-                nanoseconds = time.time_ns() % 1_000_000_000
-
+            nanoseconds = _epoch_nanosecond_fraction(entry.timestamp_ns)
             timestamp_str = (
                 entry.timestamp.strftime("%Y-%m-%d %H:%M:%S") + f".{nanoseconds:09d}"
             )
@@ -2567,8 +2619,17 @@ Tips:
             from logger import get_and_clear_log_buffer
 
             buffered_logs = get_and_clear_log_buffer()
-            for timestamp, server, level, message, source_type in buffered_logs:
-                self.add_log_entry(timestamp, server, level, message, source_type)
+            for buffered_log in buffered_logs:
+                if len(buffered_log) == 6:
+                    timestamp, server, level, message, source_type, timestamp_ns = (
+                        buffered_log
+                    )
+                else:
+                    timestamp, server, level, message, source_type = buffered_log
+                    timestamp_ns = None
+                self.add_log_entry(
+                    timestamp, server, level, message, source_type, timestamp_ns
+                )
         except Exception:
             pass  # Ignore errors loading buffered logs
 

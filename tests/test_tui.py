@@ -188,6 +188,23 @@ class TestLogEntry:
         assert "[INFO]" in text
         assert "Test message" in text
 
+    def test_get_display_text_preserves_epoch_nanoseconds(self):
+        """Display formatting should preserve real nanoseconds when provided."""
+        timestamp_ns = 1_704_110_400_123_456_789
+        timestamp = datetime.fromtimestamp(timestamp_ns // 1_000_000_000).replace(
+            microsecond=123456
+        )
+        entry = LogEntry(
+            timestamp,
+            "TestServer",
+            "INFO",
+            "Test message",
+            "SYSTEM",
+            timestamp_ns,
+        )
+
+        assert ".123456789]" in entry.get_display_text()
+
     def test_get_color_attr_info(self):
         """Test get_color_attr for INFO level."""
         entry = LogEntry(datetime.now(), "TestServer", "INFO", "Test", "SYSTEM")
