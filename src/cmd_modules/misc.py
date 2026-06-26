@@ -230,7 +230,14 @@ async def echo_command(context: CommandContext, bot_functions):
                     response_text = str(result)
                 if response_text:
                     # Check if we should use notices (like the original command would)
-                    use_notices = get_config().use_notices
+                    server_use_notices = getattr(
+                        getattr(server, "config", None), "use_notices", None
+                    )
+                    use_notices = (
+                        get_config().use_notices
+                        if server_use_notices is None
+                        else bool(server_use_notices)
+                    )
                     if use_notices and hasattr(server, "send_notice"):
                         server.send_notice(first_arg, response_text)
                     else:

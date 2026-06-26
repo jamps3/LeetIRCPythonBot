@@ -150,6 +150,7 @@ def test_configmanager_uses_configured_state_file(monkeypatch, tmp_path):
     assert saved["config"]["ops_allowed_channels"] == cfg.OPS_ALLOWED_CHANNELS
     assert saved["config"]["servers"][0]["quit_message"] == ""
     assert saved["config"]["servers"][0]["default_city"] == ""
+    assert saved["config"]["servers"][0]["use_notices"] is None
 
 
 def test_state_file_constant_honors_environment(monkeypatch, tmp_path):
@@ -523,6 +524,7 @@ def test_load_server_configs_accepts_inner_and_full_state():
         "tls": True,
         "quit_message": "Server bye",
         "default_city": "Tampere",
+        "use_notices": False,
     }
 
     inner = manager._load_server_configs_from_state({"servers": [server_data.copy()]})
@@ -535,3 +537,4 @@ def test_load_server_configs_accepts_inner_and_full_state():
     assert inner[0].host == full[0].host == "irc.example.com"
     assert inner[0].quit_message == full[0].quit_message == "Server bye"
     assert inner[0].default_city == full[0].default_city == "Tampere"
+    assert inner[0].use_notices is full[0].use_notices is False

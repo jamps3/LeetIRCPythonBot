@@ -94,6 +94,39 @@ def test_send_response_records_notice_latency(handler, server):
     )
 
 
+def test_send_response_uses_server_notice_override(handler, server):
+    handler.use_notices = True
+    server.config.use_notices = False
+
+    handler._send_response(server, "#chan", "hello")
+
+    server.send_message.assert_called_once_with("#chan", "hello")
+    server.send_notice.assert_not_called()
+
+
+def test_send_response_inherits_global_notice_setting(handler, server):
+    handler.use_notices = False
+    server.config.use_notices = None
+
+    handler._send_response(server, "#chan", "hello")
+
+    server.send_message.assert_called_once_with("#chan", "hello")
+    server.send_notice.assert_not_called()
+
+
+def test_send_response_server_notice_override_records_latency(handler, server):
+    handler.use_notices = False
+    server.config.use_notices = True
+    handler._record_passive_latency_start = Mock()
+
+    handler._send_response(server, "#chan", "hello")
+
+    server.send_notice.assert_called_once_with("#chan", "hello")
+    handler._record_passive_latency_start.assert_called_once_with(
+        server, "#chan", "hello"
+    )
+
+
 def test_drink_notification_uses_precise_current_bac(handler, server):
     handler.bac_tracker._load_bac_data.return_value = {
         "srv:nick": {

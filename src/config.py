@@ -125,6 +125,7 @@ class ServerConfig:
     nickserv_email: Optional[str] = None  # Email for NickServ registration
     quit_message: str = ""  # Empty means use global quit_message
     default_city: str = ""  # Empty means use Joensuu
+    use_notices: Optional[bool] = None  # None means use global use_notices
     banned_commands: List[str] = field(
         default_factory=list
     )  # Commands banned on this server
@@ -435,6 +436,9 @@ class ConfigManager:
                 if isinstance(server, dict) and "default_city" not in server:
                     server["default_city"] = ""
                     updated = True
+                if isinstance(server, dict) and "use_notices" not in server:
+                    server["use_notices"] = None
+                    updated = True
 
         return updated
 
@@ -586,6 +590,7 @@ class ConfigManager:
         for server in servers:
             server.setdefault("quit_message", "")
             server.setdefault("default_city", "")
+            server.setdefault("use_notices", None)
 
         if existing_servers:
             print(f"Found {len(existing_servers)} existing server(s):")
@@ -683,6 +688,27 @@ class ConfigManager:
                             ).strip()
                             server["default_city"] = city_str
 
+                            current_use_notices = server.get("use_notices")
+                            current_use_notices_label = (
+                                "global"
+                                if current_use_notices is None
+                                else str(current_use_notices).lower()
+                            )
+                            use_notices_str = (
+                                input(
+                                    "Use NOTICEs for this server "
+                                    f"(true/false/global, current: {current_use_notices_label}): "
+                                )
+                                .strip()
+                                .lower()
+                            )
+                            if use_notices_str in ("true", "1", "yes", "on"):
+                                server["use_notices"] = True
+                            elif use_notices_str in ("false", "0", "no", "off"):
+                                server["use_notices"] = False
+                            elif use_notices_str in ("global", "inherit", ""):
+                                server["use_notices"] = None
+
                             print(f"Server {idx + 1} updated.")
                         else:
                             print("Invalid server number.")
@@ -745,6 +771,17 @@ class ConfigManager:
             server["default_city"] = input(
                 "Default city for this server (optional, empty uses Joensuu): "
             ).strip()
+            use_notices = (
+                input("Use NOTICEs for this server? (true/false, empty uses global): ")
+                .strip()
+                .lower()
+            )
+            if use_notices in ("true", "1", "yes", "on"):
+                server["use_notices"] = True
+            elif use_notices in ("false", "0", "no", "off"):
+                server["use_notices"] = False
+            else:
+                server["use_notices"] = None
 
             servers.append(server)
 
@@ -810,6 +847,7 @@ class ConfigManager:
                     nickserv_email=server_data.get("nickserv_email"),
                     quit_message=server_data.get("quit_message", ""),
                     default_city=server_data.get("default_city", ""),
+                    use_notices=server_data.get("use_notices"),
                     banned_commands=server_data.get("banned_commands", []),
                 )
                 servers.append(config)
@@ -934,6 +972,7 @@ class ConfigManager:
                     "network": server.network,
                     "quit_message": server.quit_message,
                     "default_city": server.default_city,
+                    "use_notices": server.use_notices,
                 }
                 for server in self.config.servers
             ],

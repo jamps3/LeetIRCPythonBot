@@ -135,6 +135,14 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
         return get_config().use_notices
 
+    def _should_use_notices(self, server=None) -> bool:
+        """Return the effective NOTICE setting for a server."""
+        server_config = getattr(server, "config", None)
+        server_use_notices = getattr(server_config, "use_notices", None)
+        if server_use_notices is not None:
+            return bool(server_use_notices)
+        return bool(self.use_notices)
+
     def _load_tamagotchi_enabled_setting(self) -> bool:
         """Load TAMAGOTCHI_ENABLED setting from config."""
         from config import get_config
@@ -950,7 +958,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                         if self._sanaketju_game.notice_whitelist:
                             for participant in self._sanaketju_game.notice_whitelist:
                                 try:
-                                    if self.use_notices:
+                                    if self._should_use_notices(context["server"]):
                                         context["server"].send_notice(
                                             participant, notice_msg
                                         )
@@ -1062,7 +1070,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
         # Send combined message as notice to the originating channel only
         try:
-            if self.use_notices:
+            if self._should_use_notices(server):
                 server.send_notice(target, combined_message)
             else:
                 server.send_message(target, combined_message)
@@ -1199,7 +1207,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
         # Send combined message as notice to the sender
         try:
-            if self.use_notices:
+            if self._should_use_notices(server):
                 server.send_notice(sender, combined_message)
             else:
                 server.send_message(sender, combined_message)
@@ -1437,7 +1445,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         logger.msg(f"[{server_name}:{target}] {clean_message}", "MSG")
 
         try:
-            if self.use_notices:
+            if self._should_use_notices(server):
                 self._record_passive_latency_start(server, target, message)
                 server.send_notice(target, message)
             else:
