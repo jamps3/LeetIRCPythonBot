@@ -325,8 +325,11 @@ class Server:
                         raise socket.timeout("No response from server for 30 seconds")
 
                 except socket.timeout:
-                    # Socket timeout just means no data yet, continue loop
-                    pass
+                    # Socket timeout just means no data yet. Back off briefly so
+                    # authentication waits do not busy-loop on a quiet server.
+                    if time.time() - last_response_time > 30:
+                        raise socket.timeout("No response from server for 30 seconds")
+                    time.sleep(0.1)
 
             return False  # Stop event was set
 

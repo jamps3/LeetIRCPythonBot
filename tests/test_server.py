@@ -430,6 +430,28 @@ def test_login_timeout_branch_precise(monkeypatch, srv):
     assert srv.login() is False
 
 
+def test_login_socket_timeout_backs_off(monkeypatch, srv):
+    times = [0, 1, 31]
+    sleeps = []
+
+    def fake_time():
+        return times.pop(0) if times else 31
+
+    monkeypatch.setattr(server_mod.time, "time", fake_time)
+    monkeypatch.setattr(server_mod.time, "sleep", lambda delay: sleeps.append(delay))
+    monkeypatch.setattr(srv, "send_raw", lambda m: None, raising=True)
+
+    class Sock:
+        def recv(self, n):
+            raise socket.timeout
+
+    srv.socket = Sock()
+    srv.connected = True
+
+    assert srv.login() is False
+    assert sleeps == [0.1]
+
+
 # --- channel joins ---
 
 
