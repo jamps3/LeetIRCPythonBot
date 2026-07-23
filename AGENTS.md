@@ -96,9 +96,10 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 - Command processing pipeline (high-level):
   - IRC message callback (\_handle_message):
     1. Nanoleet detection with max-precision timestamp (leet_detector)
-    2. Word tracking (drink/general), Tamagotchi response if enabled
-    3. YouTube URL detection: auto-fetch basic video info via youtube_service
-    4. Command handling via command_loader / command_registry
+    2. Community state tracking: channel metrics and !seen activity
+    3. Word tracking (drink/general), Tamagotchi response if enabled
+    4. YouTube URL detection: auto-fetch basic video info via youtube_service
+    5. Command handling via command_loader / command_registry
   - IRC notice callback (\_handle_notice):
     1. Leetwinners detection, updates leet_winners.json
   - command_loader:
@@ -116,6 +117,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 - Services (services/\*):
   - alko_service.py: Search Alko product information
   - crypto_service.py: Crypto price fetch (CoinGecko)
+  - community_state_service.py: Per-channel feature flags, observability counters, !seen data, and !poll state
   - digitraffic_service.py: Departing and arriving trains
   - electricity_service.py: Spot electricity price lookups, stats, daily summaries
   - eurojackpot_service.py: Eurojackpot draws, numbers and statistics
@@ -140,9 +142,14 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 3. Command System Architecture
 
 - Modular Command Structure:
-  - cmd_modules/: Modular command packages (basic, admin, admin_privileged, games, irc, misc, services, word_tracking)
+  - cmd_modules/: Modular command packages (basic, admin, admin_privileged, community, games, irc, misc, services, word_tracking)
   - command_registry.py: Central command registration and routing
   - command_loader.py: Command loading and processing
+
+- Community Commands:
+  - cmd_modules/community.py: !feature/!features, !metrics, !history, !seen, and !poll
+  - !feature controls per-channel gates for ai, gpt_history, tamagotchi, youtube, url_titles, word_tracking, and 420
+  - !poll uses IRC-friendly syntax: `!poll create question | option | option`, `!poll vote <id> <number>`, `!poll results <id>`, `!poll close <id>`
 
 - Command Reload System:
   - reload_manager.py: Hot-reload commands without restart
@@ -180,7 +187,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 - Server/IRC protocol details: server.py, irc_client.py, irc_processor.py
 - Word tracking/persistence: word_tracking/
 - Configuration shape: config.py and .env.sample, .env when running
-- Shared `data/state.json` persistence: state_utils.py and every section writer
+- Shared `data/state.json` persistence: state_utils.py, state_migrations.py, and every section writer
 - Command reloading: reload_manager.py (hot-reload commands without restart)
 - Lag measurement and timing: handlers/message_handler.py (lag storage), cmd_modules/basic.py (!latency, !sexact commands), scheduled_message_service.py (lag compensation)
 
@@ -190,6 +197,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 - Some modules (lemmatizer, subscriptions, etc.) are optional; code guards against missing deps
 - Do not add or preserve legacy compatibility layers, deprecated wrappers, or historical import paths. Migrate callers to the active modular implementation and delete obsolete code.
 - Treat `data/state.json` as shared mutable state. Section writers must use strict locked atomic updates from `state_utils.py`; do not open it directly with truncating write mode.
+- New state-backed sections must be initialized through `state_migrations.py` and written through strict `update_json_file`.
 - If `data/state.json` is temporarily invalid during a manual edit, writers must refuse the update and preserve the file bytes.
 - Normal startup and graceful shutdown maintain `data/state.json.start.bak` and `data/state.json.end.bak`. These fixed-name snapshots are local recovery files and stay ignored by Git.
 - After interactive configuration setup, reload the cached `ConfigManager` before continuing startup.

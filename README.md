@@ -35,6 +35,11 @@ Advanced IRC Bot made with Python. Extended API use and highly customizable.
 | - ✅ Cryptocurrency price information                  | !crypto                                                                                       |
 | - ✅ Euribor interest rate from yesterday              | !euribor                                                                                      |
 | - ✅ Basic IRC commands: join, nick, part, quit, raw   | !join, !nick, !part, !quit, !raw                                                              |
+| - ✅ Per-channel feature flags                         | !feature, !features                                                                           |
+| - 📊 Channel observability counters                    | !metrics                                                                                      |
+| - 🧠 Per-channel GPT history controls                  | !history, !history reset                                                                      |
+| - 👀 Last-seen tracking                                | !seen <nick>                                                                                  |
+| - 🗳️ Channel polls                                     | !poll create/vote/results/close                                                               |
 
 ## Installation
 
@@ -150,10 +155,10 @@ Core /
 ├── irc_client.py                 # IRC protocol client (send_message/NOTICE/raw)
 ├── command_loader.py             # Loads command modules, processes IRC/console commands
 ├── command_registry.py           # Command system (registry, parsing, dispatch, help)
-├── commands.py                   # Public & console commands (weather, stats, etc.)
-├── commands_admin.py             # Admin commands (join/part/nick/quit/raw/openai/scheduled)
-├── config.py                     # Environment and settings loader (.env support)
+├── cmd_modules/                  # Modular command packages
+├── config.py                     # State-backed settings loader plus .env API keys
 ├── logger.py                     # High-precision logger and safe console output
+├── state_migrations.py           # Versioned state.json schema migrations
 ├── subscriptions.py              # User/topic subscription system (warnings, releases)
 ├── leet_detector.py              # 1337 timestamp detector (nanosecond precision)
 ├── lemmatizer.py                 # Optional Finnish lemmatization support (graceful fallback)
@@ -168,6 +173,7 @@ Services /
 ├── fmi_warning_service.py        # Finnish Meteorological Institute warnings monitor
 ├── gpt_service.py                # GPT chat service (OpenAI Responses API)
 ├── ipfs_service.py               # IPFS add/info via CLI, streaming and validation
+├── community_state_service.py    # Channel flags, metrics, seen tracking, polls
 ├── otiedote_service.py           # Accident/incident press release monitoring
 ├── scheduled_message_service.py  # Nanosecond scheduling, threading, precise timing
 ├── solarwind_service.py          # NOAA SWPC space weather (solar wind)
@@ -202,9 +208,9 @@ Developer Tools & Scripts /
 - **IRC Protocol**: [`irc_client.py`](irc_client.py) - Low-level IRC client, message sending, raw commands
 - **Command Processing**: [`command_loader.py`](command_loader.py) - Command module loader, IRC/console message routing
 - **Command System**: [`command_registry.py`](command_registry.py) - Command registration, parsing, dispatch, help generation
-- **Public Commands**: [`commands.py`](commands.py) - Weather, stats, utilities, echo, version, electricity, etc.
-- **Admin Commands**: [`commands_admin.py`](commands_admin.py) - Join/part/nick/quit/raw/openai/scheduled (password-protected)
-- **Configuration**: [`config.py`](config.py) - Environment variable loading, server configs, API keys
+- **Commands**: [`cmd_modules/`](cmd_modules/) - Modular public, service, admin, IRC, game, word-tracking, and community commands
+- **Configuration**: [`config.py`](config.py) - State-backed settings, server configs, and `.env` API keys
+- **State Migrations**: [`state_migrations.py`](state_migrations.py) - Versioned `data/state.json` schema setup
 - **Logging**: [`logger.py`](logger.py) - High-precision timestamped logging, console output protection
 - **Subscriptions**: [`subscriptions.py`](subscriptions.py) - User notification preferences (warnings, releases)
 - **Leet Detection**: [`leet_detector.py`](leet_detector.py) - 1337 timestamp detection with nanosecond precision
@@ -221,6 +227,7 @@ Developer Tools & Scripts /
 - **Weather Warnings**: [`services/fmi_warning_service.py`](services/fmi_warning_service.py) - FMI warning monitoring
 - **AI Chat**: [`services/gpt_service.py`](services/gpt_service.py) - OpenAI GPT integration, conversation history
 - **IPFS**: [`services/ipfs_service.py`](services/ipfs_service.py) - Decentralized file storage, streaming uploads
+- **Community State**: [`services/community_state_service.py`](services/community_state_service.py) - Per-channel flags, metrics, seen data, polls
 - **Incident Reports**: [`services/otiedote_service.py`](services/otiedote_service.py) - Accident report monitoring
 - **Scheduling**: [`services/scheduled_message_service.py`](services/scheduled_message_service.py) - Precise message timing
 - **Solar Wind**: [`services/solarwind_service.py`](services/solarwind_service.py) - NOAA space weather data
@@ -247,8 +254,8 @@ Developer Tools & Scripts /
 
 Data flow overview:
 
-- IRC messages -> BotManager.\_handle_message -> command_loader.process_irc_message -> command_registry -> commands/commands_admin -> Services
-- Console input -> command_loader.process_console_command -> command_registry -> commands/commands_admin -> Services
+- IRC messages -> BotManager.\_handle_message -> command_loader.process_irc_message -> command_registry -> cmd_modules -> Services
+- Console input -> command_loader.process_console_command -> command_registry -> cmd_modules -> Services
 - Background monitors (FMI/Otiedote) -> Subscriptions -> BotManager -> Servers/IRC
 
 ## Usage Examples
@@ -377,11 +384,14 @@ LeetIRCPythonBot is a comprehensive IRC bot with 50+ features across multiple ca
 - **Drink Tracking**: Monitor drinking-related words with privacy controls (!kraks, !drink, !antikrak)
 - **Leet Detection**: Nanosecond-precision 1337 timestamp detection with achievements
 - **User Analytics**: Server-wide and per-user statistics
+- **Last Seen**: Track recent channel activity for nick lookups (!seen)
+- **Observability**: Channel message and command counters (!metrics)
 
 ### 🐾 **Interactive Features**
 
 - **Tamagotchi Bot**: Virtual pet with feeding, care, and status (!tamagotchi, !feed, !pet)
 - **Subscription System**: User-configurable notifications (!tilaa, !lopeta)
+- **Polls**: Create and vote in channel polls (!poll create question | option | option)
 - **Echo & Utility**: Time display, ping/pong, version info (!aika, !ping, !version)
 
 ### 🚉 **Transportation**
@@ -399,6 +409,7 @@ LeetIRCPythonBot is a comprehensive IRC bot with 50+ features across multiple ca
 
 - **IRC Control**: Channel join/part, nickname changes (!join, !part, !nick)
 - **Server Management**: Multi-server support with independent configurations
+- **Per-channel Features**: Toggle AI, GPT history, Tamagotchi, YouTube previews, URL titles, word tracking, and 420 replies per channel (!feature)
 - **Raw Commands**: Direct IRC protocol access for advanced control (!raw)
 - **Graceful Shutdown**: Clean disconnection with custom messages (!quit)
 - **Model Management**: Runtime OpenAI model switching (!openai)
@@ -413,6 +424,7 @@ LeetIRCPythonBot is a comprehensive IRC bot with 50+ features across multiple ca
 ### 🏗️ **Technical Features**
 
 - **Command Registry**: Modular command system with metadata
+- **State Migrations**: Versioned `state.json` schema initialization for new state-backed features
 - **Multi-threading**: Concurrent service execution
 - **Error Handling**: Comprehensive exception management
 - **Logging**: High-precision timestamped logs

@@ -31,6 +31,7 @@ from handlers.url_handler import UrlHandlerMixin
 from lemmatizer import Lemmatizer
 from logger import get_logger
 from server import Server
+from services.community_state_service import CommunityStateService
 from services.otiedote_json_service import (
     get_otiedote_filters,
     get_otiedote_target_filters,
@@ -83,6 +84,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         self.use_notices = self._load_use_notices_setting()
         self.tamagotchi_enabled = self._load_tamagotchi_enabled_setting()
         self.four_twenty_enabled = self._load_420_enabled_setting()
+        self.community_state = CommunityStateService(self.data_manager.state_file)
 
         # Cache sanaketju game instance to prevent duplicate command imports
         self._sanaketju_game = None
@@ -120,6 +122,13 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             gpt_service.data_manager = self.data_manager
 
         logger.info("Message handler initialized")
+
+    def _get_community_state(self) -> CommunityStateService:
+        service = getattr(self, "community_state", None)
+        if service is None:
+            service = CommunityStateService(self.data_manager.state_file)
+            self.community_state = service
+        return service
 
     def _initialize_lemmatizer(self) -> Optional[Lemmatizer]:
         """Initialize lemmatizer with graceful fallback."""
@@ -208,6 +217,11 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
             if self._check_passive_latency_receipt(server, sender, target, text):
                 return
+            self._record_observability_event(context, "messages")
+            if sender.lower() != server.bot_name.lower() and target.startswith("#"):
+                self._get_community_state().record_seen(
+                    server.config.name, target, sender, text, ident_host
+                )
 
             # Check for CTCP PONG response (from !lag command)
             # This should be checked before command processing
@@ -234,7 +248,9 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 except Exception:
                     four_twenty_enabled = True
 
-                if four_twenty_enabled:
+                if four_twenty_enabled and self._channel_feature_enabled(
+                    context, "420"
+                ):
                     self._handle_420_response(context)
 
             # Process commands FIRST (before AI chat) to ensure commands are handled properly
@@ -244,6 +260,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             if (
                 sender.lower() != server.bot_name.lower()
                 and not text.strip().startswith("!")
+                and self._channel_feature_enabled(context, "word_tracking")
             ):
                 self._track_words(context)
 
@@ -251,6 +268,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             if (
                 self.service_manager.is_service_available("youtube")
                 and sender.lower() != server.bot_name.lower()
+                and self._channel_feature_enabled(context, "youtube")
             ):
                 self._handle_youtube_urls(context)
 
@@ -265,6 +283,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 sender.lower() != server.bot_name.lower()
                 and target.startswith("#")
                 and not text.startswith("!")
+                and self._channel_feature_enabled(context, "url_titles")
             ):
                 try:
                     self._fetch_title(context["server"], target, text)
@@ -273,6 +292,31 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
         except Exception as e:
             logger.error(f"Error handling message from {server.config.name}: {e}")
+
+    def _channel_feature_enabled(self, context: Dict[str, Any], feature: str) -> bool:
+        target = context.get("target", "")
+        if not isinstance(target, str) or not target.startswith("#"):
+            return True
+        try:
+            return self._get_community_state().is_enabled(
+                context.get("server_name", ""), target, feature
+            )
+        except Exception as e:
+            logger.warning(f"Could not read channel feature '{feature}': {e}")
+            return True
+
+    def _record_observability_event(
+        self, context: Dict[str, Any], metric: str, amount: int = 1
+    ) -> None:
+        target = context.get("target", "")
+        if not isinstance(target, str) or not target.startswith("#"):
+            return
+        try:
+            self._get_community_state().record_metric(
+                context.get("server_name", ""), target, metric, amount
+            )
+        except Exception as e:
+            logger.warning(f"Could not record metric '{metric}': {e}")
 
     def _handle_notice(
         self, server: Server, sender: str, ident_host: str, target: str, text: str
@@ -976,7 +1020,9 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             logger.warning(f"Error processing sanaketju: {e}")
 
         # Update tamagotchi (only if enabled)
-        if self.tamagotchi_enabled:
+        if self.tamagotchi_enabled and self._channel_feature_enabled(
+            context, "tamagotchi"
+        ):
             should_respond, response = self.tamagotchi.process_message(
                 server=server_name, nick=sender, text=text
             )
@@ -1263,7 +1309,22 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             and not text.startswith("!")
             and not contains_drink_words
         ):
-            ai_response = self._chat_with_gpt(text, sender, server.config.name, target)
+            ai_context = {
+                "server_name": server.config.name,
+                "target": target,
+            }
+            if target.startswith("#") and not self._channel_feature_enabled(
+                ai_context, "ai"
+            ):
+                return
+            history_channel = target
+            if target.startswith("#") and not self._channel_feature_enabled(
+                ai_context, "gpt_history"
+            ):
+                history_channel = None
+            ai_response = self._chat_with_gpt(
+                text, sender, server.config.name, history_channel
+            )
             if ai_response:
                 reply_target = sender if is_private else target
                 # Send as multiple IRC lines (split by newline, wrap long lines)
@@ -1296,6 +1357,7 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             return
 
         try:
+            self._record_observability_event(context, "commands")
             logger.debug(
                 f"Processing command from {sender} in {target} on {server.config.name}: {text}"
             )
@@ -1320,6 +1382,8 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             "bac_tracker": self.bac_tracker,
             "general_words": self.general_words,
             "word_associations": self.word_associations,
+            "community_state": self._get_community_state(),
+            "gpt_service": self.service_manager.get_service("gpt"),
             "tamagotchi_bot": self.tamagotchi,
             "lemmat": self.lemmatizer,
             "server": server,

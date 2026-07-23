@@ -16,6 +16,7 @@ COMMAND_MODULES = (
     "cmd_modules.admin",
     "cmd_modules.admin_privileged",
     "cmd_modules.basic",
+    "cmd_modules.community",
     "cmd_modules.games",
     "cmd_modules.irc",
     "cmd_modules.misc",

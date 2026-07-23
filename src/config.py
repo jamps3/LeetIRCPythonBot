@@ -14,6 +14,7 @@ if _project_root not in sys.path:
 from dotenv import load_dotenv  # noqa: E402
 
 from src.logger import get_logger  # noqa: E402
+from src.state_migrations import migrate_state_file  # noqa: E402
 from src.state_utils import load_json_file, save_json_atomic  # noqa: E402
 
 logger = get_logger("Config")
@@ -303,6 +304,10 @@ class ConfigManager:
         state_file = self._get_state_file()
 
         # Load settings from state.json
+        try:
+            migrate_state_file(state_file)
+        except Exception as e:
+            logger.warning(f"Could not migrate state.json schema: {e}")
         state_config = self._load_state_config()
         updated = self._ensure_state_config_defaults(state_config)
 
