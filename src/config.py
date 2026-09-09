@@ -254,6 +254,7 @@ class BotConfig:
     title_blacklist_domains: str = ""
     title_blacklist_extensions: str = ""
     title_banned_texts: str = ""
+    discord: Dict[str, object] = field(default_factory=dict)
 
 
 class ConfigManager:
@@ -369,6 +370,7 @@ class ConfigManager:
             title_banned_texts=state_config.get(
                 "title_banned_texts", TITLE_BANNED_TEXTS
             ),
+            discord=state_config.get("discord", {}),
         )
 
         # Load server configurations from state.json
@@ -424,12 +426,20 @@ class ConfigManager:
             "title_banned_texts": TITLE_BANNED_TEXTS,
             "title_blacklist_domains": TITLE_BLACKLIST_DOMAINS,
             "title_blacklist_extensions": TITLE_BLACKLIST_EXTENSIONS,
+            "discord": {
+                "enabled": False,
+                "allowed_channels": [],
+                "admin_user_ids": [],
+                "admin_role_ids": [],
+            },
         }
 
         updated = False
         for key, value in defaults.items():
             if key not in state_config:
-                state_config[key] = value.copy() if isinstance(value, list) else value
+                state_config[key] = (
+                    value.copy() if isinstance(value, (list, dict)) else value
+                )
                 updated = True
 
         server_list = state_config.get("servers", [])

@@ -40,6 +40,7 @@ Advanced IRC Bot made with Python. Extended API use and highly customizable.
 | - 🧠 Per-channel GPT history controls                  | !history, !history reset                                                                      |
 | - 👀 Last-seen tracking                                | !seen <nick>                                                                                  |
 | - 🗳️ Channel polls                                     | !poll create/vote/results/close                                                               |
+| - 💬 Discord integration                               | Native slash commands, allowlisted channels, and Discord-native polls                        |
 
 ## Installation
 
@@ -101,6 +102,34 @@ Copy .env.sample to .env and make relevant changes like bot name, servers, chann
 ```env
 ADMIN_PASSWORD=your_secure_password_here
 ```
+
+### Discord setup
+
+Discord runs in the same process as IRC, but remains disabled until configured.
+Create a Discord application and bot in the Developer Portal, enable the Message
+Content intent, then invite it with the `bot` and `applications.commands` scopes.
+Set its secret token only in `.env`:
+
+```env
+DISCORD_TOKEN=your_discord_bot_token_here
+```
+
+Enable the transport and list the Discord text-channel IDs that may receive
+messages in `data/state.json` under `config.discord`:
+
+```json
+{
+  "enabled": true,
+  "allowed_channels": ["123456789012345678"],
+  "admin_user_ids": ["123456789012345678"],
+  "admin_role_ids": []
+}
+```
+
+Discord commands are slash commands. DMs accept commands only; automatic
+tracking and replies run only in allowlisted guild channels. Discord polls use
+Discord's native poll UI, while the bot records the latest result snapshot in
+its channel-specific state.
 
 # Running
 

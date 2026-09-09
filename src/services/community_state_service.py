@@ -107,6 +107,7 @@ class CommunityStateService:
         nick: str,
         message: str,
         ident_host: str = "",
+        identity: str | None = None,
     ) -> bool:
         if not channel.startswith("#"):
             return False
@@ -115,8 +116,9 @@ class CommunityStateService:
             state = _state_section(data)
             seen = state.setdefault("seen", {})
             scoped = seen.setdefault(_channel_key(server_name, channel), {})
-            scoped[nick.lower()] = {
+            scoped[(identity or nick).lower()] = {
                 "nick": nick,
+                "identity": identity or nick,
                 "ident_host": ident_host,
                 "last_seen": _now(),
                 "message": message[:300],
@@ -241,6 +243,48 @@ class CommunityStateService:
             .get("polls", {})
             .get(_channel_key(server_name, channel), {})
             .get(poll_id)
+        )
+        return poll if isinstance(poll, dict) else None
+
+    def save_discord_poll(
+        self,
+        server_name: str,
+        channel: str,
+        message_id: str,
+        question: str,
+        options: list[str],
+        creator_id: str,
+        results: list[int] | None = None,
+        closed: bool = False,
+    ) -> bool:
+        """Persist a Discord-native poll and its latest known results."""
+
+        def updater(data):
+            state = _state_section(data)
+            polls = state.setdefault("discord_polls", {})
+            scoped = polls.setdefault(_channel_key(server_name, channel), {})
+            scoped[str(message_id)] = {
+                "message_id": str(message_id),
+                "question": question,
+                "options": options,
+                "creator_id": str(creator_id),
+                "results": results or [0 for _ in options],
+                "closed": closed,
+                "updated_at": _now(),
+            }
+            return data
+
+        return update_json_file(self.state_file, updater, default=dict, strict=True)
+
+    def get_discord_poll(
+        self, server_name: str, channel: str, message_id: str
+    ) -> dict | None:
+        data = load_json_file(self.state_file, default=dict)
+        poll = (
+            _state_section(data)
+            .get("discord_polls", {})
+            .get(_channel_key(server_name, channel), {})
+            .get(str(message_id))
         )
         return poll if isinstance(poll, dict) else None
 

@@ -137,6 +137,14 @@ class BotManager:
         )
         self._active_channel = None
         self._active_server = None
+        self.discord_bot = None
+        discord_settings = getattr(self.config, "discord", {})
+        if isinstance(discord_settings, dict) and discord_settings.get(
+            "enabled", False
+        ):
+            from discord_bot import DiscordBot
+
+            self.discord_bot = DiscordBot(self, discord_settings)
 
         self.logger.info("✅ BotManager initialization complete!")
 
@@ -151,6 +159,9 @@ class BotManager:
 
         if hasattr(self.service_manager, "start_background_services"):
             self.service_manager.start_background_services()
+
+        if self.discord_bot:
+            self.discord_bot.start()
 
         # Start console listener if in console mode
         if self.console_mode:
@@ -172,6 +183,9 @@ class BotManager:
 
         if hasattr(self.service_manager, "stop_background_services"):
             self.service_manager.stop_background_services()
+
+        if self.discord_bot:
+            self.discord_bot.stop()
 
         # Shutdown server manager
         self.server_manager.shutdown(quit_message)

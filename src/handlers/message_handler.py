@@ -190,7 +190,16 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             logger.warning(f"Error initializing X cache settings: {e}")
 
     async def handle_message(
-        self, server: Server, sender: str, ident_host: str, target: str, text: str
+        self,
+        server: Server,
+        sender: str,
+        ident_host: str,
+        target: str,
+        text: str,
+        *,
+        platform: str = "irc",
+        actor_id: str | None = None,
+        channel_id: str | None = None,
     ):
         """
         Handle incoming IRC messages from any server.
@@ -213,6 +222,9 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 "text": text,
                 "is_private": not target.startswith("#"),
                 "bot_name": server.bot_name,
+                "platform": platform,
+                "actor_id": actor_id,
+                "channel_id": channel_id,
             }
 
             if self._check_passive_latency_receipt(server, sender, target, text):
@@ -220,7 +232,12 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             self._record_observability_event(context, "messages")
             if sender.lower() != server.bot_name.lower() and target.startswith("#"):
                 self._get_community_state().record_seen(
-                    server.config.name, target, sender, text, ident_host
+                    server.config.name,
+                    target,
+                    sender,
+                    text,
+                    ident_host,
+                    identity=actor_id,
                 )
 
             # Check for CTCP PONG response (from !lag command)
@@ -408,6 +425,10 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         if not bot_manager:
             return None
 
+        discord_bot = getattr(bot_manager, "discord_bot", None)
+        if server_name.startswith("discord:") and discord_bot:
+            return discord_bot
+
         test_override = getattr(bot_manager, "_servers", None)
         if isinstance(test_override, dict) and server_name in test_override:
             return test_override[server_name]
@@ -423,6 +444,8 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         self, server_name: str, server, nick_or_channel: str
     ) -> bool:
         """Check channel subscriptions against joined or configured channels."""
+        if server_name.startswith("discord:"):
+            return str(nick_or_channel).lstrip("#").isdigit()
         if not nick_or_channel.startswith("#"):
             return True
 
@@ -1347,6 +1370,11 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         ident_host = context["ident_host"]
         target = context["target"]
         text = context["text"]
+
+        # Discord deliberately exposes slash commands only. Plain Discord messages
+        # still pass through the automatic feature pipeline above.
+        if context.get("platform") == "discord":
+            return
 
         bot_functions = self._create_bot_functions(server, context)
 

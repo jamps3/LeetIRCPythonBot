@@ -16,7 +16,9 @@ def _service(bot_functions):
 
 
 def _server_channel(context: CommandContext) -> tuple[str, str] | str:
-    if context.is_console or not context.target or not context.target.startswith("#"):
+    if context.is_console or not context.target:
+        return "This command must be used in a channel."
+    if context.platform == "irc" and not context.target.startswith("#"):
         return "This command must be used in a channel."
     return context.server_name, context.target
 

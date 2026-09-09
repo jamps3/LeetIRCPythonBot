@@ -48,6 +48,9 @@ class CommandContext:
     is_console: bool = False  # True if executed from console
     server_name: str = ""  # Server identifier
     server: Any = None  # Server object (for IRC commands)
+    platform: str = "irc"  # Transport identifier: irc, discord, or console
+    actor_id: Optional[str] = None  # Stable platform-specific sender identifier
+    channel_id: Optional[str] = None  # Stable platform-specific channel identifier
 
     @property
     def args_text(self) -> str:
@@ -134,6 +137,11 @@ class CommandHandler(ABC):
     def can_execute(self, context: CommandContext) -> tuple[bool, Optional[str]]:
         """Check if the command can be executed in the given context."""
         # Check scope
+        if context.platform == "discord" and self.info.scope in (
+            CommandScope.IRC_ONLY,
+            CommandScope.IRC_AND_CONSOLE,
+        ):
+            return False, "This command is not available on Discord"
         if self.info.scope == CommandScope.IRC_ONLY and context.is_console:
             return False, "This command is not available in console mode"
         elif self.info.scope == CommandScope.CONSOLE_ONLY and not context.is_console:

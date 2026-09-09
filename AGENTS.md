@@ -130,6 +130,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
   - weather_forecast_service.py: Weather forecast
   - weather_service.py: Fetches weather data
   - youtube_service.py: YouTube ID extraction, metadata fetch
+  - discord_bot.py: Optional Discord gateway transport, slash commands, and native polls
 
 - URL title fetching:
   - BotManager.\_fetch_title: requests + BeautifulSoup; skips blacklisted domains/extensions (env-configurable)
@@ -137,6 +138,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 - Configuration and logging:
   - config.py: `.env` loading, `data/state.json` config parsing, helper getters
   - logger.py: get_logger(name) used across components; respects LOG_LEVEL
+  - Discord uses `DISCORD_TOKEN` in `.env`; non-secret allowlists and Discord admin IDs live in `config.discord` in `data/state.json`
   - Notable env toggles: TAMAGOTCHI_ENABLED, USE_NOTICES, FOUR_TWENTY_ENABLED
 
 3. Command System Architecture

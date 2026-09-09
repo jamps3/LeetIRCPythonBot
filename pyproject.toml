@@ -11,6 +11,7 @@ requires-python = ">=3.13"
 dependencies = [
     "beautifulsoup4",
     "defusedxml",
+    "discord.py>=2.6,<3",
     "feedparser",
     "google-api-python-client",
     "isodate",

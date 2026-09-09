@@ -6,7 +6,7 @@ from typing import Any
 
 from state_utils import update_json_file
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def _ensure_dict(value: Any) -> dict:
@@ -26,6 +26,14 @@ def migrate_state_data(data: Any) -> dict:
     state.setdefault("observability", {"metrics": {}})
     state.setdefault("seen", {})
     state.setdefault("polls", {})
+    state.setdefault("discord_polls", {})
+
+    discord = _ensure_dict(config.get("discord"))
+    discord.setdefault("enabled", False)
+    discord.setdefault("allowed_channels", [])
+    discord.setdefault("admin_user_ids", [])
+    discord.setdefault("admin_role_ids", [])
+    config["discord"] = discord
 
     data["config"] = config
     data["state"] = state
