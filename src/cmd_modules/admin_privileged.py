@@ -4,8 +4,12 @@ Privileged Admin Commands for LeetIRCPythonBot
 This module contains administrative commands that require password authentication.
 """
 
+from datetime import datetime, timedelta, timezone
+
+import requests
+
 from command_registry import CommandContext, CommandScope, command
-from config import get_config, get_config_manager
+from config import get_api_key, get_config, get_config_manager
 from state_utils import update_json_file
 
 
@@ -46,6 +50,171 @@ def verify_admin_password(args):
 
     config = get_config()
     return args[0] == config.admin_password
+
+
+def _response_error_text(response) -> str:
+    """Return a short API error detail without ever including credentials."""
+    try:
+        payload = response.json()
+    except (ValueError, TypeError):
+        payload = None
+
+    if isinstance(payload, dict):
+        error = payload.get("error", payload)
+        if isinstance(error, dict):
+            detail = error.get("message") or error.get("status") or error.get("reason")
+        else:
+            detail = error
+        if detail:
+            return str(detail)[:100]
+    return str(getattr(response, "text", ""))[:100]
+
+
+def _api_probe(name: str, url: str, *, params=None, headers=None) -> str:
+    """Probe an API endpoint and return a secret-free health status."""
+    try:
+        response = requests.get(url, params=params, headers=headers, timeout=5)
+    except requests.RequestException as exc:
+        return f"{name}: unreachable ({type(exc).__name__})"
+
+    detail = _response_error_text(response).lower()
+    invalid_markers = (
+        "invalid api key",
+        "api key not valid",
+        "invalid key",
+        "invalid token",
+        "security token is invalid",
+        "authentication failed",
+    )
+    status = response.status_code
+    if 200 <= status < 300:
+        try:
+            payload = response.json()
+        except (ValueError, TypeError):
+            payload = None
+        api_error = payload.get("error") if isinstance(payload, dict) else None
+        if api_error not in (None, False, 0, ""):
+            if any(marker in detail for marker in invalid_markers):
+                return f"{name}: invalid (API error)"
+            return f"{name}: error (API response)"
+        return f"{name}: valid"
+
+    if status == 401 or any(marker in detail for marker in invalid_markers):
+        return f"{name}: invalid (HTTP {status})"
+    if status == 403:
+        return f"{name}: access denied (HTTP {status})"
+    return f"{name}: error (HTTP {status})"
+
+
+def _configured_api_status(name: str, key_name: str, url: str, **kwargs) -> str:
+    """Report an unset key or probe the configured provider."""
+    key = get_api_key(key_name)
+    if not key:
+        return f"{name}: not configured"
+    return _api_probe(name, url, **kwargs)
+
+
+def _api_status_lines(bot_functions) -> list[str]:
+    """Return health lines for every key-backed API used by the bot."""
+    lines = ["API status:"]
+    lines.append(
+        _configured_api_status(
+            "OpenAI",
+            "OPENAI_API_KEY",
+            "https://api.openai.com/v1/models",
+            headers={"Authorization": f"Bearer {get_api_key('OPENAI_API_KEY')}"},
+        )
+    )
+    lines.append(
+        _configured_api_status(
+            "OpenWeatherMap",
+            "WEATHER_API_KEY",
+            "https://api.openweathermap.org/data/2.5/weather",
+            params={"q": "Helsinki", "appid": get_api_key("WEATHER_API_KEY")},
+        )
+    )
+    lines.append(
+        _configured_api_status(
+            "Meteosource",
+            "WEATHER_FORECAST_API_KEY",
+            "https://www.meteosource.com/api/v1/free/point",
+            params={
+                "place_id": "Helsinki",
+                "sections": "current",
+                "key": get_api_key("WEATHER_FORECAST_API_KEY"),
+            },
+        )
+    )
+    lines.append(
+        _configured_api_status(
+            "TMDB",
+            "TMDB_API_KEY",
+            "https://api.themoviedb.org/3/configuration",
+            params={"api_key": get_api_key("TMDB_API_KEY")},
+        )
+    )
+    lines.append(
+        _configured_api_status(
+            "YouTube",
+            "YOUTUBE_API_KEY",
+            "https://www.googleapis.com/youtube/v3/videos",
+            params={
+                "part": "id",
+                "id": "dQw4w9WgXcQ",
+                "key": get_api_key("YOUTUBE_API_KEY"),
+            },
+        )
+    )
+    lines.append(
+        _configured_api_status(
+            "Eurojackpot",
+            "EUROJACKPOT_API_KEY",
+            "https://www.magayo.com/api/next_draw.php",
+            params={
+                "api_key": get_api_key("EUROJACKPOT_API_KEY"),
+                "game": "eurojackpot",
+                "format": "json",
+            },
+        )
+    )
+
+    electricity_key = get_api_key("ELECTRICITY_API_KEY")
+    if not electricity_key:
+        lines.append("ENTSO-E electricity: not configured")
+    else:
+        yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
+        lines.append(
+            _api_probe(
+                "ENTSO-E electricity",
+                "https://web-api.tp.entsoe.eu/api",
+                params={
+                    "securityToken": electricity_key,
+                    "documentType": "A44",
+                    "in_Domain": "10YFI-1--------U",
+                    "out_Domain": "10YFI-1--------U",
+                    "periodStart": yesterday.strftime("%Y%m%d0000"),
+                    "periodEnd": (yesterday + timedelta(days=1)).strftime("%Y%m%d0000"),
+                },
+            )
+        )
+
+    lines.append(
+        _configured_api_status(
+            "X",
+            "X_BEARER_TOKEN",
+            "https://api.x.com/2/users/me",
+            headers={"Authorization": f"Bearer {get_api_key('X_BEARER_TOKEN')}"},
+        )
+    )
+
+    discord_bot = getattr(bot_functions.get("bot_manager"), "discord_bot", None)
+    if not get_api_key("DISCORD_TOKEN"):
+        lines.append("Discord gateway: not configured")
+    elif discord_bot and getattr(discord_bot, "connected", False):
+        lines.append("Discord gateway: connected")
+    else:
+        lines.append("Discord gateway: configured but not connected")
+    return lines
 
 
 def _get_state_server_list(state: dict) -> list:
@@ -469,6 +638,26 @@ def leetwinners_reset_command(context: CommandContext, bot_functions):
 
     except Exception as e:
         return f"❌ Error resetting leetwinners: {str(e)}"
+
+
+@command(
+    "api",
+    description="Check configured external API credentials (admin only)",
+    usage="!api <password>",
+    examples=["!api mypass"],
+    admin_only=True,
+    requires_args=True,
+    scope=CommandScope.IRC_AND_CONSOLE,
+)
+def api_status_command(context: CommandContext, bot_functions):
+    """Validate configured API credentials without exposing their values."""
+    if not verify_admin_password(context.args):
+        return "❌ Invalid admin password"
+
+    try:
+        return "\n".join(_api_status_lines(bot_functions))
+    except Exception as exc:
+        return f"❌ API status check failed: {exc}"
 
 
 @command(

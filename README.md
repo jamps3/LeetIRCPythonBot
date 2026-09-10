@@ -325,6 +325,9 @@ ipfs daemon
 
 # Admin: Cancel a scheduled message
 !scheduled mypassword123 cancel scheduled_1703012345_0
+
+# Admin: Validate configured API credentials without revealing them
+!api mypassword123
 ```
 
 ## Testing

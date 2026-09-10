@@ -296,3 +296,71 @@ class TestIgnoreCommand:
             admin_privileged.ignore_command_command(context, {})
             == "❌ Invalid admin password"
         )
+
+
+class TestApiStatusCommand:
+    """Tests for the password-protected !api diagnostics command."""
+
+    def test_api_status_requires_admin_password(self, monkeypatch):
+        from cmd_modules import admin_privileged
+
+        monkeypatch.setattr(
+            admin_privileged,
+            "get_config",
+            lambda: SimpleNamespace(admin_password="secret"),
+        )
+        context = CommandContext(
+            command="api", args=["wrong"], raw_message="!api wrong", is_console=False
+        )
+
+        assert (
+            admin_privileged.api_status_command(context, {})
+            == "❌ Invalid admin password"
+        )
+
+    def test_api_status_reports_valid_invalid_and_missing_keys(self, monkeypatch):
+        from cmd_modules import admin_privileged
+
+        keys = {
+            "OPENAI_API_KEY": "openai-secret",
+            "YOUTUBE_API_KEY": "youtube-secret",
+        }
+        monkeypatch.setattr(
+            admin_privileged,
+            "get_config",
+            lambda: SimpleNamespace(admin_password="secret"),
+        )
+        monkeypatch.setattr(admin_privileged, "get_api_key", keys.get)
+
+        class Response:
+            def __init__(self, status_code, payload=None):
+                self.status_code = status_code
+                self._payload = payload or {}
+                self.text = ""
+
+            def json(self):
+                return self._payload
+
+        def fake_get(url, **kwargs):
+            assert "openai-secret" not in url
+            assert "youtube-secret" not in url
+            if "openai.com" in url:
+                assert kwargs["headers"]["Authorization"] == "Bearer openai-secret"
+                return Response(200)
+            if "googleapis.com" in url:
+                assert kwargs["params"]["key"] == "youtube-secret"
+                return Response(400, {"error": {"message": "API key not valid"}})
+            raise AssertionError(f"Unexpected API probe: {url}")
+
+        monkeypatch.setattr(admin_privileged.requests, "get", fake_get)
+        context = CommandContext(
+            command="api", args=["secret"], raw_message="!api secret", is_console=True
+        )
+
+        result = admin_privileged.api_status_command(context, {})
+
+        assert "OpenAI: valid" in result
+        assert "YouTube: invalid (HTTP 400)" in result
+        assert "OpenWeatherMap: not configured" in result
+        assert "openai-secret" not in result
+        assert "youtube-secret" not in result
