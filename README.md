@@ -1,5 +1,13 @@
 # LeetIRCPythonBot
 
+<p align="center">
+  <img src="assets/discord-banner-680x240.png" alt="LeetIRCPythonBot" width="680">
+</p>
+
+<p align="center">
+  <img src="assets/discord-app-icon.png" alt="LeetIRCPythonBot Discord app icon" width="120">
+</p>
+
 [![Run Tests](https://github.com/jamps3/LeetIRCPythonBot/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/jamps3/LeetIRCPythonBot/actions/workflows/tests.yml)
 [![Auto Format Code](https://github.com/jamps3/LeetIRCPythonBot/actions/workflows/auto-format.yml/badge.svg?branch=main)](https://github.com/jamps3/LeetIRCPythonBot/actions/workflows/auto-format.yml)
 ![Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjamps3%2FLeetIRCPythonBot%2Fbadges%2Ftests.json)
