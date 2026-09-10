@@ -46,6 +46,7 @@ PALETTE = [
     ("focus", "black", "light gray"),
     ("header", "white", "dark blue"),
     ("footer", "white", "dark blue"),
+    ("channel_bar", "black", "light gray"),
     # Flash effect
     ("flash", "black", "light green"),
     # Log levels
@@ -1097,47 +1098,81 @@ class StatsView:
             return f"{secs}s"
 
 
+class ConfigEdit(urwid.Edit):
+    """Single-line config input with form-oriented keyboard navigation."""
+
+    def __init__(self, *args, on_navigate=None, on_submit=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._on_navigate = on_navigate
+        self._on_submit = on_submit
+
+    def keypress(self, size, key):
+        if key in ("tab", "down") and self._on_navigate:
+            self._on_navigate(1)
+            return None
+        if key in ("shift tab", "up") and self._on_navigate:
+            self._on_navigate(-1)
+            return None
+        if key == "enter" and self._on_submit:
+            self._on_submit()
+            return None
+        return super().keypress(size, key)
+
+
 class ConfigEditor:
-    """Configuration editor for runtime settings changes."""
+    """Keyboard-navigable editor for the bot's runtime environment settings."""
+
+    CONFIG_SECTIONS = {
+        "Bot Settings": [
+            ("BOT_NAME", "Bot nickname"),
+            ("LOG_LEVEL", "DEBUG, INFO, WARNING, or ERROR"),
+            ("AUTO_CONNECT", "true or false"),
+            ("AUTO_RECONNECT", "true or false"),
+            ("LOG_BUFFER_SIZE", "Maximum log entries in memory"),
+            ("USE_NOTICES", "true or false"),
+            ("TAMAGOTCHI_ENABLED", "true or false"),
+        ],
+        "API Keys": [
+            ("WEATHER_API_KEY", "OpenWeatherMap"),
+            ("OPENAI_API_KEY", "OpenAI"),
+            ("TMDB_API_KEY", "The Movie Database"),
+            ("ELECTRICITY_API_KEY", "Electricity prices"),
+            ("YOUTUBE_API_KEY", "YouTube Data API"),
+            ("EUROJACKPOT_API_KEY", "Eurojackpot"),
+            ("DISCORD_TOKEN", "Discord gateway"),
+        ],
+        "File Paths": [
+            ("HISTORY_FILE", "Conversation history"),
+            ("EKAVIKA_FILE", "Ekavika data"),
+            ("WORDS_FILE", "General words"),
+            ("SUBSCRIBERS_FILE", "Subscribers"),
+        ],
+        "Advanced": [
+            ("RECONNECT_DELAY", "Seconds"),
+            ("QUIT_MESSAGE", "Default quit message"),
+            ("GPT_HISTORY_LIMIT", "Maximum GPT history"),
+            ("ADMIN_PASSWORD", "Admin command password"),
+        ],
+    }
+    SENSITIVE_KEYS = {
+        key
+        for section in CONFIG_SECTIONS.values()
+        for key, _ in section
+        if "KEY" in key or "TOKEN" in key
+    } | {"ADMIN_PASSWORD"}
 
     def __init__(self, tui_manager):
         self.tui_manager = tui_manager
+        self.fields = {}
+        self._initial_values = {}
+        self._field_order = []
+        self._field_positions = []
+        self._form = None
+        self._status = None
 
     def get_config_display(self):
         """Get formatted configuration display."""
         config_lines = []
-
-        config_sections = {
-            "🤖 Bot Settings": [
-                ("BOT_NAME", "Bot nickname"),
-                ("LOG_LEVEL", "Logging level (DEBUG, INFO, WARNING, ERROR)"),
-                ("AUTO_CONNECT", "Auto-connect to servers (true/false)"),
-                ("AUTO_RECONNECT", "Auto-reconnect if disconnected (true/false)"),
-                ("LOG_BUFFER_SIZE", "Maximum log entries in memory"),
-                ("USE_NOTICES", "Use IRC NOTICEs instead of PRIVMSG (true/false)"),
-                ("TAMAGOTCHI_ENABLED", "Enable tamagotchi responses (true/false)"),
-            ],
-            "🔑 API Keys": [
-                ("WEATHER_API_KEY", "OpenWeatherMap API key"),
-                ("OPENAI_API_KEY", "OpenAI API key"),
-                ("TMDB_API_KEY", "The Movie Database API key"),
-                ("ELECTRICITY_API_KEY", "Electricity price API key"),
-                ("YOUTUBE_API_KEY", "YouTube Data API key"),
-                ("EUROJACKPOT_API_KEY", "Eurojackpot API key"),
-            ],
-            "📁 File Paths": [
-                ("HISTORY_FILE", "Conversation history file"),
-                ("EKAVIKA_FILE", "Ekavika data file"),
-                ("WORDS_FILE", "General words file"),
-                ("SUBSCRIBERS_FILE", "Subscribers file"),
-            ],
-            "🔧 Advanced Settings": [
-                ("RECONNECT_DELAY", "Reconnection delay in seconds"),
-                ("QUIT_MESSAGE", "Default quit message"),
-                ("GPT_HISTORY_LIMIT", "Max GPT conversation history"),
-                ("ADMIN_PASSWORD", "Admin command password"),
-            ],
-        }
 
         config_lines.extend(
             [
@@ -1150,14 +1185,14 @@ class ConfigEditor:
             ]
         )
 
-        for section_name, config_list in config_sections.items():
+        for section_name, config_list in self.CONFIG_SECTIONS.items():
             config_lines.append(section_name)
             config_lines.append("-" * len(section_name))
 
             for key, description in config_list:
                 current_value = os.getenv(key, "[Not Set]")
                 # Mask sensitive values
-                if "KEY" in key.upper() or "PASSWORD" in key.upper():
+                if key in self.SENSITIVE_KEYS:
                     display_value = (
                         "[Hidden]" if current_value != "[Not Set]" else "[Not Set]"
                     )
@@ -1178,6 +1213,112 @@ class ConfigEditor:
                 )
 
         return "\n".join(config_lines)
+
+    def open_form(self):
+        """Build and return a fresh, editable configuration form."""
+        self.fields = {}
+        self._initial_values = {}
+        self._field_order = []
+        self._field_positions = []
+        widgets = [
+            urwid.Text("Configuration Editor", align="center"),
+            urwid.Text(
+                "Tab/Shift+Tab or Up/Down: move | Enter: next | Ctrl+S: save | Ctrl+R: reload"
+            ),
+            urwid.Divider(),
+        ]
+
+        for section_name, config_list in self.CONFIG_SECTIONS.items():
+            widgets.append(urwid.Text(section_name))
+            for key, description in config_list:
+                value = os.getenv(key, "")
+                sensitive = key in self.SENSITIVE_KEYS
+                caption = f"{key} ({description})"
+                if sensitive and value:
+                    caption += " [set; type to replace]"
+                    value = ""
+                field = ConfigEdit(
+                    f"{caption}: ",
+                    edit_text=value,
+                    wrap="clip",
+                    on_navigate=self._move_focus,
+                    on_submit=lambda key=key: self._commit_field_and_advance(key),
+                )
+                self.fields[key] = field
+                self._initial_values[key] = value
+                self._field_order.append(key)
+                self._field_positions.append(len(widgets))
+                widgets.append(field)
+            widgets.append(urwid.Divider())
+
+        self._status = urwid.Text("Changes are pending until saved.")
+        widgets.append(self._status)
+        walker = urwid.SimpleFocusListWalker(widgets)
+        self._form = urwid.ListBox(walker)
+        if self._field_positions:
+            walker.set_focus(self._field_positions[0])
+        return self._form
+
+    def _move_focus(self, delta):
+        """Move focus through editable fields, wrapping at either end."""
+        if not self._form or not self._field_positions:
+            return
+        position = self._form.focus_position
+        try:
+            index = self._field_positions.index(position)
+        except ValueError:
+            index = 0
+        next_index = (index + delta) % len(self._field_positions)
+        self._form.set_focus(self._field_positions[next_index])
+
+    def _commit_field_and_advance(self, key):
+        """Apply the current field in memory and continue to the next field."""
+        field = self.fields[key]
+        value = field.get_edit_text()
+        if value or key not in self.SENSITIVE_KEYS:
+            os.environ[key] = value
+        self._set_status(f"Applied {key}; Ctrl+S saves to .env.")
+        self._move_focus(1)
+
+    def handle_key(self, key):
+        """Handle form-wide save/reload keys returned by Urwid."""
+        if key == "ctrl s":
+            self.save_form()
+            return True
+        if key == "ctrl r":
+            self.reload_form()
+            return True
+        return False
+
+    def save_form(self):
+        """Apply all fields and persist only editor-managed settings."""
+        values = {}
+        for key, field in self.fields.items():
+            value = field.get_edit_text()
+            if value == self._initial_values.get(key, ""):
+                continue
+            if value or key not in self.SENSITIVE_KEYS:
+                values[key] = value
+                os.environ[key] = value
+        result = self._save_config(values)
+        self._initial_values.update(values)
+        self._set_status(result)
+        return result
+
+    def reload_form(self):
+        """Reload environment values and rebuild the form fields."""
+        result = self._reload_config()
+        for key, field in self.fields.items():
+            value = os.getenv(key, "")
+            displayed_value = "" if key in self.SENSITIVE_KEYS else value
+            field.set_edit_text(displayed_value)
+            self._initial_values[key] = displayed_value
+        self._set_status(result)
+        return result
+
+    def _set_status(self, message):
+        if self._status is not None:
+            self._status.set_text(message)
 
     def handle_config_command(self, command):
         """Handle a configuration command."""
@@ -1200,9 +1341,14 @@ class ConfigEditor:
         os.environ[key] = value
         return f"Set {key} = {value[:50]}{'...' if len(value) > 50 else ''}"
 
-    def _save_config(self):
+    def _save_config(self, values=None):
         """Save current configuration to .env file."""
         try:
+            values = values or {
+                key: value
+                for key, value in os.environ.items()
+                if not key.startswith("_") and key.isupper()
+            }
             env_content = []
 
             # Read current .env file if it exists
@@ -1218,18 +1364,14 @@ class ConfigEditor:
             for i, line in enumerate(lines):
                 if "=" in line and not line.strip().startswith("#"):
                     key = line.split("=")[0]
-                    if key in os.environ:
-                        lines[i] = f"{key}={os.environ[key]}\n"
+                    if key in values:
+                        lines[i] = f"{key}={values[key]}\n"
                         updated_keys.add(key)
                 env_content.append(lines[i].rstrip())
 
-            # Add new environment variables that weren't in the file
-            for key, value in os.environ.items():
-                if (
-                    key not in updated_keys
-                    and not key.startswith("_")
-                    and key.isupper()
-                ):
+            # Add edited environment variables that weren't in the file.
+            for key, value in values.items():
+                if key not in updated_keys:
                     env_content.append(f"{key}={value}")
 
             # Write back to file
@@ -1343,6 +1485,8 @@ class TUIManager:
         self.log_walker = urwid.SimpleListWalker([])
         self.log_display = NonFocusableListBox(self.log_walker)
         self.channel_bar = urwid.Text("", wrap="clip")
+        self._channel_bar_signature = None
+        self._channel_click_targets = []
         self.input_field = urwid.Edit(
             "> Enter message (! for bot, - for AI): ", wrap="clip"
         )
@@ -1394,6 +1538,8 @@ class TUIManager:
         self.log_walker = urwid.SimpleListWalker([])
         self.log_display = NonFocusableListBox(self.log_walker)
         self.channel_bar = urwid.Text("", wrap="clip")
+        self._channel_bar_signature = None
+        self._channel_click_targets = []
         self.input_field = urwid.Edit(
             "> Enter message (! for bot, - for AI): ", wrap="clip"
         )
@@ -1414,16 +1560,22 @@ class TUIManager:
 
         # Update header initially
         self.update_header()
+        self.update_channel_bar()
 
     def setup_layout(self):
         """Set up the main TUI layout."""
         # Header with status information
         header = urwid.AttrMap(self.header, "header")
 
-        # Keep the bottom chrome to one stable input row. The channel shortcut
-        # data remains available for Alt+number selection without a second,
-        # frequently changing footer line.
-        footer = urwid.AttrMap(self.input_field, "footer")
+        # A clipped, fixed-height channel selector sits above the input row.
+        self.footer_pile = urwid.Pile(
+            [
+                ("pack", urwid.AttrMap(self.channel_bar, "channel_bar")),
+                ("pack", urwid.AttrMap(self.input_field, "footer")),
+            ],
+            focus_item=1,
+        )
+        footer = self.footer_pile
 
         # Main layout - use FocusProtectingFrame to prevent focus changes on body clicks
         import warnings
@@ -1531,12 +1683,18 @@ class TUIManager:
 
         shortcuts = self._get_channel_shortcuts()
         if not shortcuts:
-            self.channel_bar.set_text("Channels: none")
+            signature = ("Channels: none", ())
+            if signature != self._channel_bar_signature:
+                self.channel_bar.set_text(signature[0])
+                self._channel_bar_signature = signature
+                self._channel_click_targets = []
             return
 
         active_server = getattr(self.bot_manager, "active_server", None)
         active_channel = getattr(self.bot_manager, "active_channel", None)
         parts = []
+        click_targets = []
+        column = 0
         for label, server_name, channel in shortcuts:
             prefix = (
                 "*"
@@ -1546,9 +1704,25 @@ class TUIManager:
             server_suffix = ""
             if self._has_multiple_connected_servers():
                 server_suffix = f"@{self._get_channel_server_label(server_name)}"
-            parts.append(f"{prefix}[{label}]{channel}{server_suffix}")
+            part = f"{prefix}[{label}]{channel}{server_suffix}"
+            parts.append(part)
+            click_targets.append((column, column + len(part), server_name, channel))
+            column += len(part) + 1
 
-        self.channel_bar.set_text(" ".join(parts))
+        text = " ".join(parts)
+        signature = (text, tuple(click_targets))
+        if signature != self._channel_bar_signature:
+            self.channel_bar.set_text(text)
+            self._channel_bar_signature = signature
+            self._channel_click_targets = click_targets
+
+    def _select_channel_at_column(self, column: int) -> bool:
+        """Select the channel whose visible shortcut label was clicked."""
+        for start, end, server_name, channel in self._channel_click_targets:
+            if start <= column < end:
+                self._select_shortcut_channel(server_name, channel)
+                return True
+        return False
 
     def _has_multiple_connected_servers(self):
         """Return true when channel labels need a server suffix."""
@@ -1888,15 +2062,25 @@ class TUIManager:
             # Header area - no special handling
             return False
 
-        # Check if the mouse event is in the input footer.
+        # Check if the mouse event is in the channel selector or input footer.
         elif row >= maxrow - foot_size:
+            footer_row = row - (maxrow - foot_size)
+            channel_rows = cast(Any, self.channel_bar).rows((maxcol,))
+            if footer_row < channel_rows:
+                if event == "mouse press" and button == 1:
+                    handled = self._select_channel_at_column(col)
+                    if handled:
+                        self._focus_footer()
+                    return handled
+                return False
+
             # Input field area - let it handle the event.
             return input_field.mouse_event(
                 (maxcol, input_field.rows((maxcol,))),
                 event,
                 button,
                 col,
-                row - (maxrow - foot_size),
+                footer_row - channel_rows,
                 focus,
             )
 
@@ -1922,6 +2106,8 @@ class TUIManager:
 
     def _footer_rows(self, maxcol):
         """Return footer height for mouse/body row calculations."""
+        if hasattr(self, "footer_pile"):
+            return cast(Any, self.footer_pile).rows((maxcol,), focus=True)
         return cast(Any, self.input_field).rows((maxcol,))
 
     def _get_completions(self, text):
@@ -2004,6 +2190,9 @@ class TUIManager:
             raise urwid.ExitMainLoop()
 
         elif self._handle_channel_shortcut(key):
+            return
+
+        elif self.current_view == "config" and self.config_editor.handle_key(key):
             return
 
         elif key == "esc" and self.current_view != "console":
@@ -2099,6 +2288,9 @@ class TUIManager:
         self.current_view = view_name
 
         try:
+            if view_name != "config" and hasattr(self, "main_layout"):
+                self.main_layout.body = self.log_display
+
             if view_name == "stats":
                 # Show statistics in log display
                 self._render_static_view(self.stats_view.get_stats_display())
@@ -2113,8 +2305,8 @@ class TUIManager:
                 )
 
             elif view_name == "config":
-                # Show configuration editor in log display
-                self._render_static_view(self.config_editor.get_config_display())
+                # Replace the read-only text dump with an editable form.
+                self.main_layout.body = self.config_editor.open_form()
                 self._focus_body()
 
                 self.add_log_entry(
@@ -2187,6 +2379,10 @@ class TUIManager:
         if hasattr(self, "main_layout") and hasattr(self.main_layout, "set_focus"):
             if hasattr(self.main_layout, "protect_body_focus"):
                 self.main_layout.protect_body_focus = True
+            if hasattr(self, "footer_pile") and hasattr(
+                self.footer_pile, "focus_position"
+            ):
+                self.footer_pile.focus_position = 1
             self.main_layout.set_focus("footer")
 
     def _handle_channel_shortcut(self, key):
@@ -2741,6 +2937,7 @@ Tips:
         def update_callback():
             try:
                 self.update_header()
+                self.update_channel_bar()
                 self.update_input_style()  # Update timestamp in input field
 
                 # Auto-refresh stats only. Config/help are static, scrollable views;

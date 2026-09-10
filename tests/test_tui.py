@@ -621,6 +621,30 @@ class TestConfigEditor:
         assert "BOT_NAME:" in config_display
         assert "API Keys" in config_display
 
+    def test_open_form_supports_tab_navigation_and_typed_values(self):
+        tui_manager = Mock()
+        config_editor = ConfigEditor(tui_manager)
+
+        form = config_editor.open_form()
+        first_position = form.focus_position
+        config_editor.fields["BOT_NAME"].keypress((80,), "tab")
+
+        assert config_editor.fields["BOT_NAME"].selectable()
+        assert form.focus_position != first_position
+        config_editor.fields["BOT_NAME"].set_edit_text("LeetBot")
+        assert config_editor.fields["BOT_NAME"].get_edit_text() == "LeetBot"
+
+    def test_save_form_persists_edited_fields(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        config_editor = ConfigEditor(Mock())
+        config_editor.open_form()
+        config_editor.fields["BOT_NAME"].set_edit_text("LeetBot")
+
+        result = config_editor.save_form()
+
+        assert "Configuration saved" in result
+        assert "BOT_NAME=LeetBot" in (tmp_path / ".env").read_text(encoding="utf-8")
+
     @patch.dict(os.environ, {"TEST_KEY": "test_value"})
     def test_set_config_value(self):
         """Test setting configuration values."""
@@ -850,6 +874,16 @@ class TestTUIManager:
         assert mock_bot_manager.active_channel == "#chan11"
         assert "*[q]#chan11" in tui_manager.channel_bar.get_text()[0]
 
+    def test_channel_bar_click_selects_displayed_channel(self, mock_bot_manager):
+        """Clicking a visible channel label selects its server/channel pair."""
+        tui_manager = TUIManager(mock_bot_manager)
+        select_channel = Mock()
+        tui_manager._select_shortcut_channel = select_channel
+
+        # The channel selector is the first of the two footer rows.
+        assert tui_manager.mouse_event((80, 20), "mouse press", 1, 2, 18, True)
+        select_channel.assert_called_once_with("testserver", "#test")
+
     def test_process_input_filter_command(self):
         """Test processing filter commands."""
         tui_manager = TUIManager()
@@ -982,7 +1016,7 @@ class TestTUIManager:
         assert "Escape returns from help/config/stats/raw logs to console" in help_text
 
     def test_config_view_moves_focus_to_scrollable_body(self):
-        """F4 opens config as a focused scrollable body view."""
+        """F4 opens the focused editable configuration form."""
         tui_manager = TUIManager()
         tui_manager.config_editor = ConfigEditor(tui_manager)
         tui_manager.main_layout = Mock()
@@ -991,10 +1025,8 @@ class TestTUIManager:
 
         assert tui_manager.current_view == "config"
         assert tui_manager.main_layout.set_focus.call_args.args == ("body",)
-        config_text = "\n".join(
-            widget._text_content for widget in tui_manager.log_walker
-        )
-        assert "Configuration Editor" in config_text
+        assert tui_manager.main_layout.body is tui_manager.config_editor._form
+        assert "BOT_NAME" in tui_manager.config_editor.fields
 
     @pytest.mark.parametrize(
         ("key", "expected_view"),
