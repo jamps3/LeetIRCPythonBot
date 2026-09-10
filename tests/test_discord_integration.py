@@ -7,7 +7,7 @@ from command_registry import (
     CommandScope,
     FunctionCommandHandler,
 )
-from discord_bot import DiscordBot
+from discord_bot import CORE_COMMANDS, DiscordBot
 from services.community_state_service import CommunityStateService
 from state_migrations import migrate_state_data
 
@@ -74,6 +74,22 @@ def test_discord_allowlist_and_admin_ids_do_not_depend_on_discord_library():
 
     assert bot._allowed_interaction(interaction) is True
     assert bot.is_admin(interaction) is True
+
+
+def test_discord_core_commands_include_community_feature_alias():
+    assert CORE_COMMANDS["features"] == "feature"
+
+
+def test_discord_status_distinguishes_dm_and_allowed_guild_channel():
+    bot = DiscordBot(SimpleNamespace(), {"enabled": True, "allowed_channels": ["2"]})
+    dm = SimpleNamespace(guild=None)
+    guild = SimpleNamespace(guild=SimpleNamespace(id=1), channel=SimpleNamespace(id=2))
+
+    assert (
+        bot._status_message(dm)
+        == "Discord status: online. DMs support slash commands only."
+    )
+    assert "Guild 1, channel 2 is enabled." in bot._status_message(guild)
 
 
 def test_bot_manager_reloads_discord_transport_from_current_config(monkeypatch):

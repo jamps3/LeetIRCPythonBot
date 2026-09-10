@@ -34,6 +34,7 @@ CORE_COMMANDS = {
     "coin": "kolikko",
     "rps": "ksp",
     "feature": "feature",
+    "features": "feature",
     "metrics": "metrics",
     "history": "history",
     "subscribe": "tilaa",
@@ -163,6 +164,15 @@ class DiscordBot:
         async def ask(interaction, prompt: str):
             await self._ask_command(interaction, prompt)
 
+        @self.tree.command(name="status", description="Show Discord bot status")
+        async def status(interaction):
+            if not self._allowed_interaction(interaction):
+                await self._respond(
+                    interaction, "This bot is not enabled in this channel.", True
+                )
+                return
+            await self._respond(interaction, self._status_message(interaction), True)
+
     def _allowed_channel(self, channel_id: int | str | None) -> bool:
         allowed = {str(value) for value in self.settings.get("allowed_channels", [])}
         return bool(channel_id is not None and str(channel_id) in allowed)
@@ -181,6 +191,15 @@ class DiscordBot:
         if interaction.guild is None:
             return True
         return self._allowed_channel(getattr(interaction.channel, "id", None))
+
+    def _status_message(self, interaction) -> str:
+        """Return Discord-specific status without exposing any configuration secrets."""
+        if interaction.guild is None:
+            return "Discord status: online. DMs support slash commands only."
+        return (
+            "Discord status: online. "
+            f"Guild {interaction.guild.id}, channel {interaction.channel.id} is enabled."
+        )
 
     async def _respond(
         self, interaction, message: str, ephemeral: bool = False

@@ -964,7 +964,7 @@ class TestTUIManager:
         assert result is True
         assert len(tui_manager.log_entries) == original_count
         tui_manager.log_display.mouse_event.assert_called_once_with(
-            (80, 16), "mouse drag", 1, 4, 3, True
+            (80, 17), "mouse drag", 1, 4, 3, True
         )
 
     def test_f1_switches_to_isolated_help_view(self):

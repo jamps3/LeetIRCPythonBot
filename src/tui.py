@@ -1420,15 +1420,10 @@ class TUIManager:
         # Header with status information
         header = urwid.AttrMap(self.header, "header")
 
-        # Footer with channel shortcuts above the input line.
-        self.footer_pile = urwid.Pile(
-            [
-                ("pack", urwid.AttrMap(self.channel_bar, "footer")),
-                ("pack", urwid.AttrMap(self.input_field, "footer")),
-            ],
-            focus_item=1,
-        )
-        footer = self.footer_pile
+        # Keep the bottom chrome to one stable input row. The channel shortcut
+        # data remains available for Alt+number selection without a second,
+        # frequently changing footer line.
+        footer = urwid.AttrMap(self.input_field, "footer")
 
         # Main layout - use FocusProtectingFrame to prevent focus changes on body clicks
         import warnings
@@ -1883,7 +1878,6 @@ class TUIManager:
         maxcol, maxrow = cast(tuple[int, int], size)
         header = cast(Any, self.header)
         input_field = cast(Any, self.input_field)
-        channel_bar = cast(Any, self.channel_bar)
         log_display = cast(Any, self.log_display)
 
         head_size = header.rows((maxcol,))
@@ -1894,20 +1888,15 @@ class TUIManager:
             # Header area - no special handling
             return False
 
-        # Check if the mouse event is in the footer (channel row + input field)
+        # Check if the mouse event is in the input footer.
         elif row >= maxrow - foot_size:
-            footer_row = row - (maxrow - foot_size)
-            channel_rows = channel_bar.rows((maxcol,))
-            if footer_row < channel_rows:
-                return False
-
-            # Input field area - let it handle the event
+            # Input field area - let it handle the event.
             return input_field.mouse_event(
                 (maxcol, input_field.rows((maxcol,))),
                 event,
                 button,
                 col,
-                footer_row - channel_rows,
+                row - (maxrow - foot_size),
                 focus,
             )
 
@@ -1933,14 +1922,7 @@ class TUIManager:
 
     def _footer_rows(self, maxcol):
         """Return footer height for mouse/body row calculations."""
-        if hasattr(self, "footer_pile"):
-            try:
-                return cast(Any, self.footer_pile).rows((maxcol,), focus=True)
-            except TypeError:
-                return cast(Any, self.footer_pile).rows((maxcol,))
-        return cast(Any, self.input_field).rows((maxcol,)) + cast(
-            Any, self.channel_bar
-        ).rows((maxcol,))
+        return cast(Any, self.input_field).rows((maxcol,))
 
     def _get_completions(self, text):
         """Get command completions for the given text."""
@@ -2205,10 +2187,6 @@ class TUIManager:
         if hasattr(self, "main_layout") and hasattr(self.main_layout, "set_focus"):
             if hasattr(self.main_layout, "protect_body_focus"):
                 self.main_layout.protect_body_focus = True
-            if hasattr(self, "footer_pile") and hasattr(
-                self.footer_pile, "focus_position"
-            ):
-                self.footer_pile.focus_position = 1
             self.main_layout.set_focus("footer")
 
     def _handle_channel_shortcut(self, key):
