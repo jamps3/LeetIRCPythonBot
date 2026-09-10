@@ -1,3 +1,4 @@
+import sys
 from types import SimpleNamespace
 
 from command_registry import (
@@ -73,3 +74,47 @@ def test_discord_allowlist_and_admin_ids_do_not_depend_on_discord_library():
 
     assert bot._allowed_interaction(interaction) is True
     assert bot.is_admin(interaction) is True
+
+
+def test_bot_manager_reloads_discord_transport_from_current_config(monkeypatch):
+    import bot_manager as bot_manager_module
+
+    instances = []
+
+    class FakeDiscordBot:
+        def __init__(self, manager, settings):
+            self.settings = settings
+            self.token = "token"
+            self.started = False
+            self.stopped = False
+            instances.append(self)
+
+        def start(self):
+            self.started = True
+            return True
+
+        def stop(self):
+            self.stopped = True
+
+    manager = object.__new__(bot_manager_module.BotManager)
+    manager.discord_bot = None
+    monkeypatch.setenv("DISCORD_TOKEN", "token")
+    monkeypatch.setattr(
+        bot_manager_module,
+        "get_config",
+        lambda: SimpleNamespace(discord={"enabled": True, "allowed_channels": ["1"]}),
+    )
+    monkeypatch.setitem(
+        sys.modules, "discord_bot", SimpleNamespace(DiscordBot=FakeDiscordBot)
+    )
+
+    assert manager.reload_discord_transport() == "Discord started."
+    assert instances[0].started is True
+
+    monkeypatch.setattr(
+        bot_manager_module,
+        "get_config",
+        lambda: SimpleNamespace(discord={"enabled": False}),
+    )
+    assert manager.reload_discord_transport() == "Discord stopped."
+    assert instances[0].stopped is True

@@ -138,15 +138,44 @@ class BotManager:
         self._active_channel = None
         self._active_server = None
         self.discord_bot = None
-        discord_settings = getattr(self.config, "discord", {})
-        if isinstance(discord_settings, dict) and discord_settings.get(
-            "enabled", False
-        ):
-            from discord_bot import DiscordBot
-
-            self.discord_bot = DiscordBot(self, discord_settings)
+        self._configure_discord_transport(start=False)
 
         self.logger.info("✅ BotManager initialization complete!")
+
+    def _configure_discord_transport(self, start: bool) -> str:
+        """Reconcile the optional Discord gateway with the current configuration."""
+        self.config = get_config()
+        settings = getattr(self.config, "discord", {})
+        settings = settings if isinstance(settings, dict) else {}
+        enabled = bool(settings.get("enabled", False))
+        token = os.getenv("DISCORD_TOKEN", "")
+        current = getattr(self, "discord_bot", None)
+
+        if not enabled:
+            if current:
+                current.stop()
+                self.discord_bot = None
+                return "Discord stopped."
+            return "Discord remains disabled."
+
+        if current and current.settings == settings and current.token == token:
+            return "Discord configuration is unchanged."
+
+        if current:
+            current.stop()
+
+        from discord_bot import DiscordBot
+
+        self.discord_bot = DiscordBot(self, settings)
+        if not token:
+            return "Discord is enabled but DISCORD_TOKEN is not set."
+        if start and self.discord_bot.start():
+            return "Discord started." if not current else "Discord restarted."
+        return "Discord is configured and will start with the next bot start."
+
+    def reload_discord_transport(self) -> str:
+        """Apply Discord token and settings changes without restarting IRC."""
+        return self._configure_discord_transport(start=True)
 
     def start(self):
         """Start all managers and begin bot operation."""

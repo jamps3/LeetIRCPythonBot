@@ -402,4 +402,14 @@ class DiscordBot:
 
     def stop(self) -> None:
         if self.loop and self.client and not self.client.is_closed():
-            asyncio.run_coroutine_threadsafe(self.client.close(), self.loop)
+            future = asyncio.run_coroutine_threadsafe(self.client.close(), self.loop)
+            try:
+                future.result(timeout=10)
+            except Exception as exc:
+                self.logger.warning(f"Discord shutdown did not complete cleanly: {exc}")
+        if (
+            self.thread
+            and self.thread.is_alive()
+            and threading.current_thread() != self.thread
+        ):
+            self.thread.join(timeout=10)

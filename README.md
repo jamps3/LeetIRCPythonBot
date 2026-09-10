@@ -131,6 +131,10 @@ tracking and replies run only in allowlisted guild channels. Discord polls use
 Discord's native poll UI, while the bot records the latest result snapshot in
 its channel-specific state.
 
+After the bot has been restarted once with Discord support installed, update
+`DISCORD_TOKEN` or `config.discord` and use `!reload <admin-password>` to
+start, restart, or stop the Discord gateway without reconnecting IRC.
+
 # Running
 
 ## Simple

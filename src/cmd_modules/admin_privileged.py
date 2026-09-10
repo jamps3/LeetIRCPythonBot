@@ -515,6 +515,14 @@ def reload_command(context: CommandContext, bot_functions):
             # Don't fail the reload if config reload fails
             pass
 
+        discord_msg = ""
+        try:
+            bot_mgr = bot_functions.get("bot_manager")
+            if bot_mgr and hasattr(bot_mgr, "reload_discord_transport"):
+                discord_msg = " " + bot_mgr.reload_discord_transport()
+        except Exception as e:
+            discord_msg = f" Discord reload failed: {e}"
+
         # Refresh BotManager and MessageHandler data_manager instances to use new code
         try:
             from word_tracking.data_manager import get_data_manager
@@ -533,8 +541,8 @@ def reload_command(context: CommandContext, bot_functions):
             # Verify critical commands are present
             missing = verify_critical_commands()
             if missing:
-                return f"⚠️ {message}{service_msg} but critical commands missing: {', '.join(missing)}"
-            return f"✅ {message}{service_msg}"
+                return f"⚠️ {message}{service_msg}{discord_msg} but critical commands missing: {', '.join(missing)}"
+            return f"✅ {message}{service_msg}{discord_msg}"
         else:
             return f"❌ {message}"
 
