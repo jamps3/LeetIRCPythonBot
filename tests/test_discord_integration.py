@@ -1,3 +1,4 @@
+import inspect
 import sys
 from types import SimpleNamespace
 
@@ -78,6 +79,16 @@ def test_discord_allowlist_and_admin_ids_do_not_depend_on_discord_library():
 
 def test_discord_core_commands_include_community_feature_alias():
     assert CORE_COMMANDS["features"] == "feature"
+
+
+def test_discord_generated_callback_has_only_typed_slash_arguments():
+    bot = DiscordBot(SimpleNamespace(), {})
+
+    callback = bot._make_command_callback("weather")
+    parameters = inspect.signature(callback).parameters
+
+    assert list(parameters) == ["interaction", "arguments"]
+    assert parameters["arguments"].annotation == "str"
 
 
 def test_discord_status_distinguishes_dm_and_allowed_guild_channel():

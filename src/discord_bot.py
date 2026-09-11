@@ -11,7 +11,7 @@ import os
 import threading
 from datetime import timedelta
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Callable
 
 import logger
 from command_loader import ensure_commands_loaded
@@ -137,16 +137,11 @@ class DiscordBot:
     def _register_commands(self, discord, app_commands) -> None:
         for slash_name, registry_name in CORE_COMMANDS.items():
             description = f"Run LeetIRCBot {registry_name}"
-
-            async def callback(interaction, arguments: str = "", command=registry_name):
-                await self._run_command(interaction, command, arguments)
-
-            callback.__name__ = f"discord_{slash_name}"
             self.tree.add_command(
                 app_commands.Command(
                     name=slash_name,
                     description=description[:100],
-                    callback=callback,
+                    callback=self._make_command_callback(registry_name),
                 )
             )
 
@@ -172,6 +167,15 @@ class DiscordBot:
                 )
                 return
             await self._respond(interaction, self._status_message(interaction), True)
+
+    def _make_command_callback(self, command: str) -> Callable[..., Any]:
+        """Create a slash callback without exposing closure state as an option."""
+
+        async def callback(interaction, arguments: str = ""):
+            await self._run_command(interaction, command, arguments)
+
+        callback.__name__ = f"discord_{command}"
+        return callback
 
     def _allowed_channel(self, channel_id: int | str | None) -> bool:
         allowed = {str(value) for value in self.settings.get("allowed_channels", [])}
