@@ -2,6 +2,7 @@
 Tests for word_tracking commands in cmd_modules/word_tracking.py
 """
 
+import json
 import os
 import sys
 from unittest.mock import ANY, Mock, patch
@@ -501,3 +502,223 @@ def test_krakstats_formats_recent_statistics_and_private_notice():
     )
     assert result.should_respond is False
     assert notices.call_count == 5
+
+
+def test_word_tracking_empty_data_service_failures_and_fallbacks(monkeypatch):
+    import cmd_modules.word_tracking as commands
+
+    default = Mock(return_value="fallback")
+    assert (
+        commands._get_from_bot_functions({"value": "injected"}, "value", default)
+        == "injected"
+    )
+    monkeypatch.setattr(commands, "general_words", "singleton")
+    assert commands._get_from_bot_functions({}, "general_words", default) == "singleton"
+    monkeypatch.setattr(commands, "general_words", None)
+    assert commands._get_from_bot_functions({}, "unknown", default) == "fallback"
+
+    words = Mock()
+    words.get_server_stats.return_value = {"top_words": []}
+    assert (
+        commands.command_topwords(
+            _context(), {"general_words": words, "data_manager": Mock()}
+        )
+        == "Ei vielä tilastoja saatavilla."
+    )
+    words.get_user_stats.return_value = {"total_words": 0}
+    assert (
+        commands.command_topwords(
+            _context("nobody"), {"general_words": words, "data_manager": Mock()}
+        )
+        == "Käyttäjää 'nobody' ei löydy."
+    )
+    words.get_leaderboard.return_value = []
+    assert (
+        commands.command_leaderboard(_context("words"), {"general_words": words})
+        == "Ei vielä sanatilastoja saatavilla."
+    )
+    drink = Mock()
+    drink.get_server_stats.return_value = {"top_users": []}
+    assert (
+        commands.command_leaderboard(_context(), {"drink_tracker": drink})
+        == "Ei vielä juomatilastoja saatavilla."
+    )
+
+    monkeypatch.setattr(commands, "_get_drink_tracker", lambda: None)
+    assert (
+        commands.command_drink(_context("beer"), {})
+        == "Drink tracker ei ole käytettävissä."
+    )
+    assert (
+        commands.command_drinkword(_context("beer", "Beer"), {})
+        == "Drink tracker ei ole käytettävissä."
+    )
+    monkeypatch.setattr(commands, "_get_tamagotchi_bot", lambda: None)
+    assert (
+        commands.command_tamagotchi(_context(), {})
+        == "Tamagotchi service is not available."
+    )
+    assert (
+        commands.command_feed(_context(), {}) == "Tamagotchi service is not available."
+    )
+    assert (
+        commands.command_pet(_context(), {}) == "Tamagotchi service is not available."
+    )
+
+
+def test_sana_kraks_krakstats_and_debug_edge_cases(monkeypatch):
+    import cmd_modules.word_tracking as commands
+
+    words = Mock()
+    assert (
+        commands.command_sana(_context(), {"general_words": words})
+        == "Käyttö: !sana <sana>"
+    )
+    words.get_word_stats.side_effect = TypeError()
+    words.search_word.return_value = {
+        "total_occurrences": 1,
+        "users": [{"nick": "alice"}],
+    }
+    assert (
+        commands.command_sana(_context("Sauna"), {"general_words": words})
+        == "'sauna': 1 kertaa (top: alice)"
+    )
+
+    tracker = Mock()
+    tracker.get_server_stats.return_value = {"total_drink_words": 0}
+    monkeypatch.setattr(commands, "_get_statistics_start_date", lambda: None)
+    assert (
+        commands.command_kraks(_context(), {"drink_tracker": tracker})
+        == "Ei vielä krakkauksia tallennettuna."
+    )
+    assert (
+        commands.command_kraks(_context("reset"), {}) == "❌ BAC tracker not available"
+    )
+    tracker.get_server_stats.return_value = {
+        "total_drink_words": 2,
+        "top_users": [("alice", 2)],
+    }
+    tracker.get_drink_word_breakdown.return_value = []
+    assert "Top 5: alice:2" in commands.command_kraks(
+        _context(), {"drink_tracker": tracker}
+    )
+
+    no_data = Mock()
+    no_data.get_user_stats.return_value = {"total_drink_words": 0}
+    assert (
+        commands.krakstats_command(_context(), {"drink_tracker": no_data})
+        == "Ei krakkauksia vielä tallennettuna käyttäjälle alice."
+    )
+
+    bac = Mock()
+    bac.get_user_bac.return_value = {"current_bac": 0.0}
+    bac.get_user_profile.return_value = {"burn_rate": 0}
+    bac._load_bac_data.return_value = {"discord:1:bob": {"last_drink_grams": 4.0}}
+    assert "bob's No BAC data yet. | Last: 4.0g" in commands.command_krak(
+        _context("bob"), {"bac_tracker": bac}
+    )
+    assert commands.command_krak(
+        _context("1", "m", "extra"), {"bac_tracker": bac}
+    ).startswith("❌ Too many")
+
+    manager = Mock()
+    manager.load_kraksdebug_state.return_value = {"channels": [], "nicks": []}
+    assert "#new added to" in commands.kraksdebug_command(
+        _context("new"), {"data_manager": manager}
+    )
+    private = _context(sender="alice")
+    private.target = "alice"
+    assert "alice' added to" in commands.kraksdebug_command(
+        private, {"data_manager": manager}
+    )
+    channel = _context()
+    assert "now enabled" in commands.kraksdebug_command(
+        channel, {"data_manager": manager}
+    )
+
+
+def test_statistics_dates_bac_variants_and_debug_removals(monkeypatch):
+    import cmd_modules.word_tracking as commands
+
+    data_manager = Mock()
+    data_manager.load_drink_data.return_value = {
+        "servers": {
+            "discord:1": {
+                "nicks": {
+                    "alice": {
+                        "drink_words": {
+                            "krak": {
+                                "timestamps": [
+                                    {"time": "2026-02-03T12:00:00"},
+                                    {"time": "2026-01-02T12:00:00"},
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    monkeypatch.setattr(commands, "_get_data_manager", lambda: data_manager)
+    assert commands._get_statistics_start_date() == "02.01.2026"
+    data_manager.load_drink_data.return_value = {"servers": {}}
+    assert commands._get_statistics_start_date() is None
+
+    bac = Mock()
+    bac.get_user_bac.return_value = {"current_bac": 0.0}
+    bac.get_user_profile.return_value = {"burn_rate": 0.2}
+    bac._load_bac_data.return_value = {}
+    assert (
+        commands.command_krak(_context("0.2"), {"bac_tracker": bac})
+        == "✅ Set burn rate: 0.2‰/h | Burn rate: 0.2‰/h"
+    )
+    assert (
+        commands.command_krak(_context("heavy", "m"), {"bac_tracker": bac})
+        == "❌ Invalid weight. Use a number for weight in kg"
+    )
+    assert commands.command_krak(_context(), {}) == "❌ BAC tracker not available"
+
+    manager = Mock()
+    manager.load_kraksdebug_state.return_value = {
+        "channels": ["#test"],
+        "nicks": ["alice"],
+        "nick_notices": True,
+    }
+    assert "#test removed from" in commands.kraksdebug_command(
+        _context("#test"), {"data_manager": manager}
+    )
+    private = _context(sender="alice")
+    private.target = "alice"
+    assert "alice' removed from" in commands.kraksdebug_command(
+        private, {"data_manager": manager}
+    )
+    channel = _context()
+    assert "now disabled" in commands.kraksdebug_command(
+        channel, {"data_manager": manager}
+    )
+
+
+def test_muunnos_error_long_search_and_algorithmic_fallbacks(monkeypatch, tmp_path):
+    import cmd_modules.word_tracking as commands
+
+    missing = tmp_path / "missing.json"
+    monkeypatch.setattr(commands, "SANANMUUNNOKSET_FILE", missing)
+    assert "Virhe ladattaessa sananmuunnoksia" in commands.muunnos_command(
+        _context(), {}
+    )
+
+    data_file = tmp_path / "muunnokset.json"
+    transformations = {f"word{i:02d}{'x' * 50}": f"result{i}" for i in range(12)}
+    data_file.write_text(json.dumps(transformations), encoding="utf-8")
+    monkeypatch.setattr(commands, "SANANMUUNNOKSET_FILE", data_file)
+    long_search = commands.muunnos_command(_context("s", "word"), {})
+    assert long_search.endswith("[7]")
+    full_search = commands.muunnos_command(_context("search", "word"), {})
+    assert "... ja 2 lisää" in full_search
+    assert commands.muunnos_command(_context("abcdef"), {}).startswith("abcdef - ")
+    assert commands.muunnos_command(_context("kala", "maja"), {}).startswith(
+        "kala maja - "
+    )
+
+    data_file.write_text("{}", encoding="utf-8")
+    assert commands.muunnos_command(_context(), {}) == "Ei sananmuunnoksia saatavilla."
