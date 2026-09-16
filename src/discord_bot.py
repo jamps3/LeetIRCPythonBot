@@ -77,6 +77,7 @@ class DiscordChannelTransport:
 
     def __init__(self, bot: "DiscordBot", server_name: str):
         self._bot = bot
+        self.platform = "discord"
         self.config = SimpleNamespace(name=server_name, use_notices=False)
         self.bot_name = bot.bot_name
 

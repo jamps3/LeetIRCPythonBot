@@ -971,6 +971,89 @@ class ElectricityService:
 
         return message
 
+    def format_statistics_discord_message(
+        self, stats_data: Dict[str, Any], palette: int = 1
+    ) -> str:
+        """Format daily price statistics as a Discord-friendly text chart.
+
+        IRC colour control codes are intentionally not used here: Discord renders
+        them as replacement characters rather than colours.
+        """
+        if stats_data.get("error"):
+            return (
+                "📊 Sähkön tilastojen haku epäonnistui: "
+                f"{stats_data.get('message', 'Tuntematon virhe')}"
+            )
+
+        date_str = stats_data["date"]
+        min_price = stats_data["min_price"]
+        max_price = stats_data["max_price"]
+        avg_price = stats_data["avg_price"]
+        lines = [
+            f"📊 **Sähkön hintatilastot {date_str}**",
+            f"🔹 Min: {min_price['snt_per_kwh_with_vat']:.2f} snt/kWh (klo {min_price['time_str']})",
+            f"🔸 Max: {max_price['snt_per_kwh_with_vat']:.2f} snt/kWh (klo {max_price['time_str']})",
+            f"🔹 Keskiarvo: {avg_price['snt_per_kwh_with_vat']:.2f} snt/kWh",
+        ]
+
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+            daily_prices = self.get_daily_prices(date_obj)
+            interval_prices = daily_prices.get("interval_prices", {})
+            if not daily_prices.get("error") and interval_prices:
+                chart = self._create_discord_price_chart(
+                    interval_prices, avg_price["snt_per_kwh_with_vat"], palette
+                )
+                lines.extend(("```text", chart, "```"))
+        except Exception as exc:
+            log(
+                f"Error adding Discord bar graph to stats: {exc}",
+                level="WARNING",
+                context="ELECTRICITY",
+            )
+
+        return "\n".join(lines)
+
+    def _create_discord_price_chart(
+        self,
+        interval_prices: Dict[Tuple[int, int], float],
+        avg_price_snt: float,
+        palette: int = 1,
+    ) -> str:
+        """Return a 24-hour text chart without IRC formatting control codes."""
+        symbols = self._get_palette(palette)
+        hourly_prices = []
+        for hour in range(24):
+            quarters = [
+                self._convert_price(interval_prices[(hour, quarter)])
+                for quarter in range(1, 5)
+                if (hour, quarter) in interval_prices
+            ]
+            hourly_prices.append(sum(quarters) / len(quarters) if quarters else None)
+
+        available = [price for price in hourly_prices if price is not None]
+        if not available:
+            return "00    06    12    18    23\n" + (symbols[0] * 24)
+
+        minimum, maximum = min(available), max(available)
+        price_range = maximum - minimum or 1
+        bars = []
+        for price in hourly_prices:
+            if price is None:
+                bars.append("·")
+                continue
+            index = min(
+                len(symbols) - 1,
+                int(((price - minimum) / price_range) * len(symbols)),
+            )
+            bars.append(symbols[index])
+
+        average_marker = "".join(
+            "^" if price is not None and price >= avg_price_snt else " "
+            for price in hourly_prices
+        )
+        return "00    06    12    18    23\n" + "".join(bars) + "\n" + average_marker
+
     def format_price_message(
         self, price_data: Dict[str, Any], is_tomorrow_request: bool = False
     ) -> str:

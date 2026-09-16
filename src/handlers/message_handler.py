@@ -2138,9 +2138,14 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 stats_data = electricity_service.get_price_statistics(
                     parsed_args["date"]
                 )
-                response = electricity_service.format_statistics_message(
-                    stats_data, parsed_args.get("palette", 1)
-                )
+                if getattr(irc, "platform", "") == "discord":
+                    response = electricity_service.format_statistics_discord_message(
+                        stats_data, parsed_args.get("palette", 1)
+                    )
+                else:
+                    response = electricity_service.format_statistics_message(
+                        stats_data, parsed_args.get("palette", 1)
+                    )
             elif parsed_args.get("show_longbar"):
                 # Get daily prices for longbar
                 daily_prices = electricity_service.get_daily_prices(parsed_args["date"])

@@ -307,6 +307,31 @@ class TestElectricityService(unittest.TestCase):
             )
         )
 
+    def test_discord_statistics_uses_a_clean_hourly_chart(self):
+        service = self.service
+        interval_prices = {
+            (hour, quarter): float(hour * 10 + quarter)
+            for hour in range(24)
+            for quarter in range(1, 5)
+        }
+        service.get_daily_prices = Mock(
+            return_value={"error": False, "interval_prices": interval_prices}
+        )
+        stats = {
+            "date": "2026-09-16",
+            "min_price": {"snt_per_kwh_with_vat": 0.27, "time_str": "03:45"},
+            "max_price": {"snt_per_kwh_with_vat": 3.37, "time_str": "20:00"},
+            "avg_price": {"snt_per_kwh_with_vat": 1.14},
+        }
+
+        message = service.format_statistics_discord_message(stats)
+
+        assert "**Sähkön hintatilastot 2026-09-16**" in message
+        assert "```text" in message
+        assert "00    06    12    18    23" in message
+        assert "\x03" not in message
+        assert "\x0f" not in message
+
 
 class TestElectricityServiceIntegration(unittest.TestCase):
     """
