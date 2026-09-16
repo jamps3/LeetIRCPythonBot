@@ -1347,7 +1347,7 @@ class ConfigEditor:
         widgets = [
             urwid.Text("Configuration Editor", align="center"),
             urwid.Text(
-                "Tab/Shift+Tab or Up/Down: move | Enter: next | Ctrl+S: save | Ctrl+R: reload"
+                "Tab/Shift+Tab or Up/Down: move | Enter: next | Alt+S: save | Ctrl+R: reload"
             ),
             urwid.Divider(),
         ]
@@ -1407,7 +1407,7 @@ class ConfigEditor:
 
     def handle_key(self, key):
         """Handle form-wide save/reload keys returned by Urwid."""
-        if key == "ctrl s":
+        if key in ("ctrl s", "meta s"):
             self.save_form()
             return True
         if key == "ctrl r":

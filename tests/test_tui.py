@@ -644,6 +644,13 @@ class TestConfigEditor:
         config_editor.fields["BOT_NAME"].set_edit_text("LeetBot")
         assert config_editor.fields["BOT_NAME"].get_edit_text() == "LeetBot"
 
+    def test_config_editor_accepts_alt_s_for_terminal_safe_save(self):
+        config_editor = ConfigEditor(Mock())
+        config_editor.save_form = Mock()
+
+        assert config_editor.handle_key("meta s") is True
+        config_editor.save_form.assert_called_once()
+
     def test_save_form_persists_edited_fields(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         (tmp_path / "data").mkdir()
