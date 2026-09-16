@@ -232,6 +232,81 @@ class TestElectricityService(unittest.TestCase):
                         f"Hour {target_hour}: Bracket should be at position {expected_position}, got {bracket_position}. Bar graph: {bar_graph}",
                     )
 
+    def test_parsing_cache_statistics_and_formatting_paths(self):
+        service = self.service
+        assert service._parse_hour_quarter("13") == (13, 1)
+        assert service._parse_hour_quarter("13.4") == (13, 4)
+        with pytest.raises(ValueError):
+            service._parse_hour_quarter("24")
+
+        assert service.parse_command_args([])["error"] is None
+        assert service.parse_command_args(["huomenna"])["show_all_hours"] is True
+        assert service.parse_command_args(["stats", "tomorrow", "2"])["palette"] == 2
+        assert (
+            service.parse_command_args(["longbar", "today", "3"])["show_longbar"]
+            is True
+        )
+        assert service.parse_command_args(["stats", "4"])["error"]
+        assert service.parse_command_args(["unknown"])["error"]
+
+        now = datetime.now(service.timezone)
+        service._cache["today"] = {"timestamp": now, "data": {"interval_prices": {}}}
+        info = service.get_cache_info()["today"]
+        assert info["age_minutes"] == 0
+        assert info["is_expired"] is False
+        service.clear_cache()
+        assert service.get_cache_info() == {}
+        assert (
+            service.diagnose_timezone_handling(datetime(2026, 1, 10))["requested_date"]
+            == "2026-01-10"
+        )
+
+        prices = {(0, 1): 10.0, (0, 2): 20.0, (1, 1): 30.0}
+        service.get_daily_prices = Mock(
+            return_value={"error": False, "interval_prices": prices}
+        )
+        stats = service.get_price_statistics(datetime(2026, 1, 10))
+        assert stats["total_intervals"] == 3
+        assert stats["min_price"]["time_str"] == "00:00"
+        assert stats["max_price"]["time_str"] == "01:00"
+        assert "Sähkön hintatilastot 2026-01-10" in service.format_statistics_message(
+            stats
+        )
+        assert "haku epäonnistui" in service.format_statistics_message(
+            {"error": True, "message": "x"}
+        )
+
+        price_entry = {
+            "avg_hour_eur_mwh": 10.0,
+            "hour_avg_snt_kwh": 1.26,
+            "quarter_prices_snt": {2: 1.5},
+        }
+        today = datetime.now(service.timezone).date().strftime("%Y-%m-%d")
+        price_data = {
+            "date": today,
+            "hour": 12,
+            "quarter": 2,
+            "today_price": price_entry,
+            "tomorrow_price": None,
+            "tomorrow_available": False,
+        }
+        assert "Tänään" in service.format_price_message(price_data)
+        assert "Huomisen hintaa ei vielä saatavilla" in service.format_price_message(
+            price_data
+        )
+        assert "haku epäonnistui" in service.format_price_message(
+            {"error": True, "message": "x"}
+        )
+        assert (
+            service.format_daily_prices_message([]) == "⚡ Ei hintatietoja saatavilla"
+        )
+        assert (
+            "Huomisen hintatietoja ei vielä saatavilla"
+            in service.format_daily_prices_message(
+                [{"error": True, "message": "x"}], is_tomorrow=True
+            )
+        )
+
 
 class TestElectricityServiceIntegration(unittest.TestCase):
     """
