@@ -1085,7 +1085,21 @@ class StatsView:
         except Exception as e:
             stats_lines = ["❌ Error loading statistics:", f"   {e}"]
 
-        return "\n".join(stats_lines)
+        return self._format_two_columns(stats_lines)
+
+    @staticmethod
+    def _format_two_columns(lines, column_width=46):
+        """Lay out statistics compactly while keeping the title full width."""
+        header = lines[:4]
+        content = lines[4:]
+        midpoint = (len(content) + 1) // 2
+        left = content[:midpoint]
+        right = content[midpoint:]
+        rows = [
+            f"{left[index]:<{column_width}}  {right[index] if index < len(right) else ''}"
+            for index in range(len(left))
+        ]
+        return "\n".join(header + rows)
 
     def _format_uptime(self, seconds):
         """Format uptime in a human-readable way."""
@@ -1136,14 +1150,17 @@ class ConfigEditor:
             ("LOG_BUFFER_SIZE", "Maximum log entries in memory"),
             ("USE_NOTICES", "true or false"),
             ("TAMAGOTCHI_ENABLED", "true or false"),
+            ("FOUR_TWENTY_ENABLED", "true or false"),
         ],
         "API Keys": [
             ("WEATHER_API_KEY", "OpenWeatherMap"),
+            ("WEATHER_FORECAST_API_KEY", "Meteosource"),
             ("OPENAI_API_KEY", "OpenAI"),
             ("TMDB_API_KEY", "The Movie Database"),
             ("ELECTRICITY_API_KEY", "Electricity prices"),
             ("YOUTUBE_API_KEY", "YouTube Data API"),
             ("EUROJACKPOT_API_KEY", "Eurojackpot"),
+            ("X_BEARER_TOKEN", "X API"),
             ("DISCORD_TOKEN", "Discord gateway"),
         ],
         "File Paths": [
@@ -1151,13 +1168,78 @@ class ConfigEditor:
             ("EKAVIKA_FILE", "Ekavika data"),
             ("WORDS_FILE", "General words"),
             ("SUBSCRIBERS_FILE", "Subscribers"),
+            ("OTIEDOTE_FILE", "Danger announcements"),
+            ("QUOTES_SOURCE", "Quotes source"),
         ],
         "Advanced": [
             ("RECONNECT_DELAY", "Seconds"),
             ("QUIT_MESSAGE", "Default quit message"),
             ("GPT_HISTORY_LIMIT", "Maximum GPT history"),
+            ("OPENAI_MODEL", "GPT model"),
             ("ADMIN_PASSWORD", "Admin command password"),
+            ("OPS_ALLOWED_CHANNELS", "Comma-separated IRC channels"),
+            ("LATENCY_NICKS", "Comma-separated nicknames"),
+            ("LATENCY_SOURCE_CHANNEL", "Source channel"),
+            ("LATENCY_OBSERVER_CHANNEL", "Observer channel"),
+            ("TITLE_BLACKLIST_DOMAINS", "Comma-separated domains"),
+            ("TITLE_BLACKLIST_EXTENSIONS", "Comma-separated extensions"),
+            ("TITLE_BANNED_TEXTS", "Semicolon-separated title text"),
         ],
+        "Discord": [
+            ("DISCORD_ENABLED", "true or false"),
+            ("DISCORD_ALLOWED_CHANNELS", "Comma-separated channel IDs"),
+            ("DISCORD_ADMIN_USER_IDS", "Comma-separated user IDs"),
+            ("DISCORD_ADMIN_ROLE_IDS", "Comma-separated role IDs"),
+        ],
+    }
+    STATE_FIELDS = {
+        "BOT_NAME": "bot_name",
+        "LOG_LEVEL": "log_level",
+        "AUTO_CONNECT": "auto_connect",
+        "AUTO_RECONNECT": "auto_reconnect",
+        "LOG_BUFFER_SIZE": "log_buffer_size",
+        "USE_NOTICES": "use_notices",
+        "TAMAGOTCHI_ENABLED": "tamagotchi_enabled",
+        "FOUR_TWENTY_ENABLED": "four_twenty_enabled",
+        "HISTORY_FILE": "history_file",
+        "EKAVIKA_FILE": "ekavika_file",
+        "WORDS_FILE": "words_file",
+        "SUBSCRIBERS_FILE": "subscribers_file",
+        "OTIEDOTE_FILE": "otiedote_file",
+        "QUOTES_SOURCE": "quotes_source",
+        "RECONNECT_DELAY": "reconnect_delay",
+        "QUIT_MESSAGE": "quit_message",
+        "GPT_HISTORY_LIMIT": "gpt_history_limit",
+        "OPENAI_MODEL": "openai_model",
+        "ADMIN_PASSWORD": "admin_password",
+        "OPS_ALLOWED_CHANNELS": "ops_allowed_channels",
+        "LATENCY_NICKS": "latency_nicks",
+        "LATENCY_SOURCE_CHANNEL": "latency_source_channel",
+        "LATENCY_OBSERVER_CHANNEL": "latency_observer_channel",
+        "TITLE_BLACKLIST_DOMAINS": "title_blacklist_domains",
+        "TITLE_BLACKLIST_EXTENSIONS": "title_blacklist_extensions",
+        "TITLE_BANNED_TEXTS": "title_banned_texts",
+    }
+    DISCORD_FIELDS = {
+        "DISCORD_ENABLED": "enabled",
+        "DISCORD_ALLOWED_CHANNELS": "allowed_channels",
+        "DISCORD_ADMIN_USER_IDS": "admin_user_ids",
+        "DISCORD_ADMIN_ROLE_IDS": "admin_role_ids",
+    }
+    BOOLEAN_STATE_FIELDS = {
+        "AUTO_CONNECT",
+        "AUTO_RECONNECT",
+        "USE_NOTICES",
+        "TAMAGOTCHI_ENABLED",
+        "FOUR_TWENTY_ENABLED",
+        "DISCORD_ENABLED",
+    }
+    INTEGER_STATE_FIELDS = {"LOG_BUFFER_SIZE", "RECONNECT_DELAY", "GPT_HISTORY_LIMIT"}
+    LIST_STATE_FIELDS = {
+        "LATENCY_NICKS",
+        "DISCORD_ALLOWED_CHANNELS",
+        "DISCORD_ADMIN_USER_IDS",
+        "DISCORD_ADMIN_ROLE_IDS",
     }
     SENSITIVE_KEYS = {
         key
@@ -1175,9 +1257,46 @@ class ConfigEditor:
         self._form = None
         self._status = None
 
+    def _state_file(self):
+        return os.getenv("STATE_FILE", "data/state.json")
+
+    def _state_config(self):
+        state = load_json_file(self._state_file(), default={})
+        return state.get("config", {}) if isinstance(state, dict) else {}
+
+    @staticmethod
+    def _format_value(value):
+        if isinstance(value, bool):
+            return str(value).lower()
+        if isinstance(value, list):
+            return ",".join(map(str, value))
+        return str(value or "")
+
+    def _get_field_value(self, key, state_config=None):
+        state_config = (
+            state_config if state_config is not None else self._state_config()
+        )
+        if key in self.DISCORD_FIELDS:
+            return self._format_value(
+                state_config.get("discord", {}).get(self.DISCORD_FIELDS[key], "")
+            )
+        if key in self.STATE_FIELDS:
+            return self._format_value(state_config.get(self.STATE_FIELDS[key], ""))
+        return os.getenv(key, "")
+
+    def _parse_state_value(self, key, value):
+        if key in self.BOOLEAN_STATE_FIELDS:
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+        if key in self.INTEGER_STATE_FIELDS:
+            return int(value.strip())
+        if key in self.LIST_STATE_FIELDS:
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
     def get_config_display(self):
         """Get formatted configuration display."""
         config_lines = []
+        state_config = self._state_config()
 
         config_lines.extend(
             [
@@ -1195,7 +1314,7 @@ class ConfigEditor:
             config_lines.append("-" * len(section_name))
 
             for key, description in config_list:
-                current_value = os.getenv(key, "[Not Set]")
+                current_value = self._get_field_value(key, state_config) or "[Not Set]"
                 # Mask sensitive values
                 if key in self.SENSITIVE_KEYS:
                     display_value = (
@@ -1232,11 +1351,12 @@ class ConfigEditor:
             ),
             urwid.Divider(),
         ]
+        state_config = self._state_config()
 
         for section_name, config_list in self.CONFIG_SECTIONS.items():
             widgets.append(urwid.Text(section_name))
             for key, description in config_list:
-                value = os.getenv(key, "")
+                value = self._get_field_value(key, state_config)
                 sensitive = key in self.SENSITIVE_KEYS
                 caption = f"{key} ({description})"
                 if sensitive and value:
@@ -1297,24 +1417,32 @@ class ConfigEditor:
 
     def save_form(self):
         """Apply all fields and persist only editor-managed settings."""
-        values = {}
+        env_values = {}
+        state_values = {}
         for key, field in self.fields.items():
             value = field.get_edit_text()
             if value == self._initial_values.get(key, ""):
                 continue
             if value or key not in self.SENSITIVE_KEYS:
-                values[key] = value
-                os.environ[key] = value
-        result = self._save_config(values)
-        self._initial_values.update(values)
+                if key in self.STATE_FIELDS or key in self.DISCORD_FIELDS:
+                    state_values[key] = self._parse_state_value(key, value)
+                else:
+                    env_values[key] = value
+                    os.environ[key] = value
+        result = self._save_config(env_values, state_values)
+        self._initial_values.update(
+            {key: self._format_value(value) for key, value in state_values.items()}
+        )
+        self._initial_values.update(env_values)
         self._set_status(result)
         return result
 
     def reload_form(self):
-        """Reload environment values and rebuild the form fields."""
+        """Reload environment and state values into the form fields."""
         result = self._reload_config()
+        state_config = self._state_config()
         for key, field in self.fields.items():
-            value = os.getenv(key, "")
+            value = self._get_field_value(key, state_config)
             displayed_value = "" if key in self.SENSITIVE_KEYS else value
             field.set_edit_text(displayed_value)
             self._initial_values[key] = displayed_value
@@ -1346,14 +1474,15 @@ class ConfigEditor:
         os.environ[key] = value
         return f"Set {key} = {value[:50]}{'...' if len(value) > 50 else ''}"
 
-    def _save_config(self, values=None):
-        """Save current configuration to .env file."""
+    def _save_config(self, values=None, state_values=None):
+        """Save editor-managed environment and state.json configuration."""
         try:
-            values = values or {
-                key: value
-                for key, value in os.environ.items()
-                if not key.startswith("_") and key.isupper()
-            }
+            if values is None:
+                values = {
+                    key: value
+                    for key, value in os.environ.items()
+                    if not key.startswith("_") and key.isupper()
+                }
             env_content = []
 
             # Read current .env file if it exists
@@ -1383,7 +1512,24 @@ class ConfigEditor:
             with open(env_file, "w", encoding="utf-8") as f:
                 f.write("\n".join(env_content) + "\n")
 
-            return f"Configuration saved to {env_file}"
+            if state_values:
+
+                def update_state(state):
+                    state = state if isinstance(state, dict) else {}
+                    config = state.setdefault("config", {})
+                    discord = config.setdefault("discord", {})
+                    for key, value in state_values.items():
+                        if key in self.DISCORD_FIELDS:
+                            discord[self.DISCORD_FIELDS[key]] = value
+                        else:
+                            config[self.STATE_FIELDS[key]] = value
+                    return state
+
+                update_json_file(
+                    self._state_file(), update_state, default={}, strict=True
+                )
+
+            return "Configuration saved to .env and state.json"
 
         except Exception as e:
             return f"Failed to save configuration: {e}"

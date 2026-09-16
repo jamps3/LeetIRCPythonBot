@@ -6,6 +6,7 @@ Tests the TUIManager, LogEntry, SelectableText, StatsView, ConfigEditor,
 and related classes with comprehensive coverage.
 """
 
+import json
 import os
 from collections import deque
 from datetime import datetime
@@ -600,6 +601,14 @@ class TestStatsView:
         assert stats_view._format_uptime(3660) == "1h 1m 0s"
         assert stats_view._format_uptime(86400 + 3600) == "1d 1h 0m 0s"
 
+    def test_stats_content_is_arranged_in_two_columns(self):
+        rendered = StatsView._format_two_columns(
+            ["Stats", "====", "Uptime: 1m", "", "Servers", "Services"]
+        )
+
+        assert "Servers" in rendered.splitlines()[4]
+        assert "Services" in rendered.splitlines()[4]
+
 
 class TestConfigEditor:
     """Test ConfigEditor class functionality."""
@@ -637,14 +646,55 @@ class TestConfigEditor:
 
     def test_save_form_persists_edited_fields(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
+        (tmp_path / "data").mkdir()
+        monkeypatch.setenv("STATE_FILE", str(tmp_path / "data" / "state.json"))
+        (tmp_path / "data" / "state.json").write_text(
+            json.dumps({"config": {"bot_name": "OldBot"}}), encoding="utf-8"
+        )
         config_editor = ConfigEditor(Mock())
         config_editor.open_form()
         config_editor.fields["BOT_NAME"].set_edit_text("LeetBot")
+        config_editor.fields["WEATHER_API_KEY"].set_edit_text("weather-key")
 
         result = config_editor.save_form()
 
         assert "Configuration saved" in result
-        assert "BOT_NAME=LeetBot" in (tmp_path / ".env").read_text(encoding="utf-8")
+        state = json.loads((tmp_path / "data" / "state.json").read_text())
+        assert state["config"]["bot_name"] == "LeetBot"
+        assert "WEATHER_API_KEY=weather-key" in (tmp_path / ".env").read_text(
+            encoding="utf-8"
+        )
+
+    def test_open_form_reads_state_backed_values(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "data").mkdir()
+        monkeypatch.setenv("STATE_FILE", str(tmp_path / "data" / "state.json"))
+        (tmp_path / "data" / "state.json").write_text(
+            json.dumps(
+                {
+                    "config": {
+                        "bot_name": "LeetBot",
+                        "log_level": "DEBUG",
+                        "history_file": "data/history.json",
+                        "reconnect_delay": 75,
+                        "discord": {"enabled": True, "allowed_channels": ["123"]},
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        config_editor = ConfigEditor(Mock())
+
+        config_editor.open_form()
+
+        assert config_editor.fields["BOT_NAME"].get_edit_text() == "LeetBot"
+        assert config_editor.fields["LOG_LEVEL"].get_edit_text() == "DEBUG"
+        assert (
+            config_editor.fields["HISTORY_FILE"].get_edit_text() == "data/history.json"
+        )
+        assert config_editor.fields["RECONNECT_DELAY"].get_edit_text() == "75"
+        assert config_editor.fields["DISCORD_ENABLED"].get_edit_text() == "true"
+        assert config_editor.fields["DISCORD_ALLOWED_CHANNELS"].get_edit_text() == "123"
 
     @patch.dict(os.environ, {"TEST_KEY": "test_value"})
     def test_set_config_value(self):
