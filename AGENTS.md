@@ -170,7 +170,7 @@ Project: LeetIRCPythonBot v2.4.74 (Python IRC bot with multi-server support, ser
 
 - Pytest is the standard. (see tests/!TEST_SUMMARY.md for context).
 - Some tests intentionally skip external integrations; CI installs only minimal deps and relies on mocks/importorskip where needed.
-- Before finishing any task, run the full test suite and ensure all tests pass. Do not treat a task as complete while any test is failing.
+- Run focused tests while iterating when they help validate the changed behavior. Do not run the full test suite as a separate pre-commit step: the normal pre-push hook is the required full-suite gate and refuses the push when tests fail.
 - Tests must never read from or write to the development machine's `data/state.json`. Use `tmp_path`, another temporary directory, or the pytest `STATE_FILE` sandbox for state persistence.
  - All tests: uv run pytest -v --tb=short -n auto
   - Single file: uv run pytest tests/test_config_new.py -v
