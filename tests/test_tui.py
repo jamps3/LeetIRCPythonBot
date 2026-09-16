@@ -835,6 +835,16 @@ class TestTUIManager:
         assert tui_manager.header.rows((40,)) == 2
         assert tui_manager.input_field.rows((40,)) == 1
 
+    def test_header_shows_discord_status_instead_of_log_count(self, mock_bot_manager):
+        mock_bot_manager.discord_bot = Mock(connected=True)
+        tui_manager = TUIManager(mock_bot_manager)
+
+        tui_manager.update_header()
+
+        header_text = tui_manager.header.get_text()[0]
+        assert "Discord: 🟢 online" in header_text
+        assert "Logs:" not in header_text
+
     def test_input_filter_discards_urwid_decode_diagnostic(self):
         keys = ["a", URWID_DECODE_WARNING, "enter"]
 

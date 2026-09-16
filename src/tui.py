@@ -1777,9 +1777,16 @@ class TUIManager:
         help_text = self._get_dynamic_help_text()
 
         # Update header text with two lines
+        discord_bot = getattr(self.bot_manager, "discord_bot", None)
+        if discord_bot is None:
+            discord_status = "Discord: disabled"
+        elif getattr(discord_bot, "connected", False):
+            discord_status = "Discord: 🟢 online"
+        else:
+            discord_status = "Discord: 🔴 offline"
         status_line1 = (
             f"LeetIRCBot TUI | {current_time} | {server_status} | {service_status} | "
-            f"{view_indicator} | Logs: {len(self.log_entries)}"
+            f"{discord_status} | {view_indicator}"
         )
         status_line2 = f"F1=Help F2=Console F3=Stats F4=Config F5=RawLogs | {help_text}"
 
