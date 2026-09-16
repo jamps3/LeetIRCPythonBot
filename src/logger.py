@@ -327,8 +327,9 @@ class PrecisionLogger:
                     with _file_lock:
                         _file_hook(timestamp, level.upper(), output)
                 except Exception as e:
-                    # Don't let file hook errors break logging
-                    _safe_console_print(f"[LOGGER ERROR] File hook failed: {e}")
+                    _report_internal_logger_error(
+                        timestamp_dt, timestamp_ns, f"File hook failed: {e}"
+                    )
 
             # Forward to TUI if hook is set, otherwise print to console
             if _tui_hook:
@@ -353,8 +354,9 @@ class PrecisionLogger:
                         timestamp_ns,
                     )
                 except Exception as e:
-                    # Don't let TUI hook errors break logging
-                    _safe_console_print(f"[LOGGER ERROR] TUI hook failed: {e}")
+                    _report_internal_logger_error(
+                        timestamp_dt, timestamp_ns, f"TUI hook failed: {e}"
+                    )
             else:
                 # Only print to console if TUI hook is not active
                 _safe_console_print(f"{timestamp} {output}")  # Main console log output
@@ -419,8 +421,10 @@ class PrecisionLogger:
                             timestamp_ns,
                         )
                     except Exception as e:
-                        _safe_console_print(
-                            f"[LOGGER ERROR] TUI hook failed in fallback: {e}"
+                        _report_internal_logger_error(
+                            timestamp_dt,
+                            timestamp_ns,
+                            f"TUI hook failed in fallback: {e}",
                         )
                 else:
                     # Only print to console if TUI hook is not active
@@ -447,7 +451,9 @@ class PrecisionLogger:
                             fallback_ns,
                         )
                     except Exception:
-                        _safe_console_print(f"[LOGGER ERROR] {error_msg}")
+                        _report_internal_logger_error(
+                            fallback_dt, fallback_ns, error_msg
+                        )
                 else:
                     _safe_console_print(f"[LOGGER ERROR] {error_msg}")
 
@@ -499,6 +505,16 @@ def get_and_clear_log_buffer():
     buffer = _log_buffer.copy()
     _log_buffer = []
     return buffer
+
+
+def _report_internal_logger_error(
+    timestamp: datetime, timestamp_ns: int, message: str
+) -> None:
+    """Record logger hook failures without writing over an active Urwid screen."""
+    if _tui_hook:
+        add_to_log_buffer(timestamp, "Logger", "ERROR", message, "SYSTEM", timestamp_ns)
+    else:
+        _safe_console_print(f"[LOGGER ERROR] {message}")
 
 
 def set_file_hook(hook_function):

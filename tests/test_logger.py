@@ -7,6 +7,7 @@ import builtins
 import importlib
 import os
 import re
+from unittest.mock import Mock
 
 import logger as lg
 
@@ -29,6 +30,64 @@ def test_config_reload_uses_active_tui_logger_hook():
 
     assert config.get_logger is lg.get_logger
     assert any(entry[3] == "config reload log" for entry in received)
+
+
+def test_logger_buffers_hook_failures_without_writing_over_tui(capsys):
+    def broken_hook(*_args):
+        raise RuntimeError("render failed")
+
+    lg.set_tui_hook(broken_hook)
+    try:
+        lg.info("DrinkTracker event")
+        buffered = lg.get_and_clear_log_buffer()
+    finally:
+        lg.clear_tui_hook()
+
+    assert capsys.readouterr().out == ""
+    assert any(
+        isinstance(entry[3], str) and "TUI hook failed: render failed" in entry[3]
+        for entry in buffered
+    )
+
+
+def test_logger_buffers_file_hook_failures_without_writing_over_tui(capsys):
+    received = []
+
+    def broken_file_hook(*_args):
+        raise OSError("disk unavailable")
+
+    lg.set_tui_hook(lambda *args: received.append(args))
+    lg.set_file_hook(broken_file_hook)
+    try:
+        lg.info("DrinkTracker event")
+        buffered = lg.get_and_clear_log_buffer()
+    finally:
+        lg.clear_file_hook()
+        lg.clear_tui_hook()
+
+    assert capsys.readouterr().out == ""
+    assert any(
+        isinstance(entry[3], str) and "File hook failed: disk unavailable" in entry[3]
+        for entry in buffered
+    )
+    assert any(entry[3] == "DrinkTracker event" for entry in received)
+
+
+def test_drink_tracker_logs_through_active_tui_hook():
+    from word_tracking.drink_tracker import DrinkTracker
+
+    received = []
+    data_manager = Mock()
+    data_manager.load_drink_data.return_value = {"servers": {}}
+    lg.set_tui_hook(lambda *args: received.append(args))
+    try:
+        DrinkTracker(data_manager).logger.info("tracked drink")
+    finally:
+        lg.clear_tui_hook()
+
+    assert any(
+        entry[1] == "DrinkTracker" and entry[3] == "tracked drink" for entry in received
+    )
 
 
 def test_logger_basic_levels_and_timestamp(capsys):
