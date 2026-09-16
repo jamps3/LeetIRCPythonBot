@@ -81,7 +81,12 @@ class DiscordBot:
 
     @property
     def connected(self) -> bool:
-        return bool(self.client and not self.client.is_closed())
+        return bool(
+            self.client
+            and self.loop
+            and self.loop.is_running()
+            and not self.client.is_closed()
+        )
 
     def start(self) -> bool:
         """Start Discord's asyncio gateway in a dedicated daemon thread."""
@@ -424,12 +429,31 @@ class DiscordBot:
         await channel.send(message[:2000], allowed_mentions=None)
 
     def stop(self) -> None:
-        if self.loop and self.client and not self.client.is_closed():
-            future = asyncio.run_coroutine_threadsafe(self.client.close(), self.loop)
+        loop = self.loop
+        client = self.client
+        close_complete = threading.Event()
+
+        if loop and client and not loop.is_closed() and not client.is_closed():
+
+            def request_close() -> None:
+                async def close_client() -> None:
+                    try:
+                        if not client.is_closed():
+                            await client.close()
+                    finally:
+                        close_complete.set()
+
+                asyncio.create_task(close_client())
+
             try:
-                future.result(timeout=10)
-            except Exception as exc:
-                self.logger.warning(f"Discord shutdown did not complete cleanly: {exc}")
+                # Create the coroutine on Discord's loop. Constructing it before
+                # scheduling risks an unawaited-coroutine warning during shutdown.
+                loop.call_soon_threadsafe(request_close)
+                if not close_complete.wait(timeout=10):
+                    self.logger.warning("Discord shutdown timed out")
+            except RuntimeError:
+                # The gateway can finish and close its loop between the checks.
+                pass
         if (
             self.thread
             and self.thread.is_alive()

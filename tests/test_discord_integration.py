@@ -103,6 +103,30 @@ def test_discord_status_distinguishes_dm_and_allowed_guild_channel():
     assert "Guild 1, channel 2 is enabled." in bot._status_message(guild)
 
 
+def test_discord_stop_skips_a_closed_event_loop():
+    class ClosedLoop:
+        def is_closed(self):
+            return True
+
+        def is_running(self):
+            return False
+
+    class Client:
+        def is_closed(self):
+            return False
+
+        async def close(self):
+            raise AssertionError("A closed loop must not receive a close coroutine")
+
+    bot = DiscordBot(SimpleNamespace(), {})
+    bot.loop = ClosedLoop()
+    bot.client = Client()
+
+    bot.stop()
+
+    assert bot.connected is False
+
+
 def test_bot_manager_reloads_discord_transport_from_current_config(monkeypatch):
     import bot_manager as bot_manager_module
 
