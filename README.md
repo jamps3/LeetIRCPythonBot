@@ -165,6 +165,8 @@ uv run python src/main.py
 
 The `./run` script syncs dependencies with uv and runs `uv run python src/main.py` with any forwarded arguments. If you are already inside tmux, it uses the current session. Otherwise, it starts or attaches to a tmux session named `bot`.
 
+When using the TUI inside tmux, `Ctrl+S` can pause terminal output (XOFF). Press `Ctrl+Q` to resume it; use `Alt+S` to save changes in the Configuration Editor.
+
 ## .\run Script:
 
 ```bash

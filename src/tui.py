@@ -1349,6 +1349,9 @@ class ConfigEditor:
             urwid.Text(
                 "Tab/Shift+Tab or Up/Down: move | Enter: next | Alt+S: save | Ctrl+R: reload"
             ),
+            urwid.Text(
+                "tmux: Ctrl+S may pause the terminal; Ctrl+Q resumes it. Use Alt+S to save."
+            ),
             urwid.Divider(),
         ]
         state_config = self._state_config()
@@ -1402,7 +1405,7 @@ class ConfigEditor:
         value = field.get_edit_text()
         if value or key not in self.SENSITIVE_KEYS:
             os.environ[key] = value
-        self._set_status(f"Applied {key}; Ctrl+S saves to .env.")
+        self._set_status(f"Applied {key}; use Alt+S to save.")
         self._move_focus(1)
 
     def handle_key(self, key):
