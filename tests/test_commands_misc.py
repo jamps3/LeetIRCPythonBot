@@ -5,6 +5,7 @@ Tests for miscellaneous service commands: leetwinners, euribor, url, wrap, tilaa
 
 import os
 import sys
+from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -107,6 +108,50 @@ class TestLeetwinnersCommand:
 
         # Check for leet-style text or plain text
         assert "No" in result and "recorded yet" in result
+
+
+@pytest.mark.asyncio
+async def test_misc_countdown_echo_and_church_holidays(
+    console_context, mock_bot_functions, monkeypatch
+):
+    import cmd_modules.misc as misc
+
+    monkeypatch.setattr(misc.secure_random, "choice", lambda values: values[0])
+    manager = Mock()
+    manager.load_state.return_value = {"420_enabled": True}
+    assert (
+        misc.four_twenty_command(
+            CommandContext(command="420", args=["off"], raw_message="!420 off"),
+            {"data_manager": manager},
+        )
+        == "🌿 420 responses: pois päältä 🌿"
+    )
+    assert "päivää 4/20:een" in misc.four_twenty_command(console_context, {})
+    assert misc._get_420_countdown() >= 0
+    assert misc._get_1620_countdown().endswith("min")
+
+    assert (
+        await misc.echo_command(console_context, {})
+        == "Usage: !kaiku <message> or !kaiku #channel <message>"
+    )
+    console_context.args = ["hello", "world"]
+    assert await misc.echo_command(console_context, {}) == "Console: hello world"
+    channel_context = CommandContext(
+        command="kaiku",
+        args=["#other", "hello"],
+        raw_message="!kaiku #other hello",
+        sender="alice",
+        server_name="net",
+    )
+    server = Mock()
+    assert await misc.echo_command(channel_context, {"server": server}) is None
+    server.send_message.assert_called_once_with("#other", "hello")
+
+    assert misc.get_church_holiday(datetime(2026, 12, 25)) == "Joulupäivä"
+    assert misc.get_church_holiday(datetime(2026, 4, 3)) == "Suuri perjantai"
+    assert misc.get_church_holiday(datetime(2026, 3, 25)) == "Mariana ilmestys"
+    assert misc.get_church_holiday(datetime(2026, 11, 3)) == "Pyhäinpäivä"
+    assert misc.get_church_holiday(datetime(2026, 7, 1)) == ""
 
 
 class TestEuriborCommand:
