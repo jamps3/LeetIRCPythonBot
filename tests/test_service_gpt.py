@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from services import gpt_service as gpt_mod
-from services.gpt_service import GPTService, create_gpt_service
+from services.gpt_service import GPTService, create_gpt_service, normalize_ai_response
 
 # Ensure project root on sys.path
 # ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -22,6 +22,12 @@ from services.gpt_service import GPTService, create_gpt_service
 class FakeResponse:
     def __init__(self, text: str | None):
         self.output_text = text
+
+
+def test_normalize_ai_response_collapses_redundant_whitespace():
+    assert (
+        normalize_ai_response("  hello   world\n\tfrom  AI  ") == "hello world from AI"
+    )
 
 
 class FakeClient:
@@ -186,11 +192,14 @@ def test_build_transcript_includes_system_and_last_15_and_prompt(tmp_path):
 
 
 def test_chat_normal_flow_and_reply_formatting(tmp_path):
-    svc, _ = make_service(tmp_path, reply_text="Hello\nWorld")
+    svc, _ = make_service(tmp_path, reply_text="  Hello\n\tWorld   again  ")
     out = svc.chat("What up?")
-    assert out == "Hello World"  # newline replaced by space
+    assert out == "Hello World again"
     # History appended and saved
-    assert svc.conversation_histories["global"][-1]["role"] == "assistant"
+    assert svc.conversation_histories["global"][-1] == {
+        "role": "assistant",
+        "content": "Hello World again",
+    }
 
 
 def test_chat_empty_reply_uses_default_error_message(tmp_path):

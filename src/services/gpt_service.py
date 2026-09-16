@@ -19,6 +19,11 @@ from src.config import CONVERSATION_HISTORY_FILE
 logger = get_logger("GPTService")
 
 
+def normalize_ai_response(response: str) -> str:
+    """Collapse redundant whitespace before an AI response is delivered or saved."""
+    return " ".join(response.split())
+
+
 # Custom exception classes that properly inherit from Exception
 class RateLimitError(Exception):
     """Rate limit error for AI service."""
@@ -248,14 +253,12 @@ class GPTService:
 
             transcript = self._build_transcript(user_message, network, channel)
             response = self.client.responses.create(model=self.model, input=transcript)
-            reply = (response.output_text or "").strip()
+            reply = normalize_ai_response(response.output_text or "")
             if not reply:
                 reply = "Sorry, I'm having trouble connecting to the AI service."
 
             history.append({"role": "assistant", "content": reply})
             self._set_conversation_history(history, network, channel)
-            # Format the reply for IRC
-            reply = reply.replace("\n", " ").strip()
             return reply
 
         except RateLimitError:

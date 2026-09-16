@@ -3,7 +3,8 @@ import threading
 
 import pytest
 
-from src.state_utils import backup_json_atomic, update_json_file
+from src import state_utils
+from src.state_utils import backup_json_atomic, save_json_atomic, update_json_file
 
 
 def test_strict_update_preserves_invalid_file(tmp_path):
@@ -61,3 +62,32 @@ def test_backup_json_atomic_preserves_previous_backup_if_state_invalid(tmp_path)
         backup_json_atomic(str(state), "end.bak")
 
     assert json.loads(backup.read_text()) == {"valid": True}
+
+
+def test_save_json_atomic_removes_temp_file_when_replace_fails(tmp_path, monkeypatch):
+    state = tmp_path / "state.json"
+
+    def fail_replace(*_args):
+        raise OSError("disk unavailable")
+
+    monkeypatch.setattr(state_utils.os, "replace", fail_replace)
+
+    with pytest.raises(OSError, match="disk unavailable"):
+        save_json_atomic(str(state), {"value": 1}, update_timestamp=False)
+
+    assert list(tmp_path.glob("*.tmp")) == []
+
+
+def test_backup_json_atomic_removes_temp_file_when_replace_fails(tmp_path, monkeypatch):
+    state = tmp_path / "state.json"
+    state.write_text('{"value": 1}', encoding="utf-8")
+
+    def fail_replace(*_args):
+        raise OSError("disk unavailable")
+
+    monkeypatch.setattr(state_utils.os, "replace", fail_replace)
+
+    with pytest.raises(OSError, match="disk unavailable"):
+        backup_json_atomic(str(state), "start.bak")
+
+    assert list(tmp_path.glob("*.tmp")) == []
