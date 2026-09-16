@@ -10,6 +10,7 @@ import json
 import os
 from collections import deque
 from datetime import datetime
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
@@ -851,6 +852,32 @@ class TestTUIManager:
         header_text = tui_manager.header.get_text()[0]
         assert "Discord: 🟢 online" in header_text
         assert "Logs:" not in header_text
+
+    def test_channel_bar_adds_a_separate_discord_channel_row_when_enabled(self):
+        manager = Mock()
+        manager.servers = {}
+        manager.joined_channels = {}
+        manager.active_channel = None
+        manager.active_server = None
+        manager.config = SimpleNamespace(
+            log_buffer_size=1000,
+            discord={"enabled": True, "allowed_channels": ["123, 456"]},
+        )
+        manager.discord_bot = SimpleNamespace(
+            client=SimpleNamespace(
+                get_channel=lambda channel_id: (
+                    SimpleNamespace(name="general") if channel_id == 123 else None
+                )
+            )
+        )
+
+        tui_manager = TUIManager(manager)
+        tui_manager.update_channel_bar()
+
+        assert tui_manager.discord_channel_bar.get_text()[0] == (
+            "Discord channels: #general (123) | #456"
+        )
+        assert len(tui_manager.footer_pile.contents) == 3
 
     def test_input_filter_discards_urwid_decode_diagnostic(self):
         keys = ["a", URWID_DECODE_WARNING, "enter"]

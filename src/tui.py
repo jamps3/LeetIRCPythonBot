@@ -1639,7 +1639,10 @@ class TUIManager:
         self.log_walker = urwid.SimpleListWalker([])
         self.log_display = NonFocusableListBox(self.log_walker)
         self.channel_bar = urwid.Text("", wrap="clip")
+        self.discord_channel_bar = urwid.Text("", wrap="clip")
         self._channel_bar_signature = None
+        self._discord_channel_bar_signature = None
+        self._discord_row_visible = False
         self._channel_click_targets = []
         self.input_field = urwid.Edit(
             "> Enter message (! for bot, - for AI): ", wrap="clip"
@@ -1692,7 +1695,10 @@ class TUIManager:
         self.log_walker = urwid.SimpleListWalker([])
         self.log_display = NonFocusableListBox(self.log_walker)
         self.channel_bar = urwid.Text("", wrap="clip")
+        self.discord_channel_bar = urwid.Text("", wrap="clip")
         self._channel_bar_signature = None
+        self._discord_channel_bar_signature = None
+        self._discord_row_visible = False
         self._channel_click_targets = []
         self.input_field = urwid.Edit(
             "> Enter message (! for bot, - for AI): ", wrap="clip"
@@ -1722,13 +1728,7 @@ class TUIManager:
         header = urwid.AttrMap(self.header, "header")
 
         # A clipped, fixed-height channel selector sits above the input row.
-        self.footer_pile = urwid.Pile(
-            [
-                ("pack", urwid.AttrMap(self.channel_bar, "channel_bar")),
-                ("pack", urwid.AttrMap(self.input_field, "footer")),
-            ],
-            focus_item=1,
-        )
+        self._rebuild_footer_pile()
         footer = self.footer_pile
 
         # Main layout - use FocusProtectingFrame to prevent focus changes on body clicks
@@ -1739,6 +1739,42 @@ class TUIManager:
             self.main_layout = FocusProtectingFrame(
                 body=self.log_display, header=header, footer=footer, focus_part="footer"
             )
+
+    def _discord_settings(self):
+        """Return valid Discord settings without treating mocks as configuration."""
+        config = getattr(self.bot_manager, "config", None) if self.bot_manager else None
+        settings = getattr(config, "discord", {}) if config is not None else {}
+        if isinstance(settings, dict):
+            return settings
+        discord_bot = getattr(self.bot_manager, "discord_bot", None)
+        settings = getattr(discord_bot, "settings", {}) if discord_bot else {}
+        return settings if isinstance(settings, dict) else {}
+
+    def _discord_row_is_enabled(self):
+        return bool(self._discord_settings().get("enabled", False))
+
+    def _rebuild_footer_pile(self):
+        """Build footer rows, adding Discord channels only when enabled."""
+        self._discord_row_visible = self._discord_row_is_enabled()
+        rows = [("pack", urwid.AttrMap(self.channel_bar, "channel_bar"))]
+        if self._discord_row_visible:
+            rows.append(
+                ("pack", urwid.AttrMap(self.discord_channel_bar, "channel_bar"))
+            )
+        rows.append(("pack", urwid.AttrMap(self.input_field, "footer")))
+        self.footer_pile = urwid.Pile(rows, focus_item=len(rows) - 1)
+
+    def _ensure_footer_layout(self):
+        """Refresh footer row visibility after configuration reloads."""
+        if self._discord_row_is_enabled() == self._discord_row_visible:
+            return
+        self._rebuild_footer_pile()
+        if hasattr(self, "main_layout"):
+            self.main_layout.set_footer(self.footer_pile)
+
+    def _input_footer_index(self):
+        """Return the input row index in the dynamic footer pile."""
+        return 2 if self._discord_row_visible else 1
 
     def update_header(self):
         """Update the header with current status."""
@@ -1842,6 +1878,9 @@ class TUIManager:
         if not hasattr(self, "channel_bar") or not self.channel_bar:
             return
 
+        self._ensure_footer_layout()
+        self._update_discord_channel_bar()
+
         shortcuts = self._get_channel_shortcuts()
         if not shortcuts:
             signature = ("Channels: none", ())
@@ -1876,6 +1915,44 @@ class TUIManager:
             self.channel_bar.set_text(text)
             self._channel_bar_signature = signature
             self._channel_click_targets = click_targets
+
+    def _update_discord_channel_bar(self):
+        """Show configured Discord channels separately from IRC channel shortcuts."""
+        if not self._discord_row_visible:
+            return
+
+        settings = self._discord_settings()
+        configured = settings.get("allowed_channels", [])
+        if isinstance(configured, str):
+            configured = [configured]
+        if not isinstance(configured, list):
+            configured = []
+        channel_ids = [
+            channel_id.strip()
+            for value in configured
+            for channel_id in str(value).split(",")
+            if channel_id.strip()
+        ]
+
+        discord_bot = getattr(self.bot_manager, "discord_bot", None)
+        client = getattr(discord_bot, "client", None)
+        labels = []
+        for channel_id in channel_ids:
+            channel = None
+            try:
+                channel = client.get_channel(int(channel_id)) if client else None
+            except (TypeError, ValueError, AttributeError):
+                channel = None
+            name = getattr(channel, "name", "") if channel else ""
+            labels.append(f"#{name} ({channel_id})" if name else f"#{channel_id}")
+
+        text = "Discord channels: " + (
+            " | ".join(labels) if labels else "none configured"
+        )
+        signature = (text, tuple(channel_ids))
+        if signature != self._discord_channel_bar_signature:
+            self.discord_channel_bar.set_text(text)
+            self._discord_channel_bar_signature = signature
 
     @staticmethod
     def _filter_input(keys, raw):
@@ -2241,13 +2318,21 @@ class TUIManager:
                     return handled
                 return False
 
+            discord_rows = (
+                cast(Any, self.discord_channel_bar).rows((maxcol,))
+                if self._discord_row_visible
+                else 0
+            )
+            if footer_row < channel_rows + discord_rows:
+                return False
+
             # Input field area - let it handle the event.
             return input_field.mouse_event(
                 (maxcol, input_field.rows((maxcol,))),
                 event,
                 button,
                 col,
-                footer_row - channel_rows,
+                footer_row - channel_rows - discord_rows,
                 focus,
             )
 
@@ -2549,7 +2634,7 @@ class TUIManager:
             if hasattr(self, "footer_pile") and hasattr(
                 self.footer_pile, "focus_position"
             ):
-                self.footer_pile.focus_position = 1
+                self.footer_pile.focus_position = self._input_footer_index()
             self.main_layout.set_focus("footer")
 
     def _handle_channel_shortcut(self, key):
