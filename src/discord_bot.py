@@ -103,7 +103,10 @@ class DiscordBot:
         return True
 
     def _thread_main(self) -> None:
-        asyncio.run(self._run())
+        try:
+            asyncio.run(self._run())
+        except Exception as exc:
+            self.logger.error(f"Discord gateway failed during startup: {exc}")
 
     async def _run(self) -> None:
         try:
@@ -156,9 +159,19 @@ class DiscordBot:
         async def poll(interaction, action: str, data: str = ""):
             await self._poll_command(interaction, action, data, discord)
 
-        @self.tree.command(name="seen", description="Show a member's latest activity")
-        async def seen(interaction, member: discord.Member):
+        async def seen(interaction, member):
             await self._run_command(interaction, "seen", str(member.id))
+
+        # ``discord`` is loaded lazily, so assign the runtime type before
+        # discord.py inspects this callback for its slash-command schema.
+        seen.__annotations__["member"] = discord.Member
+        self.tree.add_command(
+            app_commands.Command(
+                name="seen",
+                description="Show a member's latest activity",
+                callback=seen,
+            )
+        )
 
         @self.tree.command(name="ask", description="Ask the configured GPT service")
         async def ask(interaction, prompt: str):

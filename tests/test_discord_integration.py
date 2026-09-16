@@ -2,6 +2,8 @@ import inspect
 import sys
 from types import SimpleNamespace
 
+import pytest
+
 from command_registry import (
     CommandContext,
     CommandInfo,
@@ -89,6 +91,21 @@ def test_discord_generated_callback_has_only_typed_slash_arguments():
 
     assert list(parameters) == ["interaction", "arguments"]
     assert parameters["arguments"].annotation == "str"
+
+
+def test_discord_registers_seen_member_command_without_global_discord_import():
+    discord = pytest.importorskip("discord")
+    from discord import app_commands
+
+    bot = DiscordBot(SimpleNamespace(), {})
+    bot.client = discord.Client(intents=discord.Intents.default())
+    bot.tree = app_commands.CommandTree(bot.client)
+
+    bot._register_commands(discord, app_commands)
+
+    seen = bot.tree.get_command("seen")
+    assert seen is not None
+    assert seen.parameters[0].type is discord.AppCommandOptionType.user
 
 
 def test_discord_status_distinguishes_dm_and_allowed_guild_channel():
