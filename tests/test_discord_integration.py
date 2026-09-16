@@ -13,7 +13,7 @@ from command_registry import (
     CommandScope,
     FunctionCommandHandler,
 )
-from discord_bot import CORE_COMMANDS, DiscordBot
+from discord_bot import CORE_COMMANDS, DiscordBot, get_discord_command_map
 from services.community_state_service import CommunityStateService
 from state_migrations import migrate_state_data
 
@@ -104,6 +104,65 @@ def test_discord_core_commands_include_community_feature_alias():
     assert CORE_COMMANDS["features"] == "feature"
 
 
+def test_discord_command_map_covers_every_supported_registry_command():
+    from command_loader import ensure_commands_loaded
+    from command_registry import get_command_registry
+
+    ensure_commands_loaded()
+    registry = get_command_registry()
+    commands = get_discord_command_map()
+    expected = {
+        name
+        for name, handler in registry._commands.items()
+        if handler.info.supports_discord
+        and name not in {"ask", "poll", "seen", "status"}
+    }
+
+    assert expected <= commands.keys()
+    assert commands["weather"] == "s"
+    assert commands["roll"] == "noppa"
+    assert "raw" not in commands
+    assert "join" not in commands
+    assert "connect" not in commands
+    assert "time" not in commands
+
+
+def test_discord_capability_metadata_can_disable_a_shared_command():
+    handler = FunctionCommandHandler(
+        CommandInfo(name="shared", discord_available=False),
+        lambda context, functions: "never",
+    )
+    context = CommandContext(
+        command="shared", args=[], raw_message="!shared", platform="discord"
+    )
+
+    allowed, message = handler.can_execute(context)
+
+    assert allowed is False
+    assert message == "This command is not available on Discord"
+
+
+def test_discord_help_excludes_irc_and_console_only_commands():
+    from cmd_modules.basic import help_command
+    from command_loader import ensure_commands_loaded
+
+    ensure_commands_loaded()
+    context = CommandContext(
+        command="help",
+        args=[],
+        raw_message="!help",
+        sender="User",
+        target="#10",
+        platform="discord",
+    )
+
+    response = help_command(context, {})
+
+    assert "about" in response.message
+    assert "raw" not in response.message
+    assert "join" not in response.message
+
+
 def test_discord_generated_callback_has_only_typed_slash_arguments():
     bot = DiscordBot(SimpleNamespace(), {})
 
@@ -127,6 +186,10 @@ def test_discord_registers_seen_member_command_without_global_discord_import():
     seen = bot.tree.get_command("seen")
     assert seen is not None
     assert seen.parameters[0].type is discord.AppCommandOptionType.user
+    registered_names = {command.name for command in bot.tree.get_commands()}
+    assert set(get_discord_command_map()) <= registered_names
+    assert "raw" not in registered_names
+    assert "join" not in registered_names
 
 
 def test_discord_status_distinguishes_dm_and_allowed_guild_channel():

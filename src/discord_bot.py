@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import threading
 from datetime import timedelta
 from types import SimpleNamespace
@@ -15,7 +16,11 @@ from typing import Any, Callable
 
 import logger
 from command_loader import ensure_commands_loaded
-from command_registry import CommandContext, process_command_message
+from command_registry import (
+    CommandContext,
+    get_command_registry,
+    process_command_message,
+)
 
 CORE_COMMANDS = {
     "help": "help",
@@ -38,8 +43,33 @@ CORE_COMMANDS = {
     "metrics": "metrics",
     "history": "history",
     "subscribe": "tilaa",
-    "time": "aika",
 }
+
+_NATIVE_DISCORD_COMMANDS = {"ask", "poll", "seen", "status"}
+_DISCORD_COMMAND_NAME = re.compile(r"^[a-z0-9_-]{1,32}$")
+
+
+def get_discord_command_map() -> dict[str, str]:
+    """Return every registry command that may be safely exposed on Discord."""
+    ensure_commands_loaded()
+    registry = get_command_registry()
+    commands = {
+        name: name
+        for name, handler in registry._commands.items()
+        if handler.info.supports_discord
+        and name not in _NATIVE_DISCORD_COMMANDS
+        and _DISCORD_COMMAND_NAME.fullmatch(name)
+    }
+    for slash_name, registry_name in CORE_COMMANDS.items():
+        handler = registry.get_handler(registry_name)
+        if (
+            handler
+            and handler.info.supports_discord
+            and slash_name not in _NATIVE_DISCORD_COMMANDS
+            and _DISCORD_COMMAND_NAME.fullmatch(slash_name)
+        ):
+            commands[slash_name] = registry_name
+    return dict(sorted(commands.items()))
 
 
 class DiscordChannelTransport:
@@ -143,8 +173,14 @@ class DiscordBot:
             self.logger.error(f"Discord gateway stopped: {exc}")
 
     def _register_commands(self, discord, app_commands) -> None:
-        for slash_name, registry_name in CORE_COMMANDS.items():
-            description = f"Run LeetIRCBot {registry_name}"
+        registry = get_command_registry()
+        for slash_name, registry_name in get_discord_command_map().items():
+            handler = registry.get_handler(registry_name)
+            description = (
+                handler.info.description
+                if handler and handler.info.description
+                else f"Run LeetIRCBot {registry_name}"
+            )
             self.tree.add_command(
                 app_commands.Command(
                     name=slash_name,

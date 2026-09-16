@@ -39,6 +39,12 @@ def help_command(context: CommandContext, bot_functions):
     # If specific command requested, return its detailed help
     if context.args:
         command_name = context.args[0]
+        if context.platform == "discord":
+            handler = registry.get_handler(command_name)
+            if not handler or not handler.info.supports_discord:
+                return CommandResponse.error_msg(
+                    "This command is not available on Discord"
+                )
         help_text = registry.generate_help(specific_command=command_name)
         if context.is_console:
             return help_text
@@ -67,7 +73,11 @@ def help_command(context: CommandContext, bot_functions):
                 return CommandResponse.success_msg(help_text)
     else:
         # Build command list depending on context. From IRC, show only IRC_ONLY.
-        if context.is_console:
+        if context.platform == "discord":
+            infos = [
+                info for info in registry.get_commands_info() if info.supports_discord
+            ]
+        elif context.is_console:
             infos = registry.get_commands_info(
                 scope=_CS.CONSOLE_ONLY
             ) + registry.get_commands_info(scope=_CS.BOTH)

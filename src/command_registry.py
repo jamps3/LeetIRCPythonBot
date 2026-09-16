@@ -109,6 +109,7 @@ class CommandInfo:
     admin_only: bool = False
     hidden: bool = False  # Hidden from help listing
     cooldown: float = 0.0  # Cooldown in seconds between uses
+    discord_available: Optional[bool] = None
 
     @property
     def all_names(self) -> List[str]:
@@ -119,6 +120,13 @@ class CommandInfo:
     def admin_marker(self) -> str:
         """Get admin marker for help display."""
         return "*" if self.admin_only else ""
+
+    @property
+    def supports_discord(self) -> bool:
+        """Return whether the command can be exposed through Discord."""
+        if self.discord_available is not None:
+            return self.discord_available
+        return self.scope == CommandScope.BOTH
 
 
 class CommandHandler(ABC):
@@ -137,10 +145,7 @@ class CommandHandler(ABC):
     def can_execute(self, context: CommandContext) -> tuple[bool, Optional[str]]:
         """Check if the command can be executed in the given context."""
         # Check scope
-        if context.platform == "discord" and self.info.scope in (
-            CommandScope.IRC_ONLY,
-            CommandScope.IRC_AND_CONSOLE,
-        ):
+        if context.platform == "discord" and not self.info.supports_discord:
             return False, "This command is not available on Discord"
         if self.info.scope == CommandScope.IRC_ONLY and context.is_console:
             return False, "This command is not available in console mode"
@@ -467,6 +472,7 @@ def command(
     admin_only: bool = False,
     hidden: bool = False,
     cooldown: float = 0.0,
+    discord_available: Optional[bool] = None,
 ):
     """
     Decorator to register a function as a command.
@@ -490,6 +496,7 @@ def command(
             admin_only=admin_only,
             hidden=hidden,
             cooldown=cooldown,
+            discord_available=discord_available,
         )
 
         # Register the command

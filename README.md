@@ -137,9 +137,12 @@ messages in `data/state.json` under `config.discord`:
 Discord commands are slash commands. DMs accept commands only; automatic
 tracking and replies run only in allowlisted guild channels. Discord polls use
 Discord's native poll UI, while the bot records the latest result snapshot in
-its channel-specific state. Core Discord commands include `/help`, `/status`,
-`/feature`, `/features`, `/subscribe`, `/seen`, `/poll`, and `/ask`, alongside
-weather, utility, and game commands.
+its channel-specific state. Every command marked Discord-capable in the shared
+command registry is synchronized automatically, including weather, utilities,
+games, community features, tracking, and subscriptions. IRC protocol,
+connection-management, raw-command, and console-only commands are not exposed
+on Discord. Native Discord commands include `/help`, `/status`, `/seen`,
+`/poll`, and `/ask`.
 
 After the bot has been restarted once with Discord support installed, update
 `DISCORD_TOKEN` or `config.discord` and use `!reload <admin-password>` to
