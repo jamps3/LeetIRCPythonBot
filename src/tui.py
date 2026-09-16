@@ -69,6 +69,11 @@ PALETTE = [
     ("selected", "black", "white"),
 ]
 
+URWID_DECODE_WARNING = (
+    "Some characters could not be decoded, and were replaced with "
+    "REPLACEMENT CHARACTER."
+)
+
 
 class LogEntry:
     """Represents a single log entry."""
@@ -1716,6 +1721,12 @@ class TUIManager:
             self._channel_bar_signature = signature
             self._channel_click_targets = click_targets
 
+    @staticmethod
+    def _filter_input(keys, raw):
+        """Discard Urwid's terminal decode diagnostic before it reaches Edit."""
+        del raw
+        return [key for key in keys if key != URWID_DECODE_WARNING]
+
     def _select_channel_at_column(self, column: int) -> bool:
         """Select the channel whose visible shortcut label was clicked."""
         for start, end, server_name, channel in self._channel_click_targets:
@@ -2930,6 +2941,7 @@ Tips:
             self.main_layout,
             palette=PALETTE,
             unhandled_input=self.handle_key,
+            input_filter=self._filter_input,
             handle_mouse=True,  # Enable mouse support
         )
 

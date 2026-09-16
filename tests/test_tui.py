@@ -15,6 +15,7 @@ import pytest
 
 # Import TUI components
 from tui import (  # WRAP_MODE,; _current_tui,
+    URWID_DECODE_WARNING,
     ConfigEditor,
     FocusProtectingFrame,
     LogEntry,
@@ -783,6 +784,13 @@ class TestTUIManager:
         assert tui_manager.input_field.wrap == "clip"
         assert tui_manager.header.rows((40,)) == 2
         assert tui_manager.input_field.rows((40,)) == 1
+
+    def test_input_filter_discards_urwid_decode_diagnostic(self):
+        keys = ["a", URWID_DECODE_WARNING, "enter"]
+
+        filtered = TUIManager._filter_input(keys, [])
+
+        assert filtered == ["a", "enter"]
 
     def test_channel_bar_lists_joined_channels_with_irssi_shortcuts(
         self, mock_bot_manager
