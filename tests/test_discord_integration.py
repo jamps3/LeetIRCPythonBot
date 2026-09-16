@@ -23,6 +23,14 @@ def test_discord_migration_initializes_configuration_and_poll_state():
     assert data["state"]["discord_polls"] == {}
 
 
+def test_discord_migration_splits_comma_separated_ids():
+    data = migrate_state_data(
+        {"config": {"discord": {"allowed_channels": ["123, 456"]}}}
+    )
+
+    assert data["config"]["discord"]["allowed_channels"] == ["123", "456"]
+
+
 def test_discord_context_rejects_irc_scoped_command():
     handler = FunctionCommandHandler(
         CommandInfo(name="irc", scope=CommandScope.IRC_AND_CONSOLE),
@@ -77,6 +85,16 @@ def test_discord_allowlist_and_admin_ids_do_not_depend_on_discord_library():
 
     assert bot._allowed_interaction(interaction) is True
     assert bot.is_admin(interaction) is True
+
+
+def test_discord_allowlist_splits_legacy_comma_separated_entries():
+    bot = DiscordBot(
+        SimpleNamespace(),
+        {"enabled": True, "allowed_channels": ["123, 456"]},
+    )
+
+    assert bot._allowed_channel(123) is True
+    assert bot._allowed_channel(456) is True
 
 
 def test_discord_core_commands_include_community_feature_alias():

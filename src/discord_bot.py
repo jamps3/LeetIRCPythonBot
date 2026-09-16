@@ -196,8 +196,22 @@ class DiscordBot:
         return callback
 
     def _allowed_channel(self, channel_id: int | str | None) -> bool:
-        allowed = {str(value) for value in self.settings.get("allowed_channels", [])}
+        allowed = self._configured_ids("allowed_channels")
         return bool(channel_id is not None and str(channel_id) in allowed)
+
+    def _configured_ids(self, setting: str) -> set[str]:
+        """Read IDs defensively while state migrations repair legacy entries."""
+        values = self.settings.get(setting, [])
+        if isinstance(values, str):
+            values = [values]
+        if not isinstance(values, list):
+            return set()
+        return {
+            item.strip()
+            for value in values
+            for item in str(value).split(",")
+            if item.strip()
+        }
 
     def _scope(self, interaction_or_message) -> tuple[str, str, bool]:
         guild = getattr(interaction_or_message, "guild", None)
@@ -281,11 +295,11 @@ class DiscordBot:
         )
 
     def is_admin(self, interaction) -> bool:
-        user_ids = {str(value) for value in self.settings.get("admin_user_ids", [])}
+        user_ids = self._configured_ids("admin_user_ids")
         if str(interaction.user.id) in user_ids:
             return True
         member = getattr(interaction, "user", None)
-        role_ids = {str(value) for value in self.settings.get("admin_role_ids", [])}
+        role_ids = self._configured_ids("admin_role_ids")
         roles = getattr(member, "roles", [])
         return any(str(getattr(role, "id", "")) in role_ids for role in roles)
 

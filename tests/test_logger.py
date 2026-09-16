@@ -4,10 +4,31 @@ Pytest tests for logger module.
 """
 
 import builtins
+import importlib
 import os
 import re
 
 import logger as lg
+
+
+def test_config_reload_uses_active_tui_logger_hook():
+    """Config reloads must continue to route logs through the active TUI."""
+    import config
+
+    received = []
+
+    def tui_hook(*args):
+        received.append(args)
+
+    lg.set_tui_hook(tui_hook)
+    try:
+        importlib.reload(config)
+        config.logger.info("config reload log")
+    finally:
+        lg.clear_tui_hook()
+
+    assert config.get_logger is lg.get_logger
+    assert any(entry[3] == "config reload log" for entry in received)
 
 
 def test_logger_basic_levels_and_timestamp(capsys):

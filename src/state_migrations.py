@@ -13,6 +13,23 @@ def _ensure_dict(value: Any) -> dict:
     return value if isinstance(value, dict) else {}
 
 
+def _normalize_discord_ids(value: Any) -> list[str]:
+    """Return Discord IDs as individually stored strings.
+
+    The configuration editor accepts comma-separated IDs.  Older saves may
+    contain the complete comma-separated value as a single list item.
+    """
+    values = [value] if isinstance(value, str) else value
+    if not isinstance(values, list):
+        return []
+    return [
+        item.strip()
+        for value in values
+        for item in str(value).split(",")
+        if item.strip()
+    ]
+
+
 def migrate_state_data(data: Any) -> dict:
     """Return state data with the current schema sections present."""
     if not isinstance(data, dict):
@@ -30,9 +47,15 @@ def migrate_state_data(data: Any) -> dict:
 
     discord = _ensure_dict(config.get("discord"))
     discord.setdefault("enabled", False)
-    discord.setdefault("allowed_channels", [])
-    discord.setdefault("admin_user_ids", [])
-    discord.setdefault("admin_role_ids", [])
+    discord["allowed_channels"] = _normalize_discord_ids(
+        discord.get("allowed_channels", [])
+    )
+    discord["admin_user_ids"] = _normalize_discord_ids(
+        discord.get("admin_user_ids", [])
+    )
+    discord["admin_role_ids"] = _normalize_discord_ids(
+        discord.get("admin_role_ids", [])
+    )
     config["discord"] = discord
 
     data["config"] = config

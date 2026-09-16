@@ -10,7 +10,7 @@ from collections import Counter
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.logger import get_logger
+from logger import get_logger
 
 from .data_manager import DataManager
 

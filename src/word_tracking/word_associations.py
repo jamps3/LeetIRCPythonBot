@@ -12,7 +12,7 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from src.logger import get_logger
+from logger import get_logger
 
 # Regex pattern to match "word (thing)" format
 # Captures the word before parentheses and the thing inside parentheses

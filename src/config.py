@@ -13,7 +13,7 @@ if _project_root not in sys.path:
 
 from dotenv import load_dotenv  # noqa: E402
 
-from src.logger import get_logger  # noqa: E402
+from logger import get_logger  # noqa: E402
 from src.state_migrations import migrate_state_file  # noqa: E402
 from src.state_utils import load_json_file, save_json_atomic  # noqa: E402
 

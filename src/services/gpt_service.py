@@ -13,8 +13,8 @@ from openai import AuthenticationError as OpenAIAuthenticationError
 from openai import OpenAI
 from openai import RateLimitError as OpenAIRateLimitError
 
+from logger import get_logger
 from src.config import CONVERSATION_HISTORY_FILE
-from src.logger import get_logger
 
 logger = get_logger("GPTService")
 
