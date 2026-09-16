@@ -209,3 +209,85 @@ def test_server_status_reports_connected_thread_and_unknown_server():
         "thread_alive": True,
         "channels": ["#chat"],
     }
+
+
+def test_server_manager_reports_all_status_and_connected_servers():
+    manager = make_manager()
+    connected = make_server("connected", connected=True)
+    disconnected = make_server("disconnected", connected=False)
+    thread = FakeThread()
+    thread.alive = True
+    manager.servers = {"connected": connected, "disconnected": disconnected}
+    manager.server_threads = {"connected": thread}
+    manager.joined_channels = {"connected": ["#chat"], "disconnected": []}
+
+    assert manager.get_server("connected") is connected
+    assert manager.get_server("missing") is None
+    assert manager.get_all_servers() == manager.servers
+    assert manager.get_connected_servers() == {"connected": connected}
+    assert manager.get_server_status() == {
+        "connected": {
+            "host": "irc.example.test",
+            "port": 6697,
+            "connected": True,
+            "thread_alive": True,
+            "channels": ["#chat"],
+        },
+        "disconnected": {
+            "host": "irc.example.test",
+            "port": 6697,
+            "connected": False,
+            "thread_alive": False,
+            "channels": [],
+        },
+    }
+    assert manager.get_joined_channels() == manager.joined_channels
+
+
+def test_channel_operations_and_disconnect_failures_leave_state_consistent():
+    manager = make_manager()
+    server = make_server(connected=True)
+    server.join_channel.side_effect = RuntimeError("banned")
+    server.part_channel.side_effect = RuntimeError("not joined")
+    server.quit.side_effect = RuntimeError("socket closed")
+    thread = FakeThread()
+    thread.alive = True
+    manager.servers = {"network": server}
+    manager.server_threads = {"network": thread}
+    manager.joined_channels = {"network": ["#chat"]}
+
+    assert manager.join_channel("network", "new") is False
+    assert manager.joined_channels["network"] == ["#chat"]
+    assert manager.part_channel("network", "chat") is False
+    assert manager.joined_channels["network"] == ["#chat"]
+    assert manager.disconnect_from_servers() is False
+    assert manager.server_threads == {}
+
+
+def test_add_server_and_connect_builds_config_and_starts_connection(monkeypatch):
+    manager = make_manager()
+    created = []
+
+    class FakeServer:
+        def __init__(self, config, bot_name, stop_event, bot_config):
+            self.config = config
+            self.quit_message = ""
+            created.append(self)
+
+    monkeypatch.setattr(server_manager_module, "Server", FakeServer)
+    manager.connect_to_servers = Mock(return_value=True)
+
+    assert (
+        manager.add_server_and_connect(
+            "new", "irc.new.test", 6697, ["#chat"], ["secret"], use_tls=True
+        )
+        is True
+    )
+
+    assert created[0].config.host == "irc.new.test"
+    assert created[0].config.port == 6697
+    assert created[0].config.channels == ["#chat"]
+    assert created[0].config.keys == ["secret"]
+    assert created[0].config.tls is True
+    assert manager.joined_channels == {"new": []}
+    manager.connect_to_servers.assert_called_once_with(["new"])

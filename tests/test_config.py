@@ -538,3 +538,84 @@ def test_load_server_configs_accepts_inner_and_full_state():
     assert inner[0].quit_message == full[0].quit_message == "Server bye"
     assert inner[0].default_city == full[0].default_city == "Tampere"
     assert inner[0].use_notices is full[0].use_notices is False
+
+
+@pytest.mark.parametrize(
+    ("server_data", "index", "expected"),
+    [
+        ({"name": "Libera", "host": "irc.libera.chat"}, 1, "Libera"),
+        (
+            {"name": "Server1", "host": "irc.libera.chat", "port": 6697},
+            1,
+            "irc.libera.chat:6697",
+        ),
+        ({"host": "IRC.Example.Test"}, 2, "irc.example.test:6667"),
+        ({"name": "Server3"}, 3, "Server3"),
+    ],
+)
+def test_derive_state_server_name_uses_stable_connection_identity(
+    server_data, index, expected
+):
+    assert cfg._derive_state_server_name(server_data, index) == expected
+
+
+def test_state_config_defaults_are_idempotent_and_do_not_share_mutable_values():
+    manager = cfg.ConfigManager.__new__(cfg.ConfigManager)
+    state_config = {"bot_name": "ConfiguredBot", "servers": [{"host": "irc.test"}]}
+
+    assert manager._ensure_state_config_defaults(state_config) is True
+    assert state_config["bot_name"] == "ConfiguredBot"
+    assert state_config["discord"] == {
+        "enabled": False,
+        "allowed_channels": [],
+        "admin_user_ids": [],
+        "admin_role_ids": [],
+    }
+    assert state_config["servers"][0]["quit_message"] == ""
+    assert manager._ensure_state_config_defaults(state_config) is False
+
+    state_config["discord"]["allowed_channels"].append("123")
+    other_state = {}
+    manager._ensure_state_config_defaults(other_state)
+    assert other_state["discord"]["allowed_channels"] == []
+
+
+def test_load_state_config_recovers_from_invalid_json(monkeypatch, tmp_path):
+    state_file = tmp_path / "state.json"
+    state_file.write_text("{", encoding="utf-8")
+    manager = cfg.ConfigManager.__new__(cfg.ConfigManager)
+    manager._get_state_file = lambda: str(state_file)
+
+    def setup(path):
+        assert path == str(state_file)
+        state_file.write_text('{"config": {"bot_name": "Recovered"}}', encoding="utf-8")
+
+    manager._run_interactive_setup = setup
+
+    assert manager._load_state_config() == {"bot_name": "Recovered"}
+
+
+def test_config_manager_preserves_discord_settings_from_state(monkeypatch, tmp_path):
+    state_file = tmp_path / "state.json"
+    state_file.write_text(
+        json.dumps(
+            {
+                "config": {
+                    "discord": {
+                        "enabled": True,
+                        "allowed_channels": ["123"],
+                        "admin_user_ids": ["42"],
+                        "admin_role_ids": ["7"],
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("STATE_FILE", str(state_file))
+
+    config = cfg.ConfigManager(env_file=str(tmp_path / ".env")).config
+
+    assert config.discord["enabled"] is True
+    assert config.discord["allowed_channels"] == ["123"]
+    assert config.discord["admin_user_ids"] == ["42"]
