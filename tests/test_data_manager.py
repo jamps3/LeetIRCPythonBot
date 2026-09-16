@@ -433,3 +433,72 @@ class TestDataManager:
 
         assert "tamagotchi" in state
         assert state["tamagotchi"] == tamagotchi_data
+
+    def test_server_scoped_game_states_are_isolated_and_removable(self):
+        self.data_manager.save_ksp_state({"turn": "alice"}, "discord:1/#10")
+        self.data_manager.save_ksp_state({"turn": "bob"}, "discord:1/#11")
+        self.data_manager.save_leet_winners_state({"winner": "alice"}, "discord:1")
+        self.data_manager.save_sanaketju_state({"word": "sauna"}, "discord:1/#10")
+
+        assert self.data_manager.load_ksp_state("discord:1/#10") == {"turn": "alice"}
+        assert self.data_manager.load_ksp_state("discord:1/#11") == {"turn": "bob"}
+        assert self.data_manager.load_leet_winners_state("discord:1") == {
+            "winner": "alice"
+        }
+        assert self.data_manager.load_sanaketju_state("discord:1/#10") == {
+            "word": "sauna"
+        }
+
+        self.data_manager.save_ksp_state(None, "discord:1/#10")
+        assert self.data_manager.load_ksp_state("discord:1/#10") is None
+        assert self.data_manager.load_ksp_state("discord:1/#11") == {"turn": "bob"}
+
+    def test_kraksdebug_initializes_and_keeps_server_scopes_separate(self):
+        assert self.data_manager.load_kraksdebug_state("discord:1") == {
+            "channels": [],
+            "nick_notices": True,
+            "nicks": [],
+        }
+
+        self.data_manager.save_kraksdebug_state({"channels": ["#10"]}, "discord:1")
+        self.data_manager.save_kraksdebug_state({"channels": ["#11"]}, "discord:2")
+
+        assert self.data_manager.load_kraksdebug_state("discord:1") == {
+            "channels": ["#10"]
+        }
+        assert self.data_manager.load_kraksdebug_state("discord:2") == {
+            "channels": ["#11"]
+        }
+
+    def test_ai_teachings_migrate_legacy_data_and_stay_channel_scoped(self):
+        with open(self.state_file, "w", encoding="utf-8") as f:
+            json.dump({"ai_teachings": [{"id": 1, "content": "legacy"}]}, f)
+
+        assert self.data_manager.load_ai_teachings() == [{"id": 1, "content": "legacy"}]
+        first_id = self.data_manager.add_teaching(
+            " channel one ", "alice", "discord:1", "#10"
+        )
+        second_id = self.data_manager.add_teaching(
+            "channel two", "bob", "discord:1", "#11"
+        )
+
+        assert first_id == second_id == 1
+        assert self.data_manager.get_teachings_for_context(
+            network="discord:1", channel="#10"
+        ) == ["channel one"]
+        assert self.data_manager.get_teachings_for_context(
+            network="discord:1", channel="#11"
+        ) == ["channel two"]
+        assert self.data_manager.remove_teaching(1, "discord:1", "#10") is True
+        assert self.data_manager.remove_teaching(1, "discord:1", "#10") is False
+
+    def test_ai_teaching_limit_uses_smallest_available_identifier(self):
+        self.data_manager.save_ai_teachings(
+            [{"id": 1, "content": "one"}, {"id": 3, "content": "three"}]
+        )
+
+        assert self.data_manager.add_teaching("two", "alice") == 2
+        self.data_manager.save_ai_teachings(
+            [{"id": index, "content": str(index)} for index in range(1, 51)]
+        )
+        assert self.data_manager.add_teaching("overflow", "alice") == -1
