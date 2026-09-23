@@ -55,11 +55,13 @@ def clear_all(self) -> None:
     self._commands.clear()
     self._aliases.clear()
 
+
 def reload(self) -> int:
     """Reload all command modules. Returns count of reloaded commands."""
     self.clear_all()
     # Re-import command modules (see Phase 2)
     from command_loader import load_all_commands
+
     load_all_commands()
     return len(self._commands)
 ```
@@ -95,12 +97,12 @@ RELOADABLE_MODULES = {
 # Module dependencies - reload order matters
 RELOAD_ORDER = [
     "command_registry",  # Base first
-    "command_loader",    # Depends on registry
-    "commands",          # Main commands
-    "commands_services", # Services depend on commands
-    "commands_admin",    # Admin depends on commands
-    "commands_basic",    # Basic depends on commands
-    "commands_irc",      # IRC depends on commands
+    "command_loader",  # Depends on registry
+    "commands",  # Main commands
+    "commands_services",  # Services depend on commands
+    "commands_admin",  # Admin depends on commands
+    "commands_basic",  # Basic depends on commands
+    "commands_irc",  # IRC depends on commands
 ]
 
 
@@ -114,10 +116,10 @@ def clear_module_caches(module_name: str) -> None:
     # Clear importlib cache
     if module_name in sys.modules:
         module = sys.modules[module_name]
-        if hasattr(module, '__dict__'):
+        if hasattr(module, "__dict__"):
             # Clear any _commands_cache or similar
             for key in list(module.__dict__.keys()):
-                if key.startswith('_') and 'cache' in key.lower():
+                if key.startswith("_") and "cache" in key.lower():
                     del module.__dict__[key]
 
 
@@ -291,6 +293,7 @@ def safe_reload() -> tuple[bool, str]:
         # Perform reload
         registry.clear_all()
         import commands  # Re-import
+
         # Verify
         if not registry._commands:
             raise RuntimeError("No commands loaded after reload")
@@ -310,6 +313,7 @@ Prevent concurrent reloads:
 import threading
 
 _reload_lock = threading.Lock()
+
 
 def atomic_reload():
     with _reload_lock:
