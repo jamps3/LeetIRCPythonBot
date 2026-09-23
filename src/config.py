@@ -431,6 +431,8 @@ class ConfigManager:
                 "allowed_channels": [],
                 "admin_user_ids": [],
                 "admin_role_ids": [],
+                "command_sync": "global",
+                "channel_settings": {},
             },
         }
 

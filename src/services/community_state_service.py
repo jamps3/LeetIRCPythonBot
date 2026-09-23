@@ -100,6 +100,106 @@ class CommunityStateService:
             return metrics.get(_channel_key(server_name, channel), {})
         return metrics
 
+    def record_command(self, platform: str, command: str) -> bool:
+        """Record command usage without mixing platform statistics."""
+
+        def updater(data):
+            state = _state_section(data)
+            counters = (
+                state.setdefault("observability", {})
+                .setdefault("commands_by_platform", {})
+                .setdefault(platform, {})
+            )
+            counters[command] = int(counters.get(command, 0)) + 1
+            return data
+
+        return update_json_file(self.state_file, updater, default=dict, strict=True)
+
+    def get_command_usage(self) -> dict:
+        data = load_json_file(self.state_file, default=dict)
+        usage = (
+            _state_section(data)
+            .get("observability", {})
+            .get("commands_by_platform", {})
+        )
+        return usage if isinstance(usage, dict) else {}
+
+    def record_background_job(
+        self, name: str, *, success: bool, next_run_at: str = "", error: str = ""
+    ) -> bool:
+        """Persist the latest monitor outcome for health and TUI views."""
+
+        def updater(data):
+            state = _state_section(data)
+            jobs = state.setdefault("observability", {}).setdefault(
+                "background_jobs", {}
+            )
+            previous = jobs.get(name, {})
+            job = {
+                "last_run_at": _now(),
+                "last_success_at": _now()
+                if success
+                else previous.get("last_success_at", ""),
+                "last_error": "" if success else error[:300],
+                "next_run_at": next_run_at,
+                "healthy": success,
+            }
+            jobs[name] = job
+            return data
+
+        return update_json_file(self.state_file, updater, default=dict, strict=True)
+
+    def get_background_jobs(self) -> dict:
+        data = load_json_file(self.state_file, default=dict)
+        jobs = _state_section(data).get("observability", {}).get("background_jobs", {})
+        return jobs if isinstance(jobs, dict) else {}
+
+    def save_discord_channel(
+        self, guild_id: str, channel_id: str, name: str, permissions: dict | None = None
+    ) -> bool:
+        """Store display metadata separately from Discord's stable channel ID."""
+
+        def updater(data):
+            state = _state_section(data)
+            channels = state.setdefault("discord_channels", {})
+            channels[str(channel_id)] = {
+                "guild_id": str(guild_id),
+                "channel_id": str(channel_id),
+                "name": name[:100],
+                "permissions": permissions or {},
+                "updated_at": _now(),
+            }
+            return data
+
+        return update_json_file(self.state_file, updater, default=dict, strict=True)
+
+    def get_discord_channels(self) -> dict:
+        data = load_json_file(self.state_file, default=dict)
+        channels = _state_section(data).get("discord_channels", {})
+        return channels if isinstance(channels, dict) else {}
+
+    def add_discord_event(self, event: str, detail: str, level: str = "INFO") -> bool:
+        """Keep a compact, persistent Discord event feed for the TUI."""
+
+        def updater(data):
+            state = _state_section(data)
+            events = state.setdefault("discord_events", [])
+            if not isinstance(events, list):
+                events = []
+                state["discord_events"] = events
+            events.append(
+                {"at": _now(), "event": event, "detail": detail[:500], "level": level}
+            )
+            del events[:-100]
+            return data
+
+        return update_json_file(self.state_file, updater, default=dict, strict=True)
+
+    def get_discord_events(self) -> list[dict]:
+        data = load_json_file(self.state_file, default=dict)
+        events = _state_section(data).get("discord_events", [])
+        return events if isinstance(events, list) else []
+
     def record_seen(
         self,
         server_name: str,

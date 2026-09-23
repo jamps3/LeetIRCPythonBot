@@ -72,6 +72,20 @@ def test_discord_seen_uses_stable_user_identity(tmp_path):
     assert seen["identity"] == "42"
 
 
+def test_discord_metadata_events_and_usage_are_persisted(tmp_path):
+    service = CommunityStateService(str(tmp_path / "state.json"))
+
+    service.save_discord_channel("1", "10", "general", {"send_messages": True})
+    service.add_discord_event("gateway", "connected")
+    service.record_command("discord", "weather")
+    service.record_background_job("fmi_warning", success=True, next_run_at="soon")
+
+    assert service.get_discord_channels()["10"]["name"] == "general"
+    assert service.get_discord_events()[-1]["event"] == "gateway"
+    assert service.get_command_usage()["discord"]["weather"] == 1
+    assert service.get_background_jobs()["fmi_warning"]["healthy"] is True
+
+
 def test_discord_allowlist_and_admin_ids_do_not_depend_on_discord_library():
     settings = {
         "enabled": True,
@@ -98,6 +112,19 @@ def test_discord_allowlist_splits_legacy_comma_separated_entries():
 
     assert bot._allowed_channel(123) is True
     assert bot._allowed_channel(456) is True
+
+
+def test_discord_notification_rate_limit_is_channel_specific():
+    bot = DiscordBot(
+        SimpleNamespace(),
+        {"channel_settings": {"10": {"rate_limit": 2}, "11": {"rate_limit": 1}}},
+    )
+
+    assert bot.can_deliver_notification("#10") is True
+    assert bot.can_deliver_notification("#10") is True
+    assert bot.can_deliver_notification("#10") is False
+    assert bot.can_deliver_notification("#11") is True
+    assert bot.can_deliver_notification("#11") is False
 
 
 def test_discord_core_commands_include_community_feature_alias():

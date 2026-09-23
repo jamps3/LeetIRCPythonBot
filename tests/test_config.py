@@ -570,6 +570,8 @@ def test_state_config_defaults_are_idempotent_and_do_not_share_mutable_values():
         "allowed_channels": [],
         "admin_user_ids": [],
         "admin_role_ids": [],
+        "command_sync": "global",
+        "channel_settings": {},
     }
     assert state_config["servers"][0]["quit_message"] == ""
     assert manager._ensure_state_config_defaults(state_config) is False

@@ -6,7 +6,7 @@ from typing import Any
 
 from state_utils import update_json_file
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def _ensure_dict(value: Any) -> dict:
@@ -40,10 +40,16 @@ def migrate_state_data(data: Any) -> dict:
 
     state.setdefault("schema_version", 0)
     state.setdefault("channel_features", {})
-    state.setdefault("observability", {"metrics": {}})
+    observability = _ensure_dict(state.get("observability"))
+    observability.setdefault("metrics", {})
+    observability.setdefault("commands_by_platform", {})
+    observability.setdefault("background_jobs", {})
+    state["observability"] = observability
     state.setdefault("seen", {})
     state.setdefault("polls", {})
     state.setdefault("discord_polls", {})
+    state.setdefault("discord_channels", {})
+    state.setdefault("discord_events", [])
 
     discord = _ensure_dict(config.get("discord"))
     discord.setdefault("enabled", False)
@@ -56,6 +62,8 @@ def migrate_state_data(data: Any) -> dict:
     discord["admin_role_ids"] = _normalize_discord_ids(
         discord.get("admin_role_ids", [])
     )
+    discord.setdefault("command_sync", "global")
+    discord.setdefault("channel_settings", {})
     config["discord"] = discord
 
     data["config"] = config

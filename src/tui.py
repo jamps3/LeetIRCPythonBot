@@ -1190,6 +1190,9 @@ class ConfigEditor:
             ("DISCORD_ALLOWED_CHANNELS", "Comma-separated channel IDs"),
             ("DISCORD_ADMIN_USER_IDS", "Comma-separated user IDs"),
             ("DISCORD_ADMIN_ROLE_IDS", "Comma-separated role IDs"),
+            ("DISCORD_COMMAND_SYNC", "global or disabled"),
+            ("DISCORD_CHANNEL_SETTINGS", "JSON: channel ID -> quiet_hours/rate_limit"),
+            ("DISCORD_CHANNEL_FEATURES", "JSON: channel ID -> feature toggles"),
         ],
     }
     STATE_FIELDS = {
@@ -1225,7 +1228,10 @@ class ConfigEditor:
         "DISCORD_ALLOWED_CHANNELS": "allowed_channels",
         "DISCORD_ADMIN_USER_IDS": "admin_user_ids",
         "DISCORD_ADMIN_ROLE_IDS": "admin_role_ids",
+        "DISCORD_COMMAND_SYNC": "command_sync",
+        "DISCORD_CHANNEL_SETTINGS": "channel_settings",
     }
+    DISCORD_CHANNEL_FEATURES = "DISCORD_CHANNEL_FEATURES"
     BOOLEAN_STATE_FIELDS = {
         "AUTO_CONNECT",
         "AUTO_RECONNECT",
@@ -1276,6 +1282,23 @@ class ConfigEditor:
         state_config = (
             state_config if state_config is not None else self._state_config()
         )
+        if key == self.DISCORD_CHANNEL_FEATURES:
+            state = load_json_file(self._state_file(), default={})
+            state_data = state.get("state", {}) if isinstance(state, dict) else {}
+            metadata = state_data.get("discord_channels", {})
+            feature_data = state_data.get("channel_features", {})
+            values = {}
+            if isinstance(metadata, dict) and isinstance(feature_data, dict):
+                for channel_id, channel in metadata.items():
+                    guild_id = (
+                        channel.get("guild_id", "") if isinstance(channel, dict) else ""
+                    )
+                    scoped = feature_data.get(f"discord:{guild_id}:#{channel_id}")
+                    if isinstance(scoped, dict):
+                        values[channel_id] = scoped
+            import json
+
+            return json.dumps(values, sort_keys=True)
         if key in self.DISCORD_FIELDS:
             return self._format_value(
                 state_config.get("discord", {}).get(self.DISCORD_FIELDS[key], "")
@@ -1285,6 +1308,16 @@ class ConfigEditor:
         return os.getenv(key, "")
 
     def _parse_state_value(self, key, value):
+        if key in {"DISCORD_CHANNEL_SETTINGS", self.DISCORD_CHANNEL_FEATURES}:
+            try:
+                import json
+
+                parsed = json.loads(value or "{}")
+            except ValueError as exc:
+                raise ValueError("Discord channel data must be valid JSON") from exc
+            if not isinstance(parsed, dict):
+                raise ValueError("Discord channel data must be a JSON object")
+            return parsed
         if key in self.BOOLEAN_STATE_FIELDS:
             return value.strip().lower() in {"1", "true", "yes", "on"}
         if key in self.INTEGER_STATE_FIELDS:
@@ -1427,7 +1460,11 @@ class ConfigEditor:
             if value == self._initial_values.get(key, ""):
                 continue
             if value or key not in self.SENSITIVE_KEYS:
-                if key in self.STATE_FIELDS or key in self.DISCORD_FIELDS:
+                if (
+                    key in self.STATE_FIELDS
+                    or key in self.DISCORD_FIELDS
+                    or key == self.DISCORD_CHANNEL_FEATURES
+                ):
                     state_values[key] = self._parse_state_value(key, value)
                 else:
                     env_values[key] = value
@@ -1522,7 +1559,22 @@ class ConfigEditor:
                     config = state.setdefault("config", {})
                     discord = config.setdefault("discord", {})
                     for key, value in state_values.items():
-                        if key in self.DISCORD_FIELDS:
+                        if key == self.DISCORD_CHANNEL_FEATURES:
+                            state_data = state.setdefault("state", {})
+                            metadata = state_data.get("discord_channels", {})
+                            features = state_data.setdefault("channel_features", {})
+                            for channel_id, overrides in value.items():
+                                channel = metadata.get(str(channel_id), {})
+                                guild_id = (
+                                    channel.get("guild_id", "")
+                                    if isinstance(channel, dict)
+                                    else ""
+                                )
+                                if guild_id and isinstance(overrides, dict):
+                                    features[f"discord:{guild_id}:#{channel_id}"] = (
+                                        overrides
+                                    )
+                        elif key in self.DISCORD_FIELDS:
                             discord[self.DISCORD_FIELDS[key]] = value
                         else:
                             config[self.STATE_FIELDS[key]] = value
@@ -1827,7 +1879,9 @@ class TUIManager:
             f"LeetIRCBot TUI | {current_time} | {server_status} | {service_status} | "
             f"{discord_status} | {view_indicator}"
         )
-        status_line2 = f"F1=Help F2=Console F3=Stats F4=Config F5=RawLogs | {help_text}"
+        status_line2 = (
+            f"F1=Help F2=Console F3=Stats F4=Config F5=RawLogs F6=Discord | {help_text}"
+        )
 
         status_text = f"{status_line1}\n{status_line2}"
         self.header.set_text(status_text)
@@ -2527,6 +2581,9 @@ class TUIManager:
             # Toggle console-style logging view
             self.toggle_console_logging()
 
+        elif key in ("f6", "shift f6", "ctrl f6"):
+            self.switch_view("discord")
+
         elif key == "page up":
             # Scroll log display up by one page
             self.log_display.scroll_up_page()
@@ -2585,6 +2642,10 @@ class TUIManager:
                     "Switched to raw console logging view",
                     "SYSTEM",
                 )
+
+            elif view_name == "discord":
+                self._render_static_view(self.get_discord_events_display())
+                self._focus_body()
 
             elif view_name == "console":
                 # Restore normal log display
@@ -2842,6 +2903,8 @@ class TUIManager:
             self._render_static_view(self.config_editor.get_config_display())
         elif self.current_view == "help":
             self._render_static_view(self._get_help_text())
+        elif self.current_view == "discord":
+            self._render_static_view(self.get_discord_events_display())
 
         # Log the change
         mode_str = "wrapped" if WRAP_MODE else "clipped"
@@ -2989,6 +3052,41 @@ class TUIManager:
         """Show help information."""
         self.switch_view("help")
 
+    def get_discord_events_display(self):
+        """Render persisted Discord gateway and permission diagnostics."""
+        lines = ["Discord Events", "=" * 40]
+        discord_bot = getattr(self.bot_manager, "discord_bot", None)
+        diagnostics = (
+            discord_bot.get_diagnostics()
+            if discord_bot and hasattr(discord_bot, "get_diagnostics")
+            else {"enabled": False}
+        )
+        lines.append(
+            "Gateway: " + ("online" if diagnostics.get("connected") else "offline")
+        )
+        lines.append(
+            "Token: "
+            + ("configured" if diagnostics.get("token_configured") else "missing")
+        )
+        lines.append(
+            "Allowed channels: " + ", ".join(diagnostics.get("allowed_channels", []))
+        )
+        community = None
+        try:
+            community = self.bot_manager.message_handler._get_community_state()
+        except (AttributeError, TypeError):
+            pass
+        events = community.get_discord_events() if community else []
+        lines.append("")
+        lines.append("Recent events:")
+        if not events:
+            lines.append("  No Discord events recorded.")
+        for event in reversed(events[-30:]):
+            lines.append(
+                f"  {event.get('at', '')} [{event.get('level', 'INFO')}] {event.get('event', '')}: {event.get('detail', '')}"
+            )
+        return "\n".join(lines)
+
     def _get_help_text(self):
         """Return the TUI help screen text."""
         return """
@@ -3000,6 +3098,7 @@ Views:
   F3 / Shift+F3 / stats    - Statistics view (bot performance)
   F4 / Shift+F4 / config   - Configuration editor
   F5 / Shift+F5 / rawlogs  - Raw console-style logs
+  F6 / Shift+F6 / discord  - Discord gateway and diagnostics
 
 Commands:
   !command        - Send bot command (e.g., !help, !connect, !exit)
@@ -3018,6 +3117,7 @@ Keyboard Shortcuts:
   F3, Shift+F3, Ctrl+F3 - Statistics view
   F4, Shift+F4, Ctrl+F4 - Configuration editor
   F5, Shift+F5, Ctrl+F5 - Raw console-style logs
+  F6, Shift+F6, Ctrl+F6 - Discord diagnostics view
   Up/Down         - Navigate command history
   PageUp/PageDown - Scroll log display
   Enter           - Send message/command

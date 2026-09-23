@@ -23,7 +23,11 @@ def test_state_migration_adds_new_sections(tmp_path):
     state = data["state"]
     assert state["schema_version"] == SCHEMA_VERSION
     assert state["channel_features"] == {}
-    assert state["observability"] == {"metrics": {}}
+    assert state["observability"] == {
+        "metrics": {},
+        "commands_by_platform": {},
+        "background_jobs": {},
+    }
     assert state["seen"] == {}
     assert state["polls"] == {}
 

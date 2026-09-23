@@ -10,7 +10,7 @@ import asyncio
 import os
 import re
 import threading
-from datetime import timedelta
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 from typing import Any, Callable
 
@@ -21,6 +21,7 @@ from command_registry import (
     get_command_registry,
     process_command_message,
 )
+from state_utils import update_json_file
 
 CORE_COMMANDS = {
     "help": "help",
@@ -88,6 +89,9 @@ class DiscordChannelTransport:
     def send_message(self, target: str, message: str) -> None:
         self._bot.send_message(target, message)
 
+    def send_embed(self, target: str, title: str, description: str) -> None:
+        self._bot.send_embed(target, title, description)
+
     send_notice = send_message
 
 
@@ -103,8 +107,32 @@ class DiscordBot:
         self.thread: threading.Thread | None = None
         self.client = None
         self.tree = None
+        self._discord = None
+        self._notification_times: dict[str, list[datetime]] = {}
         self.config = SimpleNamespace(name="discord", use_notices=False)
         self.bot_name = "DiscordBot"
+
+    def _community(self):
+        handler = getattr(self.bot_manager, "message_handler", None)
+        getter = getattr(handler, "_get_community_state", None)
+        return getter() if callable(getter) else None
+
+    def _record_event(self, event: str, detail: str, level: str = "INFO") -> None:
+        community = self._community()
+        if community and hasattr(community, "add_discord_event"):
+            community.add_discord_event(event, detail, level)
+
+    def get_diagnostics(self) -> dict[str, Any]:
+        """Return secret-free startup diagnostics for TUI and /health."""
+        allowed = sorted(self._configured_ids("allowed_channels"))
+        return {
+            "enabled": bool(self.settings.get("enabled", False)),
+            "token_configured": bool(self.token),
+            "connected": self.connected,
+            "message_content_intent": True,
+            "allowed_channels": allowed,
+            "command_sync": self.settings.get("command_sync", "global"),
+        }
 
     @property
     def enabled(self) -> bool:
@@ -131,6 +159,7 @@ class DiscordBot:
             target=self._thread_main, name="discord-gateway", daemon=True
         )
         self.thread.start()
+        self._record_event("gateway", "Discord gateway thread started")
         return True
 
     def _thread_main(self) -> None:
@@ -138,6 +167,7 @@ class DiscordBot:
             asyncio.run(self._run())
         except Exception as exc:
             self.logger.error(f"Discord gateway failed during startup: {exc}")
+            self._record_event("gateway", str(exc), "ERROR")
 
     async def _run(self) -> None:
         try:
@@ -148,6 +178,7 @@ class DiscordBot:
             return
 
         self.loop = asyncio.get_running_loop()
+        self._discord = discord
         intents = discord.Intents.default()
         intents.message_content = True
         self.client = discord.Client(intents=intents)
@@ -157,12 +188,15 @@ class DiscordBot:
         @self.client.event
         async def on_ready():
             self.bot_name = self.client.user.name if self.client.user else self.bot_name
-            try:
-                await self.tree.sync()
-                self.logger.info("Discord slash commands synchronized")
-            except Exception as exc:
-                self.logger.error(f"Discord command synchronization failed: {exc}")
+            if self.settings.get("command_sync", "global") != "disabled":
+                try:
+                    await self.tree.sync()
+                    self.logger.info("Discord slash commands synchronized")
+                except Exception as exc:
+                    self.logger.error(f"Discord command synchronization failed: {exc}")
+                    self._record_event("command_sync", str(exc), "ERROR")
             self.logger.info(f"Discord connected as {self.bot_name}")
+            await self._capture_channel_diagnostics()
 
         @self.client.event
         async def on_message(message):
@@ -223,6 +257,22 @@ class DiscordBot:
                 return
             await self._respond(interaction, self._status_message(interaction), True)
 
+        @self.tree.command(name="health", description="Show bot and service health")
+        async def health(interaction):
+            if not self._allowed_interaction(interaction):
+                await self._respond(
+                    interaction, "This bot is not enabled in this channel.", True
+                )
+                return
+            await self._respond(interaction, self._health_message(), True)
+
+        @self.tree.command(
+            name="settings",
+            description="View or update this Discord channel's settings",
+        )
+        async def settings(interaction, action: str = "show", value: str = ""):
+            await self._settings_command(interaction, action, value)
+
     def _make_command_callback(self, command: str) -> Callable[..., Any]:
         """Create a slash callback without exposing closure state as an option."""
 
@@ -272,6 +322,27 @@ class DiscordBot:
         return (
             "Discord status: online. "
             f"Guild {interaction.guild.id}, channel {interaction.channel.id} is enabled."
+        )
+
+    def _health_message(self) -> str:
+        diagnostics = self.get_diagnostics()
+        manager_health = getattr(self.bot_manager, "get_health_status", lambda: {})()
+        services = (
+            manager_health.get("services", {})
+            if isinstance(manager_health, dict)
+            else {}
+        )
+        healthy = sum(bool(value) for value in services.values())
+        jobs = (
+            manager_health.get("background_jobs", {})
+            if isinstance(manager_health, dict)
+            else {}
+        )
+        return (
+            f"Discord: {'online' if diagnostics['connected'] else 'offline'} | "
+            f"Token: {'configured' if diagnostics['token_configured'] else 'missing'} | "
+            f"Services: {healthy}/{len(services)} available | "
+            f"Background jobs: {len(jobs)} tracked"
         )
 
     async def _respond(
@@ -326,10 +397,18 @@ class DiscordBot:
         response = await process_command_message(
             context.raw_message, context, bot_functions
         )
-        await self._respond(
-            interaction,
-            response.message if response and response.should_respond else "Done.",
-        )
+        community = self._community()
+        if community:
+            community.record_command("discord", command)
+        message = response.message if response and response.should_respond else "Done."
+        if (
+            command in {"weather", "forecast", "electricity"}
+            and response
+            and response.should_respond
+        ):
+            await self._respond_embed(interaction, command.title(), message)
+        else:
+            await self._respond(interaction, message)
 
     def is_admin(self, interaction) -> bool:
         user_ids = self._configured_ids("admin_user_ids")
@@ -338,7 +417,140 @@ class DiscordBot:
         member = getattr(interaction, "user", None)
         role_ids = self._configured_ids("admin_role_ids")
         roles = getattr(member, "roles", [])
-        return any(str(getattr(role, "id", "")) in role_ids for role in roles)
+        if any(str(getattr(role, "id", "")) in role_ids for role in roles):
+            return True
+        permissions = getattr(member, "guild_permissions", None)
+        return bool(getattr(permissions, "manage_guild", False))
+
+    def _channel_settings(self, channel_id: str) -> dict[str, Any]:
+        settings = self.settings.get("channel_settings", {})
+        return settings.get(str(channel_id), {}) if isinstance(settings, dict) else {}
+
+    def can_deliver_notification(self, target: str) -> bool:
+        """Apply Discord-only quiet hours and hourly notification limits."""
+        settings = self._channel_settings(str(target).lstrip("#"))
+        quiet_hours = str(settings.get("quiet_hours", ""))
+        if quiet_hours:
+            try:
+                start, end = (
+                    datetime.strptime(part, "%H:%M").time()
+                    for part in quiet_hours.split("-", 1)
+                )
+                now = datetime.now().time()
+                if (start <= end and start <= now < end) or (
+                    start > end and (now >= start or now < end)
+                ):
+                    return False
+            except ValueError:
+                self.logger.warning(
+                    f"Ignoring invalid Discord quiet hours for {target}: {quiet_hours}"
+                )
+        try:
+            limit = int(settings.get("rate_limit", 0))
+        except (TypeError, ValueError):
+            limit = 0
+        if limit <= 0:
+            return True
+        now = datetime.now()
+        timestamps = [
+            stamp
+            for stamp in self._notification_times.get(target, [])
+            if (now - stamp).total_seconds() < 3600
+        ]
+        if len(timestamps) >= limit:
+            return False
+        timestamps.append(now)
+        self._notification_times[target] = timestamps
+        return True
+
+    def _save_channel_settings(self, channel_id: str, values: dict[str, Any]) -> bool:
+        config = getattr(self.bot_manager, "config", None)
+        state_file = getattr(config, "state_file", "data/state.json")
+
+        def updater(data):
+            config_data = data.setdefault("config", {})
+            discord = config_data.setdefault("discord", {})
+            channels = discord.setdefault("channel_settings", {})
+            existing = channels.setdefault(str(channel_id), {})
+            existing.update(values)
+            return data
+
+        saved = update_json_file(state_file, updater, default=dict, strict=True)
+        if saved:
+            channels = self.settings.setdefault("channel_settings", {})
+            channels.setdefault(str(channel_id), {}).update(values)
+        return saved
+
+    async def _settings_command(self, interaction, action: str, value: str) -> None:
+        if interaction.guild is None or not self._allowed_interaction(interaction):
+            await self._respond(
+                interaction,
+                "Settings are available in enabled Discord channels only.",
+                True,
+            )
+            return
+        if not self.is_admin(interaction):
+            await self._respond(
+                interaction, "Discord administrator permission is required.", True
+            )
+            return
+        channel_id = str(interaction.channel.id)
+        action = action.lower().strip()
+        community = self._community()
+        if action == "show":
+            features = (
+                community.get_channel_features(*self._scope(interaction)[:2])
+                if community
+                else {}
+            )
+            settings = self._channel_settings(channel_id)
+            enabled = ", ".join(name for name, active in features.items() if active)
+            await self._respond(
+                interaction,
+                f"Enabled features: {enabled or 'none'} | Quiet hours: {settings.get('quiet_hours', 'off')} | Notification rate: {settings.get('rate_limit', 0)}/hour",
+                True,
+            )
+            return
+        if action == "feature":
+            parts = value.lower().split()
+            server_name, target, _ = self._scope(interaction)
+            available_features = (
+                community.get_channel_features(server_name, target) if community else {}
+            )
+            if len(parts) != 2 or parts[0] not in available_features:
+                await self._respond(
+                    interaction, "Use: /settings feature value:<feature> <on|off>", True
+                )
+                return
+            if parts[1] not in {"on", "off"}:
+                await self._respond(interaction, "Use on or off.", True)
+                return
+            community.set_feature(server_name, target, parts[0], parts[1] == "on")
+            await self._respond(interaction, f"{parts[0]} is now {parts[1]}.", True)
+            return
+        if action == "quiet":
+            if value and not re.fullmatch(r"\d{2}:\d{2}-\d{2}:\d{2}", value):
+                await self._respond(
+                    interaction,
+                    "Use HH:MM-HH:MM, or leave value empty to disable.",
+                    True,
+                )
+                return
+            self._save_channel_settings(channel_id, {"quiet_hours": value})
+            await self._respond(interaction, f"Quiet hours: {value or 'off'}.", True)
+            return
+        if action == "rate":
+            if not value.isdigit():
+                await self._respond(
+                    interaction, "Use a whole number of notifications per hour.", True
+                )
+                return
+            self._save_channel_settings(channel_id, {"rate_limit": int(value)})
+            await self._respond(
+                interaction, f"Notification rate limit: {value}/hour.", True
+            )
+            return
+        await self._respond(interaction, "Actions: show, feature, quiet, rate.", True)
 
     async def _on_message(self, message) -> None:
         if getattr(message.author, "bot", False) or message.guild is None:
@@ -357,6 +569,61 @@ class DiscordBot:
             actor_id=str(message.author.id),
             channel_id=str(message.channel.id),
         )
+
+    async def _capture_channel_diagnostics(self) -> None:
+        """Persist channel names and report missing send/read permissions."""
+        community = self._community()
+        if not community:
+            return
+        for channel_id in self._configured_ids("allowed_channels"):
+            channel = self.client.get_channel(int(channel_id)) if self.client else None
+            if channel is None:
+                self._record_event(
+                    "diagnostic",
+                    f"Allowed channel {channel_id} is not visible",
+                    "WARNING",
+                )
+                continue
+            permissions = {}
+            guild = getattr(channel, "guild", None)
+            me = getattr(guild, "me", None)
+            if me and hasattr(channel, "permissions_for"):
+                resolved = channel.permissions_for(me)
+                permissions = {
+                    name: bool(getattr(resolved, name, False))
+                    for name in (
+                        "view_channel",
+                        "send_messages",
+                        "read_message_history",
+                        "embed_links",
+                    )
+                }
+                missing = [name for name, allowed in permissions.items() if not allowed]
+                if missing:
+                    self._record_event(
+                        "diagnostic",
+                        f"#{getattr(channel, 'name', channel_id)} missing: {', '.join(missing)}",
+                        "WARNING",
+                    )
+            community.save_discord_channel(
+                str(getattr(guild, "id", "")),
+                channel_id,
+                getattr(channel, "name", ""),
+                permissions,
+            )
+        self._record_event(
+            "gateway", "Discord connected and channel diagnostics completed"
+        )
+
+    async def _respond_embed(self, interaction, title: str, description: str) -> None:
+        if not self._discord:
+            await self._respond(interaction, description)
+            return
+        embed = self._discord.Embed(title=title, description=description[:4096])
+        if not interaction.response.is_done():
+            await interaction.response.send_message(embed=embed)
+        else:
+            await interaction.followup.send(embed=embed)
 
     async def _poll_command(self, interaction, action: str, data: str, discord) -> None:
         if interaction.guild is None or not self._allowed_interaction(interaction):
@@ -491,6 +758,27 @@ class DiscordBot:
             channel_id
         ) or await self.client.fetch_channel(channel_id)
         await channel.send(message[:2000], allowed_mentions=None)
+
+    def send_embed(self, target: str, title: str, description: str) -> None:
+        if self.loop and self.loop.is_running():
+            asyncio.run_coroutine_threadsafe(
+                self._send_embed(target, title, description), self.loop
+            )
+
+    async def _send_embed(self, target: str, title: str, description: str) -> None:
+        if not self.client:
+            return
+        channel_id = int(str(target).lstrip("#"))
+        channel = self.client.get_channel(
+            channel_id
+        ) or await self.client.fetch_channel(channel_id)
+        if self._discord:
+            await channel.send(
+                embed=self._discord.Embed(title=title, description=description[:4096]),
+                allowed_mentions=None,
+            )
+        else:
+            await channel.send(f"{title}: {description}"[:2000], allowed_mentions=None)
 
     def stop(self) -> None:
         loop = self.loop

@@ -130,7 +130,14 @@ messages in `data/state.json` under `config.discord`:
   "enabled": true,
   "allowed_channels": ["123456789012345678"],
   "admin_user_ids": ["123456789012345678"],
-  "admin_role_ids": []
+  "admin_role_ids": [],
+  "command_sync": "global",
+  "channel_settings": {
+    "123456789012345678": {
+      "quiet_hours": "23:00-07:00",
+      "rate_limit": 4
+    }
+  }
 }
 ```
 
@@ -141,8 +148,20 @@ its channel-specific state. Every command marked Discord-capable in the shared
 command registry is synchronized automatically, including weather, utilities,
 games, community features, tracking, and subscriptions. IRC protocol,
 connection-management, raw-command, and console-only commands are not exposed
-on Discord. Native Discord commands include `/help`, `/status`, `/seen`,
-`/poll`, and `/ask`.
+on Discord. Native Discord commands include `/help`, `/status`, `/health`,
+`/settings`, `/seen`, `/poll`, and `/ask`. `/health` shows gateway, service,
+and background-job status without revealing secrets. `/settings` is restricted
+to configured Discord admins (or members with Manage Server) and changes only
+the current channel: use `show`, `feature` with `feature on|off`, `quiet` with
+`HH:MM-HH:MM`, or `rate` with a notification count per hour.
+
+At startup the bot records the allowlisted Discord channel names and checks
+View Channel, Send Messages, Read Message History, and Embed Links. Open TUI
+`F6` for the persisted Discord event and diagnostics view. The Configuration
+Editor (`F4`) exposes `DISCORD_CHANNEL_SETTINGS` as a JSON object for bulk
+changes and `DISCORD_CHANNEL_FEATURES` for per-channel feature toggles.
+Weather, electricity, and alert notifications use Discord embeds;
+IRC continues using its existing text formatting.
 
 After the bot has been restarted once with Discord support installed, update
 `DISCORD_TOKEN` or `config.discord` and use `!reload <admin-password>` to

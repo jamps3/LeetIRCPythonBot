@@ -445,7 +445,13 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
     ) -> bool:
         """Check channel subscriptions against joined or configured channels."""
         if server_name.startswith("discord:"):
-            return str(nick_or_channel).lstrip("#").isdigit()
+            if not str(nick_or_channel).lstrip("#").isdigit():
+                return False
+            return bool(
+                getattr(server, "can_deliver_notification", lambda _: True)(
+                    nick_or_channel
+                )
+            )
         if not nick_or_channel.startswith("#"):
             return True
 
@@ -487,8 +493,8 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                         server_name, server, nick_or_channel
                     ):
                         if hasattr(self, "bot_manager"):
-                            self.bot_manager._send_response(
-                                server, nick_or_channel, warning
+                            self._send_subscription_notification(
+                                server, nick_or_channel, warning, "FMI warning"
                             )
                         else:
                             self._send_response(server, nick_or_channel, warning)
@@ -518,14 +524,30 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                         server_name, server, nick_or_channel
                     ):
                         if hasattr(self, "bot_manager"):
-                            self.bot_manager._send_response(
-                                server, nick_or_channel, announcement
+                            self._send_subscription_notification(
+                                server,
+                                nick_or_channel,
+                                announcement,
+                                "Danger announcement",
                             )
                         else:
                             self._send_response(server, nick_or_channel, announcement)
 
         except Exception as e:
             logger.error(f"Error handling danger announcements: {e}")
+
+    def _send_subscription_notification(
+        self, server, target: str, message: str, title: str
+    ) -> None:
+        """Deliver alerts through a platform-native representation where available."""
+        if getattr(server, "platform", "") == "discord" and hasattr(
+            server, "send_embed"
+        ):
+            server.send_embed(target, title, message)
+        elif hasattr(self, "bot_manager"):
+            self.bot_manager._send_response(server, target, message)
+        else:
+            self._send_response(server, target, message)
 
     def _handle_otiedote_release(self, data):
         """Handle otiedote release."""
@@ -1386,6 +1408,9 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
         try:
             self._record_observability_event(context, "commands")
+            self._get_community_state().record_command(
+                context.get("platform", "irc"), text[1:].split(maxsplit=1)[0].lower()
+            )
             logger.debug(
                 f"Processing command from {sender} in {target} on {server.config.name}: {text}"
             )
@@ -2116,7 +2141,10 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
         electricity_service = self.service_manager.get_service("electricity")
         if not electricity_service:
             response = "⚡ Electricity price service not available. Please configure ELECTRICITY_API_KEY."
-            self._send_response(irc, channel, response)
+            if getattr(irc, "platform", "") == "discord" and hasattr(irc, "send_embed"):
+                irc.send_embed(channel, "Electricity prices", response)
+            else:
+                self._send_response(irc, channel, response)
             return
 
         try:

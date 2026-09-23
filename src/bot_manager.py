@@ -13,6 +13,7 @@ This is now a lightweight orchestrator that uses the new modular managers:
 import os
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Optional
 from unittest.mock import Mock
@@ -177,6 +178,48 @@ class BotManager:
         """Apply Discord token and settings changes without restarting IRC."""
         return self._configure_discord_transport(start=True)
 
+    def get_health_status(self) -> dict:
+        """Return a compact, secret-free health snapshot for all transports."""
+        services = getattr(self.service_manager, "services", {}) or {}
+        community = self.message_handler._get_community_state()
+        jobs = community.get_background_jobs() if community else {}
+        discord = (
+            self.discord_bot.get_diagnostics()
+            if self.discord_bot
+            else {"enabled": False}
+        )
+        return {
+            "services": {
+                name: service is not None for name, service in services.items()
+            },
+            "background_jobs": jobs,
+            "discord": discord,
+            "irc_connected": sum(
+                bool(getattr(server, "connected", False))
+                for server in self.servers.values()
+            ),
+            "irc_configured": len(self.servers),
+        }
+
+    def _record_background_job(self, name: str, success: bool, error: str = "") -> None:
+        community = self.message_handler._get_community_state()
+        if community:
+            service = self.service_manager.get_service(name)
+            interval = getattr(service, "check_interval", 0)
+            try:
+                next_run_at = (
+                    (
+                        datetime.now(timezone.utc) + timedelta(seconds=float(interval))
+                    ).isoformat()
+                    if interval
+                    else "active"
+                )
+            except (TypeError, ValueError):
+                next_run_at = "active"
+            community.record_background_job(
+                name, success=success, error=error, next_run_at=next_run_at
+            )
+
     def start(self):
         """Start all managers and begin bot operation."""
         self.logger.info("🚀 Starting bot managers...")
@@ -187,7 +230,14 @@ class BotManager:
             return False
 
         if hasattr(self.service_manager, "start_background_services"):
-            self.service_manager.start_background_services()
+            try:
+                self.service_manager.start_background_services()
+                for name in ("fmi_warning", "otiedote", "danger_announcement"):
+                    if self.service_manager.get_service(name):
+                        self._record_background_job(name, True)
+            except Exception as exc:
+                self._record_background_job("background_services", False, str(exc))
+                raise
 
         if self.discord_bot:
             self.discord_bot.start()
