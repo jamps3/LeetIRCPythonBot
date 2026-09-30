@@ -6,10 +6,12 @@ The default interface. Use --console for the simple interface.
 
 import os
 import re
+import threading
 import time
 import warnings
 from collections import deque
 from datetime import datetime
+from queue import Empty, SimpleQueue
 from typing import Any, cast
 
 import urwid
@@ -75,6 +77,13 @@ URWID_DECODE_WARNING = (
 )
 
 
+def _terminal_safe_text(text: str) -> str:
+    """Keep untrusted log text from sending terminal cursor/erase commands."""
+    text = re.sub(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)", "", str(text))
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+    return re.sub(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]", "", text)
+
+
 class LogEntry:
     """Represents a single log entry."""
 
@@ -115,7 +124,9 @@ class LogEntry:
         """Get formatted display text for this log entry."""
         nanoseconds = _epoch_nanosecond_fraction(self.timestamp_ns)
         time_str = self.timestamp.strftime("%H.%M.%S") + f".{nanoseconds:09d}"
-        return f"[{time_str}] [{self.server}] [{self.level}] {self.message}"
+        return _terminal_safe_text(
+            f"[{time_str}] [{self.server}] [{self.level}] {self.message}"
+        )
 
     def get_color_attr(self) -> str:
         """Get the urwid color attribute for this log entry."""
@@ -1676,6 +1687,9 @@ class TUIManager:
         self.history_index = 0
         self.current_filter = ""
         self.current_view = "console"  # console, stats, config, help
+        self._ui_thread_id = None
+        self._pending_logs = SimpleQueue()
+        self._last_screen_refresh = 0.0
 
         # Channel tracking
         self.joined_channels = None  # Will be set from bot_manager
@@ -2160,6 +2174,14 @@ class TUIManager:
         timestamp_ns: int | None = None,
     ):
         """Add a new log entry to the display."""
+        if (
+            self._ui_thread_id is not None
+            and threading.get_ident() != self._ui_thread_id
+        ):
+            self._pending_logs.put(
+                (timestamp, server, level, message, source_type, timestamp_ns)
+            )
+            return
         entry = LogEntry(timestamp, server, level, message, source_type, timestamp_ns)
         self.log_entries.append(entry)
 
@@ -2182,6 +2204,21 @@ class TUIManager:
             # Auto-scroll to bottom only if we were previously at bottom or auto-scroll is enabled
             if was_at_bottom or self.log_display.should_auto_scroll():
                 self.log_display.scroll_to_bottom()
+
+    def _refresh_terminal(self):
+        """Apply worker logs on the UI thread and recover stale terminal rows."""
+        for _ in range(500):
+            try:
+                pending = self._pending_logs.get_nowait()
+            except Empty:
+                break
+            self.add_log_entry(*pending)
+        now = time.monotonic()
+        if now - self._last_screen_refresh >= 5:
+            # Urwid normally diffs against its previous screen. An external write
+            # can erase an unchanged footer without invalidating that cache.
+            self.loop.screen.clear()
+            self._last_screen_refresh = now
 
     def apply_filter(self, filter_text: str):
         """Apply a filter to the log display."""
@@ -3285,6 +3322,7 @@ Tips:
             input_filter=self._filter_input,
             handle_mouse=True,  # Enable mouse support
         )
+        self._ui_thread_id = threading.get_ident()
 
         # Set up periodic updates
         def update_callback():
@@ -3292,6 +3330,7 @@ Tips:
                 self.update_header()
                 self.update_channel_bar()
                 self.update_input_style()  # Update timestamp in input field
+                self._refresh_terminal()
 
                 # Auto-refresh stats only. Config/help are static, scrollable views;
                 # rebuilding them every second would reset the user's scroll position.
@@ -3323,6 +3362,7 @@ Tips:
         try:
             self.loop.run()
         finally:
+            self._ui_thread_id = None
             # Clean up Voikko to avoid deallocator errors on shutdown
             try:
                 from lemmatizer import cleanup_voikko

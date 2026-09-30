@@ -8,6 +8,7 @@ and related classes with comprehensive coverage.
 
 import json
 import os
+import threading
 from collections import deque
 from datetime import datetime
 from types import SimpleNamespace
@@ -761,6 +762,51 @@ class TestConfigEditor:
 
 class TestTUIManager:
     """Test TUIManager class functionality."""
+
+    def test_worker_logs_are_applied_on_ui_thread(self):
+        manager = TUIManager()
+        manager._ui_thread_id = threading.get_ident()
+        manager.loop = Mock()
+        manager._write_log_entry_to_file = Mock()
+        worker = threading.Thread(
+            target=manager.add_log_entry,
+            args=(datetime.now(), "IRC", "INFO", "worker message"),
+        )
+        worker.start()
+        worker.join(timeout=5)
+        assert not worker.is_alive()
+        assert len(manager.log_entries) == 0
+        assert len(manager.log_walker) == 0
+        manager._refresh_terminal()
+        assert manager.log_entries[-1].message == "worker message"
+        assert len(manager.log_walker) == 1
+        manager.loop.screen.clear.assert_called_once()
+
+    def test_terminal_refresh_recovers_unchanged_footer(self):
+        manager = TUIManager()
+        manager.loop = Mock()
+        manager.setup_layout()
+        manager.update_channel_bar()
+        original_footer = manager.main_layout.footer
+        with patch("tui.time.monotonic", side_effect=[10, 11, 16]):
+            manager._refresh_terminal()
+            manager._refresh_terminal()
+            manager._refresh_terminal()
+        assert manager.loop.screen.clear.call_count == 2
+        assert manager.main_layout.footer is original_footer
+        assert manager.channel_bar.get_text()[0] == "Channels: none"
+
+    def test_log_display_strips_terminal_erase_and_cursor_sequences(self):
+        entry = LogEntry(
+            datetime.now(),
+            "IRC",
+            "INFO",
+            "before\x1b[2J\x1b[H\x1b]0;title\x07after\r\x03text",
+        )
+        display = entry.get_display_text()
+        assert "beforeaftertext" in display
+        assert "\x1b" not in display
+        assert "\r" not in display
 
     def test_tui_manager_creation_no_bot_manager(self, mock_urwid):
         """Test TUIManager creation without bot manager."""

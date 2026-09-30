@@ -197,6 +197,10 @@ The `./run` script syncs dependencies with uv and runs `uv run python src/main.p
 
 When using the TUI inside tmux, `Ctrl+S` can pause terminal output (XOFF). Press `Ctrl+Q` to resume it; use `Alt+S` to save changes in the Configuration Editor.
 
+The TUI applies background log messages on its UI thread and refreshes the
+terminal screen every five seconds to recover rows overwritten by external
+terminal output. Terminal control sequences in displayed logs are removed.
+
 ## .\run Script:
 
 ```bash
