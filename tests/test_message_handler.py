@@ -359,6 +359,18 @@ def test_handle_youtube_urls_and_ai_chat(handler, server):
     assert handler._send_response.call_count == 3
 
 
+def test_private_ai_history_uses_sender_not_bot_target(handler, server):
+    handler.service_manager.get_service.return_value = Mock()
+    handler.drink_tracker.process_message.return_value = []
+    handler._chat_with_gpt = Mock(return_value="reply")
+    handler._send_response = Mock()
+    for sender in ("Alice", "Bob"):
+        asyncio.run(handler._handle_ai_chat("hello", sender, "Bot", server))
+    calls = handler._chat_with_gpt.call_args_list
+    assert calls[0].args[-1] == "private:alice"
+    assert calls[1].args[-1] == "private:bob"
+
+
 def test_service_proxies(handler, server, monkeypatch):
     handler._send_response = Mock()
     crypto = Mock()

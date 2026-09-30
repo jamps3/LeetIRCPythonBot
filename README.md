@@ -113,6 +113,14 @@ ADMIN_PASSWORD=your_secure_password_here
 
 ### Discord setup
 
+AI conversation context is isolated by network and channel. Private IRC chats
+use a separate history for each sender; Discord DMs use the numeric user ID.
+Disabling `gpt_history` makes requests stateless and does not use global history
+or network-wide teachings. Histories created before the isolation fix are
+retained on disk but excluded from new scoped chats, since they may contain
+mixed private conversations. Channel members share only their own channel's
+conversation context.
+
 Discord runs in the same process as IRC, but remains disabled until configured.
 Create a Discord application and bot in the Developer Portal, enable the Message
 Content intent, then invite it with the `bot` and `applications.commands` scopes.

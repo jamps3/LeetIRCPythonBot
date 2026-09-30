@@ -30,6 +30,69 @@ def test_normalize_ai_response_collapses_redundant_whitespace():
     )
 
 
+def test_chat_context_isolated_between_users_channels_and_networks(
+    tmp_path, monkeypatch
+):
+    svc, history_file = make_service(tmp_path)
+    monkeypatch.setattr(svc, "_get_teachings_context", lambda **_: "")
+    requests = []
+    svc.client.responses.create = lambda **kwargs: (
+        requests.append(kwargs["input"]) or FakeResponse("ok")
+    )
+    scopes = [
+        ("irc1", "private:alice"),
+        ("irc1", "private:bob"),
+        ("irc1", "#a"),
+        ("irc1", "#b"),
+        ("irc2", "#a"),
+        ("discord:dm", "private:42"),
+    ]
+    svc.conversation_histories["irc1/#a"] = [
+        {"role": "user", "content": "legacy-secret"}
+    ]
+    for index, (network, channel) in enumerate(scopes):
+        svc.chat(f"secret-{index}", "user", network, channel)
+    for index, transcript in enumerate(requests):
+        assert f"secret-{index}" in transcript
+        assert "legacy-secret" not in transcript
+        assert all(
+            f"secret-{other}" not in transcript
+            for other in range(len(scopes))
+            if other != index
+        )
+    reloaded = GPTService(api_key="", history_file=str(history_file))
+    assert (
+        "secret-0"
+        in reloaded._get_conversation_history("irc1", "private:alice")[1]["content"]
+    )
+    assert len(reloaded._get_conversation_history("irc1", "private:carol")) == 1
+
+
+def test_disabled_history_never_reads_or_writes_global_context(tmp_path, monkeypatch):
+    svc, _ = make_service(tmp_path)
+    svc.conversation_histories["global"].append(
+        {"role": "user", "content": "global-secret"}
+    )
+    captured = []
+    svc.client.responses.create = lambda **kwargs: (
+        captured.append(kwargs["input"]) or FakeResponse("ok")
+    )
+    monkeypatch.setattr(svc, "_get_teachings_context", lambda **_: "")
+    svc.chat("ephemeral-secret", "alice", "irc1", None)
+    svc.chat("next", "bob", "irc1", None)
+    assert "global-secret" not in captured[0]
+    assert "ephemeral-secret" not in captured[1]
+    assert len(svc.conversation_histories["global"]) == 2
+
+
+def test_scoped_system_prompt_cannot_mutate_other_scopes(tmp_path):
+    svc, _ = make_service(tmp_path)
+    original = svc.default_history[0]["content"]
+    svc.set_system_prompt("private system secret", "irc1", "private:alice")
+    assert svc._get_conversation_history("irc1", "#a")[0]["content"] == original
+    assert svc.default_history[0]["content"] == original
+
+
 class FakeClient:
     def __init__(self, text: str | None = "ok"):
         self._text = text

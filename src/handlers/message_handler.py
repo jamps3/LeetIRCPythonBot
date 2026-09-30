@@ -291,7 +291,9 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
             # Minimal AI chat for IRC: respond to private messages or mentions (but NOT commands)
             try:
-                await self._handle_ai_chat(text, sender, target, server)
+                await self._handle_ai_chat(
+                    text, sender, target, server, actor_id=actor_id
+                )
             except Exception as e:
                 logger.warning(f"AI chat processing error: {e}")
 
@@ -1326,7 +1328,13 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             logger.error(f"Error handling YouTube URL: {e}")
 
     async def _handle_ai_chat(
-        self, text: str, sender: str, target: str, server: Server
+        self,
+        text: str,
+        sender: str,
+        target: str,
+        server: Server,
+        *,
+        actor_id: str | None = None,
     ):
         """Handle AI chat responses for private messages and mentions."""
         gpt_service = self.service_manager.get_service("gpt")
@@ -1362,7 +1370,9 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
                 ai_context, "ai"
             ):
                 return
-            history_channel = target
+            history_channel = (
+                f"private:{actor_id or sender.lower()}" if is_private else target
+            )
             if target.startswith("#") and not self._channel_feature_enabled(
                 ai_context, "gpt_history"
             ):
@@ -1472,7 +1482,12 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
             "lookup": lambda irc: context["server_name"],
             "format_counts": self._format_counts,
             "chat_with_gpt": lambda msg, sender=None: self._chat_with_gpt(
-                msg, sender or context["sender"]
+                msg,
+                sender or context["sender"],
+                context["server_name"],
+                context["target"]
+                if context["target"].startswith("#")
+                else f"private:{context.get('actor_id') or context['sender'].lower()}",
             ),
             "wrap_irc_message_utf8_bytes": self._wrap_irc_message_utf8_bytes,
             "send_message": lambda irc, target, msg: server.send_message(target, msg),

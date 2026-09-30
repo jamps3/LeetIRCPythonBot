@@ -726,7 +726,9 @@ class DiscordBot:
         if not gpt:
             await self._respond(interaction, "GPT service is not available.", True)
             return
-        history_channel = target
+        history_channel = (
+            target if interaction.guild else f"private:{interaction.user.id}"
+        )
         if interaction.guild and not community.is_enabled(
             server_name, target, "gpt_history"
         ):

@@ -6,6 +6,8 @@ Provides AI chat functionality using OpenAI's GPT models with conversation histo
 
 import json
 import os
+import threading
+from copy import deepcopy
 from typing import Any, Dict, List
 
 from openai import APIError as OpenAIAPIError
@@ -69,6 +71,7 @@ class GPTService:
             history_file if history_file is not None else CONVERSATION_HISTORY_FILE
         )
         self.history_limit = history_limit
+        self._history_lock = threading.RLock()
 
         self.default_history = [
             {
@@ -94,8 +97,6 @@ class GPTService:
                 if isinstance(data, list):
                     # Migrate old format to new format with "global" key
                     histories = {"global": data}
-                    # Save migrated format
-                    self._save_conversation_histories(histories)
                     return histories
                 elif isinstance(data, dict):
                     # New format - validate each history
@@ -139,18 +140,31 @@ class GPTService:
         self, network: str = None, channel: str = None
     ) -> List[Dict[str, str]]:
         """Get conversation history for specific network/channel."""
-        key = f"{network}/{channel}" if network and channel else "global"
-        return self.conversation_histories.get(key, self.default_history.copy())
+        key = self._history_key(network, channel)
+        with self._history_lock:
+            return deepcopy(self.conversation_histories.get(key, self.default_history))
+
+    @staticmethod
+    def _history_key(network: str = None, channel: str = None) -> str | None:
+        # New namespace quarantines histories written before isolation was fixed.
+        if network and channel:
+            return "isolated-v2:" + json.dumps([network, channel], ensure_ascii=True)
+        if network or channel:
+            return None
+        return "global"
 
     def _set_conversation_history(
         self, history: List[Dict[str, str]], network: str = None, channel: str = None
     ):
         """Set conversation history for specific network/channel."""
-        key = f"{network}/{channel}" if network and channel else "global"
+        key = self._history_key(network, channel)
+        if key is None:
+            return
         # Trim history to fit limits
         trimmed_history = self._trim_conversation_history(history)
-        self.conversation_histories[key] = trimmed_history
-        self._save_conversation_histories()
+        with self._history_lock:
+            self.conversation_histories[key] = deepcopy(trimmed_history)
+            self._save_conversation_histories()
 
     def _trim_conversation_history(
         self, history: List[Dict[str, str]]
@@ -216,6 +230,8 @@ class GPTService:
         self, max_items: int = 100, network: str = None, channel: str = None
     ) -> str:
         """Get teachings formatted for AI context."""
+        if network and not channel:
+            return ""
         try:
             from src.word_tracking.data_manager import get_data_manager
 
@@ -238,6 +254,10 @@ class GPTService:
         network: str = None,
         channel: str = None,
     ) -> str:
+        with self._history_lock:
+            return self._chat_locked(message, sender, network, channel)
+
+    def _chat_locked(self, message, sender, network, channel) -> str:
         # Get the conversation history for this network/channel
         history = self._get_conversation_history(network, channel)
 
@@ -245,7 +265,6 @@ class GPTService:
             "role": "user",
             "content": f"{sender}: {message}" if sender != "user" else message,
         }
-        history.append(user_message)
 
         try:
             if self.client is None:
@@ -257,7 +276,7 @@ class GPTService:
             if not reply:
                 reply = "Sorry, I'm having trouble connecting to the AI service."
 
-            history.append({"role": "assistant", "content": reply})
+            history.extend([user_message, {"role": "assistant", "content": reply}])
             self._set_conversation_history(history, network, channel)
             return reply
 
