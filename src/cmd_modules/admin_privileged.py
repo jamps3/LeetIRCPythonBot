@@ -436,22 +436,24 @@ def admin_quit_command(context: CommandContext, bot_functions):
 
 @command(
     "openai",
-    description="Set or show the OpenAI model (admin only)",
+    description="Show the OpenAI model or change it as an admin",
     usage="!openai <password> [model]",
-    examples=["!openai mypass gpt-5-mini", "!openai mypass gpt-5.4", "!openai mypass"],
-    admin_only=True,
+    examples=["!openai", "!openai mypass gpt-5-mini"],
+    admin_only=False,
     requires_args=False,
 )
 def openai_command(context: CommandContext, bot_functions):
-    """Change or show the OpenAI model used by the GPT service.
+    """Show the active model publicly; require the admin password to change it."""
+    if not context.args:
+        getter = bot_functions.get("get_openai_model")
+        if getter:
+            model = getter()
+            return f"Current OpenAI model: {model}"
+        return "❌ Cannot get model: GPT service not available"
 
-    Requires admin password as the first argument and optionally model name as the second.
-    If no model is provided, shows the currently active model.
-    """
     if not verify_admin_password(context.args):
         return "❌ Invalid admin password"
 
-    # If no model provided, show current model
     if len(context.args) < 2:
         getter = bot_functions.get("get_openai_model")
         if getter:
