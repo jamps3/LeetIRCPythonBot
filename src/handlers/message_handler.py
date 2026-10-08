@@ -21,8 +21,10 @@ if _project_root not in sys.path:
 import requests  # noqa: E402
 
 from config import (  # noqa: E402
+    TITLE_BANNED_TEXTS,
     TITLE_BLACKLIST_DOMAINS,
     TITLE_BLACKLIST_EXTENSIONS,
+    get_config,
 )
 
 # Import handlers mixins
@@ -2106,10 +2108,14 @@ class MessageHandler(LatencyTrackerMixin, UrlHandlerMixin):
 
     def _is_title_banned(self, title: str) -> bool:
         """Check if a title should be banned from being displayed."""
-        banned_titles = os.getenv(
-            "TITLE_BANNED_TEXTS",
-            "Bevor Sie zu Google Maps weitergehen;Bevor Sie zur Google Suche weitergehen;Just a moment...;403 Forbidden;404 Not Found;Access Denied",
-        ).split(";")
+        configured_banned_titles = getattr(
+            get_config(), "title_banned_texts", TITLE_BANNED_TEXTS
+        )
+        if configured_banned_titles == TITLE_BANNED_TEXTS:
+            configured_banned_titles = os.getenv(
+                "TITLE_BANNED_TEXTS", configured_banned_titles
+            )
+        banned_titles = configured_banned_titles.split(";")
 
         title_lower = title.lower().strip()
 

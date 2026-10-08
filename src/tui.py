@@ -1594,6 +1594,9 @@ class ConfigEditor:
                 update_json_file(
                     self._state_file(), update_state, default={}, strict=True
                 )
+                from config import get_config_manager
+
+                get_config_manager().reload_config()
 
             return "Configuration saved to .env and state.json"
 
