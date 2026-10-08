@@ -912,8 +912,8 @@ name = "httpcore2"
 version = "2.13.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "h11", marker = "sys_platform != 'emscripten'" },
-    { name = "truststore", marker = "sys_platform != 'emscripten'" },
+    { name = "h11" },
+    { name = "truststore" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/15/8c/e925b1c92018abb3a1863ce1549d76d2381e334d21d65d4ac8f65dabd78a/httpcore2-2.13.0.tar.gz", hash = "sha256:2adc8be4fb285fbcd6d894298db3b52c177e74b6674eda3a76bd36be3292a3db", size = 67740, upload-time = "2026-09-14T14:18:04.717Z" }
 wheels = [
@@ -2290,15 +2290,15 @@ wheels = [
 
 [[package]]
 name = "urwid"
-version = "4.1.3"
+version = "4.2.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions" },
     { name = "wcwidth" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3f/6a/8badc0baacb9c3487f2d9756bcd116645977ec00e7ac93f758feae940d7b/urwid-4.1.3.tar.gz", hash = "sha256:3fecf4ed3037fe9e8570ca8b3b7f85d090e133925825e1630957c4ff7fdbfb19", size = 944854, upload-time = "2026-09-11T13:48:07.826Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3a/df/eb5dcbdf1638c38618096382b4a30b0423ed7d2aac97fd9469b51d6de43f/urwid-4.2.5.tar.gz", hash = "sha256:a1fea3a551953fae4e6b727536334233bbb8b88c45230bc91d9751b402a8c16d", size = 358848, upload-time = "2026-10-05T15:20:02.85Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4c/63/310b25c08fe2d94b91149ede58b41b5105a67a6c8c91b6701ff3abe6322b/urwid-4.1.3-py3-none-any.whl", hash = "sha256:fa73b8e565023f7803ae421d5e5128da1df91a4c5173942ab18b9c2ac6d887bf", size = 348884, upload-time = "2026-09-11T13:48:05.401Z" },
+    { url = "https://files.pythonhosted.org/packages/42/04/c83b9b4fbf34000f4b59f883b66e88156640dd018ee0857a6cf49eda4f8c/urwid-4.2.5-py3-none-any.whl", hash = "sha256:4b1cd9916d5a3bce1a6cfec8a4f157d287f2f05471df7d908f5ae9cee7eace5f", size = 388465, upload-time = "2026-10-05T15:20:00.933Z" },
 ]
 
 [[package]]
